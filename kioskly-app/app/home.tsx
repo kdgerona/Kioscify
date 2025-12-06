@@ -570,7 +570,7 @@ export default function Home() {
                     className={orders.length > 0 ? "w-1/2 p-2" : "w-1/3 p-2"}
                     onPress={() => openCustomizeModal(product)}
                   >
-                    <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                    <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-64">
                       <View className="h-40 mb-3 justify-center items-center bg-gray-100 rounded-lg overflow-hidden">
                         {imageUri ? (
                           <Image
@@ -582,23 +582,27 @@ export default function Home() {
                           <Text className="text-gray-500 text-xs">No Image</Text>
                         )}
                       </View>
-                      <View className="flex flex-row justify-between">
+                      <View className="flex-1">
+                        <View className="flex flex-row justify-between">
+                          <Text
+                            className="font-semibold text-base flex-1 mr-2"
+                            style={{ color: textColor }}
+                            numberOfLines={1}
+                          >
+                            {product.name}
+                          </Text>
+                          <Text className="font-bold" style={{ color: textColor }}>
+                            ₱{product.price.toFixed(2)}
+                          </Text>
+                        </View>
                         <Text
-                          className="font-semibold text-base mb-1"
+                          className="text-xs font-medium"
                           style={{ color: textColor }}
+                          numberOfLines={1}
                         >
-                          {product.name}
-                        </Text>
-                        <Text className="font-bold" style={{ color: textColor }}>
-                          ₱{product.price.toFixed(2)}
+                          {getCategoryName(product.categoryId)}
                         </Text>
                       </View>
-                      <Text
-                        className="text-xs font-medium mb-1"
-                        style={{ color: textColor }}
-                      >
-                        {getCategoryName(product.categoryId)}
-                      </Text>
                     </View>
                   </TouchableOpacity>
                 );
