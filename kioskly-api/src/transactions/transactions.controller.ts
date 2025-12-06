@@ -35,7 +35,7 @@ export class TransactionsController {
     return this.transactionsService.create(
       createTransactionDto,
       req.user.id,
-      req.tenantId,
+      req.user.tenantId,
     );
   }
 
@@ -64,13 +64,14 @@ export class TransactionsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('paymentMethod') paymentMethod?: 'CASH' | 'ONLINE',
+    @Request() req?,
   ) {
     const filters: any = {};
     if (startDate) filters.startDate = new Date(startDate);
     if (endDate) filters.endDate = new Date(endDate);
     if (paymentMethod) filters.paymentMethod = paymentMethod;
 
-    return this.transactionsService.findAll(filters);
+    return this.transactionsService.findAll(req.user.tenantId, filters);
   }
 
   @Get('stats')

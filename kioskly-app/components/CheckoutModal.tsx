@@ -20,6 +20,8 @@ type CheckoutModalProps = {
     paymentMethod: PaymentMethod,
     details: PaymentDetails
   ) => void;
+  isLoading?: boolean;
+  error?: string | null;
 };
 
 type PaymentDetails = {
@@ -34,11 +36,13 @@ export default function CheckoutModal({
   totalAmount,
   onClose,
   onCheckoutComplete,
+  isLoading = false,
+  error = null,
 }: CheckoutModalProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   const [cashReceived, setCashReceived] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
-  const [error, setError] = useState("");
+  const [validationError, setValidationError] = useState("");
 
   const { tenant } = useTenant();
   const primaryColor = tenant?.themeColors?.primary || "#ea580c";
@@ -48,7 +52,7 @@ export default function CheckoutModal({
     setPaymentMethod(null);
     setCashReceived("");
     setReferenceNumber("");
-    setError("");
+    setValidationError("");
   };
 
   const handleClose = () => {
@@ -58,7 +62,7 @@ export default function CheckoutModal({
 
   const handlePaymentMethodSelect = (method: PaymentMethod) => {
     setPaymentMethod(method);
-    setError("");
+    setValidationError("");
   };
 
   const calculateChange = (): number => {
@@ -68,10 +72,10 @@ export default function CheckoutModal({
   };
 
   const validateAndSubmit = () => {
-    setError("");
+    setValidationError("");
 
     if (!paymentMethod) {
-      setError("Please select a payment method");
+      setValidationError("Please select a payment method");
       return;
     }
 
@@ -79,12 +83,12 @@ export default function CheckoutModal({
       const received = parseFloat(cashReceived);
 
       if (!cashReceived || isNaN(received)) {
-        setError("Please enter the cash amount received");
+        setValidationError("Please enter the cash amount received");
         return;
       }
 
       if (received < totalAmount) {
-        setError("Cash received is less than the total amount");
+        setValidationError("Cash received is less than the total amount");
         return;
       }
 
@@ -96,7 +100,7 @@ export default function CheckoutModal({
       });
     } else if (paymentMethod === "online") {
       if (!referenceNumber.trim()) {
-        setError("Please enter the transaction reference number");
+        setValidationError("Please enter the transaction reference number");
         return;
       }
 
@@ -106,12 +110,13 @@ export default function CheckoutModal({
       });
     }
 
-    resetForm();
+    // Don't reset form here - let parent component handle it after API success
+    // resetForm();
   };
 
   const handleBack = () => {
     setPaymentMethod(null);
-    setError("");
+    setValidationError("");
   };
 
   return (
@@ -226,7 +231,7 @@ export default function CheckoutModal({
                     value={cashReceived}
                     onChangeText={(text) => {
                       setCashReceived(text);
-                      setError("");
+                      setValidationError("");
                     }}
                     keyboardType="decimal-pad"
                     autoFocus
@@ -323,7 +328,7 @@ export default function CheckoutModal({
                     value={referenceNumber}
                     onChangeText={(text) => {
                       setReferenceNumber(text);
-                      setError("");
+                      setValidationError("");
                     }}
                     autoFocus
                     autoCapitalize="characters"
@@ -343,10 +348,12 @@ export default function CheckoutModal({
               </View>
             )}
 
-            {/* Error Message */}
-            {error && (
+            {/* Error Messages */}
+            {(validationError || error) && (
               <View className="bg-red-50 border border-red-300 rounded-lg p-4 mb-4">
-                <Text className="text-red-700 font-semibold">{error}</Text>
+                <Text className="text-red-700 font-semibold">
+                  {validationError || error}
+                </Text>
               </View>
             )}
           </ScrollView>
@@ -356,14 +363,19 @@ export default function CheckoutModal({
             <View className="px-6 py-4 border-t border-gray-200">
               <TouchableOpacity
                 className="rounded-lg py-4 items-center"
-                style={{ backgroundColor: primaryColor }}
+                style={{
+                  backgroundColor: isLoading
+                    ? `${primaryColor}80`
+                    : primaryColor,
+                }}
                 onPress={validateAndSubmit}
+                disabled={isLoading}
               >
                 <Text
                   className="text-lg font-bold"
                   style={{ color: textColor }}
                 >
-                  Complete Payment
+                  {isLoading ? "Processing..." : "Complete Payment"}
                 </Text>
               </TouchableOpacity>
             </View>

@@ -22,6 +22,7 @@ import {
 } from "../data/mockData";
 import CheckoutModal from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
+import { createTransaction } from "../services/transactionService";
 
 type OrderItem = {
   id: string;
@@ -67,6 +68,8 @@ export default function Home() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
+  const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
+  const [transactionError, setTransactionError] = useState<string | null>(null);
 
   useEffect(() => {
     // If no tenant is set, redirect to tenant setup
@@ -203,32 +206,82 @@ export default function Home() {
     setShowCheckoutModal(true);
   };
 
-  const handleCheckoutComplete = (
+  const handleCheckoutComplete = async (
     paymentMethod: "cash" | "online" | null,
     details: any
   ) => {
     if (!paymentMethod) return;
 
-    // Create transaction data
-    const transaction: TransactionData = {
-      transactionId: generateTransactionId(),
-      timestamp: new Date(),
-      items: [...orders],
-      subtotal: totalAmount,
-      total: totalAmount,
-      paymentMethod,
-      ...(paymentMethod === "cash" && {
-        cashReceived: details.cashReceived,
-        change: details.change,
-      }),
-      ...(paymentMethod === "online" && {
-        referenceNumber: details.referenceNumber,
-      }),
-    };
+    setIsCreatingTransaction(true);
+    setTransactionError(null);
 
-    setCurrentTransaction(transaction);
-    setShowCheckoutModal(false);
-    setShowTransactionSummary(true);
+    try {
+      const transactionId = generateTransactionId();
+
+      // Map frontend OrderItems to backend TransactionItems format
+      const backendItems = orders.map((item) => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+        sizeId: item.selectedSize?.id,
+        subtotal: calculateItemPrice(item) * item.quantity,
+        addons: item.selectedAddons.map((addon) => ({
+          addonId: addon.id,
+        })),
+      }));
+
+      // Create transaction payload for backend
+      const transactionPayload = {
+        transactionId,
+        subtotal: totalAmount,
+        total: totalAmount,
+        paymentMethod: paymentMethod.toUpperCase() as "CASH" | "ONLINE",
+        ...(paymentMethod === "cash" && {
+          cashReceived: details.cashReceived,
+          change: details.change,
+        }),
+        ...(paymentMethod === "online" && {
+          referenceNumber: details.referenceNumber,
+        }),
+        items: backendItems,
+      };
+
+      // Save transaction to backend
+      const savedTransaction = await createTransaction(transactionPayload);
+
+      console.log("🟢 Transaction saved to backend:", savedTransaction);
+
+      // Create transaction data for local display
+      const transaction: TransactionData = {
+        transactionId,
+        timestamp: new Date(),
+        items: [...orders],
+        subtotal: totalAmount,
+        total: totalAmount,
+        paymentMethod,
+        ...(paymentMethod === "cash" && {
+          cashReceived: details.cashReceived,
+          change: details.change,
+        }),
+        ...(paymentMethod === "online" && {
+          referenceNumber: details.referenceNumber,
+        }),
+      };
+
+      setCurrentTransaction(transaction);
+      setShowCheckoutModal(false);
+      setShowTransactionSummary(true);
+      setTransactionError(null); // Clear any previous errors
+    } catch (error) {
+      console.error("Failed to create transaction:", error);
+      setTransactionError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create transaction. Please try again."
+      );
+      // Keep checkout modal open so user can retry
+    } finally {
+      setIsCreatingTransaction(false);
+    }
   };
 
   const handleNewOrder = () => {
@@ -645,8 +698,13 @@ export default function Home() {
       <CheckoutModal
         visible={showCheckoutModal}
         totalAmount={totalAmount}
-        onClose={() => setShowCheckoutModal(false)}
+        onClose={() => {
+          setShowCheckoutModal(false);
+          setTransactionError(null);
+        }}
         onCheckoutComplete={handleCheckoutComplete}
+        isLoading={isCreatingTransaction}
+        error={transactionError}
       />
 
       {/* Transaction Summary Modal */}
