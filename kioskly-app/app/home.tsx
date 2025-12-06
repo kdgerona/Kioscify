@@ -6,10 +6,11 @@ import {
   ScrollView,
   Modal,
   Image,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Href } from "expo-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -22,6 +23,7 @@ import {
 import CheckoutModal from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
 import { createTransaction } from "../services/transactionService";
+import Swipeable from "react-native-gesture-handler/Swipeable";
 
 type OrderItem = {
   id: string;
@@ -194,6 +196,133 @@ export default function Home() {
   const getCategoryName = (categoryId: string): string => {
     const category = categories.find((c) => c.id === categoryId);
     return category ? category.name : "";
+  };
+
+  // Swipeable Order Item Component
+  const SwipeableOrderItem = ({
+    item,
+    onRemove,
+    onUpdateQuantity,
+  }: {
+    item: OrderItem;
+    onRemove: (id: string) => void;
+    onUpdateQuantity: (id: string, quantity: number) => void;
+  }) => {
+    const swipeableRef = useRef<Swipeable>(null);
+
+    const renderRightActions = (
+      progress: Animated.AnimatedInterpolation<number>,
+      dragX: Animated.AnimatedInterpolation<number>
+    ) => {
+      const opacity = dragX.interpolate({
+        inputRange: [-70, 0],
+        outputRange: [1, 0],
+        extrapolate: "clamp",
+      });
+
+      return (
+        <Animated.View
+          style={{
+            width: 70,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "#ef4444",
+            borderTopRightRadius: 8,
+            borderBottomRightRadius: 8,
+            opacity,
+          }}
+        >
+          <TouchableOpacity
+            className="w-full h-full justify-center items-center"
+            onPress={() => {
+              swipeableRef.current?.close();
+              onRemove(item.id);
+            }}
+          >
+            <Text className="text-white font-bold text-lg">×</Text>
+            <Text className="text-white text-xs mt-1">Delete</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    };
+
+    return (
+      <Swipeable
+        ref={swipeableRef}
+        renderRightActions={renderRightActions}
+        rightThreshold={40}
+        overshootRight={false}
+        containerStyle={{
+          marginBottom: 8,
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: `${primaryColor}10`,
+            borderWidth: 2,
+            borderColor: primaryColor,
+            borderRadius: 8,
+            padding: 12,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          {/* Left side - Order details */}
+          <View className="flex-1 mr-4">
+            <Text className="font-semibold" style={{ color: textColor }}>
+              {item.product.name}
+            </Text>
+            <Text className="text-xs font-medium" style={{ color: textColor }}>
+              {getCategoryName(item.product.categoryId)}
+            </Text>
+            {item.selectedSize && (
+              <Text className="text-xs" style={{ color: `${textColor}80` }}>
+                {item.selectedSize.name}
+              </Text>
+            )}
+            {item.selectedAddons.length > 0 && (
+              <Text className="text-xs" style={{ color: `${textColor}80` }}>
+                +{item.selectedAddons.map((a) => a.name).join(", ")}
+              </Text>
+            )}
+            <Text className="font-semibold mt-1" style={{ color: textColor }}>
+              ₱{calculateItemPrice(item).toFixed(2)}
+            </Text>
+          </View>
+
+          {/* Right side - Quantity controls */}
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              className="w-10 h-10 rounded justify-center items-center"
+              style={{ backgroundColor: `${primaryColor}30` }}
+              onPress={() => onUpdateQuantity(item.id, item.quantity - 1)}
+            >
+              <Text className="font-bold text-lg" style={{ color: textColor }}>
+                -
+              </Text>
+            </TouchableOpacity>
+            <Text
+              className="mx-4 font-semibold text-lg"
+              style={{ color: textColor }}
+            >
+              {item.quantity}
+            </Text>
+            <TouchableOpacity
+              className="w-10 h-10 rounded justify-center items-center"
+              style={{ backgroundColor: `${primaryColor}30` }}
+              onPress={() => onUpdateQuantity(item.id, item.quantity + 1)}
+            >
+              <Text className="font-bold text-lg" style={{ color: textColor }}>
+                +
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Swipeable>
+    );
   };
 
   const handleCheckout = () => {
@@ -412,80 +541,12 @@ export default function Home() {
             </Text>
             <ScrollView className="flex-1">
               {orders.map((item) => (
-                <View
+                <SwipeableOrderItem
                   key={item.id}
-                  className="rounded-lg p-3 mb-2 flex-row justify-between items-center border"
-                  style={{
-                    backgroundColor: `${primaryColor}10`,
-                    borderColor: `${primaryColor}30`,
-                  }}
-                >
-                  <View className="flex-1">
-                    <Text
-                      className="font-semibold"
-                      style={{ color: textColor }}
-                    >
-                      {item.product.name}
-                    </Text>
-                    <Text
-                      className="text-xs font-medium"
-                      style={{ color: textColor }}
-                    >
-                      {getCategoryName(item.product.categoryId)}
-                    </Text>
-                    {item.selectedSize && (
-                      <Text
-                        className="text-xs"
-                        style={{ color: `${textColor}80` }}
-                      >
-                        {item.selectedSize.name}
-                      </Text>
-                    )}
-                    {item.selectedAddons.length > 0 && (
-                      <Text
-                        className="text-xs"
-                        style={{ color: `${textColor}80` }}
-                      >
-                        +{item.selectedAddons.map((a) => a.name).join(", ")}
-                      </Text>
-                    )}
-                    <Text style={{ color: `${textColor}B3` }}>
-                      ₱{calculateItemPrice(item).toFixed(2)}
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center">
-                    <TouchableOpacity
-                      className="w-8 h-8 rounded justify-center items-center"
-                      style={{ backgroundColor: `${primaryColor}30` }}
-                      onPress={() => updateQuantity(item.id, item.quantity - 1)}
-                    >
-                      <Text className="font-bold" style={{ color: textColor }}>
-                        -
-                      </Text>
-                    </TouchableOpacity>
-                    <Text
-                      className="mx-3 font-semibold"
-                      style={{ color: textColor }}
-                    >
-                      {item.quantity}
-                    </Text>
-                    <TouchableOpacity
-                      className="w-8 h-8 rounded justify-center items-center"
-                      style={{ backgroundColor: `${primaryColor}30` }}
-                      onPress={() => updateQuantity(item.id, item.quantity + 1)}
-                    >
-                      <Text className="font-bold" style={{ color: textColor }}>
-                        +
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                  <TouchableOpacity
-                    className="ml-3 bg-red-500 w-8 h-8 rounded justify-center items-center"
-                    onPress={() => removeFromOrder(item.id)}
-                  >
-                    <Text className="text-white font-bold">×</Text>
-                  </TouchableOpacity>
-                </View>
+                  item={item}
+                  onRemove={removeFromOrder}
+                  onUpdateQuantity={updateQuantity}
+                />
               ))}
             </ScrollView>
 
