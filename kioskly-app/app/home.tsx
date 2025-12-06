@@ -46,6 +46,7 @@ type Product = {
 type Category = {
   id: string;
   name: string;
+  sequenceNo: number;
 };
 
 type OrderItem = {
@@ -106,7 +107,7 @@ export default function Home() {
         // Fetch categories
         const categoriesResponse = await apiGet("/categories");
         if (categoriesResponse.ok) {
-          const categoriesData = await categoriesResponse.json();
+          const categoriesData: Category[] = await categoriesResponse.json();
           setCategories(categoriesData);
           if (categoriesData.length > 0 && !selectedCategory) {
             setSelectedCategory(categoriesData[0].id);

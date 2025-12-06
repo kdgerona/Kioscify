@@ -12,7 +12,7 @@ export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCategoryDto: CreateCategoryDto, tenantId: string) {
-    const { id, name } = createCategoryDto;
+    const { id, name, sequenceNo } = createCategoryDto;
 
     const existingCategory = await this.prisma.category.findUnique({
       where: { id },
@@ -23,14 +23,14 @@ export class CategoriesService {
     }
 
     return this.prisma.category.create({
-      data: { id, name, tenantId },
+      data: { id, name, tenantId, sequenceNo: sequenceNo ?? 0 },
     });
   }
 
   async findAll(tenantId: string) {
     return this.prisma.category.findMany({
       where: { tenantId },
-      orderBy: { name: 'asc' },
+      orderBy: { sequenceNo: 'asc' },
     });
   }
 

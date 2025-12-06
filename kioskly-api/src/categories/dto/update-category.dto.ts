@@ -1,9 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsInt } from 'class-validator';
 
 export class UpdateCategoryDto {
   @ApiProperty({ example: 'Lemonade', required: false })
   @IsString()
   @IsOptional()
   name?: string;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsInt()
+  @IsOptional()
+  sequenceNo?: number;
 }

@@ -78,16 +78,36 @@ async function main() {
 
   // Create categories
   const categories = [
-    { id: 'lemonade', name: 'Lemonade', tenantId: tenant.id },
-    { id: 'hot-lemonade', name: 'Hot Lemonade', tenantId: tenant.id },
-    { id: 'calamansi', name: 'Calamansi', tenantId: tenant.id },
-    { id: 'hot-calamansi', name: 'Hot Calamansi', tenantId: tenant.id },
+    {
+      id: 'lemonade',
+      name: 'Lemonade',
+      sequenceNo: 1,
+      tenantId: tenant.id,
+    },
+    {
+      id: 'hot-lemonade',
+      name: 'Hot Lemonade',
+      sequenceNo: 2,
+      tenantId: tenant.id,
+    },
+    {
+      id: 'calamansi',
+      name: 'Calamansi',
+      sequenceNo: 3,
+      tenantId: tenant.id,
+    },
+    {
+      id: 'hot-calamansi',
+      name: 'Hot Calamansi',
+      sequenceNo: 4,
+      tenantId: tenant.id,
+    },
   ];
 
   for (const category of categories) {
     await prisma.category.upsert({
       where: { id: category.id },
-      update: {},
+      update: { sequenceNo: category.sequenceNo },
       create: category,
     });
   }
