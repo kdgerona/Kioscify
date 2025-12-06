@@ -7,23 +7,46 @@ import {
   Modal,
   Image,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Href } from "expo-router";
 import { useState, useEffect, useRef } from "react";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
-import {
-  categories,
-  products,
-  type Product,
-  type Size,
-  type Addon,
-} from "../data/mockData";
+import { apiGet, getApiUrl } from "../utils/api";
 import CheckoutModal from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
 import { createTransaction } from "../services/transactionService";
 import Swipeable from "react-native-gesture-handler/Swipeable";
+
+type Size = {
+  id: string;
+  name: string;
+  priceModifier: number;
+  volume?: string;
+};
+
+type Addon = {
+  id: string;
+  name: string;
+  price: number;
+};
+
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  categoryId: string;
+  image?: string;
+  sizes?: Size[];
+  addons?: Addon[];
+};
+
+type Category = {
+  id: string;
+  name: string;
+};
 
 type OrderItem = {
   id: string;
@@ -57,9 +80,10 @@ export default function Home() {
   const router = useRouter();
   const { tenant } = useTenant();
   const { user, logout } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState<string>(
-    categories[0]?.id || "lemonade"
-  );
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [showCustomizeModal, setShowCustomizeModal] = useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
@@ -71,6 +95,39 @@ export default function Home() {
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
+
+  // Fetch categories and products from API
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!tenant) return;
+      
+      setIsLoadingData(true);
+      try {
+        // Fetch categories
+        const categoriesResponse = await apiGet("/categories");
+        if (categoriesResponse.ok) {
+          const categoriesData = await categoriesResponse.json();
+          setCategories(categoriesData);
+          if (categoriesData.length > 0 && !selectedCategory) {
+            setSelectedCategory(categoriesData[0].id);
+          }
+        }
+
+        // Fetch products
+        const productsResponse = await apiGet("/products");
+        if (productsResponse.ok) {
+          const productsData = await productsResponse.json();
+          setProducts(productsData);
+        }
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchData();
+  }, [tenant]);
 
   useEffect(() => {
     // If no tenant is set, redirect to tenant setup
@@ -430,7 +487,7 @@ export default function Home() {
           {logoUri && (
             <Image
               source={{ uri: logoUri }}
-              className="w-10 h-10 mr-3"
+              className="w-10 h-10 mr-3 border-2 border-white rounded-full p-6"
               resizeMode="contain"
             />
           )}
@@ -494,40 +551,60 @@ export default function Home() {
           <Text className="text-lg font-bold mb-4" style={{ color: textColor }}>
             Products
           </Text>
+          {isLoadingData ? (
+            <View className="flex-1 justify-center items-center">
+              <ActivityIndicator size="large" color={primaryColor} />
+              <Text className="mt-2 text-gray-500">Loading products...</Text>
+            </View>
+          ) : (
           <ScrollView>
             <View className="flex-row flex-wrap">
-              {filteredProducts.map((product) => (
-                <TouchableOpacity
-                  key={product.id}
-                  className="w-1/2 p-2"
-                  onPress={() => openCustomizeModal(product)}
-                >
-                  <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <View className="h-32 mb-3 justify-center items-center bg-gray-100 rounded-lg">
-                      <Text className="text-gray-500 text-xs">No Image</Text>
-                    </View>
-                    <View className="flex flex-row justify-between">
+              {filteredProducts.map((product) => {
+                const imageUri = product.image
+                  ? `${getApiUrl()}${product.image}`
+                  : null;
+                return (
+                  <TouchableOpacity
+                    key={product.id}
+                    className={orders.length > 0 ? "w-1/2 p-2" : "w-1/3 p-2"}
+                    onPress={() => openCustomizeModal(product)}
+                  >
+                    <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                      <View className="h-40 mb-3 justify-center items-center bg-gray-100 rounded-lg overflow-hidden">
+                        {imageUri ? (
+                          <Image
+                            source={{ uri: imageUri }}
+                            className="w-full h-full"
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Text className="text-gray-500 text-xs">No Image</Text>
+                        )}
+                      </View>
+                      <View className="flex flex-row justify-between">
+                        <Text
+                          className="font-semibold text-base mb-1"
+                          style={{ color: textColor }}
+                        >
+                          {product.name}
+                        </Text>
+                        <Text className="font-bold" style={{ color: textColor }}>
+                          ₱{product.price.toFixed(2)}
+                        </Text>
+                      </View>
                       <Text
-                        className="font-semibold text-base mb-1"
+                        className="text-xs font-medium mb-1"
                         style={{ color: textColor }}
                       >
-                        {product.name}
-                      </Text>
-                      <Text className="font-bold" style={{ color: textColor }}>
-                        ₱{product.price.toFixed(2)}
+                        {getCategoryName(product.categoryId)}
                       </Text>
                     </View>
-                    <Text
-                      className="text-xs font-medium mb-1"
-                      style={{ color: textColor }}
-                    >
-                      {getCategoryName(product.categoryId)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </ScrollView>
+          )}
         </View>
 
         {/* Orders Panel - Only shows if there are orders */}
