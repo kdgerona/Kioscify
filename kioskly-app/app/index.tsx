@@ -7,16 +7,21 @@ import {
   Text,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { useRouter, Href } from "expo-router";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import LogoWithAppName from "../assets/images/logo-with-appname.png";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function Index() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const { tenant, clearTenant } = useTenant();
   const { login, loading, error, clearError } = useAuth();
@@ -78,7 +83,17 @@ export default function Index() {
   const logoUri = tenant.logoUrl ? tenant?.logoUrl : null;
 
   return (
-    <View className="w-full h-full justify-center items-center bg-white px-8">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingVertical: 24 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        className="bg-white"
+      >
+        <View className="flex-1 justify-center items-center">
       {logoUri ? (
         <Image
           source={{ uri: logoUri }}
@@ -104,17 +119,30 @@ export default function Index() {
           editable={!loading}
         />
 
-        <TextInput
-          className="w-full bg-gray-100 rounded-lg px-4 py-3 mb-2 text-base"
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!loading}
-          onSubmitEditing={handleLogin}
-        />
+        <View className="w-full relative mb-2">
+          <TextInput
+            className="w-full bg-gray-100 rounded-lg px-4 py-3 pr-12 text-base"
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
+            onSubmitEditing={handleLogin}
+          />
+          <TouchableOpacity
+            className="absolute right-3 top-0 bottom-0 justify-center"
+            onPress={() => setShowPassword(!showPassword)}
+            disabled={loading}
+          >
+            <Ionicons
+              name={showPassword ? "eye-off" : "eye"}
+              size={22}
+              color="#6b7280"
+            />
+          </TouchableOpacity>
+        </View>
 
         {error && (
           <View className="mb-4 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
@@ -158,6 +186,8 @@ export default function Index() {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

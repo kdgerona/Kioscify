@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
@@ -35,9 +37,18 @@ export default function TenantSetup() {
   };
 
   return (
-    <SafeAreaView className="w-full h-full bg-white">
-      <ScrollView contentContainerClassName="flex-1 justify-center items-center px-8">
-        <View className="w-full max-w-md">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+    >
+      <SafeAreaView className="flex-1 bg-white">
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingVertical: 24 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+        <View className="w-full max-w-md flex-1 justify-center self-center">
           <View className="flex-col items-center justify-center mb-6">
             <Image
               source={AppLogo}
@@ -104,6 +115,7 @@ export default function TenantSetup() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
