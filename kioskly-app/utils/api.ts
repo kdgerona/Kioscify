@@ -105,6 +105,21 @@ export const apiPut = async (
 };
 
 /**
+ * Make an authenticated PATCH request
+ */
+export const apiPatch = async (
+  endpoint: string,
+  data?: any,
+  options: ApiRequestOptions = {}
+): Promise<Response> => {
+  return apiRequest(endpoint, {
+    method: "PATCH",
+    body: data ? JSON.stringify(data) : undefined,
+    ...options,
+  });
+};
+
+/**
  * Make an authenticated DELETE request
  */
 export const apiDelete = async (

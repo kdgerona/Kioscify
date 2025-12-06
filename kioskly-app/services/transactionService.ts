@@ -1,4 +1,4 @@
-import { apiPost } from "../utils/api";
+import { apiPost, apiGet, apiPatch } from "../utils/api";
 import Reactotron from "../ReactotronConfig";
 
 interface TransactionItemAddon {
@@ -21,7 +21,31 @@ interface CreateTransactionPayload {
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
+  remarks?: string;
   items: TransactionItem[];
+}
+
+export interface TransactionItemResponse {
+  id: string;
+  productId: string;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+  };
+  quantity: number;
+  sizeId?: string;
+  size?: {
+    id: string;
+    name: string;
+    priceModifier: number;
+  };
+  subtotal: number;
+  addons?: Array<{
+    id: string;
+    name: string;
+    price: number;
+  }>;
 }
 
 export interface TransactionResponse {
@@ -29,14 +53,23 @@ export interface TransactionResponse {
   transactionId: string;
   tenantId: string;
   userId: string;
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+  };
   subtotal: number;
   total: number;
   paymentMethod: string;
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
+  remarks?: string;
+  timestamp: string;
   createdAt: string;
-  items: any[];
+  updatedAt: string;
+  items: TransactionItemResponse[];
 }
 
 /**
@@ -88,6 +121,118 @@ export const createTransaction = async (
     return data;
   } catch (error) {
     console.error("Failed to create transaction:", error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch all transactions for the current tenant
+ * @param filters - Optional filters (startDate, endDate, paymentMethod)
+ * @returns List of transactions
+ */
+export const getTransactions = async (
+  filters?: {
+    startDate?: string;
+    endDate?: string;
+    paymentMethod?: "CASH" | "ONLINE";
+  }
+): Promise<TransactionResponse[]> => {
+  try {
+    const params = new URLSearchParams();
+    if (filters?.startDate) params.append("startDate", filters.startDate);
+    if (filters?.endDate) params.append("endDate", filters.endDate);
+    if (filters?.paymentMethod) params.append("paymentMethod", filters.paymentMethod);
+
+    const queryString = params.toString();
+    const endpoint = `/transactions${queryString ? `?${queryString}` : ""}`;
+
+    console.log("🔵 FETCHING TRANSACTIONS:", endpoint);
+
+    Reactotron.display({
+      name: "FETCH TRANSACTIONS",
+      value: { endpoint, filters },
+      preview: "Fetching transactions from API",
+    });
+
+    const response = await apiGet(endpoint);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log("🔴 FETCH TRANSACTIONS ERROR:", errorText);
+
+      Reactotron.display({
+        name: "FETCH TRANSACTIONS ERROR",
+        value: { status: response.status, error: errorText },
+        preview: "Failed to fetch transactions",
+        important: true,
+      });
+
+      throw new Error(`Failed to fetch transactions: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("🟢 TRANSACTIONS FETCHED:", data.length, "transactions");
+
+    Reactotron.display({
+      name: "TRANSACTIONS FETCHED",
+      value: { count: data.length },
+      preview: `Fetched ${data.length} transactions`,
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch transactions:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update transaction remarks
+ * @param transactionId - Transaction ID to update
+ * @param remarks - New remarks text
+ * @returns Updated transaction
+ */
+export const updateTransactionRemarks = async (
+  transactionId: string,
+  remarks?: string
+): Promise<TransactionResponse> => {
+  try {
+    console.log("🔵 UPDATING TRANSACTION REMARKS:", transactionId);
+
+    Reactotron.display({
+      name: "UPDATE TRANSACTION REMARKS",
+      value: { transactionId, remarks },
+      preview: `Updating remarks for ${transactionId}`,
+    });
+
+    const response = await apiPatch(`/transactions/${transactionId}`, { remarks });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log("🔴 UPDATE TRANSACTION ERROR:", errorText);
+
+      Reactotron.display({
+        name: "UPDATE TRANSACTION ERROR",
+        value: { status: response.status, error: errorText },
+        preview: "Failed to update transaction",
+        important: true,
+      });
+
+      throw new Error(`Failed to update transaction: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("🟢 TRANSACTION UPDATED:", data.transactionId);
+
+    Reactotron.display({
+      name: "TRANSACTION UPDATED",
+      value: data,
+      preview: `Transaction ${data.transactionId} updated successfully`,
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Failed to update transaction:", error);
     throw error;
   }
 };

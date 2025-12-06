@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Query,
@@ -17,6 +18,7 @@ import {
 } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { TenantId } from '../common/decorators/tenant.decorator';
 
@@ -102,5 +104,24 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   findOne(@Param('id') id: string, @TenantId() tenantId: string) {
     return this.transactionsService.findOne(id, tenantId);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update transaction remarks' })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction updated successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  update(
+    @Param('id') id: string,
+    @Body() updateTransactionDto: UpdateTransactionDto,
+    @TenantId() tenantId: string,
+  ) {
+    return this.transactionsService.updateRemarks(
+      id,
+      tenantId,
+      updateTransactionDto.remarks,
+    );
   }
 }

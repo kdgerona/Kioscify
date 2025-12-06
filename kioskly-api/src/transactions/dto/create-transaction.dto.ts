@@ -78,6 +78,15 @@ export class CreateTransactionDto {
   @IsOptional()
   referenceNumber?: string;
 
+  @ApiProperty({
+    example: 'Customer requested refund - wrong order',
+    required: false,
+    description: 'Optional remarks or notes about the transaction'
+  })
+  @IsString()
+  @IsOptional()
+  remarks?: string;
+
   @ApiProperty({ type: [TransactionItemDto] })
   @IsArray()
   @ValidateNested({ each: true })

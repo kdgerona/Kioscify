@@ -8,7 +8,6 @@ import {
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, Href } from "expo-router";
 import { useState, useEffect } from "react";
 import { useTenant } from "../contexts/TenantContext";
@@ -103,8 +102,6 @@ export default function Home() {
   }
 
   const primaryColor = tenant.themeColors?.primary || "#ea580c";
-  const secondaryColor = tenant.themeColors?.secondary || "#fb923c";
-  const accentColor = tenant.themeColors?.accent || "#fdba74";
   const textColor = tenant.themeColors?.text || "#1f2937";
   const logoUri = tenant.logoUrl || null;
   const backgroundColor = tenant.themeColors?.background || "#ffffff";
@@ -242,6 +239,9 @@ export default function Home() {
         ...(paymentMethod === "online" && {
           referenceNumber: details.referenceNumber,
         }),
+        ...(details.remarks && {
+          remarks: details.remarks,
+        }),
         items: backendItems,
       };
 
@@ -309,12 +309,23 @@ export default function Home() {
             {tenant.name}
           </Text>
         </View>
-        <TouchableOpacity
-          className="bg-gray-800 rounded-lg px-4 py-2"
-          onPress={handleLogout}
-        >
-          <Text className="text-white font-semibold">Logout</Text>
-        </TouchableOpacity>
+        <View className="flex-row gap-2">
+          <TouchableOpacity
+            className="rounded-lg px-4 py-2"
+            style={{ backgroundColor: primaryColor }}
+            onPress={() => router.push("/transactions" as Href)}
+          >
+            <Text className="font-semibold" style={{ color: textColor }}>
+              Transactions
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="bg-gray-800 rounded-lg px-4 py-2"
+            onPress={handleLogout}
+          >
+            <Text className="text-white font-semibold">Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Main Content */}

@@ -29,6 +29,7 @@ type PaymentDetails = {
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
+  remarks?: string;
 };
 
 export default function CheckoutModal({
@@ -42,6 +43,7 @@ export default function CheckoutModal({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   const [cashReceived, setCashReceived] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [remarks, setRemarks] = useState("");
   const [validationError, setValidationError] = useState("");
 
   const { tenant } = useTenant();
@@ -52,6 +54,7 @@ export default function CheckoutModal({
     setPaymentMethod(null);
     setCashReceived("");
     setReferenceNumber("");
+    setRemarks("");
     setValidationError("");
   };
 
@@ -97,6 +100,7 @@ export default function CheckoutModal({
         method: "cash",
         cashReceived: received,
         change,
+        remarks: remarks.trim() || undefined,
       });
     } else if (paymentMethod === "online") {
       if (!referenceNumber.trim()) {
@@ -107,6 +111,7 @@ export default function CheckoutModal({
       onCheckoutComplete(paymentMethod, {
         method: "online",
         referenceNumber: referenceNumber.trim(),
+        remarks: remarks.trim() || undefined,
       });
     }
 
@@ -345,6 +350,27 @@ export default function CheckoutModal({
                     payment methods.
                   </Text>
                 </View>
+              </View>
+            )}
+
+            {/* Remarks/Notes Field - Optional for all payment methods */}
+            {paymentMethod && (
+              <View className="mb-4">
+                <Text className="text-sm font-semibold text-gray-700 mb-2">
+                  Remarks (Optional)
+                </Text>
+                <TextInput
+                  className="bg-gray-100 rounded-lg px-4 py-3 text-base border-2 border-gray-200"
+                  placeholder="Add notes (e.g., corrections, special requests)"
+                  value={remarks}
+                  onChangeText={setRemarks}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+                <Text className="text-xs text-gray-500 mt-1">
+                  Use this to document any mistakes or special circumstances
+                </Text>
               </View>
             )}
 

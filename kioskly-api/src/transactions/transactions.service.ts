@@ -175,6 +175,44 @@ export class TransactionsService {
     return this.formatTransaction(transaction);
   }
 
+  async updateRemarks(id: string, tenantId: string, remarks?: string) {
+    const transaction = await this.prisma.transaction.findFirst({
+      where: { id, tenantId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with ID ${id} not found`);
+    }
+
+    const updated = await this.prisma.transaction.update({
+      where: { id },
+      data: { remarks },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        items: {
+          include: {
+            product: true,
+            size: true,
+            addons: {
+              include: {
+                addon: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return this.formatTransaction(updated);
+  }
+
   async getStats(tenantId: string, period: 'daily' | 'weekly' | 'monthly') {
     const now = new Date();
     let startDate: Date;
@@ -260,6 +298,7 @@ export class TransactionsService {
       cashReceived: transaction.cashReceived,
       change: transaction.change,
       referenceNumber: transaction.referenceNumber,
+      remarks: transaction.remarks,
       timestamp: transaction.timestamp,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
