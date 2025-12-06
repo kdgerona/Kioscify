@@ -682,9 +682,14 @@ export default function Home() {
               <Text className="text-xl font-bold" style={{ color: textColor }}>
                 {selectedProduct?.name}
               </Text>
-              <TouchableOpacity onPress={closeCustomizeModal}>
+              <TouchableOpacity
+                onPress={closeCustomizeModal}
+                className="w-11 h-11 items-center justify-center rounded-full"
+                style={{ backgroundColor: `${textColor}15` }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Text
-                  className="text-2xl font-bold"
+                  className="text-3xl font-bold leading-none"
                   style={{ color: textColor }}
                 >
                   ×

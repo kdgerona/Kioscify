@@ -321,8 +321,13 @@ export default function Transactions() {
               <Text className="text-xl font-bold" style={{ color: textColor }}>
                 {selectedTransaction?.remarks ? "Edit Remarks" : "Add Remarks"}
               </Text>
-              <TouchableOpacity onPress={closeRemarksModal}>
-                <Text className="text-2xl font-bold" style={{ color: textColor }}>
+              <TouchableOpacity
+                onPress={closeRemarksModal}
+                className="w-11 h-11 items-center justify-center rounded-full"
+                style={{ backgroundColor: `${textColor}15` }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text className="text-3xl font-bold leading-none" style={{ color: textColor }}>
                   ×
                 </Text>
               </TouchableOpacity>
