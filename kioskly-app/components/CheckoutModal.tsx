@@ -7,7 +7,7 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 
 type PaymentMethod = "cash" | "online" | null;
@@ -49,6 +49,17 @@ export default function CheckoutModal({
   const { tenant } = useTenant();
   const primaryColor = tenant?.themeColors?.primary || "#ea580c";
   const textColor = tenant?.themeColors?.text || "#1f2937";
+
+  // Reset form when modal is closed (visible changes to false)
+  useEffect(() => {
+    if (!visible) {
+      setPaymentMethod(null);
+      setCashReceived("");
+      setReferenceNumber("");
+      setRemarks("");
+      setValidationError("");
+    }
+  }, [visible]);
 
   const resetForm = () => {
     setPaymentMethod(null);

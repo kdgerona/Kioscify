@@ -369,6 +369,16 @@ async function main() {
       sizeIds: ['regular-16oz', 'large-22oz'],
       addonIds: ['nata-de-coco', 'popping-bobba', 'yakult'],
     },
+    {
+      id: 'cal-7',
+      name: 'Mango Calamansi',
+      price: 49,
+      categoryId: 'calamansi',
+      tenantId: tenant.id,
+      image: '/uploads/products/mango-calamansi.png',
+      sizeIds: ['regular-16oz', 'large-22oz'],
+      addonIds: ['nata-de-coco', 'popping-bobba', 'yakult'],
+    },
     // Hot Calamansi Category
     {
       id: 'hot-cal-1',
