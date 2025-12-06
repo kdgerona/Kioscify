@@ -1,0 +1,30 @@
+version: '3.7'
+
+name: mongo-database-kioscify
+
+services:
+  mongo:
+    build: ./mongodb_rs
+    # restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: s3cr3t
+      MONGO_INITDB_DATABASE: mongo
+      # MONGO_REPLICA_HOST: localhost
+      # MONGO_REPLICA_HOST: host.docker.internal
+      MONGO_REPLICA_HOST: localhost
+      MONGO_REPLICA_PORT: 27017
+    # networks:
+    #   - server-network
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data-kioscify:/data/db
+
+# networks:
+#   server-network:
+#     external: true
+
+volumes:
+  mongo-data-kioscify:
+    driver: local

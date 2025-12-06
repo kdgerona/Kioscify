@@ -1,0 +1,27 @@
+{
+  "name": "kioskly",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "kioskly-api",
+    "kioskly-app"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "api:dev": "npm run start:dev --workspace=kioskly-api",
+    "app:dev": "npm run start --workspace=kioskly-app",
+    "api:build": "npm run build --workspace=kioskly-api",
+    "app:build": "npm run build --workspace=kioskly-app"
+  },
+  "devDependencies": {
+    "turbo": "2.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,206 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id               String        @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  slug             String        @unique
+  description      String?
+  logoUrl          String?
+  contactEmail     String?
+  contactPhone     String?
+  address          String?
+  themeColors      ThemeColors?
+  isActive         Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  users            User[]
+  categories       Category[]
+  products         Product[]
+  sizes            Size[]
+  addons           Addon[]
+  transactions     Transaction[]
+
+  @@map("tenants")
+}
+
+type ThemeColors {
+  primary          String        @default("#ea580c")
+  secondary        String        @default("#fb923c")
+  accent           String        @default("#fdba74")
+  background       String        @default("#ffffff")
+  text             String        @default("#1f2937")
+}
+
+model User {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId     String        @db.ObjectId
+  username     String
+  password     String
+  email        String
+  role         Role          @default(CASHIER)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([tenantId, username])
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model Category {
+  id        String    @id @map("_id")
+  tenantId  String    @db.ObjectId
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products  Product[]
+
+  @@unique([tenantId, name])
+  @@map("categories")
+}
+
+model Size {
+  id                  String             @id @map("_id")
+  tenantId            String             @db.ObjectId
+  name                String
+  priceModifier       Float
+  volume              String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productSizes        ProductSize[]
+  transactionItems    TransactionItem[]
+
+  @@unique([tenantId, name])
+  @@map("sizes")
+}
+
+model Addon {
+  id                     String                  @id @map("_id")
+  tenantId               String                  @db.ObjectId
+  name                   String
+  price                  Float
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  tenant                 Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productAddons          ProductAddon[]
+  transactionItemAddons  TransactionItemAddon[]
+
+  @@unique([tenantId, name])
+  @@map("addons")
+}
+
+model Product {
+  id               String            @id @map("_id")
+  tenantId         String            @db.ObjectId
+  name             String
+  price            Float
+  categoryId       String
+  image            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category         Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  productSizes     ProductSize[]
+  productAddons    ProductAddon[]
+  transactionItems TransactionItem[]
+
+  @@unique([tenantId, name])
+  @@map("products")
+}
+
+model ProductSize {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId String
+  sizeId    String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      Size     @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, sizeId])
+  @@map("product_sizes")
+}
+
+model ProductAddon {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId String
+  addonId   String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  addon     Addon    @relation(fields: [addonId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, addonId])
+  @@map("product_addons")
+}
+
+model Transaction {
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId         String            @db.ObjectId
+  transactionId    String
+  userId           String            @db.ObjectId
+  subtotal         Float
+  total            Float
+  paymentMethod    PaymentMethod
+  cashReceived     Float?
+  change           Float?
+  referenceNumber  String?
+  timestamp        DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items            TransactionItem[]
+
+  @@unique([tenantId, transactionId])
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            String                  @id @default(auto()) @map("_id") @db.ObjectId
+  transactionId String                  @db.ObjectId
+  productId     String
+  quantity      Int
+  sizeId        String?
+  subtotal      Float
+  createdAt     DateTime                @default(now())
+  transaction   Transaction             @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product       Product                 @relation(fields: [productId], references: [id], onDelete: Restrict)
+  size          Size?                   @relation(fields: [sizeId], references: [id], onDelete: Restrict)
+  addons        TransactionItemAddon[]
+
+  @@map("transaction_items")
+}
+
+model TransactionItemAddon {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  transactionItemId String          @db.ObjectId
+  addonId           String
+  createdAt         DateTime        @default(now())
+  transactionItem   TransactionItem @relation(fields: [transactionItemId], references: [id], onDelete: Cascade)
+  addon             Addon           @relation(fields: [addonId], references: [id], onDelete: Restrict)
+
+  @@unique([transactionItemId, addonId])
+  @@map("transaction_item_addons")
+}
+
+enum Role {
+  ADMIN
+  CASHIER
+}
+
+enum PaymentMethod {
+  CASH
+  ONLINE
+}
