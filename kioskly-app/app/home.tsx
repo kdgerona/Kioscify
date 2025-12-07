@@ -19,6 +19,7 @@ import CheckoutModal from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
 import { createTransaction } from "../services/transactionService";
 import Swipeable from "react-native-gesture-handler/Swipeable";
+import { Ionicons } from "@expo/vector-icons";
 
 type Size = {
   id: string;
@@ -57,13 +58,15 @@ type OrderItem = {
   selectedAddons: Addon[];
 };
 
+type PaymentMethodType = "cash" | "card" | "gcash" | "paymaya" | "online";
+
 type TransactionData = {
   transactionId: string;
   timestamp: Date;
   items: OrderItem[];
   subtotal: number;
   total: number;
-  paymentMethod: "cash" | "online";
+  paymentMethod: PaymentMethodType;
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
@@ -391,7 +394,7 @@ export default function Home() {
   };
 
   const handleCheckoutComplete = async (
-    paymentMethod: "cash" | "online" | null,
+    paymentMethod: PaymentMethodType | null,
     details: any
   ) => {
     if (!paymentMethod) return;
@@ -418,12 +421,12 @@ export default function Home() {
         transactionId,
         subtotal: totalAmount,
         total: totalAmount,
-        paymentMethod: paymentMethod.toUpperCase() as "CASH" | "ONLINE",
+        paymentMethod: paymentMethod.toUpperCase() as "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE",
         ...(paymentMethod === "cash" && {
           cashReceived: details.cashReceived,
           change: details.change,
         }),
-        ...(paymentMethod === "online" && {
+        ...(paymentMethod !== "cash" && {
           referenceNumber: details.referenceNumber,
         }),
         ...(details.remarks && {
@@ -449,7 +452,7 @@ export default function Home() {
           cashReceived: details.cashReceived,
           change: details.change,
         }),
-        ...(paymentMethod === "online" && {
+        ...(paymentMethod !== "cash" && {
           referenceNumber: details.referenceNumber,
         }),
       };
@@ -496,21 +499,27 @@ export default function Home() {
             {tenant.name}
           </Text>
         </View>
-        <View className="flex-row gap-2">
+        <View className="flex-row gap-6">
           <TouchableOpacity
-            className="rounded-lg px-4 py-2"
+            className="rounded-lg p-2"
             style={{ backgroundColor: primaryColor }}
             onPress={() => router.push("/transactions" as Href)}
           >
-            <Text className="font-semibold" style={{ color: textColor }}>
-              Transactions
-            </Text>
+            <Ionicons name="receipt-outline" size={24} color={textColor} />
           </TouchableOpacity>
           <TouchableOpacity
-            className="bg-gray-800 rounded-lg px-4 py-2"
+            className="rounded-lg p-2"
+            style={{ backgroundColor: primaryColor }}
+            onPress={() => router.push("/expenses" as Href)}
+          >
+            <Ionicons name="wallet-outline" size={24} color={textColor} />
+          </TouchableOpacity>
+          <View className="w-px bg-black self-stretch mx-2" />
+          <TouchableOpacity
+            className="rounded-lg p-2"
             onPress={handleLogout}
           >
-            <Text className="text-white font-semibold">Logout</Text>
+            <Ionicons name="log-out-outline" size={24} color={textColor} />
           </TouchableOpacity>
         </View>
       </View>

@@ -13,11 +13,13 @@ interface TransactionItem {
   addons?: TransactionItemAddon[];
 }
 
+export type PaymentMethodType = "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE";
+
 interface CreateTransactionPayload {
   transactionId: string;
   subtotal: number;
   total: number;
-  paymentMethod: "CASH" | "ONLINE";
+  paymentMethod: PaymentMethodType;
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
@@ -134,7 +136,7 @@ export const getTransactions = async (
   filters?: {
     startDate?: string;
     endDate?: string;
-    paymentMethod?: "CASH" | "ONLINE";
+    paymentMethod?: PaymentMethodType;
   }
 ): Promise<TransactionResponse[]> => {
   try {

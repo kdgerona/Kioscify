@@ -55,7 +55,7 @@ export default function TenantSetup() {
               resizeMode="contain"
               className="w-64 h-64"
             />
-            <Text className="text-3xl font-bold text-orange-600 mb-2 text-center mt-[-40]">
+            <Text className="text-3xl font-bold text-orange-600 mb-2 text-center mt-[-40] w-full">
               Welcome to Kioscify
             </Text>
             <Text className="text-gray-600 mb-8 text-center">

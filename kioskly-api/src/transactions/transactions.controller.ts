@@ -56,7 +56,19 @@ export class TransactionsController {
   @ApiQuery({
     name: 'paymentMethod',
     required: false,
-    enum: ['CASH', 'ONLINE'],
+    enum: ['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE'],
+    description: 'Filter by payment method',
+  })
+  @ApiQuery({
+    name: 'paymentStatus',
+    required: false,
+    enum: ['COMPLETED', 'PENDING', 'FAILED'],
+    description: 'Filter by payment status',
+  })
+  @ApiQuery({
+    name: 'transactionId',
+    required: false,
+    description: 'Search by transaction ID (partial match)',
   })
   @ApiResponse({
     status: 200,
@@ -65,13 +77,18 @@ export class TransactionsController {
   findAll(
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @Query('paymentMethod') paymentMethod?: 'CASH' | 'ONLINE',
+    @Query('paymentMethod')
+    paymentMethod?: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE',
+    @Query('paymentStatus') paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED',
+    @Query('transactionId') transactionId?: string,
     @Request() req?,
   ) {
     const filters: any = {};
     if (startDate) filters.startDate = new Date(startDate);
     if (endDate) filters.endDate = new Date(endDate);
     if (paymentMethod) filters.paymentMethod = paymentMethod;
+    if (paymentStatus) filters.paymentStatus = paymentStatus;
+    if (transactionId) filters.transactionId = transactionId;
 
     return this.transactionsService.findAll(req.user.tenantId, filters);
   }

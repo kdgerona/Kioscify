@@ -98,7 +98,9 @@ export class TransactionsService {
     filters?: {
       startDate?: Date;
       endDate?: Date;
-      paymentMethod?: 'CASH' | 'ONLINE';
+      paymentMethod?: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE';
+      paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED';
+      transactionId?: string;
     },
   ) {
     const where: Prisma.TransactionWhereInput = { tenantId };
@@ -110,7 +112,18 @@ export class TransactionsService {
     }
 
     if (filters?.paymentMethod) {
-      where.paymentMethod = filters.paymentMethod;
+      where.paymentMethod = filters.paymentMethod as any;
+    }
+
+    if (filters?.paymentStatus) {
+      (where as any).paymentStatus = filters.paymentStatus;
+    }
+
+    if (filters?.transactionId) {
+      where.transactionId = {
+        contains: filters.transactionId,
+        mode: 'insensitive',
+      } as any;
     }
 
     const transactions = await this.prisma.transaction.findMany({
@@ -295,6 +308,7 @@ export class TransactionsService {
       subtotal: transaction.subtotal,
       total: transaction.total,
       paymentMethod: transaction.paymentMethod,
+      paymentStatus: (transaction as any).paymentStatus || 'COMPLETED',
       cashReceived: transaction.cashReceived,
       change: transaction.change,
       referenceNumber: transaction.referenceNumber,

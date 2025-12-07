@@ -172,10 +172,10 @@ export default function Transactions() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
           >
-            {transactions.map((transaction) => (
+            {transactions.map((transaction, index) => (
+              <View key={transaction.id}>
               <View
-                key={transaction.id}
-                className="bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-200"
+                className="bg-white rounded-lg p-4 shadow-sm border border-gray-200"
               >
                 {/* Transaction Header */}
                 <View className="flex-row justify-between items-start mb-3">
@@ -299,6 +299,12 @@ export default function Transactions() {
                   )}
                 </View>
               </View>
+
+              {/* Black Dashed Divider */}
+              {index < transactions.length - 1 && (
+                <View className="border-b border-dashed border-black my-3" />
+              )}
+            </View>
             ))}
           </ScrollView>
         )}

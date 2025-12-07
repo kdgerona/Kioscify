@@ -29,6 +29,7 @@ model Tenant {
   sizes            Size[]
   addons           Addon[]
   transactions     Transaction[]
+  expenses         Expense[]
 
   @@map("tenants")
 }
@@ -52,6 +53,7 @@ model User {
   updatedAt    DateTime      @updatedAt
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  expenses     Expense[]
 
   @@unique([tenantId, username])
   @@unique([tenantId, email])
@@ -154,6 +156,7 @@ model Transaction {
   subtotal         Float
   total            Float
   paymentMethod    PaymentMethod
+  paymentStatus    PaymentStatus     @default(COMPLETED)
   cashReceived     Float?
   change           Float?
   referenceNumber  String?
@@ -204,5 +207,43 @@ enum Role {
 
 enum PaymentMethod {
   CASH
+  CARD
+  GCASH
+  PAYMAYA
   ONLINE
+}
+
+enum PaymentStatus {
+  COMPLETED
+  PENDING
+  FAILED
+}
+
+model Expense {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String          @db.ObjectId
+  userId      String          @db.ObjectId
+  description String
+  amount      Float
+  category    ExpenseCategory
+  date        DateTime        @default(now())
+  receipt     String?
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("expenses")
+}
+
+enum ExpenseCategory {
+  SUPPLIES
+  UTILITIES
+  RENT
+  SALARIES
+  MARKETING
+  MAINTENANCE
+  TRANSPORTATION
+  MISCELLANEOUS
 }

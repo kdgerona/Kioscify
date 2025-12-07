@@ -4,7 +4,8 @@
   "private": true,
   "workspaces": [
     "kioskly-api",
-    "kioskly-app"
+    "kioskly-app",
+    "kioskly-admin"
   ],
   "scripts": {
     "build": "turbo run build",
@@ -15,8 +16,10 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "api:dev": "npm run start:dev --workspace=kioskly-api",
     "app:dev": "npm run start --workspace=kioskly-app",
+    "admin:dev": "npm run dev --workspace=kioskly-admin",
     "api:build": "npm run build --workspace=kioskly-api",
-    "app:build": "npm run build --workspace=kioskly-app"
+    "app:build": "npm run build --workspace=kioskly-app",
+    "admin:build": "npm run build --workspace=kioskly-admin"
   },
   "devDependencies": {
     "turbo": "2.6.0"

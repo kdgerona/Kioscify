@@ -12,13 +12,15 @@ type OrderItem = {
   selectedAddons: Addon[];
 };
 
+type PaymentMethodType = "cash" | "card" | "gcash" | "paymaya" | "online";
+
 type TransactionData = {
   transactionId: string;
   timestamp: Date;
   items: OrderItem[];
   subtotal: number;
   total: number;
-  paymentMethod: "cash" | "online";
+  paymentMethod: PaymentMethodType;
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
@@ -283,9 +285,11 @@ export default function TransactionSummary({
                     Payment Method:
                   </Text>
                   <Text className="text-sm font-bold text-gray-900">
-                    {transaction.paymentMethod === "cash"
-                      ? "Cash Payment"
-                      : "Online Transaction"}
+                    {transaction.paymentMethod === "cash" && "💵 Cash Payment"}
+                    {transaction.paymentMethod === "card" && "💳 Card Payment"}
+                    {transaction.paymentMethod === "gcash" && "📱 GCash"}
+                    {transaction.paymentMethod === "paymaya" && "📱 PayMaya"}
+                    {transaction.paymentMethod === "online" && "🌐 Online Transaction"}
                   </Text>
                 </View>
 
@@ -312,10 +316,13 @@ export default function TransactionSummary({
                   </>
                 )}
 
-                {transaction.paymentMethod === "online" && (
+                {transaction.paymentMethod !== "cash" && (
                   <View className="bg-blue-50 rounded-lg p-2 mt-2 border border-blue-200">
                     <Text className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">
-                      Reference Number
+                      {transaction.paymentMethod === "card" && "Authorization Number"}
+                      {transaction.paymentMethod === "gcash" && "GCash Reference Number"}
+                      {transaction.paymentMethod === "paymaya" && "PayMaya Reference Number"}
+                      {transaction.paymentMethod === "online" && "Reference Number"}
                     </Text>
                     <Text className="text-sm font-bold text-blue-900">
                       {transaction.referenceNumber}

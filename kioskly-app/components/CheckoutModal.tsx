@@ -10,7 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 
-type PaymentMethod = "cash" | "online" | null;
+export type PaymentMethod = "cash" | "card" | "gcash" | "paymaya" | "online" | null;
 
 type CheckoutModalProps = {
   visible: boolean;
@@ -113,14 +113,15 @@ export default function CheckoutModal({
         change,
         remarks: remarks.trim() || undefined,
       });
-    } else if (paymentMethod === "online") {
+    } else {
+      // card, gcash, paymaya, online - all require reference number
       if (!referenceNumber.trim()) {
         setValidationError("Please enter the transaction reference number");
         return;
       }
 
       onCheckoutComplete(paymentMethod, {
-        method: "online",
+        method: paymentMethod,
         referenceNumber: referenceNumber.trim(),
         remarks: remarks.trim() || undefined,
       });
@@ -204,11 +205,11 @@ export default function CheckoutModal({
                 </Text>
 
                 <TouchableOpacity
-                  className="bg-green-500 rounded-lg p-6 mb-3 items-center shadow-sm"
+                  className="bg-green-500 rounded-lg p-4 mb-3 items-center shadow-sm"
                   onPress={() => handlePaymentMethodSelect("cash")}
                 >
                   <Text className="text-white text-xl font-bold mb-1">
-                    Cash Payment
+                    💵 Cash Payment
                   </Text>
                   <Text className="text-green-50 text-sm">
                     Receive cash and provide change
@@ -216,14 +217,50 @@ export default function CheckoutModal({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  className="bg-blue-500 rounded-lg p-6 items-center shadow-sm"
+                  className="bg-purple-500 rounded-lg p-4 mb-3 items-center shadow-sm"
+                  onPress={() => handlePaymentMethodSelect("card")}
+                >
+                  <Text className="text-white text-xl font-bold mb-1">
+                    💳 Card Payment
+                  </Text>
+                  <Text className="text-purple-50 text-sm">
+                    Credit or Debit Card
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="bg-blue-600 rounded-lg p-4 mb-3 items-center shadow-sm"
+                  onPress={() => handlePaymentMethodSelect("gcash")}
+                >
+                  <Text className="text-white text-xl font-bold mb-1">
+                    📱 GCash
+                  </Text>
+                  <Text className="text-blue-50 text-sm">
+                    Pay via GCash mobile wallet
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="bg-green-600 rounded-lg p-4 mb-3 items-center shadow-sm"
+                  onPress={() => handlePaymentMethodSelect("paymaya")}
+                >
+                  <Text className="text-white text-xl font-bold mb-1">
+                    📱 PayMaya
+                  </Text>
+                  <Text className="text-green-50 text-sm">
+                    Pay via PayMaya / Maya
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="bg-gray-600 rounded-lg p-4 items-center shadow-sm"
                   onPress={() => handlePaymentMethodSelect("online")}
                 >
                   <Text className="text-white text-xl font-bold mb-1">
-                    Online Transaction
+                    🌐 Other Online Payment
                   </Text>
-                  <Text className="text-blue-50 text-sm">
-                    GCash, PayMaya, Bank Transfer, etc.
+                  <Text className="text-gray-50 text-sm">
+                    Bank Transfer, Other e-wallets
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -332,20 +369,31 @@ export default function CheckoutModal({
               </View>
             )}
 
-            {/* Online Transaction Form */}
-            {paymentMethod === "online" && (
+            {/* Non-Cash Payment Form (Card, GCash, PayMaya, Online) */}
+            {paymentMethod && paymentMethod !== "cash" && (
               <View>
                 <Text className="text-lg font-bold mb-4 text-gray-800">
-                  Online Transaction
+                  {paymentMethod === "card" && "Card Payment"}
+                  {paymentMethod === "gcash" && "GCash Payment"}
+                  {paymentMethod === "paymaya" && "PayMaya Payment"}
+                  {paymentMethod === "online" && "Online Transaction"}
                 </Text>
 
                 <View className="mb-4">
                   <Text className="text-sm font-semibold text-gray-700 mb-2">
-                    Reference Number
+                    Reference / Authorization Number
                   </Text>
                   <TextInput
                     className="bg-gray-100 rounded-lg px-4 py-4 text-lg border-2 border-gray-200"
-                    placeholder="Enter transaction reference number"
+                    placeholder={
+                      paymentMethod === "card"
+                        ? "Enter card authorization number"
+                        : paymentMethod === "gcash"
+                        ? "Enter GCash reference number"
+                        : paymentMethod === "paymaya"
+                        ? "Enter PayMaya reference number"
+                        : "Enter transaction reference number"
+                    }
                     value={referenceNumber}
                     onChangeText={(text) => {
                       setReferenceNumber(text);
@@ -361,10 +409,26 @@ export default function CheckoutModal({
                     Please ensure you have received the payment confirmation
                     before proceeding.
                   </Text>
-                  <Text className="text-xs text-gray-600">
-                    Supported: GCash, PayMaya, Bank Transfer, and other online
-                    payment methods.
-                  </Text>
+                  {paymentMethod === "card" && (
+                    <Text className="text-xs text-gray-600">
+                      Enter the authorization code from the card terminal.
+                    </Text>
+                  )}
+                  {paymentMethod === "gcash" && (
+                    <Text className="text-xs text-gray-600">
+                      Enter the GCash reference number from the payment confirmation.
+                    </Text>
+                  )}
+                  {paymentMethod === "paymaya" && (
+                    <Text className="text-xs text-gray-600">
+                      Enter the PayMaya/Maya reference number from the payment confirmation.
+                    </Text>
+                  )}
+                  {paymentMethod === "online" && (
+                    <Text className="text-xs text-gray-600">
+                      Supported: Bank Transfer and other online payment methods.
+                    </Text>
+                  )}
                 </View>
               </View>
             )}
