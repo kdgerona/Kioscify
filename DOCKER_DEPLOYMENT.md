@@ -46,13 +46,14 @@ NEXT_PUBLIC_API_URL=http://your-domain-or-ip/api/v1
 
 ```bash
 # Build and start all services
-docker-compose up -d --build
+# Use 'docker compose' on Ubuntu 24.04, 'docker-compose' on older systems
+docker compose up -d --build
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Check service status
-docker-compose ps
+docker compose ps
 ```
 
 ### 4. Access the Application
@@ -120,9 +121,9 @@ kioskly/
 
 ### 1. Launch EC2 Instance
 
-- **AMI**: Amazon Linux 2023 or Ubuntu 22.04
-- **Instance Type**: t3.small or larger (recommended: t3.medium)
-- **Storage**: 30GB+ SSD
+- **AMI**: Ubuntu 24.04 LTS (recommended), Ubuntu 22.04 LTS, or Amazon Linux 2023
+- **Instance Type**: t3.small or larger (recommended: t3.medium for production)
+- **Storage**: 30GB+ SSD (gp3 recommended)
 - **Security Group**:
   - Port 22 (SSH)
   - Port 80 (HTTP)
@@ -130,8 +131,45 @@ kioskly/
 
 ### 2. Install Docker
 
+#### For Ubuntu 24.04 LTS (Recommended)
+
 ```bash
-# For Amazon Linux 2023
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install prerequisites
+sudo apt install -y ca-certificates curl gnupg
+
+# Add Docker's official GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Add Docker repository
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker Engine and Docker Compose
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Start and enable Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Add current user to docker group (replace 'ubuntu' with your username if different)
+sudo usermod -aG docker ubuntu
+
+# Apply group changes (or logout and login again)
+newgrp docker
+```
+
+#### For Amazon Linux 2023
+
+```bash
+# Update and install Docker
 sudo yum update -y
 sudo yum install -y docker
 sudo systemctl start docker
@@ -145,18 +183,34 @@ sudo chmod +x /usr/local/bin/docker-compose
 # Logout and login again for group changes to take effect
 ```
 
-### 3. Clone and Deploy
+### 3. Verify Installation
 
 ```bash
+# Check Docker version
+docker --version
+
+# Check Docker Compose version (Ubuntu 24.04 uses plugin syntax)
+docker compose version
+
+# Test Docker is working
+docker run hello-world
+```
+
+### 4. Clone and Deploy
+
+```bash
+# Clone repository
 git clone <your-repo-url> kioskly
 cd kioskly
 
 # Create .env file
 nano .env
 
-# Deploy
-docker-compose up -d --build
+# Deploy (note: Ubuntu 24.04 uses 'docker compose' instead of 'docker-compose')
+docker compose up -d --build
 ```
+
+> **Note for Ubuntu 24.04**: Docker Compose is installed as a Docker plugin, so use `docker compose` (with a space) instead of `docker-compose` (with a hyphen).
 
 ## SSL Configuration (Let's Encrypt)
 
@@ -168,7 +222,7 @@ Edit `docker/nginx/nginx.conf` and uncomment the SSL server block.
 
 ```bash
 # Stop nginx temporarily
-docker-compose stop nginx
+docker compose stop nginx
 
 # Run certbot
 docker run -it --rm \
@@ -184,7 +238,7 @@ docker run -it --rm \
 # Uncomment the HTTPS server block and HTTP redirect
 
 # Restart services
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 3. Auto-Renewal
@@ -193,30 +247,38 @@ Uncomment the `certbot` service in `docker-compose.yml` for automatic certificat
 
 ## Common Commands
 
+> **Note**: On Ubuntu 24.04, use `docker compose` (with a space) instead of `docker-compose` (with a hyphen). Both syntaxes are shown below.
+
 ```bash
 # Start all services
-docker-compose up -d
+docker compose up -d          # Ubuntu 24.04
+docker-compose up -d          # Amazon Linux / older systems
 
 # Stop all services
+docker compose down
 docker-compose down
 
 # Rebuild a specific service
+docker compose up -d --build api
 docker-compose up -d --build api
 
 # View logs
-docker-compose logs -f api
-docker-compose logs -f admin
-docker-compose logs -f nginx
+docker compose logs -f api
+docker compose logs -f admin
+docker compose logs -f nginx
 
 # Execute command in container
-docker-compose exec api sh
-docker-compose exec mongo mongosh
+docker compose exec api sh
+docker compose exec mongo mongosh
 
 # Restart a service
-docker-compose restart api
+docker compose restart api
 
 # Check resource usage
 docker stats
+
+# Check service status
+docker compose ps
 ```
 
 ## Backup and Restore
@@ -225,7 +287,7 @@ docker stats
 
 ```bash
 # Create backup
-docker-compose exec mongo mongodump \
+docker compose exec mongo mongodump \
   --username root \
   --password your-password \
   --authenticationDatabase admin \
@@ -242,7 +304,7 @@ docker cp kioskly-mongo:/data/backup ./backup
 docker cp ./backup kioskly-mongo:/data/backup
 
 # Restore
-docker-compose exec mongo mongorestore \
+docker compose exec mongo mongorestore \
   --username root \
   --password your-password \
   --authenticationDatabase admin \
@@ -255,23 +317,23 @@ docker-compose exec mongo mongorestore \
 
 ```bash
 # Check logs
-docker-compose logs api
+docker compose logs api
 
 # Check container status
-docker-compose ps
+docker compose ps
 
 # Restart the service
-docker-compose restart api
+docker compose restart api
 ```
 
 ### MongoDB Connection Issues
 
 ```bash
 # Check MongoDB is healthy
-docker-compose exec mongo mongosh --eval "rs.status()"
+docker compose exec mongo mongosh --eval "rs.status()"
 
 # Check network connectivity
-docker-compose exec api ping mongo
+docker compose exec api ping mongo
 ```
 
 ### Nginx 502 Bad Gateway
@@ -280,10 +342,10 @@ This usually means the upstream service isn't running:
 
 ```bash
 # Check if api and admin are running
-docker-compose ps
+docker compose ps
 
 # Restart all services
-docker-compose restart
+docker compose restart
 ```
 
 ### Out of Disk Space

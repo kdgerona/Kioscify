@@ -8,10 +8,10 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json yarn.lock* ./
 
 # Install dependencies
-RUN npm ci
+RUN yarn install --frozen-lockfile || yarn install
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
@@ -30,7 +30,7 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build the application
-RUN npm run build
+RUN yarn build
 
 # Stage 3: Production
 FROM node:20-alpine AS production

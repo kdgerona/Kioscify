@@ -11,11 +11,11 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 # Copy package files
-COPY package*.json ./
+COPY package.json yarn.lock* ./
 COPY prisma ./prisma/
 
 # Install dependencies
-RUN npm ci
+RUN yarn install --frozen-lockfile || yarn install
 
 # Generate Prisma client
 RUN npx prisma generate
@@ -24,7 +24,7 @@ RUN npx prisma generate
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN yarn build
 
 # Stage 2: Production
 FROM node:20-alpine AS production
@@ -39,10 +39,10 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001
 
 # Copy package files
-COPY package*.json ./
+COPY package.json yarn.lock* ./
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN yarn install --frozen-lockfile --production || yarn install --production
 
 # Copy Prisma schema and generated client
 COPY --from=builder /app/prisma ./prisma

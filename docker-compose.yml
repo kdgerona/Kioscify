@@ -10,8 +10,6 @@
 # For production with SSL, uncomment the certbot service and configure nginx SSL
 #
 
-version: '3.8'
-
 name: kioskly-production
 
 services:
