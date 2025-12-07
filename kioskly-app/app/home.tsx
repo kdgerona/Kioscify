@@ -14,7 +14,7 @@ import { useRouter, Href } from "expo-router";
 import { useState, useEffect, useRef } from "react";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
-import { apiGet, getApiUrl } from "../utils/api";
+import { apiGet } from "../utils/api";
 import CheckoutModal from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
 import { createTransaction } from "../services/transactionService";
@@ -570,9 +570,8 @@ export default function Home() {
           <ScrollView>
             <View className="flex-row flex-wrap">
               {filteredProducts.map((product) => {
-                const imageUri = product.image
-                  ? `${getApiUrl()}${product.image}`
-                  : null;
+                // Use image URL directly from API (already transformed to absolute URL)
+                const imageUri = product.image || null;
                 return (
                   <TouchableOpacity
                     key={product.id}

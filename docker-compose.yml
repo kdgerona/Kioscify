@@ -57,6 +57,7 @@ services:
       DATABASE_URL: mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-s3cr3t}@mongo:27017/${MONGO_DATABASE:-kioskly}?authSource=admin&replicaSet=rs0
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      BASE_URL: ${BASE_URL:-http://localhost}
     volumes:
       - api-uploads:/app/uploads
     networks:

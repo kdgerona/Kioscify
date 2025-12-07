@@ -3,9 +3,11 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { app as appConstants } from '../constants/env.constants';
 import { Prisma } from '@prisma/client';
 
 type ProductWithRelations = Prisma.ProductGetPayload<{
@@ -26,7 +28,14 @@ type ProductWithRelations = Prisma.ProductGetPayload<{
 
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  private baseUrl: string;
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {
+    this.baseUrl = this.configService.get<string>(appConstants.base_url) || '';
+  }
 
   async create(createProductDto: CreateProductDto, tenantId: string) {
     const { id, name, price, categoryId, image, sizeIds, addonIds } =
@@ -192,12 +201,18 @@ export class ProductsService {
   }
 
   private formatProduct(product: ProductWithRelations) {
+    // Transform image URL to absolute URL if it's a relative path
+    const imageUrl =
+      product.image && !product.image.startsWith('http')
+        ? `${this.baseUrl}${product.image}`
+        : product.image;
+
     return {
       id: product.id,
       name: product.name,
       price: product.price,
       categoryId: product.categoryId,
-      image: product.image,
+      image: imageUrl,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
       category: product.category,
