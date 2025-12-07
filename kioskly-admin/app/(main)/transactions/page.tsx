@@ -6,6 +6,8 @@ import { formatCurrency, formatDateTime, getPaymentMethodLabel, getPaymentStatus
 import { Receipt, Search, Filter, Download, Eye } from 'lucide-react';
 import type { Transaction } from '@/types';
 import { useTenant } from '@/contexts/TenantContext';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -33,6 +35,7 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterMethod, setFilterMethod] = useState<string>('ALL');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   // Debounce search term to avoid too many API calls
@@ -45,11 +48,13 @@ export default function TransactionsPage() {
       } else {
         setIsFiltering(true);
       }
-      
+
       const params: {
         transactionId?: string;
         paymentStatus?: string;
         paymentMethod?: string;
+        startDate?: string;
+        endDate?: string;
       } = {};
 
       if (debouncedSearchTerm) {
@@ -61,6 +66,12 @@ export default function TransactionsPage() {
       if (filterMethod !== 'ALL') {
         params.paymentMethod = filterMethod;
       }
+      if (dateRange?.from) {
+        params.startDate = dateRange.from.toISOString();
+      }
+      if (dateRange?.to) {
+        params.endDate = dateRange.to.toISOString();
+      }
 
       const data = await api.getTransactions(params);
       setTransactions(data);
@@ -70,7 +81,7 @@ export default function TransactionsPage() {
       setInitialLoading(false);
       setIsFiltering(false);
     }
-  }, [debouncedSearchTerm, filterStatus, filterMethod]);
+  }, [debouncedSearchTerm, filterStatus, filterMethod, dateRange]);
 
   // Initial load
   useEffect(() => {
@@ -82,7 +93,7 @@ export default function TransactionsPage() {
     if (!initialLoading) {
       loadTransactions(false);
     }
-  }, [debouncedSearchTerm, filterStatus, filterMethod]);
+  }, [debouncedSearchTerm, filterStatus, filterMethod, dateRange]);
 
   const exportToCSV = () => {
     const headers = ['Transaction ID', 'Date', 'User', 'Total', 'Payment Method', 'Status'];
@@ -129,7 +140,7 @@ export default function TransactionsPage() {
 
       {/* Filters and Search */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -139,6 +150,14 @@ export default function TransactionsPage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white text-gray-900 placeholder-gray-400"
+            />
+          </div>
+
+          {/* Date Range Picker */}
+          <div className="relative">
+            <DateRangePicker
+              date={dateRange}
+              onDateChange={setDateRange}
             />
           </div>
 
