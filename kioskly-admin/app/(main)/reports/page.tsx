@@ -52,7 +52,7 @@ export default function ReportsPage() {
     transactions.forEach(t => {
       if (t.paymentStatus === 'COMPLETED') {
         const date = new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        salesMap.set(date, (salesMap.get(date) || 0) + t.totalAmount);
+        salesMap.set(date, (salesMap.get(date) || 0) + t.total);
       }
     });
 
@@ -88,7 +88,7 @@ export default function ReportsPage() {
   // Calculate metrics
   const getMetrics = () => {
     const completedTransactions = transactions.filter(t => t.paymentStatus === 'COMPLETED');
-    const totalSales = completedTransactions.reduce((sum, t) => sum + t.totalAmount, 0);
+    const totalSales = completedTransactions.reduce((sum, t) => sum + t.total, 0);
     const totalTransactions = completedTransactions.length;
     const averageOrderValue = totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
@@ -99,14 +99,14 @@ export default function ReportsPage() {
 
     const lastWeekSales = completedTransactions
       .filter(t => new Date(t.createdAt) > sevenDaysAgo)
-      .reduce((sum, t) => sum + t.totalAmount, 0);
+      .reduce((sum, t) => sum + t.total, 0);
 
     const prevWeekSales = completedTransactions
       .filter(t => {
         const date = new Date(t.createdAt);
         return date > fourteenDaysAgo && date <= sevenDaysAgo;
       })
-      .reduce((sum, t) => sum + t.totalAmount, 0);
+      .reduce((sum, t) => sum + t.total, 0);
 
     const growth = prevWeekSales > 0 ? ((lastWeekSales - prevWeekSales) / prevWeekSales) * 100 : 0;
 
@@ -131,7 +131,7 @@ export default function ReportsPage() {
       transactions: transactions.map(t => ({
         id: t.id,
         date: t.createdAt,
-        total: t.totalAmount,
+        total: t.total,
         method: t.paymentMethod,
         status: t.paymentStatus,
       })),
