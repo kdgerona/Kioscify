@@ -1,0 +1,51 @@
+# ================================
+# Docker Ignore - Kioskly API
+# ================================
+
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build output
+dist
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test files
+coverage
+.nyc_output
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.docker
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug
+*.log
+
+# Uploads (handled by volumes in production)
+uploads/*
+!uploads/.gitkeep
+
