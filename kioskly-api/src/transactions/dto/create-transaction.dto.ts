@@ -33,7 +33,10 @@ class TransactionItemDto {
   @IsOptional()
   sizeId?: string;
 
-  @ApiProperty({ example: 98, description: 'Subtotal for this item (quantity * price)' })
+  @ApiProperty({
+    example: 98,
+    description: 'Subtotal for this item (quantity * price)',
+  })
   @IsNumber()
   subtotal: number;
 
@@ -59,9 +62,12 @@ export class CreateTransactionDto {
   @IsNumber()
   total: number;
 
-  @ApiProperty({ enum: ['CASH', 'ONLINE'], example: 'CASH' })
-  @IsEnum(['CASH', 'ONLINE'])
-  paymentMethod: 'CASH' | 'ONLINE';
+  @ApiProperty({
+    enum: ['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE'],
+    example: 'CASH',
+  })
+  @IsEnum(['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE'])
+  paymentMethod: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE';
 
   @ApiProperty({ example: 200, required: false })
   @IsNumber()
@@ -81,7 +87,7 @@ export class CreateTransactionDto {
   @ApiProperty({
     example: 'Customer requested refund - wrong order',
     required: false,
-    description: 'Optional remarks or notes about the transaction'
+    description: 'Optional remarks or notes about the transaction',
   })
   @IsString()
   @IsOptional()
