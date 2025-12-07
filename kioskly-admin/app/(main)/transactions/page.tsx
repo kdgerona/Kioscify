@@ -86,14 +86,14 @@ export default function TransactionsPage() {
   // Initial load
   useEffect(() => {
     loadTransactions(true);
-  }, []);
+  }, [loadTransactions]);
 
   // Filter changes - don't show full skeleton
   useEffect(() => {
     if (!initialLoading) {
       loadTransactions(false);
     }
-  }, [debouncedSearchTerm, filterStatus, filterMethod, dateRange]);
+  }, [debouncedSearchTerm, filterStatus, filterMethod, dateRange, initialLoading, loadTransactions]);
 
   const exportToCSV = () => {
     const headers = ['Transaction ID', 'Date', 'User', 'Total', 'Payment Method', 'Status'];

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { Package, Plus, Edit, Trash2, Search, X } from 'lucide-react';
@@ -29,9 +29,22 @@ export default function ProductsPage() {
     loadData();
   }, []);
 
+  const filterProducts = useCallback(() => {
+    if (!searchTerm) {
+      setFilteredProducts(products);
+      return;
+    }
+
+    const filtered = products.filter(p =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredProducts(filtered);
+  }, [searchTerm, products]);
+
   useEffect(() => {
     filterProducts();
-  }, [searchTerm, products]);
+  }, [filterProducts]);
 
   const loadData = async () => {
     try {
@@ -47,19 +60,6 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterProducts = () => {
-    if (!searchTerm) {
-      setFilteredProducts(products);
-      return;
-    }
-
-    const filtered = products.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredProducts(filtered);
   };
 
   const openCreateModal = () => {

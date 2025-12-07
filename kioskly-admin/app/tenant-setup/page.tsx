@@ -101,8 +101,8 @@ export default function TenantSetupPage() {
               </p>
               <p className="text-xs text-gray-600">
                 Your Store ID (slug) is a unique identifier for your business.
-                It's used to load your custom branding, theme, and settings.
-                Contact your system administrator if you don't have this information.
+                It&apos;s used to load your custom branding, theme, and settings.
+                Contact your system administrator if you don&apos;t have this information.
               </p>
             </div>
           </div>
