@@ -1,5 +1,5 @@
 import { apiPost, apiGet, apiPatch, apiDelete } from "../utils/api";
-import Reactotron from "../ReactotronConfig";
+import { safeReactotron } from "../utils/reactotron";
 
 export enum ExpenseCategory {
   SUPPLIES = "SUPPLIES",
@@ -79,7 +79,7 @@ export const createExpense = async (
     console.log("  Amount:", expenseData.amount);
     console.log("  Category:", expenseData.category);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "CREATE EXPENSE",
       value: expenseData,
       preview: `Creating expense: ${expenseData.description}`,
@@ -91,7 +91,7 @@ export const createExpense = async (
       const errorText = await response.text();
       console.log("🔴 EXPENSE ERROR:", errorText);
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "EXPENSE ERROR",
         value: { status: response.status, error: errorText },
         preview: "Expense creation failed",
@@ -104,7 +104,7 @@ export const createExpense = async (
     const data = await response.json();
     console.log("🟢 EXPENSE CREATED:", data.id);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "EXPENSE SUCCESS",
       value: data,
       preview: `Expense ${data.id} created successfully`,
@@ -144,7 +144,7 @@ export const getExpenses = async (filters?: {
 
     console.log("🔵 FETCHING EXPENSES:", endpoint);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "FETCH EXPENSES",
       value: { endpoint, filters },
       preview: "Fetching expenses from API",
@@ -156,7 +156,7 @@ export const getExpenses = async (filters?: {
       const errorText = await response.text();
       console.log("🔴 FETCH EXPENSES ERROR:", errorText);
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "FETCH EXPENSES ERROR",
         value: { status: response.status, error: errorText },
         preview: "Failed to fetch expenses",
@@ -169,7 +169,7 @@ export const getExpenses = async (filters?: {
     const data = await response.json();
     console.log("🟢 EXPENSES FETCHED:", data.length, "expenses");
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "EXPENSES FETCHED",
       value: { count: data.length },
       preview: `Fetched ${data.length} expenses`,
@@ -193,7 +193,7 @@ export const getExpense = async (
   try {
     console.log("🔵 FETCHING EXPENSE:", expenseId);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "FETCH EXPENSE",
       value: { expenseId },
       preview: `Fetching expense ${expenseId}`,
@@ -205,7 +205,7 @@ export const getExpense = async (
       const errorText = await response.text();
       console.log("🔴 FETCH EXPENSE ERROR:", errorText);
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "FETCH EXPENSE ERROR",
         value: { status: response.status, error: errorText },
         preview: "Failed to fetch expense",
@@ -218,7 +218,7 @@ export const getExpense = async (
     const data = await response.json();
     console.log("🟢 EXPENSE FETCHED:", data.id);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "EXPENSE FETCHED",
       value: data,
       preview: `Fetched expense ${data.id}`,
@@ -244,7 +244,7 @@ export const updateExpense = async (
   try {
     console.log("🔵 UPDATING EXPENSE:", expenseId);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "UPDATE EXPENSE",
       value: { expenseId, updateData },
       preview: `Updating expense ${expenseId}`,
@@ -256,7 +256,7 @@ export const updateExpense = async (
       const errorText = await response.text();
       console.log("🔴 UPDATE EXPENSE ERROR:", errorText);
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "UPDATE EXPENSE ERROR",
         value: { status: response.status, error: errorText },
         preview: "Failed to update expense",
@@ -269,7 +269,7 @@ export const updateExpense = async (
     const data = await response.json();
     console.log("🟢 EXPENSE UPDATED:", data.id);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "EXPENSE UPDATED",
       value: data,
       preview: `Expense ${data.id} updated successfully`,
@@ -293,7 +293,7 @@ export const deleteExpense = async (
   try {
     console.log("🔵 DELETING EXPENSE:", expenseId);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "DELETE EXPENSE",
       value: { expenseId },
       preview: `Deleting expense ${expenseId}`,
@@ -305,7 +305,7 @@ export const deleteExpense = async (
       const errorText = await response.text();
       console.log("🔴 DELETE EXPENSE ERROR:", errorText);
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "DELETE EXPENSE ERROR",
         value: { status: response.status, error: errorText },
         preview: "Failed to delete expense",
@@ -318,7 +318,7 @@ export const deleteExpense = async (
     const data = await response.json();
     console.log("🟢 EXPENSE DELETED:", expenseId);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "EXPENSE DELETED",
       value: data,
       preview: `Expense ${expenseId} deleted successfully`,
@@ -342,7 +342,7 @@ export const getExpenseStats = async (
   try {
     console.log("🔵 FETCHING EXPENSE STATS:", period);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "FETCH EXPENSE STATS",
       value: { period },
       preview: `Fetching ${period} expense stats`,
@@ -354,7 +354,7 @@ export const getExpenseStats = async (
       const errorText = await response.text();
       console.log("🔴 FETCH EXPENSE STATS ERROR:", errorText);
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "FETCH EXPENSE STATS ERROR",
         value: { status: response.status, error: errorText },
         preview: "Failed to fetch expense stats",
@@ -367,7 +367,7 @@ export const getExpenseStats = async (
     const data = await response.json();
     console.log("🟢 EXPENSE STATS FETCHED:", data.totalExpenses);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "EXPENSE STATS FETCHED",
       value: data,
       preview: `Fetched ${period} expense stats`,

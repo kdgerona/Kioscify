@@ -1,5 +1,5 @@
 import { apiPost, apiGet, apiPatch } from "../utils/api";
-import Reactotron from "../ReactotronConfig";
+import { safeReactotron } from "../utils/reactotron";
 
 interface TransactionItemAddon {
   addonId: string;
@@ -89,7 +89,7 @@ export const createTransaction = async (
     console.log("  Payment Method:", transactionData.paymentMethod);
     console.log("  Items Count:", transactionData.items.length);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "CREATE TRANSACTION",
       value: transactionData,
       preview: `Creating transaction ${transactionData.transactionId}`,
@@ -101,7 +101,7 @@ export const createTransaction = async (
       const errorText = await response.text();
       console.log("🔴 TRANSACTION ERROR:", errorText);
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "TRANSACTION ERROR",
         value: { status: response.status, error: errorText },
         preview: "Transaction creation failed",
@@ -114,7 +114,7 @@ export const createTransaction = async (
     const data = await response.json();
     console.log("🟢 TRANSACTION CREATED:", data.transactionId);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "TRANSACTION SUCCESS",
       value: data,
       preview: `Transaction ${data.transactionId} created successfully`,
@@ -150,7 +150,7 @@ export const getTransactions = async (
 
     console.log("🔵 FETCHING TRANSACTIONS:", endpoint);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "FETCH TRANSACTIONS",
       value: { endpoint, filters },
       preview: "Fetching transactions from API",
@@ -162,7 +162,7 @@ export const getTransactions = async (
       const errorText = await response.text();
       console.log("🔴 FETCH TRANSACTIONS ERROR:", errorText);
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "FETCH TRANSACTIONS ERROR",
         value: { status: response.status, error: errorText },
         preview: "Failed to fetch transactions",
@@ -175,7 +175,7 @@ export const getTransactions = async (
     const data = await response.json();
     console.log("🟢 TRANSACTIONS FETCHED:", data.length, "transactions");
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "TRANSACTIONS FETCHED",
       value: { count: data.length },
       preview: `Fetched ${data.length} transactions`,
@@ -201,7 +201,7 @@ export const updateTransactionRemarks = async (
   try {
     console.log("🔵 UPDATING TRANSACTION REMARKS:", transactionId);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "UPDATE TRANSACTION REMARKS",
       value: { transactionId, remarks },
       preview: `Updating remarks for ${transactionId}`,
@@ -213,7 +213,7 @@ export const updateTransactionRemarks = async (
       const errorText = await response.text();
       console.log("🔴 UPDATE TRANSACTION ERROR:", errorText);
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "UPDATE TRANSACTION ERROR",
         value: { status: response.status, error: errorText },
         preview: "Failed to update transaction",
@@ -226,7 +226,7 @@ export const updateTransactionRemarks = async (
     const data = await response.json();
     console.log("🟢 TRANSACTION UPDATED:", data.transactionId);
 
-    Reactotron.display({
+    safeReactotron.display({
       name: "TRANSACTION UPDATED",
       value: data,
       preview: `Transaction ${data.transactionId} updated successfully`,

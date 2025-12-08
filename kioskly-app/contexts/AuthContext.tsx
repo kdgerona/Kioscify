@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Reactotron from "../ReactotronConfig";
+import { safeReactotron } from "../utils/reactotron";
 
 const TOKEN_KEY = "@kioskly:auth_token";
 const USER_KEY = "@kioskly:user";
@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log("  URL:", `${apiUrl}/auth/login`);
         console.log("  Body:", JSON.stringify(requestBody, null, 2));
 
-        Reactotron.display({
+        safeReactotron.display({
           name: "LOGIN REQUEST",
           value: { url: `${apiUrl}/auth/login`, body: requestBody },
           preview: "Attempting login..."
@@ -77,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const errorText = await response.text();
           console.log("🔴 ERROR RESPONSE:", errorText);
 
-          Reactotron.display({
+          safeReactotron.display({
             name: "LOGIN ERROR",
             value: { status: response.status, error: errorText },
             preview: "Login failed",
@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const data = await response.json();
         console.log("🟢 LOGIN SUCCESS:", { userId: data.user?.id, role: data.user?.role });
 
-        Reactotron.display({
+        safeReactotron.display({
           name: "LOGIN SUCCESS",
           value: { user: data.user, hasToken: !!data.accessToken },
           preview: `Logged in as ${data.user?.username}`

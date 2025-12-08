@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Reactotron from "../ReactotronConfig";
+import { safeReactotron } from "../utils/reactotron";
 
 const TENANT_SLUG_KEY = "@kioskly:tenant_slug";
 
@@ -81,7 +81,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
         slug: tenantWithTheme.slug,
       });
 
-      Reactotron.display({
+      safeReactotron.display({
         name: "TENANT LOADED",
         value: { id: tenantWithTheme.id, name: tenantWithTheme.name, slug: tenantWithTheme.slug },
         preview: `Loaded ${tenantWithTheme.name}`
