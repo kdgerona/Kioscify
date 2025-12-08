@@ -30,6 +30,7 @@ interface TenantContextType {
   setTenant: (tenant: Tenant | null) => void;
   loading: boolean;
   error: string | null;
+  initializing: boolean;
   fetchTenantBySlug: (slug: string) => Promise<void>;
   clearTenant: () => Promise<void>;
   loadStoredTenant: () => Promise<void>;
@@ -51,6 +52,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState<boolean>(true);
 
   const fetchTenantBySlug = useCallback(async (slug: string) => {
     setLoading(true);
@@ -114,6 +116,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (err) {
       console.error("Failed to load stored tenant:", err);
+    } finally {
+      setInitializing(false);
     }
   }, [fetchTenantBySlug]);
 
@@ -129,6 +133,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
         setTenant,
         loading,
         error,
+        initializing,
         fetchTenantBySlug,
         clearTenant,
         loadStoredTenant,

@@ -1,5 +1,5 @@
 import "../global.css";
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Modal, TextInput } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useState, useEffect, useCallback } from "react";
@@ -318,70 +318,80 @@ export default function Transactions() {
         onRequestClose={closeRemarksModal}
       >
         <View className="flex-1 bg-black/50 justify-center items-center">
-          <View className="bg-white rounded-lg w-11/12 max-w-lg">
-            {/* Modal Header */}
-            <View
-              className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <Text className="text-xl font-bold" style={{ color: textColor }}>
-                {selectedTransaction?.remarks ? "Edit Remarks" : "Add Remarks"}
-              </Text>
-              <TouchableOpacity
-                onPress={closeRemarksModal}
-                className="w-11 h-11 items-center justify-center rounded-full"
-                style={{ backgroundColor: `${textColor}15` }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            className="w-11/12 max-w-lg"
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          >
+            <View className="bg-white rounded-lg">
+              {/* Modal Header */}
+              <View
+                className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
+                style={{ backgroundColor: primaryColor }}
               >
-                <Text className="text-3xl font-bold leading-none" style={{ color: textColor }}>
-                  ×
+                <Text className="text-xl font-bold" style={{ color: textColor }}>
+                  {selectedTransaction?.remarks ? "Edit Remarks" : "Add Remarks"}
                 </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Modal Body */}
-            <View className="px-6 py-6">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Transaction: {selectedTransaction?.transactionId}
-              </Text>
-              <TextInput
-                className="bg-gray-100 rounded-lg px-4 py-3 text-base border-2 border-gray-200 mb-4"
-                placeholder="Add notes (e.g., corrections, special requests)"
-                value={remarksInput}
-                onChangeText={setRemarksInput}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                autoFocus
-              />
-              <Text className="text-xs text-gray-500 mb-4">
-                Use this to document any mistakes or special circumstances
-              </Text>
-
-              {/* Action Buttons */}
-              <View className="flex-row gap-2">
                 <TouchableOpacity
-                  className="flex-1 bg-gray-200 rounded-lg py-3 items-center"
                   onPress={closeRemarksModal}
-                  disabled={isUpdating}
+                  className="w-11 h-11 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `${textColor}15` }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Text className="font-semibold text-gray-800">Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="flex-1 rounded-lg py-3 items-center"
-                  style={{
-                    backgroundColor: isUpdating ? `${primaryColor}80` : primaryColor,
-                  }}
-                  onPress={handleUpdateRemarks}
-                  disabled={isUpdating}
-                >
-                  <Text className="font-semibold" style={{ color: textColor }}>
-                    {isUpdating ? "Saving..." : "Save"}
+                  <Text className="text-3xl font-bold leading-none" style={{ color: textColor }}>
+                    ×
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Modal Body */}
+              <ScrollView 
+                className="px-6 py-6"
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <Text className="text-sm font-semibold text-gray-700 mb-2">
+                  Transaction: {selectedTransaction?.transactionId}
+                </Text>
+                <TextInput
+                  className="bg-gray-100 rounded-lg px-4 py-3 text-base border-2 border-gray-200 mb-4"
+                  placeholder="Add notes (e.g., corrections, special requests)"
+                  value={remarksInput}
+                  onChangeText={setRemarksInput}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  autoFocus
+                />
+                <Text className="text-xs text-gray-500 mb-4">
+                  Use this to document any mistakes or special circumstances
+                </Text>
+
+                {/* Action Buttons */}
+                <View className="flex-row gap-2">
+                  <TouchableOpacity
+                    className="flex-1 bg-gray-200 rounded-lg py-3 items-center"
+                    onPress={closeRemarksModal}
+                    disabled={isUpdating}
+                  >
+                    <Text className="font-semibold text-gray-800">Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    className="flex-1 rounded-lg py-3 items-center"
+                    style={{
+                      backgroundColor: isUpdating ? `${primaryColor}80` : primaryColor,
+                    }}
+                    onPress={handleUpdateRemarks}
+                    disabled={isUpdating}
+                  >
+                    <Text className="font-semibold" style={{ color: textColor }}>
+                      {isUpdating ? "Saving..." : "Save"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </SafeAreaView>

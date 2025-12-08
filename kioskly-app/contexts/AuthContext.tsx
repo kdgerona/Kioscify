@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { safeReactotron } from "../utils/reactotron";
 
@@ -18,6 +18,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   error: string | null;
+  initializing: boolean;
   login: (username: string, password: string, tenantId: string) => Promise<void>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
@@ -33,6 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState<boolean>(true);
 
   const login = useCallback(
     async (username: string, password: string, tenantId: string) => {
@@ -138,8 +140,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error("Failed to load stored auth:", err);
       // Clear invalid stored data
       await logout();
+    } finally {
+      setInitializing(false);
     }
   }, [logout]);
+
+  // Auto-load stored auth on mount
+  React.useEffect(() => {
+    loadStoredAuth();
+  }, [loadStoredAuth]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -152,6 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         token,
         loading,
         error,
+        initializing,
         login,
         logout,
         loadStoredAuth,

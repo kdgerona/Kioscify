@@ -6,6 +6,8 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
@@ -114,25 +116,36 @@ export default function ExpenseModal({
       onRequestClose={handleClose}
     >
       <SafeAreaView className="flex-1 bg-black/50 justify-center items-center px-4">
-        <View className="bg-white rounded-lg w-full max-w-lg" style={{ height: '85%' }}>
-          {/* Modal Header */}
-          <View
-            className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Text className="text-xl font-bold" style={{ color: textColor }}>Add Expense</Text>
-            <TouchableOpacity
-              onPress={handleClose}
-              className="w-8 h-8 rounded-full items-center justify-center"
-              style={{ backgroundColor: `${textColor}15` }}
-              disabled={isLoading}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="w-full max-w-lg"
+          style={{ height: '85%' }}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <View className="bg-white rounded-lg flex-1">
+            {/* Modal Header */}
+            <View
+              className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
+              style={{ backgroundColor: primaryColor }}
             >
-              <Text className="text-xl font-bold" style={{ color: textColor }}>×</Text>
-            </TouchableOpacity>
-          </View>
+              <Text className="text-xl font-bold" style={{ color: textColor }}>Add Expense</Text>
+              <TouchableOpacity
+                onPress={handleClose}
+                className="w-8 h-8 rounded-full items-center justify-center"
+                style={{ backgroundColor: `${textColor}15` }}
+                disabled={isLoading}
+              >
+                <Text className="text-xl font-bold" style={{ color: textColor }}>×</Text>
+              </TouchableOpacity>
+            </View>
 
-          {/* Modal Content */}
-          <ScrollView className="px-6 py-4" style={{ flex: 1 }}>
+            {/* Modal Content */}
+            <ScrollView 
+              className="px-6 py-4" 
+              style={{ flex: 1 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             {/* Description Input */}
             <View className="mb-4">
               <Text className="text-base font-semibold mb-2" style={{ color: textColor }}>
@@ -249,7 +262,8 @@ export default function ExpenseModal({
               )}
             </TouchableOpacity>
           </View>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );

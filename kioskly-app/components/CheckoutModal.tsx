@@ -5,6 +5,8 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
@@ -144,35 +146,44 @@ export default function CheckoutModal({
       onRequestClose={handleClose}
     >
       <SafeAreaView className="flex-1 bg-black/50 justify-center items-center">
-        <View className="bg-white rounded-lg w-11/12 max-w-lg">
-          {/* Modal Header */}
-          <View
-            className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <View className="flex flex-row items-center justify-center">
-              {paymentMethod && (
-                <TouchableOpacity onPress={handleBack} className="mr-3">
-                  <Text className="text-black text-2xl font-bold mb-3">←</Text>
-                </TouchableOpacity>
-              )}
-              <Text className="text-xl font-bold" style={{ color: textColor }}>
-                Checkout
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleClose}
-              className="w-11 h-11 items-center justify-center rounded-full"
-              style={{ backgroundColor: `${textColor}15` }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="w-11/12 max-w-lg"
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <View className="bg-white rounded-lg">
+            {/* Modal Header */}
+            <View
+              className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
+              style={{ backgroundColor: primaryColor }}
             >
-              <Text className="text-3xl font-bold leading-none" style={{ color: textColor }}>
-                ×
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <View className="flex flex-row items-center justify-center">
+                {paymentMethod && (
+                  <TouchableOpacity onPress={handleBack} className="mr-3">
+                    <Text className="text-black text-2xl font-bold mb-3">←</Text>
+                  </TouchableOpacity>
+                )}
+                <Text className="text-xl font-bold" style={{ color: textColor }}>
+                  Checkout
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={handleClose}
+                className="w-11 h-11 items-center justify-center rounded-full"
+                style={{ backgroundColor: `${textColor}15` }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text className="text-3xl font-bold leading-none" style={{ color: textColor }}>
+                  ×
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView className="px-6 py-6">
+            <ScrollView 
+              className="px-6 py-6"
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             {/* Total Amount Display */}
             <View
               className="border-2 rounded-lg p-4 mb-6"
@@ -480,13 +491,15 @@ export default function CheckoutModal({
                 <Text
                   className="text-lg font-bold"
                   style={{ color: textColor }}
+                  numberOfLines={1}
                 >
                   {isLoading ? "Processing..." : "Complete Payment"}
                 </Text>
               </TouchableOpacity>
             </View>
           )}
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );

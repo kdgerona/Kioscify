@@ -23,19 +23,31 @@ export default function Index() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const { tenant, clearTenant } = useTenant();
-  const { login, loading, error, clearError } = useAuth();
+  const { tenant, clearTenant, initializing: tenantInitializing } = useTenant();
+  const { user, login, loading, error, clearError, initializing: authInitializing } = useAuth();
 
   useEffect(() => {
+    // Wait for both contexts to initialize
+    if (tenantInitializing || authInitializing) {
+      return;
+    }
+
     // If no tenant is set, redirect to tenant setup
-    // Use setTimeout to ensure router is mounted
     if (!tenant) {
       const timer = setTimeout(() => {
         router.replace("/tenant-setup" as Href);
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [tenant, router]);
+
+    // If tenant is set and user is authenticated, redirect to home
+    if (tenant && user) {
+      const timer = setTimeout(() => {
+        router.replace("/home" as Href);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [tenant, user, tenantInitializing, authInitializing, router]);
 
   useEffect(() => {
     // Clear any previous errors when inputs change
@@ -73,6 +85,16 @@ export default function Index() {
       );
     }
   };
+
+  // Show loading while initializing
+  if (tenantInitializing || authInitializing) {
+    return (
+      <View className="flex-1 bg-white justify-center items-center">
+        <ActivityIndicator size="large" color="#ea580c" />
+        <Text className="mt-4 text-gray-600">Loading...</Text>
+      </View>
+    );
+  }
 
   if (!tenant) {
     return null; // Will redirect to tenant-setup
