@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
@@ -47,6 +48,7 @@ export default function ExpenseModal({
   const [category, setCategory] = useState<ExpenseCategory | null>(null);
   const [notes, setNotes] = useState("");
   const [validationError, setValidationError] = useState("");
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const { tenant } = useTenant();
   const primaryColor = tenant?.themeColors?.primary || "#ea580c";
@@ -58,6 +60,21 @@ export default function ExpenseModal({
       resetForm();
     }
   }, [visible]);
+
+  // Listen to keyboard show/hide events
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const resetForm = () => {
     setDescription("");
@@ -117,151 +134,178 @@ export default function ExpenseModal({
     >
       <SafeAreaView className="flex-1 bg-black/50 justify-center items-center px-4">
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="w-full max-w-lg"
-          style={{ height: '85%' }}
+          behavior={Platform.OS === "ios" ? "padding" : "padding"}
+          style={{ width: "100%", maxWidth: 512 }}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          enabled={isKeyboardVisible}
         >
-          <View className="bg-white rounded-lg flex-1">
+          <View className="w-full max-w-lg bg-white rounded-lg max-h-full">
             {/* Modal Header */}
             <View
               className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
               style={{ backgroundColor: primaryColor }}
             >
-              <Text className="text-xl font-bold" style={{ color: textColor }}>Add Expense</Text>
+              <Text className="text-xl font-bold" style={{ color: textColor }}>
+                Add Expense
+              </Text>
               <TouchableOpacity
                 onPress={handleClose}
                 className="w-8 h-8 rounded-full items-center justify-center"
                 style={{ backgroundColor: `${textColor}15` }}
                 disabled={isLoading}
               >
-                <Text className="text-xl font-bold" style={{ color: textColor }}>×</Text>
+                <Text
+                  className="text-xl font-bold"
+                  style={{ color: textColor }}
+                >
+                  ×
+                </Text>
               </TouchableOpacity>
             </View>
 
             {/* Modal Content */}
-            <ScrollView 
-              className="px-6 py-4" 
-              style={{ flex: 1 }}
+            <ScrollView
+              className="px-6 py-4"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-            {/* Description Input */}
-            <View className="mb-4">
-              <Text className="text-base font-semibold mb-2" style={{ color: textColor }}>
-                Description *
-              </Text>
-              <TextInput
-                className="border border-gray-300 rounded-lg px-4 py-3 text-base"
-                placeholder="e.g., Purchased paper cups and lids"
-                value={description}
-                onChangeText={setDescription}
-                editable={!isLoading}
-              />
-            </View>
-
-            {/* Amount Input */}
-            <View className="mb-4">
-              <Text className="text-base font-semibold mb-2" style={{ color: textColor }}>
-                Amount *
-              </Text>
-              <TextInput
-                className="border border-gray-300 rounded-lg px-4 py-3 text-base"
-                placeholder="0.00"
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-                editable={!isLoading}
-              />
-            </View>
-
-            {/* Category Selection */}
-            <View className="mb-4">
-              <Text className="text-base font-semibold mb-2" style={{ color: textColor }}>
-                Category *
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {EXPENSE_CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat.value}
-                    onPress={() => setCategory(cat.value)}
-                    disabled={isLoading}
-                    className={`px-4 py-2 rounded-lg border ${
-                      category === cat.value
-                        ? "border-transparent"
-                        : "border-gray-300 bg-gray-50"
-                    }`}
-                    style={
-                      category === cat.value
-                        ? { backgroundColor: primaryColor }
-                        : undefined
-                    }
-                  >
-                    <Text
-                      className="text-sm font-medium"
-                      style={{
-                        color: category === cat.value ? textColor : "#374151"
-                      }}
-                    >
-                      {cat.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Notes Input */}
-            <View className="mb-4">
-              <Text className="text-base font-semibold mb-2" style={{ color: textColor }}>
-                Notes (Optional)
-              </Text>
-              <TextInput
-                className="border border-gray-300 rounded-lg px-4 py-3 text-base"
-                placeholder="Additional details..."
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-                editable={!isLoading}
-              />
-            </View>
-
-            {/* Validation Error */}
-            {validationError && (
-              <View className="mb-4 p-3 bg-red-50 rounded-lg">
-                <Text className="text-red-600 text-sm">{validationError}</Text>
-              </View>
-            )}
-          </ScrollView>
-
-          {/* Modal Footer */}
-          <View className="px-6 py-4 border-t border-gray-200 flex-row justify-end gap-3">
-            <TouchableOpacity
-              onPress={handleClose}
-              className="px-6 py-3 rounded-lg bg-gray-200"
-              disabled={isLoading}
-            >
-              <Text className="text-gray-800 font-semibold text-base">
-                Cancel
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={validateAndSubmit}
-              className="px-6 py-3 rounded-lg"
-              style={{ backgroundColor: isLoading ? `${primaryColor}80` : primaryColor }}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={textColor} />
-              ) : (
-                <Text className="font-semibold text-base" style={{ color: textColor }}>
-                  Add Expense
+              {/* Description Input */}
+              <View className="mb-4">
+                <Text
+                  className="text-base font-semibold mb-2"
+                  style={{ color: textColor }}
+                >
+                  Description *
                 </Text>
+                <TextInput
+                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                  placeholder="e.g., Purchased paper cups and lids"
+                  value={description}
+                  onChangeText={setDescription}
+                  editable={!isLoading}
+                />
+              </View>
+
+              {/* Amount Input */}
+              <View className="mb-4">
+                <Text
+                  className="text-base font-semibold mb-2"
+                  style={{ color: textColor }}
+                >
+                  Amount *
+                </Text>
+                <TextInput
+                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                  placeholder="0.00"
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                  editable={!isLoading}
+                />
+              </View>
+
+              {/* Category Selection */}
+              <View className="mb-4">
+                <Text
+                  className="text-base font-semibold mb-2"
+                  style={{ color: textColor }}
+                >
+                  Category *
+                </Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {EXPENSE_CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.value}
+                      onPress={() => setCategory(cat.value)}
+                      disabled={isLoading}
+                      className={`px-4 py-2 rounded-lg border ${
+                        category === cat.value
+                          ? "border-transparent"
+                          : "border-gray-300 bg-gray-50"
+                      }`}
+                      style={
+                        category === cat.value
+                          ? { backgroundColor: primaryColor }
+                          : undefined
+                      }
+                    >
+                      <Text
+                        className="text-sm font-medium"
+                        style={{
+                          color: category === cat.value ? textColor : "#374151",
+                        }}
+                      >
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Notes Input */}
+              <View className="mb-4">
+                <Text
+                  className="text-base font-semibold mb-2"
+                  style={{ color: textColor }}
+                >
+                  Notes (Optional)
+                </Text>
+                <TextInput
+                  className="border border-gray-300 rounded-lg px-4 py-3 text-base"
+                  placeholder="Additional details..."
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  editable={!isLoading}
+                />
+              </View>
+
+              {/* Validation Error */}
+              {validationError && (
+                <View className="mb-4 p-3 bg-red-50 rounded-lg">
+                  <Text className="text-red-600 text-sm">
+                    {validationError}
+                  </Text>
+                </View>
               )}
-            </TouchableOpacity>
-          </View>
+            </ScrollView>
+
+            {/* Modal Footer */}
+            <View className="px-6 py-4 border-t border-gray-200 flex-row justify-end gap-3">
+              <TouchableOpacity
+                onPress={handleClose}
+                className="px-6 py-3 rounded-lg bg-gray-200"
+                disabled={isLoading}
+              >
+                <Text className="text-gray-800 font-semibold text-base">
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={validateAndSubmit}
+                className="px-6 py-3 rounded-lg"
+                style={{
+                  backgroundColor: isLoading
+                    ? `${primaryColor}80`
+                    : primaryColor,
+                }}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={textColor} />
+                ) : (
+                  <Text
+                    className="font-semibold text-base"
+                    style={{ color: textColor }}
+                  >
+                    Add Expense
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>

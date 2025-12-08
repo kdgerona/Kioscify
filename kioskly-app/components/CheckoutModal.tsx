@@ -5,6 +5,7 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -47,6 +48,7 @@ export default function CheckoutModal({
   const [referenceNumber, setReferenceNumber] = useState("");
   const [remarks, setRemarks] = useState("");
   const [validationError, setValidationError] = useState("");
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const { tenant } = useTenant();
   const primaryColor = tenant?.themeColors?.primary || "#ea580c";
@@ -62,6 +64,21 @@ export default function CheckoutModal({
       setValidationError("");
     }
   }, [visible]);
+
+  // Listen to keyboard show/hide events
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const resetForm = () => {
     setPaymentMethod(null);
@@ -145,45 +162,46 @@ export default function CheckoutModal({
       animationType="slide"
       onRequestClose={handleClose}
     >
-      <SafeAreaView className="flex-1 bg-black/50 justify-center items-center">
+      <SafeAreaView className="flex-1 bg-black/50 justify-center items-center px-4">
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="w-11/12 max-w-lg"
+          behavior={Platform.OS === "ios" ? "padding" : "padding"}
+          style={{ width: '100%', maxWidth: 512 }}
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          enabled={isKeyboardVisible}
         >
-          <View className="bg-white rounded-lg">
-            {/* Modal Header */}
-            <View
-              className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <View className="flex flex-row items-center justify-center">
-                {paymentMethod && (
-                  <TouchableOpacity onPress={handleBack} className="mr-3">
-                    <Text className="text-black text-2xl font-bold mb-3">←</Text>
-                  </TouchableOpacity>
-                )}
-                <Text className="text-xl font-bold" style={{ color: textColor }}>
-                  Checkout
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={handleClose}
-                className="w-11 h-11 items-center justify-center rounded-full"
-                style={{ backgroundColor: `${textColor}15` }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          <View className="w-full max-w-lg bg-white rounded-lg max-h-full">
+              {/* Modal Header */}
+              <View
+                className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
+                style={{ backgroundColor: primaryColor }}
               >
-                <Text className="text-3xl font-bold leading-none" style={{ color: textColor }}>
-                  ×
-                </Text>
-              </TouchableOpacity>
-            </View>
+                <View className="flex flex-row items-center justify-center">
+                  {paymentMethod && (
+                    <TouchableOpacity onPress={handleBack} className="mr-3">
+                      <Text className="text-black text-2xl font-bold mb-3">←</Text>
+                    </TouchableOpacity>
+                  )}
+                  <Text className="text-xl font-bold" style={{ color: textColor }}>
+                    Checkout
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={handleClose}
+                  className="w-11 h-11 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `${textColor}15` }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text className="text-3xl font-bold leading-none" style={{ color: textColor }}>
+                    ×
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-            <ScrollView 
-              className="px-6 py-6"
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
+              <ScrollView
+                className={`px-6 ${isKeyboardVisible ? 'py-2' : 'py-6'}`}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
             {/* Total Amount Display */}
             <View
               className="border-2 rounded-lg p-4 mb-6"
@@ -315,7 +333,7 @@ export default function CheckoutModal({
                   >
                     Quick Select
                   </Text>
-                  <View className="flex-row flex-wrap">
+                  <View className="flex-row">
                     {[100, 200, 500, 1000].map((amount) => (
                       <TouchableOpacity
                         key={amount}

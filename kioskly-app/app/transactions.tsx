@@ -1,5 +1,5 @@
 import "../global.css";
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Keyboard } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useState, useEffect, useCallback } from "react";
@@ -20,6 +20,22 @@ export default function Transactions() {
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionResponse | null>(null);
   const [remarksInput, setRemarksInput] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Listen to keyboard show/hide events
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const getTodayDateRange = () => {
     const today = new Date();
@@ -317,39 +333,40 @@ export default function Transactions() {
         animationType="slide"
         onRequestClose={closeRemarksModal}
       >
-        <View className="flex-1 bg-black/50 justify-center items-center">
+        <View className="flex-1 bg-black/50 justify-center items-center px-4">
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            className="w-11/12 max-w-lg"
+            behavior={Platform.OS === "ios" ? "padding" : "padding"}
+            style={{ width: '100%', maxWidth: 512 }}
             keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+            enabled={isKeyboardVisible}
           >
-            <View className="bg-white rounded-lg">
-              {/* Modal Header */}
-              <View
-                className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <Text className="text-xl font-bold" style={{ color: textColor }}>
-                  {selectedTransaction?.remarks ? "Edit Remarks" : "Add Remarks"}
-                </Text>
-                <TouchableOpacity
-                  onPress={closeRemarksModal}
-                  className="w-11 h-11 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `${textColor}15` }}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            <View className="w-full max-w-lg bg-white rounded-lg max-h-full">
+                {/* Modal Header */}
+                <View
+                  className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
+                  style={{ backgroundColor: primaryColor }}
                 >
-                  <Text className="text-3xl font-bold leading-none" style={{ color: textColor }}>
-                    ×
+                  <Text className="text-xl font-bold" style={{ color: textColor }}>
+                    {selectedTransaction?.remarks ? "Edit Remarks" : "Add Remarks"}
                   </Text>
-                </TouchableOpacity>
-              </View>
+                  <TouchableOpacity
+                    onPress={closeRemarksModal}
+                    className="w-11 h-11 items-center justify-center rounded-full"
+                    style={{ backgroundColor: `${textColor}15` }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Text className="text-3xl font-bold leading-none" style={{ color: textColor }}>
+                      ×
+                    </Text>
+                  </TouchableOpacity>
+                </View>
 
-              {/* Modal Body */}
-              <ScrollView 
-                className="px-6 py-6"
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
+                {/* Modal Body */}
+                <ScrollView 
+                  className="px-6 py-6"
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                >
                 <Text className="text-sm font-semibold text-gray-700 mb-2">
                   Transaction: {selectedTransaction?.transactionId}
                 </Text>
