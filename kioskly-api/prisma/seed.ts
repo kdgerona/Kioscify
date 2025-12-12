@@ -287,11 +287,29 @@ async function main() {
       sizeIds: ['regular-16oz', 'large-22oz'],
       addonIds: ['nata-de-coco', 'popping-bobba', 'lemon-shot', 'yakult'],
     },
+    {
+      id: 'lem-12',
+      name: 'Ube Lemonade',
+      price: 59,
+      categoryId: 'lemonade',
+      tenantId: tenant.id,
+      sizeIds: ['regular-16oz', 'large-22oz'],
+      addonIds: ['nata-de-coco', 'popping-bobba', 'lemon-shot', 'yakult'],
+    },
+    {
+      id: 'lem-13',
+      name: 'Passion Fruit Lemonade',
+      price: 59,
+      categoryId: 'lemonade',
+      tenantId: tenant.id,
+      sizeIds: ['regular-16oz', 'large-22oz'],
+      addonIds: ['nata-de-coco', 'popping-bobba', 'lemon-shot', 'yakult'],
+    },
     // Hot Lemonade Category
     {
       id: 'hot-lem-1',
       name: 'Classic Lemonade',
-      price: 59,
+      price: 49,
       categoryId: 'hot-lemonade',
       tenantId: tenant.id,
       image: '/uploads/products/hot-classic-lemonade.png',
@@ -301,7 +319,7 @@ async function main() {
     {
       id: 'hot-lem-2',
       name: 'Ginger Lemonade',
-      price: 79,
+      price: 69,
       categoryId: 'hot-lemonade',
       tenantId: tenant.id,
       image: '/uploads/products/hot-ginger-lemonade.png',
@@ -383,7 +401,7 @@ async function main() {
     {
       id: 'hot-cal-1',
       name: 'Classic Calamansi',
-      price: 49,
+      price: 39,
       categoryId: 'hot-calamansi',
       tenantId: tenant.id,
       image: '/uploads/products/hot-classic-calamansi.png',
@@ -393,7 +411,7 @@ async function main() {
     {
       id: 'hot-cal-2',
       name: 'Ginger Calamansi',
-      price: 69,
+      price: 59,
       categoryId: 'hot-calamansi',
       tenantId: tenant.id,
       image: '/uploads/products/hot-ginger-calamansi.png',

@@ -7,12 +7,11 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useTenant } from "../contexts/TenantContext";
 import AppLogo from "../assets/images/logo-only.png";
 
@@ -37,16 +36,14 @@ export default function TenantSetup() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
-    >
       <SafeAreaView className="flex-1 bg-white">
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingVertical: 24 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          enableOnAndroid={true}
+          enableAutomaticScroll={true}
+          extraScrollHeight={20}
         >
         <View className="w-full max-w-md flex-1 justify-center self-center">
           <View className="flex-col items-center justify-center mb-6">
@@ -114,8 +111,7 @@ export default function TenantSetup() {
             </Text>
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       </SafeAreaView>
-    </KeyboardAvoidingView>
   );
 }
