@@ -12,7 +12,7 @@ import {
   Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, Href } from "expo-router";
 import { useState, useEffect, useCallback } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "../contexts/TenantContext";
@@ -165,6 +165,10 @@ export default function Transactions() {
     }
   };
 
+  const handleGenerateReport = () => {
+    router.push("/daily-report" as Href);
+  };
+
   return (
     <SafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
@@ -180,6 +184,16 @@ export default function Transactions() {
             Daily Sales
           </Text>
         </View>
+        <TouchableOpacity
+          className="flex-row items-center gap-2 rounded-lg px-4 py-2"
+          style={{ backgroundColor: primaryColor }}
+          onPress={handleGenerateReport}
+        >
+          <Ionicons name="document-text" size={20} color={textColor} />
+          <Text className="font-semibold" style={{ color: textColor }}>
+            Report
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}

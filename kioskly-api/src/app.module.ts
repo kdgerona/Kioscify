@@ -11,6 +11,7 @@ import { AddonsModule } from './addons/addons.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ExpensesModule } from './expenses/expenses.module';
     AddonsModule,
     TransactionsModule,
     ExpensesModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
