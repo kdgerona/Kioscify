@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, InventoryCategory } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -444,6 +444,262 @@ async function main() {
     });
   }
   console.log('✓ Created products with sizes and addons');
+
+  // Create inventory items
+  const inventoryItems = [
+    // MAINS
+    {
+      name: 'Fresh Lemons 138s|125s',
+      category: InventoryCategory.MAINS,
+      unit: 'Box',
+      description: 'Fresh lemons for lemonade base',
+      minStockLevel: 3,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Pure Cane Sugar Syrup 1L',
+      category: InventoryCategory.MAINS,
+      unit: 'Bot',
+      description: 'Sugar syrup for sweetening drinks',
+      minStockLevel: 5,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Lemon Boost',
+      category: InventoryCategory.MAINS,
+      unit: 'Jar',
+      description: 'Lemon concentrate booster',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Calamansi',
+      category: InventoryCategory.MAINS,
+      unit: 'Pack',
+      description: 'Fresh calamansi for drinks',
+      minStockLevel: 3,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Mango',
+      category: InventoryCategory.MAINS,
+      unit: 'Pack',
+      description: 'Mango for flavored drinks',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    // FLAVORED JAMS
+    {
+      name: 'Mango Preserve Jam 3kg',
+      category: InventoryCategory.FLAVORED_JAMS,
+      unit: 'Tub',
+      description: 'Mango preserve for flavoring',
+      minStockLevel: 1,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Strawberry Preserve Jam 3kg',
+      category: InventoryCategory.FLAVORED_JAMS,
+      unit: 'Tub',
+      description: 'Strawberry preserve for flavoring',
+      minStockLevel: 1,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Kiwi Preserve Jam 3kg',
+      category: InventoryCategory.FLAVORED_JAMS,
+      unit: 'Tub',
+      description: 'Kiwi preserve for flavoring',
+      minStockLevel: 1,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Peach Preserve Jam 3kg',
+      category: InventoryCategory.FLAVORED_JAMS,
+      unit: 'Tub',
+      description: 'Peach preserve for flavoring',
+      minStockLevel: 1,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Green Apple Preserve Jam',
+      category: InventoryCategory.FLAVORED_JAMS,
+      unit: 'Tub',
+      description: 'Green apple preserve for flavoring',
+      minStockLevel: 1,
+      tenantId: tenant.id,
+    },
+    // ADD-ONS
+    {
+      name: 'Nata De Coco 3kg',
+      category: InventoryCategory.ADD_ONS,
+      unit: 'Tub',
+      description: 'Nata de coco topping',
+      minStockLevel: 1,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Popping Bobba 2.4kg',
+      category: InventoryCategory.ADD_ONS,
+      unit: 'Tub',
+      description: 'Popping bobba topping',
+      minStockLevel: 1,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Yakult',
+      category: InventoryCategory.ADD_ONS,
+      unit: 'Bot',
+      description: 'Yakult for drinks',
+      minStockLevel: 10,
+      tenantId: tenant.id,
+    },
+    // SYRUPS
+    {
+      name: 'Pineapple Syrup',
+      category: InventoryCategory.SYRUPS,
+      unit: 'Bot',
+      description: 'Pineapple flavored syrup',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Guava Syrup',
+      category: InventoryCategory.SYRUPS,
+      unit: 'Bot',
+      description: 'Guava flavored syrup',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Lychee Syrup',
+      category: InventoryCategory.SYRUPS,
+      unit: 'Bot',
+      description: 'Lychee flavored syrup',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Watermelon Syrup',
+      category: InventoryCategory.SYRUPS,
+      unit: 'Bot',
+      description: 'Watermelon flavored syrup',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Strawberry Syrup',
+      category: InventoryCategory.SYRUPS,
+      unit: 'Bot',
+      description: 'Strawberry flavored syrup',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    // HOT
+    {
+      name: 'Calamansi Ginger',
+      category: InventoryCategory.HOT,
+      unit: 'Tub',
+      description: 'Ginger for hot drinks',
+      minStockLevel: 1,
+      tenantId: tenant.id,
+    },
+    {
+      name: '12oz Cups',
+      category: InventoryCategory.HOT,
+      unit: 'Pack',
+      description: '12oz cups for hot drinks',
+      minStockLevel: 3,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Hot Lids',
+      category: InventoryCategory.HOT,
+      unit: 'Pack',
+      description: 'Lids for hot cups',
+      minStockLevel: 3,
+      tenantId: tenant.id,
+    },
+    // PACKAGING
+    {
+      name: '16oz Regular Printed Cups 50s',
+      category: InventoryCategory.PACKAGING,
+      unit: 'Pack',
+      description: '16oz cups (50 pieces per pack)',
+      minStockLevel: 5,
+      tenantId: tenant.id,
+    },
+    {
+      name: '22oz Regular Printed Cups 50s',
+      category: InventoryCategory.PACKAGING,
+      unit: 'Pack',
+      description: '22oz cups (50 pieces per pack)',
+      minStockLevel: 5,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Straw Big 100s',
+      category: InventoryCategory.PACKAGING,
+      unit: 'Pack',
+      description: 'Large straws (100 pieces per pack)',
+      minStockLevel: 5,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Custom Sealing Film',
+      category: InventoryCategory.PACKAGING,
+      unit: 'Roll',
+      description: 'Sealing film for cups',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Single Take-Out Plastic 100s',
+      category: InventoryCategory.PACKAGING,
+      unit: 'Pack',
+      description: 'Single cup carrier (100 pieces)',
+      minStockLevel: 3,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Double Take-Out Plastic 100s',
+      category: InventoryCategory.PACKAGING,
+      unit: 'Pack',
+      description: 'Double cup carrier (100 pieces)',
+      minStockLevel: 3,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Disposable Plastic Gloves',
+      category: InventoryCategory.PACKAGING,
+      unit: 'Pack',
+      description: 'Disposable gloves for food handling',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Precut and Fold Tissue',
+      category: InventoryCategory.PACKAGING,
+      unit: 'Pack',
+      description: 'Napkins for customers',
+      minStockLevel: 5,
+      tenantId: tenant.id,
+    },
+  ];
+
+  for (const item of inventoryItems) {
+    await prisma.inventoryItem.upsert({
+      where: {
+        tenantId_name: {
+          tenantId: tenant.id,
+          name: item.name,
+        },
+      },
+      update: {},
+      create: item,
+    });
+  }
+  console.log('✓ Created inventory items');
 
   console.log('🎉 Database seeding completed successfully!');
   console.log('\n📝 Tenant Information:');

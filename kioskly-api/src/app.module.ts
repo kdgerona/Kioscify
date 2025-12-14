@@ -12,6 +12,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ReportsModule } from './reports/reports.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ReportsModule } from './reports/reports.module';
     TransactionsModule,
     ExpensesModule,
     ReportsModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

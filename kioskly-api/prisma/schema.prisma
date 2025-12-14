@@ -30,6 +30,8 @@ model Tenant {
   addons           Addon[]
   transactions     Transaction[]
   expenses         Expense[]
+  inventoryItems   InventoryItem[]
+  inventoryRecords InventoryRecord[]
 
   @@map("tenants")
 }
@@ -51,9 +53,10 @@ model User {
   role         Role          @default(CASHIER)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  expenses     Expense[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transactions     Transaction[]
+  expenses         Expense[]
+  inventoryRecords InventoryRecord[]
 
   @@unique([tenantId, username])
   @@unique([tenantId, email])
@@ -246,4 +249,47 @@ enum ExpenseCategory {
   MAINTENANCE
   TRANSPORTATION
   MISCELLANEOUS
+}
+
+model InventoryItem {
+  id               String            @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId         String            @db.ObjectId
+  name             String
+  category         InventoryCategory
+  unit             String
+  description      String?
+  minStockLevel    Float?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventoryRecords InventoryRecord[]
+
+  @@unique([tenantId, name])
+  @@map("inventory_items")
+}
+
+model InventoryRecord {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId        String        @db.ObjectId
+  inventoryItemId String        @db.ObjectId
+  userId          String        @db.ObjectId
+  quantity        Float
+  date            DateTime      @default(now())
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("inventory_records")
+}
+
+enum InventoryCategory {
+  MAINS
+  FLAVORED_JAMS
+  ADD_ONS
+  SYRUPS
+  HOT
+  PACKAGING
 }

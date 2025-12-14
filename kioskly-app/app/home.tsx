@@ -513,6 +513,13 @@ export default function Home() {
           >
             <Ionicons name="wallet-outline" size={24} color={textColor} />
           </TouchableOpacity>
+          <TouchableOpacity
+            className="rounded-lg p-2"
+            style={{ backgroundColor: primaryColor }}
+            onPress={() => router.push("/inventory" as Href)}
+          >
+            <Ionicons name="cube-outline" size={24} color={textColor} />
+          </TouchableOpacity>
           <View className="w-px bg-black self-stretch mx-2" />
           <TouchableOpacity
             className="rounded-lg p-2"
