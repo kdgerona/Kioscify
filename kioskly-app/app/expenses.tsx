@@ -20,7 +20,6 @@ import {
   ExpenseCategory,
 } from "@/services/expenseService";
 import ExpenseModal from "@/components/ExpenseModal";
-import "@/global.css";
 
 export default function ExpensesScreen() {
   const [expenses, setExpenses] = useState<ExpenseResponse[]>([]);

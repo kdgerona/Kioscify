@@ -4,7 +4,6 @@
   "private": true,
   "workspaces": [
     "kioskly-api",
-    "kioskly-app",
     "kioskly-admin"
   ],
   "scripts": {
@@ -15,10 +14,11 @@
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
     "api:dev": "npm run start:dev --workspace=kioskly-api",
-    "app:dev": "npm run start --workspace=kioskly-app",
+    "app:dev": "cd kioskly-app && npm start",
+    "app:android": "cd kioskly-app && npm run android",
     "admin:dev": "npm run dev --workspace=kioskly-admin",
     "api:build": "npm run build --workspace=kioskly-api",
-    "app:build": "npm run build --workspace=kioskly-app",
+    "app:build": "cd kioskly-app && npm run build",
     "admin:build": "npm run build --workspace=kioskly-admin"
   },
   "devDependencies": {
@@ -26,5 +26,9 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "resolutions": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   }
 }
