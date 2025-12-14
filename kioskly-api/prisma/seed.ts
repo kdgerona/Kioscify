@@ -595,6 +595,22 @@ async function main() {
       minStockLevel: 2,
       tenantId: tenant.id,
     },
+    {
+      name: 'Ube Syrup',
+      category: InventoryCategory.SYRUPS,
+      unit: 'Bot',
+      description: 'Ube flavored syrup',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Passion Syrup',
+      category: InventoryCategory.SYRUPS,
+      unit: 'Bot',
+      description: 'Passion fruit flavored syrup',
+      minStockLevel: 2,
+      tenantId: tenant.id,
+    },
     // HOT
     {
       name: 'Calamansi Ginger',
@@ -682,6 +698,14 @@ async function main() {
       category: InventoryCategory.PACKAGING,
       unit: 'Pack',
       description: 'Napkins for customers',
+      minStockLevel: 5,
+      tenantId: tenant.id,
+    },
+    {
+      name: 'Pet Lids',
+      category: InventoryCategory.PACKAGING,
+      unit: 'Pack',
+      description: 'PET plastic lids for cups',
       minStockLevel: 5,
       tenantId: tenant.id,
     },
