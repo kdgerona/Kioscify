@@ -72,7 +72,7 @@ export interface TransactionItem {
   subtotal: number;
   product?: Product;
   size?: Size;
-  addons?: Addon[];
+  addons?: { addon: Addon }[];
 }
 
 export interface Transaction {
