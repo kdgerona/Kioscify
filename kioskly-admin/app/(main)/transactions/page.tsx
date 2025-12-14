@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDateTime, getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusColor } from '@/lib/utils';
-import { Receipt, Search, Filter, Download, Eye, X } from 'lucide-react';
+import { Receipt, Search, Filter, Download, Eye, X, RefreshCw } from 'lucide-react';
 import type { Transaction } from '@/types';
 import { useTenant } from '@/contexts/TenantContext';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -237,8 +237,15 @@ export default function TransactionsPage() {
             </div>
           </div>
 
-          {/* Export Button */}
-          <div className="flex items-center">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => loadTransactions(false)}
+              className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+              title="Refresh transactions"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
             <button
               onClick={exportToCSV}
               style={{ backgroundColor: primaryColor }}

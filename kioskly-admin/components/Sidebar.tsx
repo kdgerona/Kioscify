@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   Store,
+  Boxes,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Transactions", href: "/transactions", icon: Receipt },
   { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "Inventory", href: "/inventory", icon: Boxes },
   { name: "Products", href: "/products", icon: Package },
   { name: "Categories", href: "/categories", icon: FolderOpen },
   { name: "Settings", href: "/settings", icon: Settings },

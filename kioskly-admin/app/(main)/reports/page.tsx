@@ -19,7 +19,7 @@ import {
   ResponsiveContainer,
   ComposedChart,
 } from 'recharts';
-import { TrendingUp, Download, Calendar } from 'lucide-react';
+import { TrendingUp, Download, Calendar, RefreshCw } from 'lucide-react';
 import { useTenant } from '@/contexts/TenantContext';
 import DateRangeSelector, { TimePeriod } from '@/components/DateRangeSelector';
 
@@ -201,14 +201,23 @@ export default function ReportsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
           <p className="text-gray-600 mt-2">Sales performance and business insights</p>
         </div>
-        <button
-          onClick={exportReport}
-          style={{ backgroundColor: primaryColor }}
-          className="flex items-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90"
-        >
-          <Download className="w-5 h-5" />
-          <span>Export Report</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadReportData}
+            className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+            title="Refresh report data"
+          >
+            <RefreshCw className="w-5 h-5" />
+          </button>
+          <button
+            onClick={exportReport}
+            style={{ backgroundColor: primaryColor }}
+            className="flex items-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90"
+          >
+            <Download className="w-5 h-5" />
+            <span>Export Report</span>
+          </button>
+        </div>
       </div>
 
       {/* Date Range Selector */}

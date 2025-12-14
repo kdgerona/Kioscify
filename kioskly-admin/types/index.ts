@@ -114,3 +114,48 @@ export interface ApiError {
   statusCode: number;
   error?: string;
 }
+
+// Inventory types
+export interface InventoryItem {
+  id: string;
+  tenantId: string;
+  name: string;
+  category: string;
+  unit: string;
+  description?: string;
+  minStockLevel?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventoryRecord {
+  id: string;
+  tenantId: string;
+  inventoryItemId: string;
+  userId: string;
+  quantity: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  inventoryItem?: InventoryItem;
+  user?: User;
+}
+
+export interface LatestInventoryItem extends InventoryItem {
+  latestQuantity?: number;
+  latestRecordDate?: string;
+}
+
+export interface InventoryStats {
+  totalItems: number;
+  lowStockCount: number;
+  itemsWithoutRecords: number;
+  lowStockItems: Array<{
+    id: string;
+    name: string;
+    category: string;
+    latestQuantity: number;
+    minStockLevel: number;
+  }>;
+}

@@ -9,6 +9,10 @@ import type {
   Addon,
   Tenant,
   ApiError,
+  InventoryItem,
+  InventoryRecord,
+  LatestInventoryItem,
+  InventoryStats,
 } from '@/types';
 
 // API base URL - includes the /api/v1 prefix
@@ -271,6 +275,75 @@ class ApiClient {
     }>;
   }> {
     const { data } = await this.client.get('/reports/analytics', { params });
+    return data;
+  }
+
+  // Inventory Items endpoints
+  async getInventoryItems(category?: string): Promise<InventoryItem[]> {
+    const { data } = await this.client.get<InventoryItem[]>('/inventory/items', {
+      params: category ? { category } : undefined,
+    });
+    return data;
+  }
+
+  async getInventoryItemById(id: string): Promise<InventoryItem> {
+    const { data } = await this.client.get<InventoryItem>(`/inventory/items/${id}`);
+    return data;
+  }
+
+  async createInventoryItem(item: Omit<InventoryItem, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<InventoryItem> {
+    const { data } = await this.client.post<InventoryItem>('/inventory/items', item);
+    return data;
+  }
+
+  async updateInventoryItem(id: string, item: Partial<Omit<InventoryItem, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>>): Promise<InventoryItem> {
+    const { data } = await this.client.patch<InventoryItem>(`/inventory/items/${id}`, item);
+    return data;
+  }
+
+  async deleteInventoryItem(id: string): Promise<void> {
+    await this.client.delete(`/inventory/items/${id}`);
+  }
+
+  // Inventory Records endpoints
+  async getInventoryRecords(params?: {
+    startDate?: string;
+    endDate?: string;
+    inventoryItemId?: string;
+  }): Promise<InventoryRecord[]> {
+    const { data } = await this.client.get<InventoryRecord[]>('/inventory/records', { params });
+    return data;
+  }
+
+  async getLatestInventory(date?: string): Promise<LatestInventoryItem[]> {
+    const { data } = await this.client.get<LatestInventoryItem[]>('/inventory/latest', {
+      params: date ? { date } : undefined,
+    });
+    return data;
+  }
+
+  async createInventoryRecord(record: {
+    inventoryItemId: string;
+    quantity: number;
+    date?: string;
+    notes?: string;
+  }): Promise<InventoryRecord> {
+    const { data } = await this.client.post<InventoryRecord>('/inventory/records', record);
+    return data;
+  }
+
+  async bulkCreateInventoryRecords(records: Array<{
+    inventoryItemId: string;
+    quantity: number;
+    date?: string;
+    notes?: string;
+  }>): Promise<InventoryRecord[]> {
+    const { data } = await this.client.post<InventoryRecord[]>('/inventory/records/bulk', { records });
+    return data;
+  }
+
+  async getInventoryStats(): Promise<InventoryStats> {
+    const { data } = await this.client.get<InventoryStats>('/inventory/stats');
     return data;
   }
 }
