@@ -3,21 +3,23 @@
 import * as React from "react"
 import { CalendarIcon } from "lucide-react"
 import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns"
-import { DateRange } from "react-day-picker"
+import { DateRange as DateRangeType } from "react-day-picker"
+import { DateRangePicker as ReactDateRangePicker } from "react-date-range"
+import "react-date-range/dist/styles.css"
+import "react-date-range/dist/theme/default.css"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface DateRangePickerProps {
-  date?: DateRange
-  onDateChange?: (date: DateRange | undefined) => void
+  date?: DateRangeType
+  onDateChange?: (date: DateRangeType | undefined) => void
   className?: string
 }
 
 type PresetType = {
   label: string
-  getValue: () => DateRange
+  getValue: () => DateRangeType
 }
 
 const presets: PresetType[] = [
@@ -76,6 +78,28 @@ export function DateRangePicker({
     setIsOpen(false)
   }
 
+  const handleSelect = (ranges: any) => {
+    const { selection } = ranges
+    const range: DateRangeType = {
+      from: selection.startDate,
+      to: selection.endDate,
+    }
+
+    onDateChange?.(range)
+
+    // Close the popover when a complete range is selected
+    if (selection.startDate && selection.endDate &&
+        selection.startDate.getTime() !== selection.endDate.getTime()) {
+      setIsOpen(false)
+    }
+  }
+
+  const selectionRange = {
+    startDate: date?.from || new Date(),
+    endDate: date?.to || new Date(),
+    key: 'selection',
+  }
+
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -125,13 +149,12 @@ export function DateRangePicker({
               </button>
             </div>
             <div>
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={date?.from}
-                selected={date}
-                onSelect={onDateChange}
-                numberOfMonths={2}
+              <ReactDateRangePicker
+                ranges={[selectionRange]}
+                onChange={handleSelect}
+                months={2}
+                direction="horizontal"
+                showDateDisplay={false}
               />
             </div>
           </div>

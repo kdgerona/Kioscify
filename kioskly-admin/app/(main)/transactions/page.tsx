@@ -3,11 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDateTime, getPaymentMethodLabel, getPaymentStatusLabel, getPaymentStatusColor } from '@/lib/utils';
-import { Receipt, Search, Filter, Download, Eye } from 'lucide-react';
+import { Receipt, Search, Filter, Download, Eye, X } from 'lucide-react';
 import type { Transaction } from '@/types';
 import { useTenant } from '@/contexts/TenantContext';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { DateRange } from 'react-day-picker';
+import { DatePicker } from '@/components/ui/date-picker';
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -35,11 +34,17 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterMethod, setFilterMethod] = useState<string>('ALL');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   // Debounce search term to avoid too many API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  const clearDates = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
 
   const loadTransactions = useCallback(async (isInitial = false) => {
     try {
@@ -66,11 +71,17 @@ export default function TransactionsPage() {
       if (filterMethod !== 'ALL') {
         params.paymentMethod = filterMethod;
       }
-      if (dateRange?.from) {
-        params.startDate = dateRange.from.toISOString();
+      if (startDate) {
+        // Set to start of day
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        params.startDate = start.toISOString();
       }
-      if (dateRange?.to) {
-        params.endDate = dateRange.to.toISOString();
+      if (endDate) {
+        // Set to end of day to include all transactions on the end date
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        params.endDate = end.toISOString();
       }
 
       const data = await api.getTransactions(params);
@@ -81,7 +92,7 @@ export default function TransactionsPage() {
       setInitialLoading(false);
       setIsFiltering(false);
     }
-  }, [debouncedSearchTerm, filterStatus, filterMethod, dateRange]);
+  }, [debouncedSearchTerm, filterStatus, filterMethod, startDate, endDate]);
 
   // Initial load
   useEffect(() => {
@@ -93,7 +104,7 @@ export default function TransactionsPage() {
     if (!initialLoading) {
       loadTransactions(false);
     }
-  }, [debouncedSearchTerm, filterStatus, filterMethod, dateRange, initialLoading, loadTransactions]);
+  }, [debouncedSearchTerm, filterStatus, filterMethod, startDate, endDate, initialLoading, loadTransactions]);
 
   const exportToCSV = () => {
     const headers = ['Transaction ID', 'Date', 'User', 'Total', 'Payment Method', 'Status'];
@@ -140,7 +151,7 @@ export default function TransactionsPage() {
 
       {/* Filters and Search */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -153,12 +164,35 @@ export default function TransactionsPage() {
             />
           </div>
 
-          {/* Date Range Picker */}
+          {/* Start Date Picker */}
           <div className="relative">
-            <DateRangePicker
-              date={dateRange}
-              onDateChange={setDateRange}
+            <DatePicker
+              date={startDate}
+              onDateChange={setStartDate}
+              placeholder="Start date"
             />
+          </div>
+
+          {/* End Date Picker */}
+          <div className="relative">
+            <DatePicker
+              date={endDate}
+              onDateChange={setEndDate}
+              placeholder="End date"
+            />
+          </div>
+
+          {/* Clear Dates Button */}
+          <div className="flex items-center">
+            {(startDate || endDate) && (
+              <button
+                onClick={clearDates}
+                className="flex items-center justify-center text-gray-600 hover:text-gray-900 p-2 rounded-lg border border-gray-300 hover:border-gray-400 transition"
+                title="Clear dates"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
           {/* Status Filter */}
