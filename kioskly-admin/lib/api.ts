@@ -13,6 +13,7 @@ import type {
   InventoryRecord,
   LatestInventoryItem,
   InventoryStats,
+  SubmittedReport,
 } from '@/types';
 
 // API base URL - includes the /api/v1 prefix
@@ -344,6 +345,30 @@ class ApiClient {
 
   async getInventoryStats(): Promise<InventoryStats> {
     const { data } = await this.client.get<InventoryStats>('/inventory/stats');
+    return data;
+  }
+
+  // Submitted Reports endpoints
+  async getSubmittedReports(params?: {
+    reportDate?: string;
+    startDate?: string;
+    endDate?: string;
+    userId?: string;
+  }): Promise<SubmittedReport[]> {
+    const { data } = await this.client.get<SubmittedReport[]>('/submitted-reports', { params });
+    return data;
+  }
+
+  async getSubmittedReportById(id: string): Promise<SubmittedReport> {
+    const { data } = await this.client.get<SubmittedReport>(`/submitted-reports/${id}`);
+    return data;
+  }
+
+  async getSubmittedReportsStats(): Promise<{
+    totalReports: number;
+    reportsThisMonth: number;
+  }> {
+    const { data } = await this.client.get('/submitted-reports/stats');
     return data;
   }
 }

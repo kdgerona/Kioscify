@@ -13,6 +13,7 @@ import { TenantsModule } from './tenants/tenants.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ReportsModule } from './reports/reports.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { SubmittedReportsModule } from './submitted-reports/submitted-reports.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { InventoryModule } from './inventory/inventory.module';
     ExpensesModule,
     ReportsModule,
     InventoryModule,
+    SubmittedReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

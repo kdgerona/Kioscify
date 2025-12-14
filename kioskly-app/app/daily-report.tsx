@@ -13,6 +13,7 @@ import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import {
   getDailyReport,
+  submitReport,
   DailyReportResponse,
 } from "../services/reportService";
 import {
@@ -35,6 +36,9 @@ export default function DailyReport() {
   const [expenses, setExpenses] = useState<ExpenseResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const getTodayDateRange = () => {
     const today = new Date();
@@ -126,6 +130,53 @@ export default function DailyReport() {
     });
   };
 
+  const handleSubmitReport = async () => {
+    if (!reportData || !user) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(false);
+
+    try {
+      const submitData = {
+        reportDate: reportData.date,
+        periodStart: reportData.period.start,
+        periodEnd: reportData.period.end,
+        salesSnapshot: {
+          totalAmount: reportData.sales.totalAmount,
+          transactionCount: reportData.sales.transactionCount,
+          averageTransaction: reportData.sales.averageTransaction,
+          totalItemsSold: reportData.sales.totalItemsSold,
+          paymentMethodBreakdown: reportData.sales.paymentMethodBreakdown,
+        },
+        expensesSnapshot: {
+          totalAmount: reportData.expenses.totalAmount,
+          expenseCount: reportData.expenses.expenseCount,
+          averageExpense: reportData.expenses.averageExpense,
+          categoryBreakdown: reportData.expenses.categoryBreakdown,
+        },
+        summarySnapshot: {
+          grossProfit: reportData.summary.grossProfit,
+          profitMargin: reportData.summary.profitMargin,
+          netRevenue: reportData.summary.netRevenue,
+        },
+        transactionIds: transactions.map((t) => t.id),
+        expenseIds: expenses.map((e) => e.id),
+      };
+
+      await submitReport(submitData);
+      setSubmitSuccess(true);
+      setTimeout(() => setSubmitSuccess(false), 3000);
+    } catch (err) {
+      console.error("Failed to submit report:", err);
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to submit report"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <SafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
@@ -148,10 +199,60 @@ export default function DailyReport() {
             )}
           </View>
         </View>
+        {/* Submit Button */}
+        {!isLoading && !error && reportData && (
+          <TouchableOpacity
+            onPress={handleSubmitReport}
+            disabled={isSubmitting}
+            className="ml-2 px-4 py-2 rounded-lg"
+            style={{
+              backgroundColor: isSubmitting ? "#9ca3af" : primaryColor,
+              opacity: isSubmitting ? 0.7 : 1,
+            }}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <View className="flex-row items-center">
+                <Ionicons name="cloud-upload" size={20} color="#ffffff" />
+                <Text className="text-white font-semibold ml-2">Submit</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Content */}
       <ScrollView className="flex-1 px-4 py-4">
+        {/* Success/Error Toast */}
+        {submitSuccess && (
+          <View className="mb-4 bg-green-100 border-2 border-green-500 rounded-lg p-4 flex-row items-center">
+            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+            <Text className="ml-3 text-green-800 font-semibold flex-1">
+              Report submitted successfully!
+            </Text>
+          </View>
+        )}
+        {submitError && (
+          <View className="mb-4 bg-red-100 border-2 border-red-500 rounded-lg p-4">
+            <View className="flex-row items-start">
+              <Ionicons name="alert-circle" size={24} color="#ef4444" />
+              <View className="ml-3 flex-1">
+                <Text className="text-red-800 font-semibold">
+                  Submission Failed
+                </Text>
+                <Text className="text-red-700 mt-1">{submitError}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => setSubmitError(null)}
+              className="mt-3 bg-red-200 rounded-lg px-4 py-2 self-start"
+            >
+              <Text className="text-red-800 font-semibold">Dismiss</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {isLoading ? (
           <View className="py-12 items-center justify-center">
             <ActivityIndicator size="large" color={primaryColor} />

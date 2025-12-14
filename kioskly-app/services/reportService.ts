@@ -1,4 +1,4 @@
-import { apiGet } from "../utils/api";
+import { apiGet, apiPost } from "../utils/api";
 import { safeReactotron } from "../utils/reactotron";
 
 interface PaymentMethodBreakdown {
@@ -92,6 +92,80 @@ export const getDailyReport = async (
     return data;
   } catch (error) {
     console.error("Failed to fetch daily report:", error);
+    throw error;
+  }
+};
+
+export interface SubmitReportData {
+  reportDate: string;
+  periodStart: string;
+  periodEnd: string;
+  salesSnapshot: {
+    totalAmount: number;
+    transactionCount: number;
+    averageTransaction: number;
+    totalItemsSold: number;
+    paymentMethodBreakdown: PaymentMethodBreakdown;
+  };
+  expensesSnapshot: {
+    totalAmount: number;
+    expenseCount: number;
+    averageExpense: number;
+    categoryBreakdown: ExpenseCategoryBreakdown;
+  };
+  summarySnapshot: {
+    grossProfit: number;
+    profitMargin: number;
+    netRevenue: number;
+  };
+  transactionIds: string[];
+  expenseIds: string[];
+  notes?: string;
+}
+
+/**
+ * Submit a daily report to the backend
+ */
+export const submitReport = async (
+  data: SubmitReportData
+): Promise<any> => {
+  try {
+    console.log("🔵 SUBMITTING REPORT:", data);
+
+    safeReactotron.display({
+      name: "SUBMIT REPORT",
+      value: data,
+      preview: `Submitting report for ${data.reportDate}`,
+    });
+
+    const response = await apiPost("/submitted-reports", data);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log("🔴 SUBMIT REPORT ERROR:", errorText);
+
+      safeReactotron.display({
+        name: "SUBMIT REPORT ERROR",
+        value: { status: response.status, error: errorText },
+        preview: "Failed to submit report",
+        important: true,
+      });
+
+      throw new Error(`Failed to submit report: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log("🟢 REPORT SUBMITTED:", result);
+
+    safeReactotron.display({
+      name: "REPORT SUBMITTED",
+      value: result,
+      preview: "Report submitted successfully",
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Failed to submit report:", error);
     throw error;
   }
 };

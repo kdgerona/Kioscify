@@ -32,6 +32,7 @@ model Tenant {
   expenses         Expense[]
   inventoryItems   InventoryItem[]
   inventoryRecords InventoryRecord[]
+  submittedReports SubmittedReport[]
 
   @@map("tenants")
 }
@@ -57,6 +58,7 @@ model User {
   transactions     Transaction[]
   expenses         Expense[]
   inventoryRecords InventoryRecord[]
+  submittedReports SubmittedReport[]
 
   @@unique([tenantId, username])
   @@unique([tenantId, email])
@@ -292,4 +294,54 @@ enum InventoryCategory {
   SYRUPS
   HOT
   PACKAGING
+}
+
+model SubmittedReport {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId        String   @db.ObjectId
+  userId          String   @db.ObjectId
+
+  reportDate      String   // YYYY-MM-DD format
+  submittedAt     DateTime @default(now())
+  periodStart     DateTime
+  periodEnd       DateTime
+
+  salesSnapshot   SalesSnapshot
+  expensesSnapshot ExpensesSnapshot
+  summarySnapshot  SummarySnapshot
+
+  transactionIds  String[]
+  expenseIds      String[]
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, reportDate])
+  @@index([tenantId, submittedAt])
+  @@map("submitted_reports")
+}
+
+type SalesSnapshot {
+  totalAmount           Float
+  transactionCount      Int
+  averageTransaction    Float
+  totalItemsSold        Int
+  paymentMethodBreakdown Json
+}
+
+type ExpensesSnapshot {
+  totalAmount       Float
+  expenseCount      Int
+  averageExpense    Float
+  categoryBreakdown Json
+}
+
+type SummarySnapshot {
+  grossProfit    Float
+  profitMargin   Float
+  netRevenue     Float
 }

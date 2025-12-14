@@ -157,3 +157,62 @@ export interface InventoryStats {
     minStockLevel: number;
   }>;
 }
+
+// Expense types
+export interface Expense {
+  id: string;
+  tenantId: string;
+  userId: string;
+  description: string;
+  amount: number;
+  category: 'SUPPLIES' | 'UTILITIES' | 'RENT' | 'SALARIES' | 'MARKETING' | 'MAINTENANCE' | 'TRANSPORTATION' | 'MISCELLANEOUS';
+  date: string;
+  receipt?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: User;
+}
+
+// Submitted Reports types
+export interface SalesSnapshot {
+  totalAmount: number;
+  transactionCount: number;
+  averageTransaction: number;
+  totalItemsSold: number;
+  paymentMethodBreakdown: Record<string, { total: number; count: number }>;
+}
+
+export interface ExpensesSnapshot {
+  totalAmount: number;
+  expenseCount: number;
+  averageExpense: number;
+  categoryBreakdown: Record<string, { total: number; count: number }>;
+}
+
+export interface SummarySnapshot {
+  grossProfit: number;
+  profitMargin: number;
+  netRevenue: number;
+}
+
+export interface SubmittedReport {
+  id: string;
+  tenantId: string;
+  userId: string;
+  reportDate: string;
+  submittedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  salesSnapshot: SalesSnapshot;
+  expensesSnapshot: ExpensesSnapshot;
+  summarySnapshot: SummarySnapshot;
+  transactionIds: string[];
+  expenseIds: string[];
+  transactions?: Transaction[];
+  expenses?: Expense[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: User;
+}
