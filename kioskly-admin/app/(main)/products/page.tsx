@@ -19,10 +19,8 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     categoryId: '',
-    basePrice: '',
-    available: true,
+    price: '',
   });
 
   useEffect(() => {
@@ -36,8 +34,7 @@ export default function ProductsPage() {
     }
 
     const filtered = products.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
@@ -66,10 +63,8 @@ export default function ProductsPage() {
     setEditingProduct(null);
     setFormData({
       name: '',
-      description: '',
       categoryId: categories[0]?.id || '',
-      basePrice: '',
-      available: true,
+      price: '',
     });
     setShowModal(true);
   };
@@ -78,10 +73,8 @@ export default function ProductsPage() {
     setEditingProduct(product);
     setFormData({
       name: product.name,
-      description: product.description || '',
       categoryId: product.categoryId,
-      basePrice: product.basePrice.toString(),
-      available: product.available,
+      price: (Number(product.price) || 0).toString(),
     });
     setShowModal(true);
   };
@@ -92,10 +85,8 @@ export default function ProductsPage() {
     try {
       const productData = {
         name: formData.name,
-        description: formData.description || undefined,
         categoryId: formData.categoryId,
-        basePrice: parseFloat(formData.basePrice),
-        available: formData.available,
+        price: parseFloat(formData.price),
       };
 
       if (editingProduct) {
@@ -123,15 +114,6 @@ export default function ProductsPage() {
     } catch (error) {
       console.error('Failed to delete product:', error);
       alert('Failed to delete product. Please try again.');
-    }
-  };
-
-  const toggleAvailability = async (product: Product) => {
-    try {
-      await api.updateProduct(product.id, { available: !product.available });
-      await loadData();
-    } catch (error) {
-      console.error('Failed to update product:', error);
     }
   };
 
@@ -189,28 +171,17 @@ export default function ProductsPage() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-900 mb-1">{product.name}</h3>
-                    <p className="text-sm text-gray-600 mb-2">{product.description}</p>
                     <p className="text-xs text-gray-500">
                       Category: {categories.find(c => c.id === product.categoryId)?.name || 'N/A'}
                     </p>
                   </div>
-                  <button
-                    onClick={() => toggleAvailability(product)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
-                      product.available
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                        : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    }`}
-                  >
-                    {product.available ? 'Available' : 'Unavailable'}
-                  </button>
                 </div>
 
                 <div className="mb-4">
-                  <p className="text-2xl font-bold" style={{ color: primaryColor }}>
-                    {formatCurrency(product.basePrice)}
+                  <p className="text-2xl font-bold text-black">
+                    {formatCurrency(Number(product.price) || 0)}
                   </p>
-                  <p className="text-xs text-gray-500">Base price</p>
+                  <p className="text-xs text-gray-500">Price</p>
                 </div>
 
                 <div className="flex space-x-2">
@@ -266,21 +237,8 @@ export default function ProductsPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  placeholder="e.g., Caramel Macchiato"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  placeholder="Product description"
-                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  placeholder="e.g., Classic Lemonade"
                 />
               </div>
 
@@ -292,7 +250,7 @@ export default function ProductsPage() {
                   required
                   value={formData.categoryId}
                   onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
                 >
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
@@ -304,31 +262,18 @@ export default function ProductsPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Base Price *
+                  Price *
                 </label>
                 <input
                   type="number"
                   required
                   step="0.01"
                   min="0"
-                  value={formData.basePrice}
-                  onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
                   placeholder="0.00"
                 />
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="available"
-                  checked={formData.available}
-                  onChange={(e) => setFormData({ ...formData, available: e.target.checked })}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                />
-                <label htmlFor="available" className="ml-2 text-sm text-gray-700">
-                  Available for sale
-                </label>
               </div>
 
               <div className="flex space-x-3 pt-4">

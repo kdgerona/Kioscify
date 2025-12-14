@@ -147,12 +147,12 @@ class ApiClient {
     return data;
   }
 
-  async createProduct(product: Omit<Product, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<Product> {
+  async createProduct(product: { name: string; categoryId: string; price: number; id?: string }): Promise<Product> {
     const { data } = await this.client.post<Product>('/products', product);
     return data;
   }
 
-  async updateProduct(id: string, product: Partial<Omit<Product, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>>): Promise<Product> {
+  async updateProduct(id: string, product: { name?: string; categoryId?: string; price?: number }): Promise<Product> {
     const { data } = await this.client.patch<Product>(`/products/${id}`, product);
     return data;
   }

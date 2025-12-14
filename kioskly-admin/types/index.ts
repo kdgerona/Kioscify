@@ -56,10 +56,8 @@ export interface Product {
   tenantId: string;
   categoryId: string;
   name: string;
-  description?: string;
-  basePrice: number;
-  imageUrl?: string;
-  available: boolean;
+  price: number;
+  image?: string;
   category?: Category;
   createdAt: string;
   updatedAt: string;
