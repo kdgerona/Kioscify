@@ -150,9 +150,9 @@ export default function TransactionsPage() {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
-          {/* Search */}
+      <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-200 mb-6">
+        <div className="space-y-4">
+          {/* Search - Full width on all screens */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
@@ -164,84 +164,88 @@ export default function TransactionsPage() {
             />
           </div>
 
-          {/* Start Date Picker */}
-          <div className="relative">
-            <DatePicker
-              date={startDate}
-              onDateChange={setStartDate}
-              placeholder="Start date"
-            />
-          </div>
+          {/* Date pickers row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Start Date Picker */}
+            <div className="relative">
+              <DatePicker
+                date={startDate}
+                onDateChange={setStartDate}
+                placeholder="Start date"
+              />
+            </div>
 
-          {/* End Date Picker */}
-          <div className="relative">
-            <DatePicker
-              date={endDate}
-              onDateChange={setEndDate}
-              placeholder="End date"
-            />
-          </div>
-
-          {/* Clear Dates Button */}
-          <div className="flex items-center">
-            {(startDate || endDate) && (
-              <button
-                onClick={clearDates}
-                className="flex items-center justify-center text-gray-600 hover:text-gray-900 p-2 rounded-lg border border-gray-300 hover:border-gray-400 transition"
-                title="Clear dates"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-
-          {/* Status Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer"
-            >
-              <option value="ALL">All Status</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="PENDING">Pending</option>
-              <option value="FAILED">Failed</option>
-            </select>
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+            {/* End Date Picker with Clear Button */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <DatePicker
+                  date={endDate}
+                  onDateChange={setEndDate}
+                  placeholder="End date"
+                />
+              </div>
+              {(startDate || endDate) && (
+                <button
+                  onClick={clearDates}
+                  className="flex items-center justify-center text-gray-600 hover:text-gray-900 p-2 rounded-lg border border-gray-300 hover:border-gray-400 transition flex-shrink-0"
+                  title="Clear dates"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Payment Method Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <select
-              value={filterMethod}
-              onChange={(e) => setFilterMethod(e.target.value)}
-              className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer"
-            >
-              <option value="ALL">All Methods</option>
-              <option value="CASH">Cash</option>
-              <option value="CARD">Card</option>
-              <option value="GCASH">GCash</option>
-              <option value="PAYMAYA">PayMaya</option>
-              <option value="ONLINE">Online</option>
-            </select>
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+          {/* Filters row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Status Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
+              >
+                <option value="ALL">All Status</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="PENDING">Pending</option>
+                <option value="FAILED">Failed</option>
+              </select>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Payment Method Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+              <select
+                value={filterMethod}
+                onChange={(e) => setFilterMethod(e.target.value)}
+                className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
+              >
+                <option value="ALL">All Methods</option>
+                <option value="CASH">Cash</option>
+                <option value="CARD">Card</option>
+                <option value="GCASH">GCash</option>
+                <option value="PAYMAYA">PayMaya</option>
+                <option value="ONLINE">Online</option>
+              </select>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <button
               onClick={() => loadTransactions(false)}
-              className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+              className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition flex items-center justify-center"
               title="Refresh transactions"
             >
               <RefreshCw className="w-5 h-5" />
@@ -249,10 +253,10 @@ export default function TransactionsPage() {
             <button
               onClick={exportToCSV}
               style={{ backgroundColor: primaryColor }}
-              className="flex items-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90 w-fit"
+              className="flex items-center justify-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90"
             >
               <Download className="w-5 h-5" />
-              <span>Export CSV</span>
+              <span className="text-sm sm:text-base">Export CSV</span>
             </button>
           </div>
         </div>
