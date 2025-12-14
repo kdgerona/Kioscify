@@ -227,6 +227,52 @@ class ApiClient {
     const { data } = await this.client.get<Tenant>('/tenants/me');
     return data;
   }
+
+  // Reports endpoints
+  async getAnalytics(params?: {
+    period?: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'overall' | 'custom';
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    period: {
+      type: string;
+      start: string;
+      end: string;
+    };
+    sales: {
+      totalAmount: number;
+      transactionCount: number;
+      averageTransaction: number;
+      totalItemsSold: number;
+      paymentMethodBreakdown: Record<string, { total: number; count: number }>;
+      growth: number;
+    };
+    expenses: {
+      totalAmount: number;
+      expenseCount: number;
+      averageExpense: number;
+      categoryBreakdown: Record<string, { total: number; count: number }>;
+    };
+    summary: {
+      grossProfit: number;
+      profitMargin: number;
+      netRevenue: number;
+    };
+    topProducts: Array<{
+      productId: string;
+      productName: string;
+      quantity: number;
+      revenue: number;
+    }>;
+    salesByDay: Array<{
+      date: string;
+      total: number;
+      count: number;
+    }>;
+  }> {
+    const { data } = await this.client.get('/reports/analytics', { params });
+    return data;
+  }
 }
 
 export const api = new ApiClient();

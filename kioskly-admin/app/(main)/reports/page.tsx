@@ -17,27 +17,79 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ComposedChart,
 } from 'recharts';
-import { Calendar, TrendingUp, Download } from 'lucide-react';
-import type { Transaction } from '@/types';
+import { TrendingUp, Download, Calendar } from 'lucide-react';
 import { useTenant } from '@/contexts/TenantContext';
+import DateRangeSelector, { TimePeriod } from '@/components/DateRangeSelector';
+
+interface AnalyticsData {
+  period: {
+    type: string;
+    start: string;
+    end: string;
+  };
+  sales: {
+    totalAmount: number;
+    transactionCount: number;
+    averageTransaction: number;
+    totalItemsSold: number;
+    paymentMethodBreakdown: Record<string, { total: number; count: number }>;
+    growth: number;
+  };
+  expenses: {
+    totalAmount: number;
+    expenseCount: number;
+    averageExpense: number;
+    categoryBreakdown: Record<string, { total: number; count: number }>;
+  };
+  summary: {
+    grossProfit: number;
+    profitMargin: number;
+    netRevenue: number;
+  };
+  topProducts: Array<{
+    productId: string;
+    productName: string;
+    quantity: number;
+    revenue: number;
+  }>;
+  salesByDay: Array<{
+    date: string;
+    total: number;
+    count: number;
+  }>;
+}
 
 export default function ReportsPage() {
   const { tenant } = useTenant();
   const primaryColor = tenant?.themeColors?.primary || '#4f46e5';
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState<'week' | 'month' | 'year'>('month');
+  const [period, setPeriod] = useState<TimePeriod>('monthly');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   useEffect(() => {
     loadReportData();
-  }, []);
+  }, [period, startDate, endDate]);
 
   const loadReportData = async () => {
     try {
       setLoading(true);
-      const data = await api.getTransactions();
-      setTransactions(data);
+      const params: {
+        period?: TimePeriod;
+        startDate?: string;
+        endDate?: string;
+      } = { period };
+
+      if (period === 'custom' && startDate && endDate) {
+        params.startDate = startDate;
+        params.endDate = endDate;
+      }
+
+      const data = await api.getAnalytics(params);
+      setAnalytics(data);
     } catch (error) {
       console.error('Failed to load report data:', error);
     } finally {
@@ -45,31 +97,9 @@ export default function ReportsPage() {
     }
   };
 
-  // Prepare sales by day data
-  const getSalesByDay = () => {
-    const salesMap = new Map<string, number>();
-
-    transactions.forEach(t => {
-      if (t.paymentStatus === 'COMPLETED') {
-        const date = new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        salesMap.set(date, (salesMap.get(date) || 0) + t.total);
-      }
-    });
-
-    return Array.from(salesMap.entries())
-      .map(([date, total]) => ({ date, total }))
-      .slice(-30); // Last 30 days
-  };
-
   // Prepare payment method distribution
   const getPaymentMethodData = () => {
-    const methodMap = new Map<string, number>();
-
-    transactions.forEach(t => {
-      if (t.paymentStatus === 'COMPLETED') {
-        methodMap.set(t.paymentMethod, (methodMap.get(t.paymentMethod) || 0) + 1);
-      }
-    });
+    if (!analytics) return [];
 
     const colors = {
       CASH: '#10b981',
@@ -78,63 +108,56 @@ export default function ReportsPage() {
       PAYMAYA: '#f59e0b',
     };
 
-    return Array.from(methodMap.entries()).map(([method, count]) => ({
+    return Object.entries(analytics.sales.paymentMethodBreakdown).map(([method, data]) => ({
       name: method,
-      value: count,
+      value: data.count,
       color: colors[method as keyof typeof colors] || '#6b7280',
     }));
   };
 
-  // Calculate metrics
-  const getMetrics = () => {
-    const completedTransactions = transactions.filter(t => t.paymentStatus === 'COMPLETED');
-    const totalSales = completedTransactions.reduce((sum, t) => sum + t.total, 0);
-    const totalTransactions = completedTransactions.length;
-    const averageOrderValue = totalTransactions > 0 ? totalSales / totalTransactions : 0;
+  // Prepare expense category distribution
+  const getExpenseCategoryData = () => {
+    if (!analytics) return [];
 
-    // Calculate growth (comparing last 7 days vs previous 7 days)
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
-    const lastWeekSales = completedTransactions
-      .filter(t => new Date(t.createdAt) > sevenDaysAgo)
-      .reduce((sum, t) => sum + t.total, 0);
-
-    const prevWeekSales = completedTransactions
-      .filter(t => {
-        const date = new Date(t.createdAt);
-        return date > fourteenDaysAgo && date <= sevenDaysAgo;
-      })
-      .reduce((sum, t) => sum + t.total, 0);
-
-    const growth = prevWeekSales > 0 ? ((lastWeekSales - prevWeekSales) / prevWeekSales) * 100 : 0;
-
-    return {
-      totalSales,
-      totalTransactions,
-      averageOrderValue,
-      growth,
+    const colors = {
+      SUPPLIES: '#ef4444',
+      UTILITIES: '#f59e0b',
+      MAINTENANCE: '#8b5cf6',
+      SALARY: '#3b82f6',
+      RENT: '#ec4899',
+      OTHER: '#6b7280',
     };
+
+    return Object.entries(analytics.expenses.categoryBreakdown).map(([category, data]) => ({
+      name: category,
+      value: data.total,
+      color: colors[category as keyof typeof colors] || '#6b7280',
+    }));
+  };
+
+  // Prepare sales by day for charts
+  const getSalesByDay = () => {
+    if (!analytics) return [];
+
+    return analytics.salesByDay.map(day => ({
+      date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      total: day.total,
+      count: day.count,
+    }));
   };
 
   const exportReport = () => {
-    const metrics = getMetrics();
-    const salesData = getSalesByDay();
-    const paymentData = getPaymentMethodData();
+    if (!analytics) return;
 
     const report = {
       generatedAt: new Date().toISOString(),
-      summary: metrics,
-      dailySales: salesData,
-      paymentMethods: paymentData,
-      transactions: transactions.map(t => ({
-        id: t.id,
-        date: t.createdAt,
-        total: t.total,
-        method: t.paymentMethod,
-        status: t.paymentStatus,
-      })),
+      period: analytics.period,
+      sales: analytics.sales,
+      expenses: analytics.expenses,
+      summary: analytics.summary,
+      topProducts: analytics.topProducts,
+      salesByDay: analytics.salesByDay,
+      paymentMethods: getPaymentMethodData(),
     };
 
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
@@ -159,9 +182,17 @@ export default function ReportsPage() {
     );
   }
 
+  if (!analytics) {
+    return (
+      <div className="p-8">
+        <div className="text-center text-gray-600">No data available</div>
+      </div>
+    );
+  }
+
   const salesByDay = getSalesByDay();
   const paymentMethodData = getPaymentMethodData();
-  const metrics = getMetrics();
+  const expenseCategoryData = getExpenseCategoryData();
 
   return (
     <div className="p-8">
@@ -180,32 +211,43 @@ export default function ReportsPage() {
         </button>
       </div>
 
+      {/* Date Range Selector */}
+      <DateRangeSelector
+        period={period}
+        onPeriodChange={setPeriod}
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+        primaryColor={primaryColor}
+      />
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-blue-100 text-sm mb-2">Total Sales</p>
-          <p className="text-3xl font-bold">{formatCurrency(metrics.totalSales)}</p>
+          <p className="text-3xl font-bold">{formatCurrency(analytics.sales.totalAmount)}</p>
           <p className="text-sm text-blue-100 mt-2">
-            {metrics.growth >= 0 ? '↑' : '↓'} {Math.abs(metrics.growth).toFixed(1)}% from last week
+            {analytics.sales.growth >= 0 ? '↑' : '↓'} {Math.abs(analytics.sales.growth).toFixed(1)}% from previous period
           </p>
         </div>
 
         <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-green-100 text-sm mb-2">Transactions</p>
-          <p className="text-3xl font-bold">{metrics.totalTransactions}</p>
+          <p className="text-3xl font-bold">{analytics.sales.transactionCount}</p>
           <p className="text-sm text-green-100 mt-2">Completed orders</p>
         </div>
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-purple-100 text-sm mb-2">Avg. Order Value</p>
-          <p className="text-3xl font-bold">{formatCurrency(metrics.averageOrderValue)}</p>
+          <p className="text-3xl font-bold">{formatCurrency(analytics.sales.averageTransaction)}</p>
           <p className="text-sm text-purple-100 mt-2">Per transaction</p>
         </div>
 
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-orange-100 text-sm mb-2">Period</p>
-          <p className="text-3xl font-bold">{dateRange}</p>
-          <p className="text-sm text-orange-100 mt-2">Current view</p>
+          <p className="text-orange-100 text-sm mb-2">Gross Profit</p>
+          <p className="text-3xl font-bold">{formatCurrency(analytics.summary.grossProfit)}</p>
+          <p className="text-sm text-orange-100 mt-2">{analytics.summary.profitMargin.toFixed(1)}% margin</p>
         </div>
       </div>
 
@@ -231,10 +273,10 @@ export default function ReportsPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Payment Methods */}
+        {/* Payment Methods Distribution */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Payment Methods</h2>
+            <h2 className="text-xl font-bold text-gray-900">Payment Methods Distribution</h2>
             <TrendingUp className="w-5 h-5 text-gray-400" />
           </div>
           {paymentMethodData.length > 0 ? (
@@ -265,21 +307,260 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {/* Payment Method Breakdown */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
+        <h2 className="text-xl font-bold text-gray-900 mb-6">Sales by Payment Method</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Object.entries(analytics.sales.paymentMethodBreakdown).map(([method, data]) => {
+            const colors = {
+              CASH: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', badge: 'bg-green-100' },
+              CARD: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', badge: 'bg-blue-100' },
+              GCASH: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', badge: 'bg-purple-100' },
+              PAYMAYA: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100' },
+              ONLINE: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', badge: 'bg-indigo-100' },
+            };
+            const color = colors[method as keyof typeof colors] || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-700', badge: 'bg-gray-100' };
+            const percentage = analytics.sales.totalAmount > 0 ? (data.total / analytics.sales.totalAmount) * 100 : 0;
+
+            return (
+              <div key={method} className={`${color.bg} border ${color.border} p-4 rounded-lg`}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`text-sm font-semibold ${color.text}`}>{method}</span>
+                  <span className={`${color.badge} ${color.text} text-xs px-2 py-1 rounded-full font-medium`}>
+                    {percentage.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Total Amount</p>
+                    <p className={`text-2xl font-bold ${color.text}`}>{formatCurrency(data.total)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600">Transactions</p>
+                    <p className={`text-lg font-semibold ${color.text}`}>{data.count}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600">Average</p>
+                    <p className={`text-sm font-medium ${color.text}`}>
+                      {formatCurrency(data.count > 0 ? data.total / data.count : 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Top Products Section */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
+        <h2 className="text-xl font-bold text-gray-900 mb-6">Top Selling Products</h2>
+        {analytics.topProducts.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Rank
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Product Name
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Quantity Sold
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Revenue
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Avg. Price
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    % of Total Sales
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {analytics.topProducts.map((product, index) => {
+                  const percentage = analytics.sales.totalAmount > 0
+                    ? (product.revenue / analytics.sales.totalAmount) * 100
+                    : 0;
+                  const avgPrice = product.quantity > 0 ? product.revenue / product.quantity : 0;
+
+                  return (
+                    <tr key={product.productId} className="hover:bg-gray-50 transition">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold text-sm">
+                          {index + 1}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm font-semibold text-gray-900">{product.productName}</span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+                          {product.quantity} units
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <span className="text-sm font-bold text-gray-900">
+                          {formatCurrency(product.revenue)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <span className="text-sm text-gray-600">
+                          {formatCurrency(avgPrice)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <div className="w-24 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="h-2 rounded-full"
+                              style={{
+                                width: `${Math.min(percentage, 100)}%`,
+                                backgroundColor: primaryColor
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium text-gray-700 min-w-[3rem]">
+                            {percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">
+                    Total
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <span className="text-sm font-bold text-gray-900">
+                      {analytics.sales.totalItemsSold} units
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <span className="text-sm font-bold text-gray-900">
+                      {formatCurrency(analytics.sales.totalAmount)}
+                    </span>
+                  </td>
+                  <td colSpan={2}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-500">
+            No product sales data available
+          </div>
+        )}
+      </div>
+
+      {/* Expenses Section */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Expenses</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          {/* Total Expenses Card */}
+          <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg">
+            <p className="text-red-100 text-sm mb-2">Total Expenses</p>
+            <p className="text-3xl font-bold">{formatCurrency(analytics.expenses.totalAmount)}</p>
+            <p className="text-sm text-red-100 mt-2">{analytics.expenses.expenseCount} expense(s)</p>
+          </div>
+
+          {/* Average Expense Card */}
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 rounded-xl shadow-lg">
+            <p className="text-amber-100 text-sm mb-2">Avg. Expense</p>
+            <p className="text-3xl font-bold">{formatCurrency(analytics.expenses.averageExpense)}</p>
+            <p className="text-sm text-amber-100 mt-2">Per expense entry</p>
+          </div>
+
+          {/* Net Profit Card */}
+          <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
+            <p className="text-emerald-100 text-sm mb-2">Net Revenue</p>
+            <p className="text-3xl font-bold">{formatCurrency(analytics.summary.netRevenue)}</p>
+            <p className="text-sm text-emerald-100 mt-2">After expenses</p>
+          </div>
+        </div>
+
+        {/* Expense Breakdown Chart */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-900 mb-6">Expense Breakdown by Category</h3>
+          {expenseCategoryData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={expenseCategoryData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent, value }) => `${name} ${formatCurrency(value)} (${(percent * 100).toFixed(0)}%)`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {expenseCategoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              No expense data available
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Daily Sales Bar Chart */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Daily Sales Overview</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-6">Daily Sales & Quantity Overview</h2>
         <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={salesByDay}>
+          <ComposedChart data={salesByDay}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="date" stroke="#6b7280" style={{ fontSize: '12px' }} />
-            <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
+            <YAxis
+              yAxisId="left"
+              stroke="#6b7280"
+              style={{ fontSize: '12px' }}
+              tickFormatter={(value) => `${formatCurrency(value)}`}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              stroke="#6b7280"
+              style={{ fontSize: '12px' }}
+              label={{ value: 'Quantity', angle: -90, position: 'insideRight', style: { fontSize: '12px' } }}
+            />
             <Tooltip
               contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-              formatter={(value: number) => formatCurrency(value)}
+              formatter={(value: number, name: string) => {
+                if (name === 'Revenue') return formatCurrency(value);
+                return `${value} units`;
+              }}
             />
             <Legend />
-            <Bar dataKey="total" fill={primaryColor} radius={[8, 8, 0, 0]} name="Sales" />
-          </BarChart>
+            <Bar
+              yAxisId="left"
+              dataKey="total"
+              fill={primaryColor}
+              radius={[8, 8, 0, 0]}
+              name="Revenue"
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="count"
+              stroke="#ef4444"
+              strokeWidth={3}
+              dot={{ fill: '#ef4444', r: 4 }}
+              name="Quantity Sold"
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>

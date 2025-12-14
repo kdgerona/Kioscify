@@ -20,6 +20,12 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
+      modifiers={{
+        today: new Date(),
+      }}
+      modifiersClassNames={{
+        today: "bg-blue-100 text-blue-900 font-bold border-2 border-blue-500",
+      }}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 relative",
         month: "space-y-4",
@@ -40,7 +46,6 @@ function Calendar({
         day_range_end: "day-range-end",
         day_selected:
           "bg-gray-900 text-white hover:bg-gray-900 hover:text-white focus:bg-gray-900 focus:text-white",
-        day_today: "bg-gray-100 text-gray-900 font-semibold",
         day_outside:
           "day-outside text-gray-400 opacity-50 aria-selected:bg-gray-100/50 aria-selected:text-gray-500 aria-selected:opacity-30",
         day_disabled: "text-gray-400 opacity-50",
@@ -50,7 +55,7 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Chevron: ({ orientation }) => 
+        Chevron: ({ orientation }) =>
           orientation === "left" ? (
             <ChevronLeft className="h-4 w-4" />
           ) : (
