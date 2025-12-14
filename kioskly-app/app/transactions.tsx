@@ -185,12 +185,12 @@ export default function Transactions() {
           </Text>
         </View>
         <TouchableOpacity
-          className="flex-row items-center gap-2 rounded-lg px-4 py-2"
-          style={{ backgroundColor: primaryColor }}
+          className="flex-row items-center rounded-lg px-3 py-2"
+          style={{ backgroundColor: "#000000" }}
           onPress={handleGenerateReport}
         >
-          <Ionicons name="document-text" size={20} color={textColor} />
-          <Text className="font-semibold" style={{ color: textColor }}>
+          <Ionicons name="document-text" size={18} color="#ffffff" />
+          <Text className="font-semibold text-white ml-1.5">
             Report
           </Text>
         </TouchableOpacity>

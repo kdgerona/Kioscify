@@ -133,10 +133,10 @@ export default function ExpensesScreen() {
         </View>
         <TouchableOpacity
           onPress={() => setIsModalVisible(true)}
-          className="bg-gray-800 px-4 py-2 rounded-lg flex-row items-center gap-1"
+          className="bg-gray-800 px-3 py-2 rounded-lg flex-row items-center"
         >
-          <Ionicons name="add-circle-outline" size={20} color="white" />
-          <Text className="text-white font-semibold">Add</Text>
+          <Ionicons name="add-circle-outline" size={18} color="white" />
+          <Text className="text-white font-semibold ml-1.5">Add</Text>
         </TouchableOpacity>
       </View>
 

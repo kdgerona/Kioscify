@@ -206,7 +206,7 @@ export default function DailyReport() {
             disabled={isSubmitting}
             className="ml-2 px-4 py-2 rounded-lg"
             style={{
-              backgroundColor: isSubmitting ? "#9ca3af" : primaryColor,
+              backgroundColor: isSubmitting ? "#9ca3af" : "#000000",
               opacity: isSubmitting ? 0.7 : 1,
             }}
           >
@@ -215,7 +215,7 @@ export default function DailyReport() {
             ) : (
               <View className="flex-row items-center">
                 <Ionicons name="cloud-upload" size={20} color="#ffffff" />
-                <Text className="text-white font-semibold ml-2">Submit</Text>
+                <Text className="text-white font-semibold ml-2">Submit Report</Text>
               </View>
             )}
           </TouchableOpacity>
