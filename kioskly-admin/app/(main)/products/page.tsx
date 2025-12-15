@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { Package, Plus, Edit, Trash2, Search, X } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, Search, X, Upload, Image as ImageIcon } from 'lucide-react';
 import type { Product, Category } from '@/types';
 import { useTenant } from '@/contexts/TenantContext';
 
@@ -17,6 +17,9 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     categoryId: '',
@@ -66,6 +69,8 @@ export default function ProductsPage() {
       categoryId: categories[0]?.id || '',
       price: '',
     });
+    setSelectedImage(null);
+    setImagePreview(null);
     setShowModal(true);
   };
 
@@ -76,7 +81,21 @@ export default function ProductsPage() {
       categoryId: product.categoryId,
       price: (Number(product.price) || 0).toString(),
     });
+    setSelectedImage(null);
+    setImagePreview(product.image || null);
     setShowModal(true);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,10 +108,27 @@ export default function ProductsPage() {
         price: parseFloat(formData.price),
       };
 
+      let productId: string;
+
       if (editingProduct) {
         await api.updateProduct(editingProduct.id, productData);
+        productId = editingProduct.id;
       } else {
-        await api.createProduct(productData);
+        const newProduct = await api.createProduct(productData);
+        productId = newProduct.id;
+      }
+
+      // Upload image if selected
+      if (selectedImage) {
+        setUploadingImage(true);
+        try {
+          await api.uploadProductImage(productId, selectedImage);
+        } catch (error) {
+          console.error('Failed to upload image:', error);
+          alert('Product saved but image upload failed. You can try uploading again.');
+        } finally {
+          setUploadingImage(false);
+        }
       }
 
       await loadData();
@@ -167,6 +203,21 @@ export default function ProductsPage() {
               key={product.id}
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition"
             >
+              {/* Product Image */}
+              {product.image ? (
+                <div className="w-full h-48 bg-gray-100 overflow-hidden">
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
+                  <ImageIcon className="w-16 h-16 text-gray-300" />
+                </div>
+              )}
+
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
@@ -276,20 +327,60 @@ export default function ProductsPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Product Image
+                </label>
+                <div className="space-y-3">
+                  {imagePreview && (
+                    <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2">
+                    <label
+                      htmlFor="image-upload"
+                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition"
+                    >
+                      <Upload className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm text-gray-700">
+                        {selectedImage ? selectedImage.name : 'Choose Image'}
+                      </span>
+                    </label>
+                    <input
+                      id="image-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Accepted formats: JPG, PNG, GIF, WebP (Max 5MB)
+                  </p>
+                </div>
+              </div>
+
               <div className="flex space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                  disabled={uploadingImage}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  disabled={uploadingImage}
                   style={{ backgroundColor: primaryColor }}
-                  className="flex-1 px-4 py-2 text-black rounded-lg transition hover:opacity-90"
+                  className="flex-1 px-4 py-2 text-black rounded-lg transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingProduct ? 'Update' : 'Create'}
+                  {uploadingImage ? 'Uploading...' : editingProduct ? 'Update' : 'Create'}
                 </button>
               </div>
             </form>

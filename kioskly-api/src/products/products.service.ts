@@ -41,18 +41,25 @@ export class ProductsService {
     const { id, name, price, categoryId, image, sizeIds, addonIds } =
       createProductDto;
 
-    const existingProduct = await this.prisma.product.findUnique({
-      where: { id },
-    });
+    // Generate ID from product name if not provided
+    let productId = id;
+    if (!productId) {
+      productId = await this.generateProductId(name, tenantId);
+    } else {
+      // Check if manually provided ID already exists
+      const existingProduct = await this.prisma.product.findUnique({
+        where: { id: productId },
+      });
 
-    if (existingProduct) {
-      throw new ConflictException('Product with this ID already exists');
+      if (existingProduct) {
+        throw new ConflictException('Product with this ID already exists');
+      }
     }
 
     // Create product with sizes and addons
     const product = await this.prisma.product.create({
       data: {
-        id,
+        id: productId,
         name,
         price,
         categoryId,
@@ -89,6 +96,38 @@ export class ProductsService {
     });
 
     return this.formatProduct(product);
+  }
+
+  private async generateProductId(
+    name: string,
+    tenantId: string,
+  ): Promise<string> {
+    // Create slug from product name
+    const baseSlug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    // Check if slug already exists for this tenant
+    let slug = baseSlug;
+    let counter = 1;
+
+    while (true) {
+      const existing = await this.prisma.product.findFirst({
+        where: {
+          id: slug,
+          tenantId,
+        },
+      });
+
+      if (!existing) {
+        return slug;
+      }
+
+      // Add counter suffix if slug exists
+      counter++;
+      slug = `${baseSlug}-${counter}`;
+    }
   }
 
   async findAll(tenantId: string, categoryId?: string) {
@@ -174,6 +213,30 @@ export class ProductsService {
           },
         }),
       },
+      include: {
+        category: true,
+        productSizes: {
+          include: {
+            size: true,
+          },
+        },
+        productAddons: {
+          include: {
+            addon: true,
+          },
+        },
+      },
+    });
+
+    return this.formatProduct(product);
+  }
+
+  async updateImage(id: string, imageUrl: string, tenantId: string) {
+    await this.findOne(id, tenantId); // Check if exists
+
+    const product = await this.prisma.product.update({
+      where: { id },
+      data: { image: imageUrl },
       include: {
         category: true,
         productSizes: {

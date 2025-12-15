@@ -162,6 +162,18 @@ class ApiClient {
     await this.client.delete(`/products/${id}`);
   }
 
+  async uploadProductImage(id: string, file: File): Promise<Product> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const { data } = await this.client.post<Product>(`/products/${id}/image`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  }
+
   // Categories endpoints
   async getCategories(): Promise<Category[]> {
     const { data } = await this.client.get<Category[]>('/categories');
