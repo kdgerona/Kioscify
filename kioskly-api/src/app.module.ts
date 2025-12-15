@@ -14,6 +14,7 @@ import { ExpensesModule } from './expenses/expenses.module';
 import { ReportsModule } from './reports/reports.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SubmittedReportsModule } from './submitted-reports/submitted-reports.module';
+import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/submitted-inventory-reports.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SubmittedReportsModule } from './submitted-reports/submitted-reports.mo
     ReportsModule,
     InventoryModule,
     SubmittedReportsModule,
+    SubmittedInventoryReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

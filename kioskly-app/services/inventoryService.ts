@@ -54,6 +54,7 @@ export interface LatestInventoryItem {
   minStockLevel?: number;
   latestQuantity: number | null;
   latestRecordDate: string | null;
+  previousQuantity: number | null;
 }
 
 export interface CreateInventoryRecordPayload {

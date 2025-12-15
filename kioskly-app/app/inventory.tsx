@@ -18,16 +18,17 @@ import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getLatestInventory,
-  bulkCreateInventoryRecords,
   LatestInventoryItem,
   InventoryCategory,
 } from "@/services/inventoryService";
+import { submitInventoryReport } from "@/services/submittedInventoryReportService";
 
 interface InventoryInput {
   id: string;
   name: string;
   category: InventoryCategory;
   unit: string;
+  minStockLevel?: number;
   quantity: string;
   previousQuantity: number | null;
 }
@@ -69,8 +70,9 @@ export default function InventoryScreen() {
           name: item.name,
           category: item.category,
           unit: item.unit,
+          minStockLevel: item.minStockLevel,
           quantity: item.latestQuantity?.toString() || "",
-          previousQuantity: item.latestQuantity,
+          previousQuantity: item.previousQuantity,
         }))
       );
     } catch (err) {
@@ -100,61 +102,108 @@ export default function InventoryScreen() {
     );
   };
 
-  const handleSaveInventory = async () => {
+  const submitReport = async (replaceExisting: boolean = false) => {
+    setSaving(true);
     try {
       // Filter out items with no quantity entered
-      const recordsToSave = inventoryInputs.filter(
+      const itemsWithQuantity = inventoryInputs.filter(
         (input) => input.quantity.trim() !== ""
       );
 
-      if (recordsToSave.length === 0) {
+      const today = new Date().toISOString().split("T")[0];
+
+      // Build inventory snapshot
+      const inventorySnapshot = {
+        items: itemsWithQuantity.map((input) => ({
+          inventoryItemId: input.id,
+          itemName: input.name,
+          category: input.category,
+          unit: input.unit,
+          quantity: parseFloat(input.quantity),
+          minStockLevel: input.minStockLevel,
+          recordDate: new Date().toISOString(),
+        })),
+        totalItems: itemsWithQuantity.length,
+        submittedBy: user?.email || user?.username || "Unknown",
+      };
+
+      await submitInventoryReport({
+        reportDate: today,
+        inventorySnapshot,
+        replaceExisting,
+      });
+
+      Alert.alert(
+        "Success",
+        replaceExisting
+          ? "Inventory report updated successfully!"
+          : "Inventory report submitted successfully!"
+      );
+
+      // Reload inventory to show updated data
+      await loadInventory();
+    } catch (err) {
+      // Check if it's a duplicate error
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const isDuplicate = errorMessage.includes("already exists");
+
+      if (isDuplicate && !replaceExisting) {
+        // Ask user if they want to replace the existing report
+        Alert.alert(
+          "Report Already Exists",
+          "An inventory report for today has already been submitted. Do you want to replace it with the new data?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Replace",
+              style: "destructive",
+              onPress: () => submitReport(true),
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          errorMessage
+        );
+        console.error("Error submitting inventory report:", err);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmitReport = async () => {
+    try {
+      // Filter out items with no quantity entered
+      const itemsWithQuantity = inventoryInputs.filter(
+        (input) => input.quantity.trim() !== ""
+      );
+
+      if (itemsWithQuantity.length === 0) {
         Alert.alert(
           "No Data",
-          "Please enter at least one quantity before saving."
+          "Please enter at least one quantity before submitting."
         );
         return;
       }
 
-      // Confirm before saving
+      // Confirm before submitting
       Alert.alert(
-        "Save Inventory",
-        `Are you sure you want to save inventory for ${recordsToSave.length} items?`,
+        "Submit Inventory Report",
+        `Are you sure you want to submit inventory report for ${itemsWithQuantity.length} items?`,
         [
           { text: "Cancel", style: "cancel" },
           {
-            text: "Save",
-            onPress: async () => {
-              setSaving(true);
-              try {
-                await bulkCreateInventoryRecords({
-                  records: recordsToSave.map((input) => ({
-                    inventoryItemId: input.id,
-                    quantity: parseFloat(input.quantity),
-                    date: new Date().toISOString(),
-                  })),
-                });
-
-                Alert.alert("Success", "Inventory saved successfully!");
-                await loadInventory(); // Reload to show updated values
-              } catch (err) {
-                Alert.alert(
-                  "Error",
-                  err instanceof Error
-                    ? err.message
-                    : "Failed to save inventory"
-                );
-                console.error("Error saving inventory:", err);
-              } finally {
-                setSaving(false);
-              }
-            },
+            text: "Submit",
+            onPress: () => submitReport(false),
           },
         ]
       );
     } catch (err) {
       Alert.alert(
         "Error",
-        err instanceof Error ? err.message : "Failed to save inventory"
+        err instanceof Error ? err.message : "Failed to submit inventory report"
       );
     }
   };
@@ -296,11 +345,11 @@ export default function InventoryScreen() {
               ))}
             </ScrollView>
 
-            {/* Save Button */}
+            {/* Submit Report Button */}
             <View className="p-4 border-t border-gray-200 bg-white">
               <TouchableOpacity
                 className="bg-gray-800 rounded-lg py-4 flex-row items-center justify-center"
-                onPress={handleSaveInventory}
+                onPress={handleSubmitReport}
                 disabled={saving}
               >
                 {saving ? (
@@ -308,13 +357,13 @@ export default function InventoryScreen() {
                 ) : (
                   <>
                     <Ionicons
-                      name="save-outline"
+                      name="checkmark-circle-outline"
                       size={20}
                       color="white"
                       style={{ marginRight: 8 }}
                     />
                     <Text className="text-white font-bold text-lg">
-                      Save Inventory
+                      Submit Inventory Report
                     </Text>
                   </>
                 )}

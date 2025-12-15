@@ -368,7 +368,50 @@ class ApiClient {
     totalReports: number;
     reportsThisMonth: number;
   }> {
-    const { data } = await this.client.get('/submitted-reports/stats');
+    const { data} = await this.client.get('/submitted-reports/stats');
+    return data;
+  }
+
+  // Submitted Inventory Reports endpoints
+  async getSubmittedInventoryReports(params?: {
+    reportDate?: string;
+    startDate?: string;
+    endDate?: string;
+    userId?: string;
+  }): Promise<any[]> {
+    const { data } = await this.client.get('/submitted-inventory-reports', { params });
+    return data;
+  }
+
+  async getSubmittedInventoryReportById(id: string): Promise<any> {
+    const { data } = await this.client.get(`/submitted-inventory-reports/${id}`);
+    return data;
+  }
+
+  async getInventoryProgression(params: {
+    viewMode: 'day_over_day' | 'weekly_trend';
+    startDate?: string;
+    endDate?: string;
+    categoryFilter?: string;
+  }): Promise<any> {
+    const { data } = await this.client.get('/submitted-inventory-reports/progression', { params });
+    return data;
+  }
+
+  async getInventoryAlerts(): Promise<any> {
+    const { data } = await this.client.get('/submitted-inventory-reports/alerts');
+    return data;
+  }
+
+  async getInventoryReportStats(): Promise<{
+    totalReports: number;
+    reportsThisMonth: number;
+    lastSubmission: {
+      date: string;
+      submittedAt: string;
+    } | null;
+  }> {
+    const { data } = await this.client.get('/submitted-inventory-reports/stats');
     return data;
   }
 }

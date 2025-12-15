@@ -206,39 +206,68 @@ export class InventoryService {
   }
 
   async getLatestInventory(tenantId: string, date?: Date) {
-    const targetDate = date || new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
+    // Get all inventory items for this tenant
     const items = await this.prisma.inventoryItem.findMany({
       where: { tenantId },
-      include: {
-        inventoryRecords: {
-          where: {
-            date: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-          },
-          orderBy: { date: 'desc' },
-          take: 1,
-        },
-      },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
 
-    return items.map((item) => ({
-      id: item.id,
-      name: item.name,
-      category: item.category,
-      unit: item.unit,
-      description: item.description,
-      minStockLevel: item.minStockLevel,
-      latestQuantity: item.inventoryRecords[0]?.quantity || null,
-      latestRecordDate: item.inventoryRecords[0]?.date || null,
-    }));
+    // Get the two most recent submitted inventory reports
+    const recentReports = await this.prisma.submittedInventoryReport.findMany({
+      where: { tenantId },
+      orderBy: { submittedAt: 'desc' },
+      take: 2,
+      select: {
+        inventorySnapshot: true,
+        submittedAt: true,
+      },
+    });
+
+    const latestReport = recentReports[0];
+    const previousReport = recentReports[1];
+
+    // Create maps for latest and previous quantities
+    const latestQuantityMap = new Map<string, { quantity: number; date: Date }>();
+    const previousQuantityMap = new Map<string, number>();
+
+    if (latestReport && latestReport.inventorySnapshot) {
+      const snapshot = latestReport.inventorySnapshot as any;
+      if (snapshot.items && Array.isArray(snapshot.items)) {
+        snapshot.items.forEach((snapshotItem: any) => {
+          latestQuantityMap.set(snapshotItem.inventoryItemId, {
+            quantity: snapshotItem.quantity,
+            date: latestReport.submittedAt,
+          });
+        });
+      }
+    }
+
+    if (previousReport && previousReport.inventorySnapshot) {
+      const snapshot = previousReport.inventorySnapshot as any;
+      if (snapshot.items && Array.isArray(snapshot.items)) {
+        snapshot.items.forEach((snapshotItem: any) => {
+          previousQuantityMap.set(snapshotItem.inventoryItemId, snapshotItem.quantity);
+        });
+      }
+    }
+
+    // Map items with their latest and previous quantities
+    return items.map((item) => {
+      const latestData = latestQuantityMap.get(item.id);
+      const previousQuantity = previousQuantityMap.get(item.id);
+
+      return {
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        unit: item.unit,
+        description: item.description,
+        minStockLevel: item.minStockLevel,
+        latestQuantity: latestData?.quantity ?? null,
+        latestRecordDate: latestData?.date ?? null,
+        previousQuantity: previousQuantity ?? null,
+      };
+    });
   }
 
   async getInventoryStats(tenantId: string) {
