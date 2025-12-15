@@ -52,8 +52,10 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
-# Create uploads directory
-RUN mkdir -p uploads && chown -R nestjs:nodejs uploads
+# Create uploads directory structure with proper permissions
+RUN mkdir -p uploads/logos uploads/products uploads/categories && \
+    chown -R nestjs:nodejs uploads && \
+    chmod -R 755 uploads
 
 # Set ownership
 RUN chown -R nestjs:nodejs /app
