@@ -159,7 +159,7 @@ export default function Sidebar() {
                             borderLeft: `3px solid ${primaryColor}`,
                           }
                         : {
-                            color: textColor,
+                            color: "#000000",
                             opacity: 0.7,
                           }
                     }
@@ -207,7 +207,7 @@ export default function Sidebar() {
                                     borderLeft: `3px solid ${primaryColor}`,
                                   }
                                 : {
-                                    color: textColor,
+                                    color: "#000000",
                                     opacity: 0.6,
                                   }
                             }
@@ -247,7 +247,7 @@ export default function Sidebar() {
                           borderLeft: `3px solid ${primaryColor}`,
                         }
                       : {
-                          color: textColor,
+                          color: "#000000",
                           opacity: 0.7,
                         }
                   }
@@ -280,7 +280,7 @@ export default function Sidebar() {
         <button
           onClick={handleLogout}
           className="flex items-center space-x-3 px-4 py-3 rounded-lg w-full transition-all duration-200"
-          style={{ color: textColor, opacity: 0.7 }}
+          style={{ color: "#000000", opacity: 0.7 }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = `${primaryColor}10`;
             e.currentTarget.style.opacity = "1";

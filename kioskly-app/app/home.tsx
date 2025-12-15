@@ -57,7 +57,7 @@ type OrderItem = {
   selectedAddons: Addon[];
 };
 
-type PaymentMethodType = "cash" | "card" | "gcash" | "paymaya" | "online";
+type PaymentMethodType = "cash" | "card" | "gcash" | "paymaya" | "online" | "foodpanda";
 
 type TransactionData = {
   transactionId: string;
@@ -420,7 +420,7 @@ export default function Home() {
         transactionId,
         subtotal: totalAmount,
         total: totalAmount,
-        paymentMethod: paymentMethod.toUpperCase() as "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE",
+        paymentMethod: paymentMethod.toUpperCase() as "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA",
         ...(paymentMethod === "cash" && {
           cashReceived: details.cashReceived,
           change: details.change,

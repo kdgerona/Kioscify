@@ -106,6 +106,8 @@ export default function ReportsPage() {
       CARD: '#3b82f6',
       GCASH: '#8b5cf6',
       PAYMAYA: '#f59e0b',
+      FOODPANDA: '#ec4899',
+      ONLINE: '#6b7280',
     };
 
     return Object.entries(analytics.sales.paymentMethodBreakdown).map(([method, data]) => ({
@@ -327,6 +329,7 @@ export default function ReportsPage() {
               GCASH: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', badge: 'bg-purple-100' },
               PAYMAYA: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100' },
               ONLINE: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', badge: 'bg-indigo-100' },
+              FOODPANDA: { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700', badge: 'bg-pink-100' },
             };
             const color = colors[method as keyof typeof colors] || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-700', badge: 'bg-gray-100' };
             const percentage = analytics.sales.totalAmount > 0 ? (data.total / analytics.sales.totalAmount) * 100 : 0;

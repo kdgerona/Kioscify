@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 
-export type PaymentMethod = "cash" | "card" | "gcash" | "paymaya" | "online" | null;
+export type PaymentMethod = "cash" | "card" | "gcash" | "paymaya" | "online" | "foodpanda" | null;
 
 type CheckoutModalProps = {
   visible: boolean;
@@ -282,7 +282,7 @@ export default function CheckoutModal({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  className="bg-gray-600 rounded-lg p-4 items-center shadow-sm"
+                  className="bg-gray-600 rounded-lg p-4 mb-3 items-center shadow-sm"
                   onPress={() => handlePaymentMethodSelect("online")}
                 >
                   <Text className="text-white text-xl font-bold mb-1">
@@ -290,6 +290,18 @@ export default function CheckoutModal({
                   </Text>
                   <Text className="text-gray-50 text-sm">
                     Bank Transfer, Other e-wallets
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  className="bg-pink-500 rounded-lg p-4 items-center shadow-sm"
+                  onPress={() => handlePaymentMethodSelect("foodpanda")}
+                >
+                  <Text className="text-white text-xl font-bold mb-1">
+                    🛵 FoodPanda Delivery
+                  </Text>
+                  <Text className="text-pink-50 text-sm">
+                    FoodPanda delivery service order
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -398,7 +410,7 @@ export default function CheckoutModal({
               </View>
             )}
 
-            {/* Non-Cash Payment Form (Card, GCash, PayMaya, Online) */}
+            {/* Non-Cash Payment Form (Card, GCash, PayMaya, Online, FoodPanda) */}
             {paymentMethod && paymentMethod !== "cash" && (
               <View>
                 <Text className="text-lg font-bold mb-4 text-gray-800">
@@ -406,6 +418,7 @@ export default function CheckoutModal({
                   {paymentMethod === "gcash" && "GCash Payment"}
                   {paymentMethod === "paymaya" && "PayMaya Payment"}
                   {paymentMethod === "online" && "Online Transaction"}
+                  {paymentMethod === "foodpanda" && "FoodPanda Delivery"}
                 </Text>
 
                 <View className="mb-4">
@@ -421,6 +434,8 @@ export default function CheckoutModal({
                         ? "Enter GCash reference number"
                         : paymentMethod === "paymaya"
                         ? "Enter PayMaya reference number"
+                        : paymentMethod === "foodpanda"
+                        ? "Enter FoodPanda order number"
                         : "Enter transaction reference number"
                     }
                     value={referenceNumber}
@@ -451,6 +466,11 @@ export default function CheckoutModal({
                   {paymentMethod === "paymaya" && (
                     <Text className="text-xs text-gray-600">
                       Enter the PayMaya/Maya reference number from the payment confirmation.
+                    </Text>
+                  )}
+                  {paymentMethod === "foodpanda" && (
+                    <Text className="text-xs text-gray-600">
+                      Enter the FoodPanda order number for delivery tracking.
                     </Text>
                   )}
                   {paymentMethod === "online" && (

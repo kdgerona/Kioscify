@@ -63,11 +63,11 @@ export class CreateTransactionDto {
   total: number;
 
   @ApiProperty({
-    enum: ['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE'],
+    enum: ['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA'],
     example: 'CASH',
   })
-  @IsEnum(['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE'])
-  paymentMethod: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE';
+  @IsEnum(['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA'])
+  paymentMethod: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE' | 'FOODPANDA';
 
   @ApiProperty({ example: 200, required: false })
   @IsNumber()

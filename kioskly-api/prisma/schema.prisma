@@ -218,6 +218,7 @@ enum PaymentMethod {
   GCASH
   PAYMAYA
   ONLINE
+  FOODPANDA
 }
 
 enum PaymentStatus {

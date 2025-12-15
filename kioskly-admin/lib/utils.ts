@@ -18,7 +18,7 @@ export function formatDate(date: string | Date, formatStr: string = 'MMM dd, yyy
 }
 
 export function formatDateTime(date: string | Date): string {
-  return format(new Date(date), 'MMM dd, yyyy HH:mm');
+  return format(new Date(date), 'MMM dd, yyyy hh:mm a');
 }
 
 export function getPaymentMethodLabel(method: string): string {
@@ -28,6 +28,7 @@ export function getPaymentMethodLabel(method: string): string {
     GCASH: 'GCash',
     PAYMAYA: 'PayMaya',
     ONLINE: 'Online',
+    FOODPANDA: 'FoodPanda',
   };
   return labels[method] || method;
 }
