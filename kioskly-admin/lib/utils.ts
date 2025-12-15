@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { format } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -13,12 +12,25 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export function formatDate(date: string | Date, formatStr: string = 'MMM dd, yyyy'): string {
-  return format(new Date(date), formatStr);
+export function formatDate(date: string | Date): string {
+  const dateObj = new Date(date);
+  return dateObj.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export function formatDateTime(date: string | Date): string {
-  return format(new Date(date), 'MMM dd, yyyy hh:mm a');
+  const dateObj = new Date(date);
+  return dateObj.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 export function getPaymentMethodLabel(method: string): string {
