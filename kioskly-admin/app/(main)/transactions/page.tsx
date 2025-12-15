@@ -110,7 +110,7 @@ export default function TransactionsPage() {
     const headers = ['Transaction ID', 'Date', 'User', 'Total', 'Payment Method', 'Status'];
     const rows = transactions.map(t => [
       t.transactionId,
-      formatDateTime(t.createdAt),
+      formatDateTime(t.timestamp),
       t.user?.email || t.user?.username || 'N/A',
       t.total,
       t.paymentMethod,
@@ -310,7 +310,7 @@ export default function TransactionsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {formatDateTime(transaction.createdAt)}
+                      {formatDateTime(transaction.timestamp)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {transaction.user?.email || transaction.user?.username || 'N/A'}
@@ -373,7 +373,7 @@ export default function TransactionsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Date & Time</p>
-                  <p className="text-sm text-gray-900">{formatDateTime(selectedTransaction.createdAt)}</p>
+                  <p className="text-sm text-gray-900">{formatDateTime(selectedTransaction.timestamp)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">User</p>
