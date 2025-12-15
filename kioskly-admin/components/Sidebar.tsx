@@ -129,7 +129,7 @@ export default function Sidebar() {
           const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
           const hasSubItems = item.subItems && item.subItems.length > 0;
           const isExpanded = expandedItems.includes(item.name);
-          const isSubItemActive = hasSubItems && item.subItems.some(
+          const isSubItemActive = hasSubItems && item.subItems?.some(
             (subItem) => pathname === subItem.href || pathname?.startsWith(subItem.href + "/")
           );
 
@@ -188,7 +188,7 @@ export default function Sidebar() {
                   </button>
                   {isExpanded && (
                     <div className="ml-4 mt-2 space-y-1">
-                      {item.subItems.map((subItem) => {
+                      {item.subItems?.map((subItem) => {
                         const isSubActive = pathname === subItem.href;
                         return (
                           <Link
