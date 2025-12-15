@@ -1,29 +1,24 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCategoryDto: CreateCategoryDto, tenantId: string) {
-    const { id, name, sequenceNo } = createCategoryDto;
-
-    const existingCategory = await this.prisma.category.findUnique({
-      where: { id },
-    });
-
-    if (existingCategory) {
-      throw new ConflictException('Category with this ID already exists');
-    }
+    const { name, description, sequenceNo } = createCategoryDto;
 
     return this.prisma.category.create({
-      data: { id, name, tenantId, sequenceNo: sequenceNo ?? 0 },
+      data: {
+        id: randomUUID(),
+        name,
+        description,
+        tenantId,
+        sequenceNo: sequenceNo ?? 0,
+      },
     });
   }
 

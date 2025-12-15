@@ -7,6 +7,11 @@ export class UpdateCategoryDto {
   @IsOptional()
   name?: string;
 
+  @ApiProperty({ example: 'Refreshing lemonade drinks', required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
   @ApiProperty({ example: 1, required: false })
   @IsInt()
   @IsOptional()

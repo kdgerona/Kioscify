@@ -29,6 +29,7 @@ export interface Category {
   tenantId: string;
   name: string;
   description?: string;
+  sequenceNo?: number;
   createdAt: string;
   updatedAt: string;
 }

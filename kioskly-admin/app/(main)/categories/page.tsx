@@ -16,6 +16,7 @@ export default function CategoriesPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    sequenceNo: 0,
   });
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function CategoriesPage() {
 
   const openCreateModal = () => {
     setEditingCategory(null);
-    setFormData({ name: '', description: '' });
+    setFormData({ name: '', description: '', sequenceNo: 0 });
     setShowModal(true);
   };
 
@@ -45,6 +46,7 @@ export default function CategoriesPage() {
     setFormData({
       name: category.name,
       description: category.description || '',
+      sequenceNo: category.sequenceNo || 0,
     });
     setShowModal(true);
   };
@@ -56,6 +58,7 @@ export default function CategoriesPage() {
       const categoryData = {
         name: formData.name,
         description: formData.description || undefined,
+        sequenceNo: formData.sequenceNo,
       };
 
       if (editingCategory) {
@@ -131,7 +134,12 @@ export default function CategoriesPage() {
                     <FolderOpen className="w-6 h-6" style={{ color: primaryColor }} />
                   </div>
                   <div className="ml-4 flex-1">
-                    <h3 className="text-lg font-bold text-gray-900">{category.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-gray-900">{category.name}</h3>
+                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                        #{category.sequenceNo ?? 0}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-500">
                       {new Date(category.createdAt).toLocaleDateString()}
                     </p>
@@ -205,7 +213,7 @@ export default function CategoriesPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
                   placeholder="e.g., Coffee, Tea, Smoothies"
                 />
               </div>
@@ -217,10 +225,27 @@ export default function CategoriesPage() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
                   placeholder="Category description (optional)"
                   rows={3}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sequence Number
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.sequenceNo}
+                  onChange={(e) => setFormData({ ...formData, sequenceNo: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  placeholder="0"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Lower numbers appear first. Use this to control the display order.
+                </p>
               </div>
 
               <div className="flex space-x-3 pt-4">
