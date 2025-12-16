@@ -39,13 +39,14 @@ export class ReportsService {
         );
         break;
 
-      case TimePeriod.WEEKLY:
+      case TimePeriod.WEEKLY: {
         const dayOfWeek = now.getDay();
         const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
         start = new Date(now);
         start.setDate(now.getDate() - diffToMonday);
         start.setHours(0, 0, 0, 0);
         break;
+      }
 
       case TimePeriod.MONTHLY:
         start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
@@ -105,13 +106,10 @@ export class ReportsService {
           gte: startOfDay,
           lte: endOfDay,
         },
-        // Exclude APPROVED void transactions
-        OR: [
-          { voidStatus: null },
-          { voidStatus: 'NONE' },
-          { voidStatus: 'PENDING' },
-          { voidStatus: 'REJECTED' },
-        ],
+        // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
+        NOT: {
+          voidStatus: 'APPROVED',
+        },
       },
       include: {
         items: true,
@@ -159,8 +157,7 @@ export class ReportsService {
     // Calculate expense metrics
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const expenseCount = expenses.length;
-    const averageExpense =
-      expenseCount > 0 ? totalExpenses / expenseCount : 0;
+    const averageExpense = expenseCount > 0 ? totalExpenses / expenseCount : 0;
 
     // Expense category breakdown
     const expenseCategoryBreakdown = expenses.reduce(
@@ -226,13 +223,10 @@ export class ReportsService {
           gte: start,
           lte: end,
         },
-        // Exclude APPROVED void transactions
-        OR: [
-          { voidStatus: null },
-          { voidStatus: 'NONE' },
-          { voidStatus: 'PENDING' },
-          { voidStatus: 'REJECTED' },
-        ],
+        // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
+        NOT: {
+          voidStatus: 'APPROVED',
+        },
       } as any,
       include: {
         items: {
@@ -307,7 +301,12 @@ export class ReportsService {
       },
       {} as Record<
         string,
-        { productId: string; productName: string; quantity: number; revenue: number }
+        {
+          productId: string;
+          productName: string;
+          quantity: number;
+          revenue: number;
+        }
       >,
     );
 
@@ -318,8 +317,7 @@ export class ReportsService {
     // Calculate expense metrics
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const expenseCount = expenses.length;
-    const averageExpense =
-      expenseCount > 0 ? totalExpenses / expenseCount : 0;
+    const averageExpense = expenseCount > 0 ? totalExpenses / expenseCount : 0;
 
     // Expense category breakdown
     const expenseCategoryBreakdown = expenses.reduce(
@@ -365,13 +363,10 @@ export class ReportsService {
           gte: prevStart,
           lte: prevEnd,
         },
-        // Exclude APPROVED void transactions
-        OR: [
-          { voidStatus: null },
-          { voidStatus: 'NONE' },
-          { voidStatus: 'PENDING' },
-          { voidStatus: 'REJECTED' },
-        ],
+        // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
+        NOT: {
+          voidStatus: 'APPROVED',
+        },
       } as any,
     });
 

@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
-import { VoidFiltersDto } from './dto/void-filters.dto';
+import { VoidFiltersDto, VoidStatusFilter } from './dto/void-filters.dto';
 import { Prisma } from '@prisma/client';
 
 // Type for transaction with all includes
@@ -128,14 +132,11 @@ export class TransactionsService {
       } as any;
     }
 
-    // Exclude APPROVED void transactions by default
+    // Exclude APPROVED void transactions by default (includes null, NONE, PENDING, REJECTED)
     if (!filters?.includeVoided) {
-      (where as any).OR = [
-        { voidStatus: null },
-        { voidStatus: 'NONE' },
-        { voidStatus: 'PENDING' },
-        { voidStatus: 'REJECTED' },
-      ];
+      (where as any).NOT = {
+        voidStatus: 'APPROVED',
+      };
     }
 
     const transactions = await this.prisma.transaction.findMany({
@@ -264,13 +265,10 @@ export class TransactionsService {
           timestamp: {
             gte: startDate,
           },
-          // Exclude APPROVED void transactions
-          OR: [
-            { voidStatus: null },
-            { voidStatus: 'NONE' },
-            { voidStatus: 'PENDING' },
-            { voidStatus: 'REJECTED' },
-          ],
+          // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
+          NOT: {
+            voidStatus: 'APPROVED',
+          },
         } as any,
         include: {
           items: true,
@@ -373,7 +371,9 @@ export class TransactionsService {
     });
 
     if (!transaction) {
-      throw new NotFoundException(`Transaction with ID ${transactionId} not found`);
+      throw new NotFoundException(
+        `Transaction with ID ${transactionId} not found`,
+      );
     }
 
     // Validate void status
@@ -429,7 +429,7 @@ export class TransactionsService {
     };
 
     // Filter by status
-    if (filters.status && filters.status !== 'ALL') {
+    if (filters.status && filters.status !== VoidStatusFilter.ALL) {
       where.voidStatus = filters.status;
     }
 
@@ -478,17 +478,25 @@ export class TransactionsService {
    * Approve void request
    * Admin-only endpoint
    */
-  async approveVoid(transactionId: string, tenantId: string, reviewerId: string) {
+  async approveVoid(
+    transactionId: string,
+    tenantId: string,
+    reviewerId: string,
+  ) {
     const transaction = await this.prisma.transaction.findFirst({
       where: { id: transactionId, tenantId },
     });
 
     if (!transaction) {
-      throw new NotFoundException(`Transaction with ID ${transactionId} not found`);
+      throw new NotFoundException(
+        `Transaction with ID ${transactionId} not found`,
+      );
     }
 
     if ((transaction as any).voidStatus !== 'PENDING') {
-      throw new BadRequestException('Only pending void requests can be approved');
+      throw new BadRequestException(
+        'Only pending void requests can be approved',
+      );
     }
 
     const updated = await this.prisma.transaction.update({
@@ -540,11 +548,15 @@ export class TransactionsService {
     });
 
     if (!transaction) {
-      throw new NotFoundException(`Transaction with ID ${transactionId} not found`);
+      throw new NotFoundException(
+        `Transaction with ID ${transactionId} not found`,
+      );
     }
 
     if ((transaction as any).voidStatus !== 'PENDING') {
-      throw new BadRequestException('Only pending void requests can be rejected');
+      throw new BadRequestException(
+        'Only pending void requests can be rejected',
+      );
     }
 
     const updated = await this.prisma.transaction.update({
