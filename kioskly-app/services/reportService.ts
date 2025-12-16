@@ -169,3 +169,58 @@ export const submitReport = async (
     throw error;
   }
 };
+
+export interface DailyReportStats {
+  totalReports: number;
+  reportsThisMonth: number;
+  lastSubmission: {
+    date: string;
+    submittedAt: string;
+  } | null;
+}
+
+/**
+ * Get daily report statistics including last submission
+ * @returns Daily report statistics
+ */
+export const getDailyReportStats = async (): Promise<DailyReportStats> => {
+  try {
+    console.log("🔵 FETCHING DAILY REPORT STATS");
+
+    safeReactotron.display({
+      name: "FETCH DAILY REPORT STATS",
+      value: {},
+      preview: "Fetching daily report stats from API",
+    });
+
+    const response = await apiGet("/submitted-reports/stats");
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log("🔴 FETCH STATS ERROR:", errorText);
+
+      safeReactotron.display({
+        name: "FETCH STATS ERROR",
+        value: { status: response.status, error: errorText },
+        preview: "Failed to fetch daily report stats",
+        important: true,
+      });
+
+      throw new Error(`Failed to fetch daily report stats: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("🟢 DAILY REPORT STATS FETCHED:", data);
+
+    safeReactotron.display({
+      name: "DAILY REPORT STATS FETCHED",
+      value: data,
+      preview: "Fetched daily report stats",
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch daily report stats:", error);
+    throw error;
+  }
+};

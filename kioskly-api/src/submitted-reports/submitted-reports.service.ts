@@ -169,9 +169,21 @@ export class SubmittedReportsService {
       },
     });
 
+    const lastReport = await this.prisma.submittedReport.findFirst({
+      where: { tenantId },
+      orderBy: { submittedAt: 'desc' },
+      select: { submittedAt: true, reportDate: true },
+    });
+
     return {
       totalReports,
       reportsThisMonth,
+      lastSubmission: lastReport
+        ? {
+            date: lastReport.reportDate,
+            submittedAt: lastReport.submittedAt,
+          }
+        : null,
     };
   }
 }

@@ -21,7 +21,12 @@ import {
   LatestInventoryItem,
   InventoryCategory,
 } from "@/services/inventoryService";
-import { submitInventoryReport } from "@/services/submittedInventoryReportService";
+import {
+  submitInventoryReport,
+  getInventoryReportStats,
+  InventoryReportStats,
+} from "@/services/submittedInventoryReportService";
+import LastSubmissionBanner from "@/components/LastSubmissionBanner";
 
 interface InventoryInput {
   id: string;
@@ -42,6 +47,8 @@ export default function InventoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reportStats, setReportStats] = useState<InventoryReportStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   const { tenant } = useTenant();
   const { user } = useAuth();
@@ -60,8 +67,18 @@ export default function InventoryScreen() {
   const loadInventory = async () => {
     try {
       setError(null);
-      const data = await getLatestInventory();
+
+      // Fetch inventory and stats in parallel
+      const [data, stats] = await Promise.all([
+        getLatestInventory(),
+        getInventoryReportStats().catch((err) => {
+          console.warn("Failed to fetch stats:", err);
+          return null; // Non-blocking
+        }),
+      ]);
+
       setInventoryItems(data);
+      setReportStats(stats);
 
       // Initialize inputs with latest quantities
       setInventoryInputs(
@@ -82,6 +99,7 @@ export default function InventoryScreen() {
       console.error("Error loading inventory:", err);
     } finally {
       setLoading(false);
+      setStatsLoading(false);
     }
   };
 
@@ -254,6 +272,16 @@ export default function InventoryScreen() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <View className="flex-1 px-4 py-4">
+          {/* Last Submission Banner */}
+          {!loading && !error && (
+            <LastSubmissionBanner
+              lastSubmission={reportStats?.lastSubmission || null}
+              isLoading={statsLoading}
+              primaryColor={primaryColor}
+              textColor={textColor}
+            />
+          )}
+
           {loading ? (
           <View className="flex-1 justify-center items-center">
             <ActivityIndicator size="large" color={primaryColor} />

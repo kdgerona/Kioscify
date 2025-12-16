@@ -15,6 +15,8 @@ import {
   getDailyReport,
   submitReport,
   DailyReportResponse,
+  getDailyReportStats,
+  DailyReportStats,
 } from "../services/reportService";
 import {
   getTransactions,
@@ -24,6 +26,7 @@ import {
   getExpenses,
   ExpenseResponse,
 } from "../services/expenseService";
+import LastSubmissionBanner from "../components/LastSubmissionBanner";
 
 export default function DailyReport() {
   const router = useRouter();
@@ -39,6 +42,8 @@ export default function DailyReport() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [reportStats, setReportStats] = useState<DailyReportStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   const getTodayDateRange = () => {
     const today = new Date();
@@ -77,16 +82,21 @@ export default function DailyReport() {
         const today = new Date().toISOString().split("T")[0];
         const { startDate, endDate } = getTodayDateRange();
 
-        // Fetch report data, transactions, and expenses in parallel
-        const [report, txns, exps] = await Promise.all([
+        // Fetch report data, transactions, expenses, and stats in parallel
+        const [report, txns, exps, stats] = await Promise.all([
           getDailyReport(today),
           getTransactions({ startDate, endDate }),
           getExpenses({ startDate, endDate }),
+          getDailyReportStats().catch((err) => {
+            console.warn("Failed to fetch stats:", err);
+            return null; // Non-blocking
+          }),
         ]);
 
         setReportData(report);
         setTransactions(txns);
         setExpenses(exps);
+        setReportStats(stats);
       } catch (err) {
         console.error("Failed to fetch report data:", err);
         setError(
@@ -94,6 +104,7 @@ export default function DailyReport() {
         );
       } finally {
         setIsLoading(false);
+        setStatsLoading(false);
       }
     };
 
@@ -165,6 +176,13 @@ export default function DailyReport() {
       };
 
       await submitReport(submitData);
+
+      // Refresh stats to show updated last submission
+      const updatedStats = await getDailyReportStats().catch(() => null);
+      if (updatedStats) {
+        setReportStats(updatedStats);
+      }
+
       setSubmitSuccess(true);
       setTimeout(() => setSubmitSuccess(false), 3000);
     } catch (err) {
@@ -224,6 +242,14 @@ export default function DailyReport() {
 
       {/* Content */}
       <ScrollView className="flex-1 px-4 py-4">
+        {/* Last Submission Banner */}
+        <LastSubmissionBanner
+          lastSubmission={reportStats?.lastSubmission || null}
+          isLoading={statsLoading}
+          primaryColor={primaryColor}
+          textColor={textColor}
+        />
+
         {/* Success/Error Toast */}
         {submitSuccess && (
           <View className="mb-4 bg-green-100 border-2 border-green-500 rounded-lg p-4 flex-row items-center">
