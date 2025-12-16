@@ -14,6 +14,7 @@ import type {
   LatestInventoryItem,
   InventoryStats,
   SubmittedReport,
+  Expense,
 } from '@/types';
 
 // API base URL - includes the /api/v1 prefix
@@ -133,7 +134,22 @@ class ApiClient {
     averageOrderValue: number;
     topProducts: Array<{ product: Product; totalSold: number; revenue: number }>;
   }> {
-    const { data } = await this.client.get('/transactions/stats');
+    const { data} = await this.client.get('/transactions/stats');
+    return data;
+  }
+
+  // Expenses endpoints
+  async getExpenses(params?: {
+    startDate?: string;
+    endDate?: string;
+    category?: string;
+  }): Promise<Expense[]> {
+    const { data } = await this.client.get<Expense[]>('/expenses', { params });
+    return data;
+  }
+
+  async getExpenseById(id: string): Promise<Expense> {
+    const { data } = await this.client.get<Expense>(`/expenses/${id}`);
     return data;
   }
 

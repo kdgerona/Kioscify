@@ -22,6 +22,9 @@ import {
 import { TrendingUp, Download, Calendar, RefreshCw } from 'lucide-react';
 import { useTenant } from '@/contexts/TenantContext';
 import DateRangeSelector, { TimePeriod } from '@/components/DateRangeSelector';
+import TransactionListModal from '@/components/TransactionListModal';
+import ExpenseListModal from '@/components/ExpenseListModal';
+import { Transaction, Expense } from '@/types';
 
 interface AnalyticsData {
   period: {
@@ -69,6 +72,12 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState<TimePeriod>('monthly');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [loadingExpenses, setLoadingExpenses] = useState(false);
 
   useEffect(() => {
     loadReportData();
@@ -170,6 +179,52 @@ export default function ReportsPage() {
     a.click();
   };
 
+  const loadTransactions = async () => {
+    try {
+      setLoadingTransactions(true);
+      const params: { startDate?: string; endDate?: string } = {};
+
+      if (period === 'custom' && startDate && endDate) {
+        params.startDate = startDate;
+        params.endDate = endDate;
+      } else if (analytics?.period) {
+        params.startDate = analytics.period.start;
+        params.endDate = analytics.period.end;
+      }
+
+      const data = await api.getTransactions(params);
+      setTransactions(data);
+      setShowTransactionModal(true);
+    } catch (error) {
+      console.error('Failed to load transactions:', error);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  const loadExpenses = async () => {
+    try {
+      setLoadingExpenses(true);
+      const params: { startDate?: string; endDate?: string } = {};
+
+      if (period === 'custom' && startDate && endDate) {
+        params.startDate = startDate;
+        params.endDate = endDate;
+      } else if (analytics?.period) {
+        params.startDate = analytics.period.start;
+        params.endDate = analytics.period.end;
+      }
+
+      const data = await api.getExpenses(params);
+      setExpenses(data);
+      setShowExpenseModal(true);
+    } catch (error) {
+      console.error('Failed to load expenses:', error);
+    } finally {
+      setLoadingExpenses(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8">
@@ -243,11 +298,15 @@ export default function ReportsPage() {
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-green-100 text-sm mb-2">Transactions</p>
+        <button
+          onClick={loadTransactions}
+          disabled={loadingTransactions}
+          className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+        >
+          <p className="text-green-100 text-sm mb-2">Transactions {loadingTransactions ? '(Loading...)' : '(Click to view all)'}</p>
           <p className="text-3xl font-bold">{analytics.sales.transactionCount}</p>
           <p className="text-sm text-green-100 mt-2">Completed orders</p>
-        </div>
+        </button>
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-purple-100 text-sm mb-2">Avg. Order Value</p>
@@ -476,11 +535,15 @@ export default function ReportsPage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Expenses</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           {/* Total Expenses Card */}
-          <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg">
-            <p className="text-red-100 text-sm mb-2">Total Expenses</p>
+          <button
+            onClick={loadExpenses}
+            disabled={loadingExpenses}
+            className="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+          >
+            <p className="text-red-100 text-sm mb-2">Total Expenses {loadingExpenses ? '(Loading...)' : '(Click to view all)'}</p>
             <p className="text-3xl font-bold">{formatCurrency(analytics.expenses.totalAmount)}</p>
             <p className="text-sm text-red-100 mt-2">{analytics.expenses.expenseCount} expense(s)</p>
-          </div>
+          </button>
 
           {/* Average Expense Card */}
           <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 rounded-xl shadow-lg">
@@ -575,6 +638,22 @@ export default function ReportsPage() {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Transaction List Modal */}
+      <TransactionListModal
+        isOpen={showTransactionModal}
+        onClose={() => setShowTransactionModal(false)}
+        transactions={transactions}
+        primaryColor={primaryColor}
+      />
+
+      {/* Expense List Modal */}
+      <ExpenseListModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        expenses={expenses}
+        primaryColor={primaryColor}
+      />
     </div>
   );
 }
