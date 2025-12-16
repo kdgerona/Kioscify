@@ -132,12 +132,11 @@ export class TransactionsService {
       } as any;
     }
 
-    // Exclude APPROVED void transactions by default (includes null, NONE, PENDING, REJECTED)
+    // Exclude APPROVED void transactions by default (includes NONE, PENDING, REJECTED)
     if (!filters?.includeVoided) {
-      (where as any).OR = [
-        { voidStatus: { not: 'APPROVED' } },
-        { voidStatus: null },
-      ];
+      (where as any).voidStatus = {
+        not: 'APPROVED',
+      };
     }
 
     const transactions = await this.prisma.transaction.findMany({
@@ -266,12 +265,11 @@ export class TransactionsService {
           timestamp: {
             gte: startDate,
           },
-          // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
-          OR: [
-            { voidStatus: { not: 'APPROVED' } as any },
-            { voidStatus: null as any },
-          ],
-        } as any,
+          // Exclude APPROVED void transactions (includes NONE, PENDING, REJECTED)
+          voidStatus: {
+            not: 'APPROVED',
+          } as any,
+        },
         include: {
           items: true,
         },

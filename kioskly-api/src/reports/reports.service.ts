@@ -106,12 +106,11 @@ export class ReportsService {
           gte: startOfDay,
           lte: endOfDay,
         },
-        // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
-        OR: [
-          { voidStatus: { not: 'APPROVED' } as any },
-          { voidStatus: null as any },
-        ],
-      } as any,
+        // Exclude APPROVED void transactions (includes NONE, PENDING, REJECTED)
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
+      },
       include: {
         items: true,
       },
@@ -224,11 +223,10 @@ export class ReportsService {
           gte: start,
           lte: end,
         },
-        // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
-        OR: [
-          { voidStatus: { not: 'APPROVED' } as any },
-          { voidStatus: null as any },
-        ],
+        // Exclude APPROVED void transactions (includes NONE, PENDING, REJECTED)
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       } as any,
       include: {
         items: {
@@ -365,11 +363,10 @@ export class ReportsService {
           gte: prevStart,
           lte: prevEnd,
         },
-        // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
-        OR: [
-          { voidStatus: { not: 'APPROVED' } as any },
-          { voidStatus: null as any },
-        ],
+        // Exclude APPROVED void transactions (includes NONE, PENDING, REJECTED)
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       } as any,
     });
 
