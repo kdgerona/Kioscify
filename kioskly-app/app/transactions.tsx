@@ -666,89 +666,124 @@ export default function Transactions() {
         animationType="slide"
         onRequestClose={closeVoidModal}
       >
-        <View className="flex-1 bg-black/50 justify-end">
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            className="w-full"
-          >
-            <View className="bg-white rounded-t-3xl p-6 shadow-xl">
-              <View className="flex-row justify-between items-center mb-4">
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : "padding"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <View className="flex-1 bg-black/50 justify-center items-center px-4">
+            <View
+              className="w-full bg-white rounded-lg"
+              style={{
+                maxWidth: 512,
+                maxHeight: isKeyboardVisible ? "70%" : "85%",
+              }}
+            >
+              {/* Modal Header */}
+              <View
+                className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
+                style={{ backgroundColor: "#fee2e2" }}
+              >
                 <Text
                   className="text-xl font-bold"
                   style={{ color: textColor }}
                 >
                   Request Void
                 </Text>
-                <TouchableOpacity onPress={closeVoidModal}>
-                  <Ionicons name="close" size={28} color={textColor} />
-                </TouchableOpacity>
-              </View>
-
-              {selectedVoidTransaction && (
-                <View className="mb-4">
-                  <Text className="text-sm text-gray-600 mb-1">
-                    Transaction: {selectedVoidTransaction.transactionId}
-                  </Text>
-                  <Text className="text-sm text-gray-600">
-                    Amount: {formatCurrency(selectedVoidTransaction.total)}
-                  </Text>
-                </View>
-              )}
-
-              <View className="mb-4">
-                <Text
-                  className="text-sm font-semibold mb-2"
-                  style={{ color: textColor }}
-                >
-                  Reason for Void (minimum 10 characters)
-                </Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg p-3 text-base"
-                  style={{ color: textColor, minHeight: 100 }}
-                  placeholder="Enter reason for voiding this transaction..."
-                  placeholderTextColor="#9ca3af"
-                  value={voidReason}
-                  onChangeText={setVoidReason}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-                <Text className="text-xs text-gray-500 mt-1">
-                  {voidReason.length} / 10 characters minimum
-                </Text>
-              </View>
-
-              <View className="flex-row gap-3">
                 <TouchableOpacity
                   onPress={closeVoidModal}
-                  className="flex-1 bg-gray-200 rounded-lg py-3 items-center"
-                  disabled={isSubmittingVoid}
+                  className="w-11 h-11 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `${textColor}15` }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Text className="text-gray-700 font-semibold">Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleSubmitVoid}
-                  className="flex-1 rounded-lg py-3 items-center"
-                  style={{
-                    backgroundColor:
-                      voidReason.trim().length >= 10 && !isSubmittingVoid
-                        ? "#ef4444"
-                        : "#d1d5db",
-                  }}
-                  disabled={voidReason.trim().length < 10 || isSubmittingVoid}
-                >
-                  {isSubmittingVoid ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text className="text-white font-semibold">
-                      Submit Request
-                    </Text>
-                  )}
+                  <Text
+                    className="text-3xl font-bold leading-none"
+                    style={{ color: textColor }}
+                  >
+                    ×
+                  </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Modal Body */}
+              <ScrollView
+                className="flex-shrink"
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+                bounces={true}
+              >
+                <View className="px-6 py-4">
+                  {selectedVoidTransaction && (
+                    <View className="mb-4 bg-gray-50 rounded-lg p-3">
+                      <Text className="text-sm text-gray-600 mb-1">
+                        Transaction: {selectedVoidTransaction.transactionId}
+                      </Text>
+                      <Text className="text-sm text-gray-600">
+                        Amount: {formatCurrency(selectedVoidTransaction.total)}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View className="mb-4">
+                    <Text
+                      className="text-sm font-semibold mb-2"
+                      style={{ color: textColor }}
+                    >
+                      Reason for Void (minimum 10 characters)
+                    </Text>
+                    <TextInput
+                      className="bg-gray-100 rounded-lg px-4 py-3 text-base border-2 border-gray-200"
+                      style={{ color: textColor, minHeight: 120 }}
+                      placeholder="Enter reason for voiding this transaction..."
+                      placeholderTextColor="#9ca3af"
+                      value={voidReason}
+                      onChangeText={setVoidReason}
+                      multiline
+                      numberOfLines={5}
+                      textAlignVertical="top"
+                      autoFocus
+                    />
+                    <Text className="text-xs text-gray-500 mt-2">
+                      {voidReason.length} / 10 characters minimum
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Action Buttons - Fixed at bottom */}
+              <View className="px-6 py-4 border-t border-gray-200 bg-white rounded-b-lg">
+                <View className="flex-row gap-3">
+                  <TouchableOpacity
+                    onPress={closeVoidModal}
+                    className="flex-1 bg-gray-200 rounded-lg py-3 items-center"
+                    disabled={isSubmittingVoid}
+                  >
+                    <Text className="text-gray-700 font-semibold">Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleSubmitVoid}
+                    className="flex-1 rounded-lg py-3 items-center"
+                    style={{
+                      backgroundColor:
+                        voidReason.trim().length >= 10 && !isSubmittingVoid
+                          ? "#ef4444"
+                          : "#d1d5db",
+                    }}
+                    disabled={voidReason.trim().length < 10 || isSubmittingVoid}
+                  >
+                    {isSubmittingVoid ? (
+                      <ActivityIndicator color="white" />
+                    ) : (
+                      <Text className="text-white font-semibold">
+                        Submit Request
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
