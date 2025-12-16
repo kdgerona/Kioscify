@@ -134,8 +134,8 @@ export class TransactionsService {
 
     // Exclude APPROVED void transactions by default (includes null, NONE, PENDING, REJECTED)
     if (!filters?.includeVoided) {
-      (where as any).NOT = {
-        voidStatus: 'APPROVED',
+      (where as any).voidStatus = {
+        not: 'APPROVED',
       };
     }
 
@@ -266,10 +266,10 @@ export class TransactionsService {
             gte: startDate,
           },
           // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
-          NOT: {
-            voidStatus: 'APPROVED',
-          },
-        } as any,
+          voidStatus: {
+            not: 'APPROVED',
+          } as any,
+        },
         include: {
           items: true,
         },

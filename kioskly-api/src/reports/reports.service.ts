@@ -107,9 +107,9 @@ export class ReportsService {
           lte: endOfDay,
         },
         // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
-        NOT: {
-          voidStatus: 'APPROVED',
-        },
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       },
       include: {
         items: true,
@@ -224,9 +224,9 @@ export class ReportsService {
           lte: end,
         },
         // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
-        NOT: {
-          voidStatus: 'APPROVED',
-        },
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       } as any,
       include: {
         items: {
@@ -364,9 +364,9 @@ export class ReportsService {
           lte: prevEnd,
         },
         // Exclude APPROVED void transactions (includes null, NONE, PENDING, REJECTED)
-        NOT: {
-          voidStatus: 'APPROVED',
-        },
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       } as any,
     });
 
