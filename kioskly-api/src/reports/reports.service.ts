@@ -106,9 +106,12 @@ export class ReportsService {
           lte: endOfDay,
         },
         // Exclude APPROVED void transactions
-        voidStatus: {
-          not: 'APPROVED',
-        } as any,
+        OR: [
+          { voidStatus: null },
+          { voidStatus: 'NONE' },
+          { voidStatus: 'PENDING' },
+          { voidStatus: 'REJECTED' },
+        ],
       },
       include: {
         items: true,
@@ -224,10 +227,13 @@ export class ReportsService {
           lte: end,
         },
         // Exclude APPROVED void transactions
-        voidStatus: {
-          not: 'APPROVED',
-        } as any,
-      },
+        OR: [
+          { voidStatus: null },
+          { voidStatus: 'NONE' },
+          { voidStatus: 'PENDING' },
+          { voidStatus: 'REJECTED' },
+        ],
+      } as any,
       include: {
         items: {
           include: {
@@ -360,10 +366,13 @@ export class ReportsService {
           lte: prevEnd,
         },
         // Exclude APPROVED void transactions
-        voidStatus: {
-          not: 'APPROVED',
-        } as any,
-      },
+        OR: [
+          { voidStatus: null },
+          { voidStatus: 'NONE' },
+          { voidStatus: 'PENDING' },
+          { voidStatus: 'REJECTED' },
+        ],
+      } as any,
     });
 
     const prevSales = prevTransactions.reduce((sum, t) => sum + t.total, 0);
