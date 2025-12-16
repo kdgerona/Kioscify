@@ -20,6 +20,7 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   getTransactions,
   updateTransactionRemarks,
+  requestVoidTransaction,
   TransactionResponse,
 } from "../services/transactionService";
 
@@ -37,6 +38,11 @@ export default function Transactions() {
   const [remarksInput, setRemarksInput] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [showVoidModal, setShowVoidModal] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+  const [isSubmittingVoid, setIsSubmittingVoid] = useState(false);
+  const [selectedVoidTransaction, setSelectedVoidTransaction] =
+    useState<TransactionResponse | null>(null);
 
   // Listen to keyboard show/hide events
   useEffect(() => {
@@ -166,6 +172,77 @@ export default function Transactions() {
     }
   };
 
+  const openVoidModal = (transaction: TransactionResponse) => {
+    // Validate void status
+    if (transaction.voidStatus === "APPROVED") {
+      alert("This transaction is already voided.");
+      return;
+    }
+    if (transaction.voidStatus === "PENDING") {
+      alert("A void request is already pending for this transaction.");
+      return;
+    }
+
+    setSelectedVoidTransaction(transaction);
+    setVoidReason("");
+    setShowVoidModal(true);
+  };
+
+  const closeVoidModal = () => {
+    setShowVoidModal(false);
+    setSelectedVoidTransaction(null);
+    setVoidReason("");
+  };
+
+  const handleSubmitVoid = async () => {
+    if (!selectedVoidTransaction) return;
+
+    if (voidReason.trim().length < 10) {
+      alert("Please provide a reason of at least 10 characters.");
+      return;
+    }
+
+    setIsSubmittingVoid(true);
+    try {
+      const updated = await requestVoidTransaction(
+        selectedVoidTransaction.id,
+        voidReason.trim()
+      );
+
+      // Update the transaction in the list
+      setTransactions(
+        transactions.map((t) => (t.id === updated.id ? updated : t))
+      );
+
+      closeVoidModal();
+      alert("Void request submitted successfully!");
+    } catch (err) {
+      console.error("Failed to submit void request:", err);
+      alert("Failed to submit void request. Please try again.");
+    } finally {
+      setIsSubmittingVoid(false);
+    }
+  };
+
+  const getVoidStatusBadge = (voidStatus?: string) => {
+    if (!voidStatus || voidStatus === "NONE") return null;
+
+    const statusConfig = {
+      PENDING: { label: "Void Pending", color: "bg-yellow-500" },
+      APPROVED: { label: "VOIDED", color: "bg-red-500" },
+      REJECTED: { label: "Void Rejected", color: "bg-gray-500" },
+    };
+
+    const config = statusConfig[voidStatus as keyof typeof statusConfig];
+    if (!config) return null;
+
+    return (
+      <View className={`${config.color} px-2 py-1 rounded-md ml-2`}>
+        <Text className="text-white text-xs font-semibold">{config.label}</Text>
+      </View>
+    );
+  };
+
   const handleGenerateReport = () => {
     router.push("/daily-report" as Href);
   };
@@ -191,9 +268,7 @@ export default function Transactions() {
           onPress={handleGenerateReport}
         >
           <Ionicons name="document-text" size={18} color="#ffffff" />
-          <Text className="font-semibold text-white ml-1.5">
-            Report
-          </Text>
+          <Text className="font-semibold text-white ml-1.5">Report</Text>
         </TouchableOpacity>
       </View>
 
@@ -256,18 +331,21 @@ export default function Transactions() {
                       >
                         {formatCurrency(transaction.total)}
                       </Text>
-                      <View
-                        className="px-3 py-1 rounded-full mt-1"
-                        style={{
-                          backgroundColor:
-                            transaction.paymentMethod === "CASH"
-                              ? "#86efac"
-                              : "#93c5fd",
-                        }}
-                      >
-                        <Text className="text-xs font-semibold text-gray-800">
-                          {transaction.paymentMethod}
-                        </Text>
+                      <View className="flex-row items-center mt-1">
+                        <View
+                          className="px-3 py-1 rounded-full"
+                          style={{
+                            backgroundColor:
+                              transaction.paymentMethod === "CASH"
+                                ? "#86efac"
+                                : "#93c5fd",
+                          }}
+                        >
+                          <Text className="text-xs font-semibold text-gray-800">
+                            {transaction.paymentMethod}
+                          </Text>
+                        </View>
+                        {getVoidStatusBadge(transaction.voidStatus)}
                       </View>
                     </View>
                   </View>
@@ -354,6 +432,82 @@ export default function Transactions() {
                         </View>
                       </View>
                     )}
+
+                  {/* Void Information */}
+                  {transaction.voidStatus &&
+                    transaction.voidStatus !== "NONE" && (
+                      <View className="border-t border-gray-200 pt-3 mt-2">
+                        <View className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <Text className="text-sm font-semibold text-red-800 mb-2">
+                            Void Status: {transaction.voidStatus}
+                          </Text>
+                          {transaction.voidReason && (
+                            <View className="mb-2">
+                              <Text className="text-xs text-gray-600 font-semibold">
+                                Reason:
+                              </Text>
+                              <Text className="text-xs text-gray-700 mt-1">
+                                {transaction.voidReason}
+                              </Text>
+                            </View>
+                          )}
+                          {transaction.voidRequester && (
+                            <Text className="text-xs text-gray-600">
+                              Requested by: {transaction.voidRequester.email}
+                            </Text>
+                          )}
+                          {transaction.voidRequestedAt && (
+                            <Text className="text-xs text-gray-600">
+                              Requested:{" "}
+                              {formatDate(transaction.voidRequestedAt)}
+                            </Text>
+                          )}
+                          {transaction.voidReviewer && (
+                            <Text className="text-xs text-gray-600 mt-1">
+                              Reviewed by: {transaction.voidReviewer.email}
+                            </Text>
+                          )}
+                          {transaction.voidReviewedAt && (
+                            <Text className="text-xs text-gray-600">
+                              Reviewed: {formatDate(transaction.voidReviewedAt)}
+                            </Text>
+                          )}
+                          {transaction.voidStatus === "REJECTED" &&
+                            transaction.voidRejectionReason && (
+                              <View className="mt-2 pt-2 border-t border-red-300">
+                                <Text className="text-xs text-gray-600 font-semibold">
+                                  Rejection Reason:
+                                </Text>
+                                <Text className="text-xs text-gray-700 mt-1">
+                                  {transaction.voidRejectionReason}
+                                </Text>
+                              </View>
+                            )}
+                        </View>
+                      </View>
+                    )}
+
+                  {/* Request Void Button */}
+                  {(!transaction.voidStatus ||
+                    transaction.voidStatus === "NONE" ||
+                    transaction.voidStatus === "REJECTED") && (
+                    <View className="border-t border-gray-200 pt-3 mt-2">
+                      <TouchableOpacity
+                        onPress={() => openVoidModal(transaction)}
+                        className="flex-row items-center justify-center self-start px-3 py-1.5 rounded-md"
+                        style={{ backgroundColor: "#ef4444" }}
+                      >
+                        <Ionicons
+                          name="close-circle-outline"
+                          size={16}
+                          color="white"
+                        />
+                        <Text className="text-white text-sm ml-1.5">
+                          Request Void
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
 
                   {/* Remarks */}
                   <View className="border-t border-gray-200 pt-3 mt-2">
@@ -500,6 +654,98 @@ export default function Transactions() {
                   </TouchableOpacity>
                 </View>
               </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* Void Request Modal */}
+      <Modal
+        visible={showVoidModal}
+        transparent
+        animationType="slide"
+        onRequestClose={closeVoidModal}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            className="w-full"
+          >
+            <View className="bg-white rounded-t-3xl p-6 shadow-xl">
+              <View className="flex-row justify-between items-center mb-4">
+                <Text
+                  className="text-xl font-bold"
+                  style={{ color: textColor }}
+                >
+                  Request Void
+                </Text>
+                <TouchableOpacity onPress={closeVoidModal}>
+                  <Ionicons name="close" size={28} color={textColor} />
+                </TouchableOpacity>
+              </View>
+
+              {selectedVoidTransaction && (
+                <View className="mb-4">
+                  <Text className="text-sm text-gray-600 mb-1">
+                    Transaction: {selectedVoidTransaction.transactionId}
+                  </Text>
+                  <Text className="text-sm text-gray-600">
+                    Amount: {formatCurrency(selectedVoidTransaction.total)}
+                  </Text>
+                </View>
+              )}
+
+              <View className="mb-4">
+                <Text
+                  className="text-sm font-semibold mb-2"
+                  style={{ color: textColor }}
+                >
+                  Reason for Void (minimum 10 characters)
+                </Text>
+                <TextInput
+                  className="border border-gray-300 rounded-lg p-3 text-base"
+                  style={{ color: textColor, minHeight: 100 }}
+                  placeholder="Enter reason for voiding this transaction..."
+                  placeholderTextColor="#9ca3af"
+                  value={voidReason}
+                  onChangeText={setVoidReason}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+                <Text className="text-xs text-gray-500 mt-1">
+                  {voidReason.length} / 10 characters minimum
+                </Text>
+              </View>
+
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={closeVoidModal}
+                  className="flex-1 bg-gray-200 rounded-lg py-3 items-center"
+                  disabled={isSubmittingVoid}
+                >
+                  <Text className="text-gray-700 font-semibold">Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSubmitVoid}
+                  className="flex-1 rounded-lg py-3 items-center"
+                  style={{
+                    backgroundColor:
+                      voidReason.trim().length >= 10 && !isSubmittingVoid
+                        ? "#ef4444"
+                        : "#d1d5db",
+                  }}
+                  disabled={voidReason.trim().length < 10 || isSubmittingVoid}
+                >
+                  {isSubmittingVoid ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className="text-white font-semibold">
+                      Submit Request
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </KeyboardAvoidingView>
         </View>

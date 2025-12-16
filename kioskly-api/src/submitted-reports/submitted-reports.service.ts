@@ -128,6 +128,11 @@ export class SubmittedReportsService {
       },
     });
 
+    // Check for voided transactions
+    const voidedTransactionIds = transactions
+      .filter((t) => (t as any).voidStatus === 'APPROVED')
+      .map((t) => t.id);
+
     // Fetch full expense details
     const expenses = await this.prisma.expense.findMany({
       where: {
@@ -152,6 +157,9 @@ export class SubmittedReportsService {
       ...report,
       transactions,
       expenses,
+      // Flag if any transactions were voided after submission
+      hasVoidedTransactions: voidedTransactionIds.length > 0,
+      voidedTransactionIds,
     };
   }
 

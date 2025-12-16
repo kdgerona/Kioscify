@@ -90,6 +90,15 @@ export interface Transaction {
   remarks?: string | null;
   timestamp: string;
   paymentStatus?: 'PENDING' | 'COMPLETED' | 'FAILED';
+  voidStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  voidReason?: string | null;
+  voidRequestedBy?: string | null;
+  voidRequestedAt?: string | null;
+  voidReviewedBy?: string | null;
+  voidReviewedAt?: string | null;
+  voidRejectionReason?: string | null;
+  voidRequester?: User;
+  voidReviewer?: User;
   items?: TransactionItem[];
   user?: User;
   createdAt: string;

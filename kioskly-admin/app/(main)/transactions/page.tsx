@@ -38,6 +38,16 @@ export default function TransactionsPage() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
+  // Void request state
+  const [showVoidRequests, setShowVoidRequests] = useState(false);
+  const [voidRequests, setVoidRequests] = useState<Transaction[]>([]);
+  const [loadingVoidRequests, setLoadingVoidRequests] = useState(false);
+  const [voidStatusFilter, setVoidStatusFilter] = useState<'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'>('PENDING');
+  const [selectedVoidRequest, setSelectedVoidRequest] = useState<Transaction | null>(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isProcessingVoid, setIsProcessingVoid] = useState(false);
+
   // Debounce search term to avoid too many API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -106,6 +116,95 @@ export default function TransactionsPage() {
     }
   }, [debouncedSearchTerm, filterStatus, filterMethod, startDate, endDate, initialLoading, loadTransactions]);
 
+  // Load void requests
+  const loadVoidRequests = useCallback(async () => {
+    try {
+      setLoadingVoidRequests(true);
+      const requests = await api.getVoidRequests({
+        status: voidStatusFilter,
+      });
+      setVoidRequests(requests);
+    } catch (error) {
+      console.error('Failed to load void requests:', error);
+      alert('Failed to load void requests');
+    } finally {
+      setLoadingVoidRequests(false);
+    }
+  }, [voidStatusFilter]);
+
+  // Load void requests when tab is switched or filter changes
+  useEffect(() => {
+    if (showVoidRequests) {
+      loadVoidRequests();
+    }
+  }, [showVoidRequests, voidStatusFilter, loadVoidRequests]);
+
+  // Approve void request
+  const handleApproveVoid = async (transaction: Transaction) => {
+    if (!confirm(`Are you sure you want to approve void request for ${transaction.transactionId}?`)) {
+      return;
+    }
+
+    setIsProcessingVoid(true);
+    try {
+      await api.approveVoidRequest(transaction.id);
+      alert('Void request approved successfully');
+      loadVoidRequests(); // Reload void requests
+      if (!showVoidRequests) {
+        loadTransactions(false); // Reload transactions if on transactions tab
+      }
+    } catch (error) {
+      console.error('Failed to approve void request:', error);
+      alert('Failed to approve void request');
+    } finally {
+      setIsProcessingVoid(false);
+    }
+  };
+
+  // Open reject modal
+  const openRejectModal = (transaction: Transaction) => {
+    setSelectedVoidRequest(transaction);
+    setRejectionReason('');
+    setShowRejectModal(true);
+  };
+
+  // Reject void request
+  const handleRejectVoid = async () => {
+    if (!selectedVoidRequest) return;
+
+    setIsProcessingVoid(true);
+    try {
+      await api.rejectVoidRequest(selectedVoidRequest.id, rejectionReason.trim() || undefined);
+      alert('Void request rejected');
+      setShowRejectModal(false);
+      setSelectedVoidRequest(null);
+      setRejectionReason('');
+      loadVoidRequests(); // Reload void requests
+      if (!showVoidRequests) {
+        loadTransactions(false); // Reload transactions if on transactions tab
+      }
+    } catch (error) {
+      console.error('Failed to reject void request:', error);
+      alert('Failed to reject void request');
+    } finally {
+      setIsProcessingVoid(false);
+    }
+  };
+
+  // Get void status badge color
+  const getVoidStatusBadgeClass = (status?: string) => {
+    switch (status) {
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'APPROVED':
+        return 'bg-red-100 text-red-800';
+      case 'REJECTED':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-600';
+    }
+  };
+
   const exportToCSV = () => {
     const headers = ['Transaction ID', 'Date', 'User', 'Total', 'Payment Method', 'Status'];
     const rows = transactions.map(t => [
@@ -149,7 +248,39 @@ export default function TransactionsPage() {
         <p className="text-gray-600 mt-2">View and manage all sales transactions</p>
       </div>
 
-      {/* Filters and Search */}
+      {/* Tab Switcher */}
+      <div className="mb-6 border-b border-gray-200">
+        <div className="flex space-x-8">
+          <button
+            onClick={() => setShowVoidRequests(false)}
+            className={`pb-4 px-2 border-b-2 font-medium transition-colors ${
+              !showVoidRequests
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            All Transactions
+          </button>
+          <button
+            onClick={() => setShowVoidRequests(true)}
+            className={`pb-4 px-2 border-b-2 font-medium transition-colors relative ${
+              showVoidRequests
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Void Requests
+            {voidRequests.filter(r => r.voidStatus === 'PENDING').length > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                {voidRequests.filter(r => r.voidStatus === 'PENDING').length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Filters and Search - Only show for transactions tab */}
+      {!showVoidRequests && (
       <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-200 mb-6">
         <div className="space-y-4">
           {/* Search - Full width on all screens */}
@@ -262,8 +393,10 @@ export default function TransactionsPage() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Transactions Table */}
+      {/* Transactions Table - Only show for transactions tab */}
+      {!showVoidRequests && (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
         {isFiltering && (
           <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
@@ -348,6 +481,184 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+      )}
+
+      {/* Void Requests Section - Only show for void requests tab */}
+      {showVoidRequests && (
+        <div className="space-y-6">
+          {/* Status Filter */}
+          <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-200">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <label className="font-medium text-gray-700">Status:</label>
+                <select
+                  value={voidStatusFilter}
+                  onChange={(e) => setVoidStatusFilter(e.target.value as any)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white text-gray-900"
+                >
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="ALL">All</option>
+                </select>
+              </div>
+              <button
+                onClick={loadVoidRequests}
+                disabled={loadingVoidRequests}
+                className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh void requests"
+              >
+                <RefreshCw className={`w-5 h-5 ${loadingVoidRequests ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Void Requests Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
+            {loadingVoidRequests && (
+              <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              </div>
+            )}
+            {voidRequests.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Transaction ID
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Requested By
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Requested At
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Reason
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {voidRequests.map((request) => (
+                      <tr key={request.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-mono text-sm text-gray-900">{request.transactionId}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-semibold text-gray-900">{formatCurrency(request.total)}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm text-gray-900">{request.voidRequester?.email || 'N/A'}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm text-gray-600">{formatDateTime(request.voidRequestedAt || '')}</span>
+                        </td>
+                        <td className="px-6 py-4 max-w-xs">
+                          <span className="text-sm text-gray-600 line-clamp-2">{request.voidReason}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getVoidStatusBadgeClass(request.voidStatus)}`}>
+                            {request.voidStatus}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {request.voidStatus === 'PENDING' && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleApproveVoid(request)}
+                                disabled={isProcessingVoid}
+                                className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => openRejectModal(request)}
+                                disabled={isProcessingVoid}
+                                className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                          {request.voidStatus !== 'PENDING' && (
+                            <button
+                              onClick={() => setSelectedTransaction(request)}
+                              className="text-indigo-600 hover:text-indigo-900"
+                              title="View details"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Receipt className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No void requests found</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {showRejectModal && selectedVoidRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Reject Void Request</h2>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">Transaction: {selectedVoidRequest.transactionId}</p>
+              <p className="text-sm text-gray-600 mb-4">Amount: {formatCurrency(selectedVoidRequest.total)}</p>
+              <p className="text-sm text-gray-700 font-medium mb-2">Void Reason:</p>
+              <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg mb-4">{selectedVoidRequest.voidReason}</p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Rejection Reason (Optional)
+              </label>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Enter reason for rejection..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setSelectedVoidRequest(null);
+                  setRejectionReason('');
+                }}
+                disabled={isProcessingVoid}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRejectVoid}
+                disabled={isProcessingVoid}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {isProcessingVoid ? 'Processing...' : 'Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Transaction Details Modal */}
       {selectedTransaction && (

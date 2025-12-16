@@ -105,6 +105,10 @@ export class ReportsService {
           gte: startOfDay,
           lte: endOfDay,
         },
+        // Exclude APPROVED void transactions
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       },
       include: {
         items: true,
@@ -219,6 +223,10 @@ export class ReportsService {
           gte: start,
           lte: end,
         },
+        // Exclude APPROVED void transactions
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       },
       include: {
         items: {
@@ -351,6 +359,10 @@ export class ReportsService {
           gte: prevStart,
           lte: prevEnd,
         },
+        // Exclude APPROVED void transactions
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       },
     });
 

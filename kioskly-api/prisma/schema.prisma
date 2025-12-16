@@ -61,6 +61,8 @@ model User {
   inventoryRecords          InventoryRecord[]
   submittedReports          SubmittedReport[]
   submittedInventoryReports SubmittedInventoryReport[]
+  voidRequestsCreated       Transaction[]  @relation("VoidRequests")
+  voidRequestsReviewed      Transaction[]  @relation("VoidReviews")
 
   @@unique([tenantId, username])
   @@unique([tenantId, email])
@@ -170,10 +172,19 @@ model Transaction {
   referenceNumber  String?
   remarks          String?
   timestamp        DateTime          @default(now())
+  voidStatus           VoidStatus        @default(NONE)
+  voidReason           String?
+  voidRequestedBy      String?           @db.ObjectId
+  voidRequestedAt      DateTime?
+  voidReviewedBy       String?           @db.ObjectId
+  voidReviewedAt       DateTime?
+  voidRejectionReason  String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user             User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  voidRequester    User?             @relation("VoidRequests", fields: [voidRequestedBy], references: [id], onDelete: SetNull)
+  voidReviewer     User?             @relation("VoidReviews", fields: [voidReviewedBy], references: [id], onDelete: SetNull)
   items            TransactionItem[]
 
   @@unique([tenantId, transactionId])
@@ -226,6 +237,13 @@ enum PaymentStatus {
   COMPLETED
   PENDING
   FAILED
+}
+
+enum VoidStatus {
+  NONE          // No void request
+  PENDING       // Void request submitted, awaiting approval
+  APPROVED      // Void approved - excluded from sales
+  REJECTED      // Void rejected - still counts in sales
 }
 
 model Expense {

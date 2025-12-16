@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { VoidFiltersDto } from './dto/void-filters.dto';
 import { Prisma } from '@prisma/client';
 
 // Type for transaction with all includes
@@ -101,6 +102,7 @@ export class TransactionsService {
       paymentMethod?: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE';
       paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED';
       transactionId?: string;
+      includeVoided?: boolean;
     },
   ) {
     const where: Prisma.TransactionWhereInput = { tenantId };
@@ -124,6 +126,13 @@ export class TransactionsService {
         contains: filters.transactionId,
         mode: 'insensitive',
       } as any;
+    }
+
+    // Exclude APPROVED void transactions by default
+    if (!filters?.includeVoided) {
+      (where as any).voidStatus = {
+        not: 'APPROVED',
+      };
     }
 
     const transactions = await this.prisma.transaction.findMany({
@@ -252,6 +261,10 @@ export class TransactionsService {
           timestamp: {
             gte: startDate,
           },
+          // Exclude APPROVED void transactions
+          voidStatus: {
+            not: 'APPROVED',
+          } as any,
         },
         include: {
           items: true,
@@ -314,6 +327,15 @@ export class TransactionsService {
       referenceNumber: transaction.referenceNumber,
       remarks: transaction.remarks,
       timestamp: transaction.timestamp,
+      voidStatus: (transaction as any).voidStatus || 'NONE',
+      voidReason: (transaction as any).voidReason,
+      voidRequestedBy: (transaction as any).voidRequestedBy,
+      voidRequestedAt: (transaction as any).voidRequestedAt,
+      voidReviewedBy: (transaction as any).voidReviewedBy,
+      voidReviewedAt: (transaction as any).voidReviewedAt,
+      voidRejectionReason: (transaction as any).voidRejectionReason,
+      voidRequester: (transaction as any).voidRequester,
+      voidReviewer: (transaction as any).voidReviewer,
       createdAt: transaction.createdAt,
       updatedAt: transaction.updatedAt,
       items: transaction.items.map((item) => ({
@@ -327,5 +349,230 @@ export class TransactionsService {
         addons: item.addons?.map((a) => a.addon) || [],
       })),
     };
+  }
+
+  /**
+   * Request void for a transaction
+   * Can be requested by ADMIN or CASHIER
+   */
+  async requestVoid(
+    transactionId: string,
+    tenantId: string,
+    userId: string,
+    reason: string,
+  ) {
+    // Find transaction
+    const transaction = await this.prisma.transaction.findFirst({
+      where: { id: transactionId, tenantId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with ID ${transactionId} not found`);
+    }
+
+    // Validate void status
+    if ((transaction as any).voidStatus === 'APPROVED') {
+      throw new BadRequestException('Transaction is already voided');
+    }
+
+    if ((transaction as any).voidStatus === 'PENDING') {
+      throw new BadRequestException('Void request already pending');
+    }
+
+    // Update transaction with void request
+    const updated = await this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        voidStatus: 'PENDING',
+        voidReason: reason,
+        voidRequestedBy: userId,
+        voidRequestedAt: new Date(),
+      } as any,
+      include: {
+        user: {
+          select: { id: true, username: true, email: true, role: true },
+        },
+        voidRequester: {
+          select: { id: true, username: true, email: true, role: true },
+        } as any,
+        items: {
+          include: {
+            product: true,
+            size: true,
+            addons: {
+              include: {
+                addon: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return this.formatTransaction(updated as any);
+  }
+
+  /**
+   * Get void requests (pending, approved, or rejected)
+   * Admin-only endpoint
+   */
+  async getVoidRequests(tenantId: string, filters: VoidFiltersDto) {
+    const where: any = {
+      tenantId,
+      voidStatus: { not: 'NONE' },
+    };
+
+    // Filter by status
+    if (filters.status && filters.status !== 'ALL') {
+      where.voidStatus = filters.status;
+    }
+
+    // Date range filter on voidRequestedAt
+    if (filters.startDate || filters.endDate) {
+      where.voidRequestedAt = {};
+      if (filters.startDate) {
+        where.voidRequestedAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        where.voidRequestedAt.lte = new Date(filters.endDate);
+      }
+    }
+
+    const transactions = await this.prisma.transaction.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, username: true, email: true, role: true },
+        },
+        voidRequester: {
+          select: { id: true, username: true, email: true, role: true },
+        } as any,
+        voidReviewer: {
+          select: { id: true, username: true, email: true, role: true },
+        } as any,
+        items: {
+          include: {
+            product: true,
+            size: true,
+            addons: {
+              include: {
+                addon: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { voidRequestedAt: 'desc' } as any,
+    });
+
+    return transactions.map((t) => this.formatTransaction(t as any));
+  }
+
+  /**
+   * Approve void request
+   * Admin-only endpoint
+   */
+  async approveVoid(transactionId: string, tenantId: string, reviewerId: string) {
+    const transaction = await this.prisma.transaction.findFirst({
+      where: { id: transactionId, tenantId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with ID ${transactionId} not found`);
+    }
+
+    if ((transaction as any).voidStatus !== 'PENDING') {
+      throw new BadRequestException('Only pending void requests can be approved');
+    }
+
+    const updated = await this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        voidStatus: 'APPROVED',
+        voidReviewedBy: reviewerId,
+        voidReviewedAt: new Date(),
+      } as any,
+      include: {
+        user: {
+          select: { id: true, username: true, email: true, role: true },
+        },
+        voidRequester: {
+          select: { id: true, username: true, email: true, role: true },
+        } as any,
+        voidReviewer: {
+          select: { id: true, username: true, email: true, role: true },
+        } as any,
+        items: {
+          include: {
+            product: true,
+            size: true,
+            addons: {
+              include: {
+                addon: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return this.formatTransaction(updated as any);
+  }
+
+  /**
+   * Reject void request
+   * Admin-only endpoint
+   */
+  async rejectVoid(
+    transactionId: string,
+    tenantId: string,
+    reviewerId: string,
+    rejectionReason?: string,
+  ) {
+    const transaction = await this.prisma.transaction.findFirst({
+      where: { id: transactionId, tenantId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with ID ${transactionId} not found`);
+    }
+
+    if ((transaction as any).voidStatus !== 'PENDING') {
+      throw new BadRequestException('Only pending void requests can be rejected');
+    }
+
+    const updated = await this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        voidStatus: 'REJECTED',
+        voidReviewedBy: reviewerId,
+        voidReviewedAt: new Date(),
+        voidRejectionReason: rejectionReason,
+      } as any,
+      include: {
+        user: {
+          select: { id: true, username: true, email: true, role: true },
+        },
+        voidRequester: {
+          select: { id: true, username: true, email: true, role: true },
+        } as any,
+        voidReviewer: {
+          select: { id: true, username: true, email: true, role: true },
+        } as any,
+        items: {
+          include: {
+            product: true,
+            size: true,
+            addons: {
+              include: {
+                addon: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return this.formatTransaction(updated as any);
   }
 }

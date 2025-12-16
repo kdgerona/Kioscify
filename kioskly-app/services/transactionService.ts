@@ -72,6 +72,25 @@ export interface TransactionResponse {
   createdAt: string;
   updatedAt: string;
   items: TransactionItemResponse[];
+  voidStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  voidReason?: string;
+  voidRequestedBy?: string;
+  voidRequestedAt?: string;
+  voidReviewedBy?: string;
+  voidReviewedAt?: string;
+  voidRejectionReason?: string;
+  voidRequester?: {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+  };
+  voidReviewer?: {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+  };
 }
 
 /**
@@ -235,6 +254,59 @@ export const updateTransactionRemarks = async (
     return data;
   } catch (error) {
     console.error("Failed to update transaction:", error);
+    throw error;
+  }
+};
+
+/**
+ * Request void for a transaction
+ * @param transactionId - Transaction ID to void
+ * @param reason - Reason for voiding
+ * @returns Updated transaction
+ */
+export const requestVoidTransaction = async (
+  transactionId: string,
+  reason: string
+): Promise<TransactionResponse> => {
+  try {
+    console.log("🔵 REQUESTING VOID:", transactionId);
+
+    safeReactotron.display({
+      name: "REQUEST VOID",
+      value: { transactionId, reason },
+      preview: `Requesting void for ${transactionId}`,
+    });
+
+    const response = await apiPost(`/transactions/${transactionId}/void-request`, {
+      reason,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log("🔴 VOID REQUEST ERROR:", errorText);
+
+      safeReactotron.display({
+        name: "VOID REQUEST ERROR",
+        value: { status: response.status, error: errorText },
+        preview: "Void request failed",
+        important: true,
+      });
+
+      throw new Error(`Failed to request void: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("🟢 VOID REQUEST SUBMITTED:", data.transactionId);
+
+    safeReactotron.display({
+      name: "VOID REQUEST SUCCESS",
+      value: data,
+      preview: `Void request submitted for ${data.transactionId}`,
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Failed to request void:", error);
     throw error;
   }
 };

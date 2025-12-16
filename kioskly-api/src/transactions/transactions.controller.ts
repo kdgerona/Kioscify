@@ -19,7 +19,12 @@ import {
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { RequestVoidDto } from './dto/request-void.dto';
+import { ReviewVoidDto } from './dto/review-void.dto';
+import { VoidFiltersDto, VoidStatusFilter } from './dto/void-filters.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { TenantId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('transactions')
@@ -112,6 +117,21 @@ export class TransactionsController {
     return this.transactionsService.getStats(tenantId, period);
   }
 
+  @Get('void-requests')
+  @ApiOperation({ summary: 'Get all void requests (ADMIN only)' })
+  @ApiQuery({ name: 'status', enum: VoidStatusFilter, required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiResponse({ status: 200, description: 'Void requests retrieved successfully' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  getVoidRequests(
+    @Query() filters: VoidFiltersDto,
+    @TenantId() tenantId: string,
+  ) {
+    return this.transactionsService.getVoidRequests(tenantId, filters);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a single transaction by ID with all details' })
   @ApiResponse({
@@ -139,6 +159,61 @@ export class TransactionsController {
       id,
       tenantId,
       updateTransactionDto.remarks,
+    );
+  }
+
+  @Post(':id/void-request')
+  @ApiOperation({ summary: 'Request void for a transaction (ADMIN/CASHIER)' })
+  @ApiResponse({ status: 200, description: 'Void request submitted successfully' })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  @ApiResponse({ status: 400, description: 'Invalid void request' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'CASHIER')
+  requestVoid(
+    @Param('id') id: string,
+    @Body() requestVoidDto: RequestVoidDto,
+    @Request() req,
+  ) {
+    return this.transactionsService.requestVoid(
+      id,
+      req.user.tenantId,
+      req.user.id,
+      requestVoidDto.reason,
+    );
+  }
+
+  @Patch('void-requests/:id/approve')
+  @ApiOperation({ summary: 'Approve void request (ADMIN only)' })
+  @ApiResponse({ status: 200, description: 'Void request approved successfully' })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  @ApiResponse({ status: 400, description: 'Invalid void request status' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  approveVoid(@Param('id') id: string, @Request() req) {
+    return this.transactionsService.approveVoid(
+      id,
+      req.user.tenantId,
+      req.user.id,
+    );
+  }
+
+  @Patch('void-requests/:id/reject')
+  @ApiOperation({ summary: 'Reject void request (ADMIN only)' })
+  @ApiResponse({ status: 200, description: 'Void request rejected successfully' })
+  @ApiResponse({ status: 404, description: 'Transaction not found' })
+  @ApiResponse({ status: 400, description: 'Invalid void request status' })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  rejectVoid(
+    @Param('id') id: string,
+    @Body() reviewVoidDto: ReviewVoidDto,
+    @Request() req,
+  ) {
+    return this.transactionsService.rejectVoid(
+      id,
+      req.user.tenantId,
+      req.user.id,
+      reviewVoidDto.rejectionReason,
     );
   }
 }

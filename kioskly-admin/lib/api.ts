@@ -138,6 +138,29 @@ class ApiClient {
     return data;
   }
 
+  // Void request endpoints
+  async getVoidRequests(params?: {
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Transaction[]> {
+    const { data } = await this.client.get<Transaction[]>('/transactions/void-requests', { params });
+    return data;
+  }
+
+  async approveVoidRequest(id: string): Promise<Transaction> {
+    const { data } = await this.client.patch<Transaction>(`/transactions/void-requests/${id}/approve`);
+    return data;
+  }
+
+  async rejectVoidRequest(id: string, rejectionReason?: string): Promise<Transaction> {
+    const { data } = await this.client.patch<Transaction>(
+      `/transactions/void-requests/${id}/reject`,
+      { rejectionReason }
+    );
+    return data;
+  }
+
   // Expenses endpoints
   async getExpenses(params?: {
     startDate?: string;
