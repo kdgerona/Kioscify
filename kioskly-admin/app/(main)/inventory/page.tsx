@@ -1,13 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
-import { useTenant } from '@/contexts/TenantContext';
-import {
-  InventoryItem,
-  LatestInventoryItem,
-  InventoryStats,
-} from '@/types';
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { useTenant } from "@/contexts/TenantContext";
+import { InventoryItem, LatestInventoryItem, InventoryStats } from "@/types";
 import {
   Boxes,
   AlertTriangle,
@@ -19,29 +15,47 @@ import {
   RefreshCw,
   Search,
   X,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function InventoryPage() {
   const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || '#4f46e5';
+  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
 
   // State management
   const [stats, setStats] = useState<InventoryStats | null>(null);
-  const [latestInventory, setLatestInventory] = useState<LatestInventoryItem[]>([]);
+  const [latestInventory, setLatestInventory] = useState<LatestInventoryItem[]>(
+    []
+  );
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'items' | 'count'>('overview');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<"overview" | "items" | "count">(
+    "overview"
+  );
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [itemForm, setItemForm] = useState({
-    name: '',
-    category: '',
-    unit: '',
-    description: '',
-    minStockLevel: '',
+    name: "",
+    category: "",
+    unit: "",
+    description: "",
+    minStockLevel: "",
   });
+
+  // Helper function to format category names to human-readable text
+  const formatCategoryName = (category: string): string => {
+    if (!category) return "Uncategorized";
+
+    // Replace underscores and hyphens with spaces, then handle camelCase
+    return category
+      .replace(/[_-]/g, " ") // Replace underscores and hyphens with spaces
+      .replace(/([a-z])([A-Z])/g, "$1 $2") // Add space before capital letters in camelCase
+      .split(/\s+/) // Split by whitespace
+      .filter((word) => word.length > 0) // Remove empty strings
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
 
   // Load data on mount
   useEffect(() => {
@@ -57,7 +71,7 @@ export default function InventoryPage() {
         loadInventoryItems(),
       ]);
     } catch (error) {
-      console.error('Failed to load inventory data:', error);
+      console.error("Failed to load inventory data:", error);
     } finally {
       setLoading(false);
     }
@@ -68,7 +82,7 @@ export default function InventoryPage() {
       const data = await api.getInventoryStats();
       setStats(data);
     } catch (error) {
-      console.error('Failed to load stats:', error);
+      console.error("Failed to load stats:", error);
     }
   };
 
@@ -77,7 +91,7 @@ export default function InventoryPage() {
       const data = await api.getLatestInventory();
       setLatestInventory(data);
     } catch (error) {
-      console.error('Failed to load latest inventory:', error);
+      console.error("Failed to load latest inventory:", error);
     }
   };
 
@@ -86,19 +100,40 @@ export default function InventoryPage() {
       const data = await api.getInventoryItems(selectedCategory || undefined);
       setInventoryItems(data);
     } catch (error) {
-      console.error('Failed to load inventory items:', error);
+      console.error("Failed to load inventory items:", error);
     }
   };
 
   // Get unique categories from inventory items
-  const categories = Array.from(new Set(inventoryItems.map((item) => item.category))).sort();
+  const categories = Array.from(
+    new Set(inventoryItems.map((item) => item.category))
+  ).sort();
 
   // Filter items based on search and category
   const filteredItems = latestInventory.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !selectedCategory || item.category === selectedCategory;
+    const matchesSearch = item.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      !selectedCategory || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // Group filtered items by category
+  const groupedItems = filteredItems.reduce(
+    (acc, item) => {
+      const category = item.category || "Uncategorized";
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(item);
+      return acc;
+    },
+    {} as Record<string, LatestInventoryItem[]>
+  );
+
+  // Sort categories alphabetically
+  const sortedCategories = Object.keys(groupedItems).sort();
 
   // Handle item CRUD operations
   const handleCreateItem = async () => {
@@ -108,15 +143,17 @@ export default function InventoryPage() {
         category: itemForm.category,
         unit: itemForm.unit,
         description: itemForm.description || undefined,
-        minStockLevel: itemForm.minStockLevel ? parseFloat(itemForm.minStockLevel) : undefined,
+        minStockLevel: itemForm.minStockLevel
+          ? parseFloat(itemForm.minStockLevel)
+          : undefined,
       });
       await loadInventoryItems();
       await loadStats();
       setShowItemModal(false);
       resetItemForm();
     } catch (error) {
-      console.error('Failed to create item:', error);
-      alert('Failed to create inventory item');
+      console.error("Failed to create item:", error);
+      alert("Failed to create inventory item");
     }
   };
 
@@ -128,7 +165,9 @@ export default function InventoryPage() {
         category: itemForm.category,
         unit: itemForm.unit,
         description: itemForm.description || undefined,
-        minStockLevel: itemForm.minStockLevel ? parseFloat(itemForm.minStockLevel) : undefined,
+        minStockLevel: itemForm.minStockLevel
+          ? parseFloat(itemForm.minStockLevel)
+          : undefined,
       });
       await loadInventoryItems();
       await loadStats();
@@ -136,30 +175,30 @@ export default function InventoryPage() {
       setEditingItem(null);
       resetItemForm();
     } catch (error) {
-      console.error('Failed to update item:', error);
-      alert('Failed to update inventory item');
+      console.error("Failed to update item:", error);
+      alert("Failed to update inventory item");
     }
   };
 
   const handleDeleteItem = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this item?')) return;
+    if (!confirm("Are you sure you want to delete this item?")) return;
     try {
       await api.deleteInventoryItem(id);
       await loadInventoryItems();
       await loadStats();
     } catch (error) {
-      console.error('Failed to delete item:', error);
-      alert('Failed to delete inventory item');
+      console.error("Failed to delete item:", error);
+      alert("Failed to delete inventory item");
     }
   };
 
   const resetItemForm = () => {
     setItemForm({
-      name: '',
-      category: '',
-      unit: '',
-      description: '',
-      minStockLevel: '',
+      name: "",
+      category: "",
+      unit: "",
+      description: "",
+      minStockLevel: "",
     });
   };
 
@@ -170,8 +209,8 @@ export default function InventoryPage() {
         name: item.name,
         category: item.category,
         unit: item.unit,
-        description: item.description || '',
-        minStockLevel: item.minStockLevel?.toString() || '',
+        description: item.description || "",
+        minStockLevel: item.minStockLevel?.toString() || "",
       });
     } else {
       setEditingItem(null);
@@ -199,7 +238,9 @@ export default function InventoryPage() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Inventory Management
+        </h1>
         <p className="text-gray-600 mt-2">
           Track stock levels, manage items, and view inventory statistics
         </p>
@@ -214,7 +255,9 @@ export default function InventoryPage() {
             </div>
           </div>
           <p className="text-gray-600 text-sm mb-1">Total Items</p>
-          <p className="text-2xl font-bold text-gray-900">{stats?.totalItems || 0}</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {stats?.totalItems || 0}
+          </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
@@ -224,7 +267,9 @@ export default function InventoryPage() {
             </div>
           </div>
           <p className="text-gray-600 text-sm mb-1">Low Stock Alerts</p>
-          <p className="text-2xl font-bold text-gray-900">{stats?.lowStockCount || 0}</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {stats?.lowStockCount || 0}
+          </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
@@ -234,7 +279,9 @@ export default function InventoryPage() {
             </div>
           </div>
           <p className="text-gray-600 text-sm mb-1">Needs Counting</p>
-          <p className="text-2xl font-bold text-gray-900">{stats?.itemsWithoutRecords || 0}</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {stats?.itemsWithoutRecords || 0}
+          </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
@@ -244,7 +291,9 @@ export default function InventoryPage() {
             </div>
           </div>
           <p className="text-gray-600 text-sm mb-1">Categories</p>
-          <p className="text-2xl font-bold text-gray-900">{categories.length}</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {categories.length}
+          </p>
         </div>
       </div>
 
@@ -252,14 +301,14 @@ export default function InventoryPage() {
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8">
-            {['overview', 'items', 'count'].map((tab) => (
+            {["overview", "items", "count"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
                   activeTab === tab
-                    ? 'border-current text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? "border-current text-gray-900"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}
                 style={activeTab === tab ? { borderColor: primaryColor } : {}}
               >
@@ -271,39 +320,89 @@ export default function InventoryPage() {
       </div>
 
       {/* Overview Tab */}
-      {activeTab === 'overview' && (
+      {activeTab === "overview" && (
         <div className="space-y-6">
           {/* Low Stock Alerts */}
-          {stats && stats.lowStockItems.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-red-200">
-              <div className="flex items-center space-x-2 mb-4">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-                <h2 className="text-xl font-bold text-gray-900">Low Stock Alerts</h2>
-              </div>
-              <div className="space-y-3">
-                {stats.lowStockItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-100"
-                  >
-                    <div>
-                      <p className="font-semibold text-gray-900">{item.name}</p>
-                      <p className="text-sm text-gray-600">Category: {item.category}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-red-600">{item.latestQuantity}</p>
-                      <p className="text-sm text-gray-600">Min: {item.minStockLevel}</p>
-                    </div>
+          {stats &&
+            stats.lowStockItems.length > 0 &&
+            (() => {
+              // Group low stock items by category
+              const groupedLowStock = stats.lowStockItems.reduce(
+                (acc, item) => {
+                  const category = item.category || "Uncategorized";
+                  if (!acc[category]) {
+                    acc[category] = [];
+                  }
+                  acc[category].push(item);
+                  return acc;
+                },
+                {} as Record<string, typeof stats.lowStockItems>
+              );
+
+              const sortedLowStockCategories =
+                Object.keys(groupedLowStock).sort();
+
+              return (
+                <div className="bg-white rounded-xl shadow-sm p-6 border border-red-200">
+                  <div className="flex items-center space-x-2 mb-6">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Low Stock Alerts
+                    </h2>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                  <div className="space-y-6">
+                    {sortedLowStockCategories.map((category) => (
+                      <div key={category}>
+                        {/* Category Header */}
+                        <div className="flex items-center mb-3">
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            {formatCategoryName(category)}
+                          </h3>
+                          <div className="flex-1 ml-3 border-t border-red-300"></div>
+                          <span className="ml-3 px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">
+                            {groupedLowStock[category].length}{" "}
+                            {groupedLowStock[category].length === 1
+                              ? "item"
+                              : "items"}
+                          </span>
+                        </div>
+
+                        {/* Items List */}
+                        <div className="space-y-3">
+                          {groupedLowStock[category].map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-100"
+                            >
+                              <div>
+                                <p className="font-semibold text-gray-900">
+                                  {item.name}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-lg font-bold text-red-600">
+                                  {item.latestQuantity}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Min: {item.minStockLevel}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
           {/* Latest Inventory Counts */}
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Latest Inventory Counts</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                Latest Inventory Counts
+              </h2>
               <button
                 onClick={loadLatestInventory}
                 className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
@@ -333,45 +432,75 @@ export default function InventoryPage() {
                 <option value="">All Categories</option>
                 {categories.map((cat) => (
                   <option key={cat} value={cat}>
-                    {cat}
+                    {formatCategoryName(cat)}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Inventory List */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{item.name}</p>
-                      <p className="text-xs text-gray-500">{item.category}</p>
-                    </div>
-                    <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                      {item.unit}
+            {/* Inventory List - Grouped by Category */}
+            <div className="space-y-6">
+              {sortedCategories.map((category) => (
+                <div key={category}>
+                  {/* Category Header */}
+                  <div className="flex items-center mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      {formatCategoryName(category)}
+                    </h3>
+                    <div className="flex-1 ml-3 border-t border-gray-300"></div>
+                    <span className="ml-3 px-2 py-1 text-xs rounded-full bg-gray-200 text-gray-700">
+                      {groupedItems[category].length}{" "}
+                      {groupedItems[category].length === 1 ? "item" : "items"}
                     </span>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Current Stock:</span>
-                      <span className={`text-lg font-bold ${
-                        item.minStockLevel && item.latestQuantity && item.latestQuantity <= item.minStockLevel
-                          ? 'text-red-600'
-                          : 'text-green-600'
-                      }`}>
-                        {item.latestQuantity ?? '-'}
-                      </span>
-                    </div>
-                    {item.minStockLevel && (
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs text-gray-500">Min Level:</span>
-                        <span className="text-sm text-gray-600">{item.minStockLevel}</span>
+
+                  {/* Items Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {groupedItems[category].map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900">
+                              {item.name}
+                            </p>
+                          </div>
+                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                            {item.unit}
+                          </span>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600">
+                              Current Stock:
+                            </span>
+                            <span
+                              className={`text-lg font-bold ${
+                                item.minStockLevel &&
+                                item.latestQuantity &&
+                                item.latestQuantity <= item.minStockLevel
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }`}
+                            >
+                              {item.latestQuantity ?? "-"}
+                            </span>
+                          </div>
+                          {item.minStockLevel && (
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-xs text-gray-500">
+                                Min Level:
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {item.minStockLevel}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
               ))}
@@ -388,10 +517,12 @@ export default function InventoryPage() {
       )}
 
       {/* Items Tab */}
-      {activeTab === 'items' && (
+      {activeTab === "items" && (
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Manage Inventory Items</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              Manage Inventory Items
+            </h2>
             <button
               onClick={() => openItemModal()}
               className="flex items-center space-x-2 px-4 py-2 rounded-lg text-black font-medium transition hover:opacity-90"
@@ -406,23 +537,42 @@ export default function InventoryPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Name</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Category</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Unit</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Min Level</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Description</th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Name
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Category
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Unit
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Min Level
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                    Description
+                  </th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-700">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {inventoryItems.map((item) => (
-                  <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">{item.name}</td>
+                  <tr
+                    key={item.id}
+                    className="border-b border-gray-100 hover:bg-gray-50"
+                  >
+                    <td className="py-3 px-4 font-medium text-gray-900">
+                      {item.name}
+                    </td>
                     <td className="py-3 px-4 text-gray-600">{item.category}</td>
                     <td className="py-3 px-4 text-gray-600">{item.unit}</td>
-                    <td className="py-3 px-4 text-gray-600">{item.minStockLevel || '-'}</td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {item.minStockLevel || "-"}
+                    </td>
                     <td className="py-3 px-4 text-gray-600 max-w-xs truncate">
-                      {item.description || '-'}
+                      {item.description || "-"}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-end space-x-2">
@@ -463,18 +613,23 @@ export default function InventoryPage() {
       )}
 
       {/* Count Tab */}
-      {activeTab === 'count' && (
+      {activeTab === "count" && (
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Inventory Count</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Quick Inventory Count
+          </h2>
           <p className="text-gray-600 mb-6">
-            This feature is available in the mobile app for easier counting on the go.
+            This feature is available in the mobile app for easier counting on
+            the go.
           </p>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
             <Package className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-900 font-semibold mb-2">Use the Kioskly Mobile App</p>
+            <p className="text-gray-900 font-semibold mb-2">
+              Use the Kioskly Mobile App
+            </p>
             <p className="text-sm text-gray-600">
-              Download the mobile app to quickly count inventory with an optimized interface
-              designed for daily use.
+              Download the mobile app to quickly count inventory with an
+              optimized interface designed for daily use.
             </p>
           </div>
         </div>
@@ -486,7 +641,7 @@ export default function InventoryPage() {
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900">
-                {editingItem ? 'Edit Item' : 'Add New Item'}
+                {editingItem ? "Edit Item" : "Add New Item"}
               </h3>
               <button
                 onClick={() => {
@@ -508,7 +663,9 @@ export default function InventoryPage() {
                 <input
                   type="text"
                   value={itemForm.name}
-                  onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
+                  onChange={(e) =>
+                    setItemForm({ ...itemForm, name: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
                   placeholder="e.g., Fresh Lemons"
                 />
@@ -521,7 +678,9 @@ export default function InventoryPage() {
                 <input
                   type="text"
                   value={itemForm.category}
-                  onChange={(e) => setItemForm({ ...itemForm, category: e.target.value })}
+                  onChange={(e) =>
+                    setItemForm({ ...itemForm, category: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
                   placeholder="e.g., MAINS, SYRUPS, etc."
                   list="categories-list"
@@ -540,7 +699,9 @@ export default function InventoryPage() {
                 <input
                   type="text"
                   value={itemForm.unit}
-                  onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
+                  onChange={(e) =>
+                    setItemForm({ ...itemForm, unit: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
                   placeholder="e.g., Box, Bottle, Pack"
                 />
@@ -554,7 +715,9 @@ export default function InventoryPage() {
                   type="number"
                   step="0.01"
                   value={itemForm.minStockLevel}
-                  onChange={(e) => setItemForm({ ...itemForm, minStockLevel: e.target.value })}
+                  onChange={(e) =>
+                    setItemForm({ ...itemForm, minStockLevel: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
                   placeholder="Alert when stock falls below this"
                 />
@@ -566,7 +729,9 @@ export default function InventoryPage() {
                 </label>
                 <textarea
                   value={itemForm.description}
-                  onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
+                  onChange={(e) =>
+                    setItemForm({ ...itemForm, description: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
                   rows={3}
                   placeholder="Optional description"
@@ -587,11 +752,13 @@ export default function InventoryPage() {
               </button>
               <button
                 onClick={editingItem ? handleUpdateItem : handleCreateItem}
-                disabled={!itemForm.name || !itemForm.category || !itemForm.unit}
+                disabled={
+                  !itemForm.name || !itemForm.category || !itemForm.unit
+                }
                 className="flex-1 px-4 py-2 rounded-lg text-black font-medium transition disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
                 style={{ backgroundColor: primaryColor }}
               >
-                {editingItem ? 'Update' : 'Create'}
+                {editingItem ? "Update" : "Create"}
               </button>
             </div>
           </div>
