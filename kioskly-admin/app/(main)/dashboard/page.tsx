@@ -152,12 +152,12 @@ export default function DashboardPage() {
       {/* Today's Overview */}
       <div className="mb-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">
-          Today's Overview
+          Today&apos;s Overview
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Today's Sales */}
           <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-6 rounded-xl shadow-lg">
-            <p className="text-cyan-100 text-sm mb-2">Today's Sales</p>
+            <p className="text-cyan-100 text-sm mb-2">Today&apos;s Sales</p>
             <p className="text-3xl font-bold">
               {formatCurrency(dailyAnalytics?.sales?.totalAmount || 0)}
             </p>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
 
           {/* Today's Expenses */}
           <div className="bg-gradient-to-br from-rose-500 to-rose-600 text-white p-6 rounded-xl shadow-lg">
-            <p className="text-rose-100 text-sm mb-2">Today's Expenses</p>
+            <p className="text-rose-100 text-sm mb-2">Today&apos;s Expenses</p>
             <p className="text-3xl font-bold">
               {formatCurrency(dailyAnalytics?.expenses?.totalAmount || 0)}
             </p>
@@ -179,7 +179,7 @@ export default function DashboardPage() {
 
           {/* Today's Net */}
           <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-6 rounded-xl shadow-lg">
-            <p className="text-teal-100 text-sm mb-2">Today's Net Revenue</p>
+            <p className="text-teal-100 text-sm mb-2">Today&apos;s Net Revenue</p>
             <p className="text-3xl font-bold">
               {formatCurrency(dailyAnalytics?.summary?.netRevenue || 0)}
             </p>
