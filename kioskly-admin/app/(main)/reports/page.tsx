@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
 import {
   BarChart,
   Bar,
@@ -18,13 +18,13 @@ import {
   Legend,
   ResponsiveContainer,
   ComposedChart,
-} from 'recharts';
-import { TrendingUp, Download, Calendar, RefreshCw } from 'lucide-react';
-import { useTenant } from '@/contexts/TenantContext';
-import DateRangeSelector, { TimePeriod } from '@/components/DateRangeSelector';
-import TransactionListModal from '@/components/TransactionListModal';
-import ExpenseListModal from '@/components/ExpenseListModal';
-import { Transaction, Expense } from '@/types';
+} from "recharts";
+import { TrendingUp, Download, Calendar, RefreshCw } from "lucide-react";
+import { useTenant } from "@/contexts/TenantContext";
+import DateRangeSelector, { TimePeriod } from "@/components/DateRangeSelector";
+import TransactionListModal from "@/components/TransactionListModal";
+import ExpenseListModal from "@/components/ExpenseListModal";
+import { Transaction, Expense } from "@/types";
 
 interface AnalyticsData {
   period: {
@@ -66,12 +66,12 @@ interface AnalyticsData {
 
 export default function ReportsPage() {
   const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || '#4f46e5';
+  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<TimePeriod>('monthly');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [period, setPeriod] = useState<TimePeriod>("daily");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -92,7 +92,7 @@ export default function ReportsPage() {
         endDate?: string;
       } = { period };
 
-      if (period === 'custom' && startDate && endDate) {
+      if (period === "custom" && startDate && endDate) {
         params.startDate = startDate;
         params.endDate = endDate;
       }
@@ -100,7 +100,7 @@ export default function ReportsPage() {
       const data = await api.getAnalytics(params);
       setAnalytics(data);
     } catch (error) {
-      console.error('Failed to load report data:', error);
+      console.error("Failed to load report data:", error);
     } finally {
       setLoading(false);
     }
@@ -111,19 +111,21 @@ export default function ReportsPage() {
     if (!analytics) return [];
 
     const colors = {
-      CASH: '#10b981',
-      CARD: '#3b82f6',
-      GCASH: '#8b5cf6',
-      PAYMAYA: '#f59e0b',
-      FOODPANDA: '#ec4899',
-      ONLINE: '#6b7280',
+      CASH: "#10b981",
+      CARD: "#3b82f6",
+      GCASH: "#8b5cf6",
+      PAYMAYA: "#f59e0b",
+      FOODPANDA: "#ec4899",
+      ONLINE: "#6b7280",
     };
 
-    return Object.entries(analytics.sales.paymentMethodBreakdown).map(([method, data]) => ({
-      name: method,
-      value: data.count,
-      color: colors[method as keyof typeof colors] || '#6b7280',
-    }));
+    return Object.entries(analytics.sales.paymentMethodBreakdown).map(
+      ([method, data]) => ({
+        name: method,
+        value: data.count,
+        color: colors[method as keyof typeof colors] || "#6b7280",
+      })
+    );
   };
 
   // Prepare expense category distribution
@@ -131,27 +133,32 @@ export default function ReportsPage() {
     if (!analytics) return [];
 
     const colors = {
-      SUPPLIES: '#ef4444',
-      UTILITIES: '#f59e0b',
-      MAINTENANCE: '#8b5cf6',
-      SALARY: '#3b82f6',
-      RENT: '#ec4899',
-      OTHER: '#6b7280',
+      SUPPLIES: "#ef4444",
+      UTILITIES: "#f59e0b",
+      MAINTENANCE: "#8b5cf6",
+      SALARY: "#3b82f6",
+      RENT: "#ec4899",
+      OTHER: "#6b7280",
     };
 
-    return Object.entries(analytics.expenses.categoryBreakdown).map(([category, data]) => ({
-      name: category,
-      value: data.total,
-      color: colors[category as keyof typeof colors] || '#6b7280',
-    }));
+    return Object.entries(analytics.expenses.categoryBreakdown).map(
+      ([category, data]) => ({
+        name: category,
+        value: data.total,
+        color: colors[category as keyof typeof colors] || "#6b7280",
+      })
+    );
   };
 
   // Prepare sales by day for charts
   const getSalesByDay = () => {
     if (!analytics) return [];
 
-    return analytics.salesByDay.map(day => ({
-      date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    return analytics.salesByDay.map((day) => ({
+      date: new Date(day.date).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
       total: day.total,
       count: day.count,
     }));
@@ -171,11 +178,13 @@ export default function ReportsPage() {
       paymentMethods: getPaymentMethodData(),
     };
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: "application/json",
+    });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `report-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `report-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
   };
 
@@ -184,7 +193,7 @@ export default function ReportsPage() {
       setLoadingTransactions(true);
       const params: { startDate?: string; endDate?: string } = {};
 
-      if (period === 'custom' && startDate && endDate) {
+      if (period === "custom" && startDate && endDate) {
         params.startDate = startDate;
         params.endDate = endDate;
       } else if (analytics?.period) {
@@ -196,7 +205,7 @@ export default function ReportsPage() {
       setTransactions(data);
       setShowTransactionModal(true);
     } catch (error) {
-      console.error('Failed to load transactions:', error);
+      console.error("Failed to load transactions:", error);
     } finally {
       setLoadingTransactions(false);
     }
@@ -207,7 +216,7 @@ export default function ReportsPage() {
       setLoadingExpenses(true);
       const params: { startDate?: string; endDate?: string } = {};
 
-      if (period === 'custom' && startDate && endDate) {
+      if (period === "custom" && startDate && endDate) {
         params.startDate = startDate;
         params.endDate = endDate;
       } else if (analytics?.period) {
@@ -219,7 +228,7 @@ export default function ReportsPage() {
       setExpenses(data);
       setShowExpenseModal(true);
     } catch (error) {
-      console.error('Failed to load expenses:', error);
+      console.error("Failed to load expenses:", error);
     } finally {
       setLoadingExpenses(false);
     }
@@ -255,8 +264,12 @@ export default function ReportsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-600 mt-2">Sales performance and business insights</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Reports & Analytics
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Sales performance and business insights
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -292,9 +305,12 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-blue-100 text-sm mb-2">Total Sales</p>
-          <p className="text-3xl font-bold">{formatCurrency(analytics.sales.totalAmount)}</p>
+          <p className="text-3xl font-bold">
+            {formatCurrency(analytics.sales.totalAmount)}
+          </p>
           <p className="text-sm text-blue-100 mt-2">
-            {analytics.sales.growth >= 0 ? '↑' : '↓'} {Math.abs(analytics.sales.growth).toFixed(1)}% from previous period
+            {analytics.sales.growth >= 0 ? "↑" : "↓"}{" "}
+            {Math.abs(analytics.sales.growth).toFixed(1)}% from previous period
           </p>
         </div>
 
@@ -303,21 +319,32 @@ export default function ReportsPage() {
           disabled={loadingTransactions}
           className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
         >
-          <p className="text-green-100 text-sm mb-2">Transactions {loadingTransactions ? '(Loading...)' : '(Click to view all)'}</p>
-          <p className="text-3xl font-bold">{analytics.sales.transactionCount}</p>
+          <p className="text-green-100 text-sm mb-2">
+            Transactions{" "}
+            {loadingTransactions ? "(Loading...)" : "(Click to view all)"}
+          </p>
+          <p className="text-3xl font-bold">
+            {analytics.sales.transactionCount}
+          </p>
           <p className="text-sm text-green-100 mt-2">Completed orders</p>
         </button>
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-purple-100 text-sm mb-2">Avg. Order Value</p>
-          <p className="text-3xl font-bold">{formatCurrency(analytics.sales.averageTransaction)}</p>
+          <p className="text-3xl font-bold">
+            {formatCurrency(analytics.sales.averageTransaction)}
+          </p>
           <p className="text-sm text-purple-100 mt-2">Per transaction</p>
         </div>
 
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-orange-100 text-sm mb-2">Gross Profit</p>
-          <p className="text-3xl font-bold">{formatCurrency(analytics.summary.grossProfit)}</p>
-          <p className="text-sm text-orange-100 mt-2">{analytics.summary.profitMargin.toFixed(1)}% margin</p>
+          <p className="text-3xl font-bold">
+            {formatCurrency(analytics.summary.grossProfit)}
+          </p>
+          <p className="text-sm text-orange-100 mt-2">
+            {analytics.summary.profitMargin.toFixed(1)}% margin
+          </p>
         </div>
       </div>
 
@@ -332,13 +359,27 @@ export default function ReportsPage() {
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={salesByDay}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="date" stroke="#6b7280" style={{ fontSize: '12px' }} />
-              <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
+              <XAxis
+                dataKey="date"
+                stroke="#6b7280"
+                style={{ fontSize: "12px" }}
+              />
+              <YAxis stroke="#6b7280" style={{ fontSize: "12px" }} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                }}
                 formatter={(value: number) => formatCurrency(value)}
               />
-              <Line type="monotone" dataKey="total" stroke={primaryColor} strokeWidth={3} dot={{ fill: primaryColor, r: 4 }} />
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke={primaryColor}
+                strokeWidth={3}
+                dot={{ fill: primaryColor, r: 4 }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -346,7 +387,9 @@ export default function ReportsPage() {
         {/* Payment Methods Distribution */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Payment Methods Distribution</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              Payment Methods Distribution
+            </h2>
             <TrendingUp className="w-5 h-5 text-gray-400" />
           </div>
           {paymentMethodData.length > 0 ? (
@@ -357,7 +400,9 @@ export default function ReportsPage() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) =>
+                    `${name} ${(percent * 100).toFixed(0)}%`
+                  }
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -379,53 +424,110 @@ export default function ReportsPage() {
 
       {/* Payment Method Breakdown */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Sales by Payment Method</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-6">
+          Sales by Payment Method
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Object.entries(analytics.sales.paymentMethodBreakdown).map(([method, data]) => {
-            const colors = {
-              CASH: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', badge: 'bg-green-100' },
-              CARD: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', badge: 'bg-blue-100' },
-              GCASH: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', badge: 'bg-purple-100' },
-              PAYMAYA: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100' },
-              ONLINE: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', badge: 'bg-indigo-100' },
-              FOODPANDA: { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700', badge: 'bg-pink-100' },
-            };
-            const color = colors[method as keyof typeof colors] || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-700', badge: 'bg-gray-100' };
-            const percentage = analytics.sales.totalAmount > 0 ? (data.total / analytics.sales.totalAmount) * 100 : 0;
+          {Object.entries(analytics.sales.paymentMethodBreakdown).map(
+            ([method, data]) => {
+              const colors = {
+                CASH: {
+                  bg: "bg-green-50",
+                  border: "border-green-200",
+                  text: "text-green-700",
+                  badge: "bg-green-100",
+                },
+                CARD: {
+                  bg: "bg-blue-50",
+                  border: "border-blue-200",
+                  text: "text-blue-700",
+                  badge: "bg-blue-100",
+                },
+                GCASH: {
+                  bg: "bg-purple-50",
+                  border: "border-purple-200",
+                  text: "text-purple-700",
+                  badge: "bg-purple-100",
+                },
+                PAYMAYA: {
+                  bg: "bg-amber-50",
+                  border: "border-amber-200",
+                  text: "text-amber-700",
+                  badge: "bg-amber-100",
+                },
+                ONLINE: {
+                  bg: "bg-indigo-50",
+                  border: "border-indigo-200",
+                  text: "text-indigo-700",
+                  badge: "bg-indigo-100",
+                },
+                FOODPANDA: {
+                  bg: "bg-pink-50",
+                  border: "border-pink-200",
+                  text: "text-pink-700",
+                  badge: "bg-pink-100",
+                },
+              };
+              const color = colors[method as keyof typeof colors] || {
+                bg: "bg-gray-50",
+                border: "border-gray-200",
+                text: "text-gray-700",
+                badge: "bg-gray-100",
+              };
+              const percentage =
+                analytics.sales.totalAmount > 0
+                  ? (data.total / analytics.sales.totalAmount) * 100
+                  : 0;
 
-            return (
-              <div key={method} className={`${color.bg} border ${color.border} p-4 rounded-lg`}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`text-sm font-semibold ${color.text}`}>{method}</span>
-                  <span className={`${color.badge} ${color.text} text-xs px-2 py-1 rounded-full font-medium`}>
-                    {percentage.toFixed(1)}%
-                  </span>
+              return (
+                <div
+                  key={method}
+                  className={`${color.bg} border ${color.border} p-4 rounded-lg`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`text-sm font-semibold ${color.text}`}>
+                      {method}
+                    </span>
+                    <span
+                      className={`${color.badge} ${color.text} text-xs px-2 py-1 rounded-full font-medium`}
+                    >
+                      {percentage.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1">Total Amount</p>
+                      <p className={`text-2xl font-bold ${color.text}`}>
+                        {formatCurrency(data.total)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600">Transactions</p>
+                      <p className={`text-lg font-semibold ${color.text}`}>
+                        {data.count}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600">Average</p>
+                      <p className={`text-sm font-medium ${color.text}`}>
+                        {formatCurrency(
+                          data.count > 0 ? data.total / data.count : 0
+                        )}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-xs text-gray-600 mb-1">Total Amount</p>
-                    <p className={`text-2xl font-bold ${color.text}`}>{formatCurrency(data.total)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Transactions</p>
-                    <p className={`text-lg font-semibold ${color.text}`}>{data.count}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-600">Average</p>
-                    <p className={`text-sm font-medium ${color.text}`}>
-                      {formatCurrency(data.count > 0 ? data.total / data.count : 0)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            }
+          )}
         </div>
       </div>
 
       {/* Top Products Section */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Top Selling Products</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-6">
+          Top Selling Products
+        </h2>
         {analytics.topProducts.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -453,20 +555,29 @@ export default function ReportsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {analytics.topProducts.map((product, index) => {
-                  const percentage = analytics.sales.totalAmount > 0
-                    ? (product.revenue / analytics.sales.totalAmount) * 100
-                    : 0;
-                  const avgPrice = product.quantity > 0 ? product.revenue / product.quantity : 0;
+                  const percentage =
+                    analytics.sales.totalAmount > 0
+                      ? (product.revenue / analytics.sales.totalAmount) * 100
+                      : 0;
+                  const avgPrice =
+                    product.quantity > 0
+                      ? product.revenue / product.quantity
+                      : 0;
 
                   return (
-                    <tr key={product.productId} className="hover:bg-gray-50 transition">
+                    <tr
+                      key={product.productId}
+                      className="hover:bg-gray-50 transition"
+                    >
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold text-sm">
                           {index + 1}
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-semibold text-gray-900">{product.productName}</span>
+                        <span className="text-sm font-semibold text-gray-900">
+                          {product.productName}
+                        </span>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
@@ -490,7 +601,7 @@ export default function ReportsPage() {
                               className="h-2 rounded-full"
                               style={{
                                 width: `${Math.min(percentage, 100)}%`,
-                                backgroundColor: primaryColor
+                                backgroundColor: primaryColor,
                               }}
                             />
                           </div>
@@ -505,7 +616,10 @@ export default function ReportsPage() {
               </tbody>
               <tfoot className="bg-gray-50 border-t border-gray-200">
                 <tr>
-                  <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-900">
+                  <td
+                    colSpan={2}
+                    className="px-4 py-3 text-sm font-bold text-gray-900"
+                  >
                     Total
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-right">
@@ -540,29 +654,42 @@ export default function ReportsPage() {
             disabled={loadingExpenses}
             className="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
           >
-            <p className="text-red-100 text-sm mb-2">Total Expenses {loadingExpenses ? '(Loading...)' : '(Click to view all)'}</p>
-            <p className="text-3xl font-bold">{formatCurrency(analytics.expenses.totalAmount)}</p>
-            <p className="text-sm text-red-100 mt-2">{analytics.expenses.expenseCount} expense(s)</p>
+            <p className="text-red-100 text-sm mb-2">
+              Total Expenses{" "}
+              {loadingExpenses ? "(Loading...)" : "(Click to view all)"}
+            </p>
+            <p className="text-3xl font-bold">
+              {formatCurrency(analytics.expenses.totalAmount)}
+            </p>
+            <p className="text-sm text-red-100 mt-2">
+              {analytics.expenses.expenseCount} expense(s)
+            </p>
           </button>
 
           {/* Average Expense Card */}
           <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 rounded-xl shadow-lg">
             <p className="text-amber-100 text-sm mb-2">Avg. Expense</p>
-            <p className="text-3xl font-bold">{formatCurrency(analytics.expenses.averageExpense)}</p>
+            <p className="text-3xl font-bold">
+              {formatCurrency(analytics.expenses.averageExpense)}
+            </p>
             <p className="text-sm text-amber-100 mt-2">Per expense entry</p>
           </div>
 
           {/* Net Profit Card */}
           <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
             <p className="text-emerald-100 text-sm mb-2">Net Revenue</p>
-            <p className="text-3xl font-bold">{formatCurrency(analytics.summary.netRevenue)}</p>
+            <p className="text-3xl font-bold">
+              {formatCurrency(analytics.summary.netRevenue)}
+            </p>
             <p className="text-sm text-emerald-100 mt-2">After expenses</p>
           </div>
         </div>
 
         {/* Expense Breakdown Chart */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Expense Breakdown by Category</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-6">
+            Expense Breakdown by Category
+          </h3>
           {expenseCategoryData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -571,7 +698,9 @@ export default function ReportsPage() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent, value }) => `${name} ${formatCurrency(value)} (${(percent * 100).toFixed(0)}%)`}
+                  label={({ name, percent, value }) =>
+                    `${name} ${formatCurrency(value)} (${(percent * 100).toFixed(0)}%)`
+                  }
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -593,28 +722,43 @@ export default function ReportsPage() {
 
       {/* Daily Sales Bar Chart */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Daily Sales & Quantity Overview</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-6">
+          Daily Sales & Quantity Overview
+        </h2>
         <ResponsiveContainer width="100%" height={400}>
           <ComposedChart data={salesByDay}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="date" stroke="#6b7280" style={{ fontSize: '12px' }} />
+            <XAxis
+              dataKey="date"
+              stroke="#6b7280"
+              style={{ fontSize: "12px" }}
+            />
             <YAxis
               yAxisId="left"
               stroke="#6b7280"
-              style={{ fontSize: '12px' }}
+              style={{ fontSize: "12px" }}
               tickFormatter={(value) => `${formatCurrency(value)}`}
             />
             <YAxis
               yAxisId="right"
               orientation="right"
               stroke="#6b7280"
-              style={{ fontSize: '12px' }}
-              label={{ value: 'Quantity', angle: -90, position: 'insideRight', style: { fontSize: '12px' } }}
+              style={{ fontSize: "12px" }}
+              label={{
+                value: "Quantity",
+                angle: -90,
+                position: "insideRight",
+                style: { fontSize: "12px" },
+              }}
             />
             <Tooltip
-              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              contentStyle={{
+                backgroundColor: "#fff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+              }}
               formatter={(value: number, name: string) => {
-                if (name === 'Revenue') return formatCurrency(value);
+                if (name === "Revenue") return formatCurrency(value);
                 return `${value} units`;
               }}
             />
@@ -632,7 +776,7 @@ export default function ReportsPage() {
               dataKey="count"
               stroke="#ef4444"
               strokeWidth={3}
-              dot={{ fill: '#ef4444', r: 4 }}
+              dot={{ fill: "#ef4444", r: 4 }}
               name="Quantity Sold"
             />
           </ComposedChart>

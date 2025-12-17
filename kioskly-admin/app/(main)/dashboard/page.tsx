@@ -53,6 +53,9 @@ export default function DashboardPage() {
   const { tenant } = useTenant();
   const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [dailyAnalytics, setDailyAnalytics] = useState<AnalyticsData | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -67,8 +70,12 @@ export default function DashboardPage() {
 
   const loadDashboardData = async () => {
     try {
-      const data = await api.getAnalytics({ period: "monthly" });
-      setAnalytics(data);
+      const [monthlyData, dailyData] = await Promise.all([
+        api.getAnalytics({ period: "monthly" }),
+        api.getAnalytics({ period: "daily" }),
+      ]);
+      setAnalytics(monthlyData);
+      setDailyAnalytics(dailyData);
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
     } finally {
@@ -142,21 +149,65 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats Cards */}
+      {/* Today's Overview */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">
+          Today's Overview
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Today's Sales */}
+          <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-6 rounded-xl shadow-lg">
+            <p className="text-cyan-100 text-sm mb-2">Today's Sales</p>
+            <p className="text-3xl font-bold">
+              {formatCurrency(dailyAnalytics?.sales?.totalAmount || 0)}
+            </p>
+            <p className="text-sm text-cyan-100 mt-2">
+              {dailyAnalytics?.sales?.transactionCount || 0} transaction(s)
+            </p>
+          </div>
+
+          {/* Today's Expenses */}
+          <div className="bg-gradient-to-br from-rose-500 to-rose-600 text-white p-6 rounded-xl shadow-lg">
+            <p className="text-rose-100 text-sm mb-2">Today's Expenses</p>
+            <p className="text-3xl font-bold">
+              {formatCurrency(dailyAnalytics?.expenses?.totalAmount || 0)}
+            </p>
+            <p className="text-sm text-rose-100 mt-2">
+              {dailyAnalytics?.expenses?.expenseCount || 0} expense(s)
+            </p>
+          </div>
+
+          {/* Today's Net */}
+          <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-6 rounded-xl shadow-lg">
+            <p className="text-teal-100 text-sm mb-2">Today's Net Revenue</p>
+            <p className="text-3xl font-bold">
+              {formatCurrency(dailyAnalytics?.summary?.netRevenue || 0)}
+            </p>
+            <p className="text-sm text-teal-100 mt-2">After expenses</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Monthly Stats Cards */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">
+          Monthly Overview
+        </h2>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total Sales */}
+        {/* Monthly Total Sales */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-blue-100 text-sm mb-2">Total Sales</p>
+          <p className="text-blue-100 text-sm mb-2">Monthly Sales</p>
           <p className="text-3xl font-bold">
             {formatCurrency(analytics?.sales?.totalAmount || 0)}
           </p>
           <p className="text-sm text-blue-100 mt-2">
             {growth >= 0 ? "↑" : "↓"} {Math.abs(growth).toFixed(1)}% from
-            previous period
+            previous month
           </p>
         </div>
 
-        {/* Transactions - Clickable */}
+        {/* Monthly Transactions - Clickable */}
         <button
           onClick={loadTransactions}
           disabled={loadingTransactions}
@@ -169,7 +220,7 @@ export default function DashboardPage() {
           <p className="text-3xl font-bold">
             {analytics?.sales?.transactionCount || 0}
           </p>
-          <p className="text-sm text-green-100 mt-2">Completed orders</p>
+          <p className="text-sm text-green-100 mt-2">This month</p>
         </button>
 
         {/* Average Order */}
@@ -187,20 +238,25 @@ export default function DashboardPage() {
           <p className="text-3xl font-bold">
             {analytics?.sales?.totalItemsSold || 0}
           </p>
-          <p className="text-sm text-orange-100 mt-2">Total items</p>
+          <p className="text-sm text-orange-100 mt-2">This month</p>
         </div>
       </div>
 
-      {/* Expenses Cards */}
+      {/* Monthly Financial Overview */}
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">
+          Monthly Financial Overview
+        </h2>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Total Expenses - Clickable */}
+        {/* Monthly Total Expenses - Clickable */}
         <button
           onClick={loadExpenses}
           disabled={loadingExpenses}
           className="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
         >
           <p className="text-red-100 text-sm mb-2">
-            Total Expenses{" "}
+            Monthly Expenses{" "}
             {loadingExpenses ? "(Loading...)" : "(Click to view all)"}
           </p>
           <p className="text-3xl font-bold">
@@ -211,9 +267,9 @@ export default function DashboardPage() {
           </p>
         </button>
 
-        {/* Gross Profit */}
+        {/* Monthly Gross Profit */}
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-emerald-100 text-sm mb-2">Gross Profit</p>
+          <p className="text-emerald-100 text-sm mb-2">Monthly Gross Profit</p>
           <p className="text-3xl font-bold">
             {formatCurrency(analytics?.summary?.grossProfit || 0)}
           </p>
@@ -222,9 +278,9 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Net Revenue */}
+        {/* Monthly Net Revenue */}
         <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-indigo-100 text-sm mb-2">Net Revenue</p>
+          <p className="text-indigo-100 text-sm mb-2">Monthly Net Revenue</p>
           <p className="text-3xl font-bold">
             {formatCurrency(analytics?.summary?.netRevenue || 0)}
           </p>
