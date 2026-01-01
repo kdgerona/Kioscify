@@ -9,6 +9,7 @@ interface TransactionListModalProps {
   onClose: () => void;
   transactions: Transaction[];
   primaryColor: string;
+  title?: string;
 }
 
 export default function TransactionListModal({
@@ -16,6 +17,7 @@ export default function TransactionListModal({
   onClose,
   transactions,
   primaryColor,
+  title = 'All Transactions',
 }: TransactionListModalProps) {
   if (!isOpen) return null;
 
@@ -51,7 +53,7 @@ export default function TransactionListModal({
           style={{ backgroundColor: primaryColor }}
         >
           <div>
-            <h2 className="text-2xl font-bold">All Transactions</h2>
+            <h2 className="text-2xl font-bold">{title}</h2>
             <p className="text-sm opacity-90 mt-1">{transactions.length} transaction(s)</p>
           </div>
           <button

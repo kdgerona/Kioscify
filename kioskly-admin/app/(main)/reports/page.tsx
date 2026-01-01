@@ -77,6 +77,7 @@ export default function ReportsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
 
   useEffect(() => {
     loadReportData();
@@ -193,6 +194,7 @@ export default function ReportsPage() {
   const loadTransactions = async () => {
     try {
       setLoadingTransactions(true);
+      setSelectedPaymentMethod(null); // Reset filter when viewing all
       const params: { startDate?: string; endDate?: string } = {};
 
       if (period === "custom" && startDate && endDate) {
@@ -239,6 +241,37 @@ export default function ReportsPage() {
       console.error("Failed to load expenses:", error);
     } finally {
       setLoadingExpenses(false);
+    }
+  };
+
+  const loadTransactionsByPaymentMethod = async (paymentMethod: string) => {
+    try {
+      setLoadingTransactions(true);
+      setSelectedPaymentMethod(paymentMethod);
+      const params: { startDate?: string; endDate?: string } = {};
+
+      if (period === "custom" && startDate && endDate) {
+        // Convert YYYY-MM-DD to full datetime with start/end of day
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59.999');
+        params.startDate = start.toISOString();
+        params.endDate = end.toISOString();
+      } else if (analytics?.period) {
+        params.startDate = analytics.period.start;
+        params.endDate = analytics.period.end;
+      }
+
+      const allTransactions = await api.getTransactions(params);
+      // Filter transactions by payment method
+      const filteredTransactions = allTransactions.filter(
+        (t: Transaction) => t.paymentMethod === paymentMethod
+      );
+      setTransactions(filteredTransactions);
+      setShowTransactionModal(true);
+    } catch (error) {
+      console.error("Failed to load transactions:", error);
+    } finally {
+      setLoadingTransactions(false);
     }
   };
 
@@ -488,13 +521,15 @@ export default function ReportsPage() {
                   : 0;
 
               return (
-                <div
+                <button
                   key={method}
-                  className={`${color.bg} border ${color.border} p-4 rounded-lg`}
+                  onClick={() => loadTransactionsByPaymentMethod(method)}
+                  disabled={loadingTransactions}
+                  className={`${color.bg} border ${color.border} p-4 rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className={`text-sm font-semibold ${color.text}`}>
-                      {method}
+                      {method} {loadingTransactions && selectedPaymentMethod === method ? "(Loading...)" : "(Click to view)"}
                     </span>
                     <span
                       className={`${color.badge} ${color.text} text-xs px-2 py-1 rounded-full font-medium`}
@@ -524,7 +559,7 @@ export default function ReportsPage() {
                       </p>
                     </div>
                   </div>
-                </div>
+                </button>
               );
             }
           )}
@@ -794,9 +829,13 @@ export default function ReportsPage() {
       {/* Transaction List Modal */}
       <TransactionListModal
         isOpen={showTransactionModal}
-        onClose={() => setShowTransactionModal(false)}
+        onClose={() => {
+          setShowTransactionModal(false);
+          setSelectedPaymentMethod(null);
+        }}
         transactions={transactions}
         primaryColor={primaryColor}
+        title={selectedPaymentMethod ? `${selectedPaymentMethod} Transactions` : 'All Transactions'}
       />
 
       {/* Expense List Modal */}
