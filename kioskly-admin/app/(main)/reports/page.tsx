@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import {
-  BarChart,
   Bar,
   LineChart,
   Line,
