@@ -93,8 +93,11 @@ export default function ReportsPage() {
       } = { period };
 
       if (period === "custom" && startDate && endDate) {
-        params.startDate = startDate;
-        params.endDate = endDate;
+        // Convert YYYY-MM-DD to full datetime with start/end of day
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59.999');
+        params.startDate = start.toISOString();
+        params.endDate = end.toISOString();
       }
 
       const data = await api.getAnalytics(params);
@@ -194,8 +197,11 @@ export default function ReportsPage() {
       const params: { startDate?: string; endDate?: string } = {};
 
       if (period === "custom" && startDate && endDate) {
-        params.startDate = startDate;
-        params.endDate = endDate;
+        // Convert YYYY-MM-DD to full datetime with start/end of day
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59.999');
+        params.startDate = start.toISOString();
+        params.endDate = end.toISOString();
       } else if (analytics?.period) {
         params.startDate = analytics.period.start;
         params.endDate = analytics.period.end;
@@ -217,8 +223,11 @@ export default function ReportsPage() {
       const params: { startDate?: string; endDate?: string } = {};
 
       if (period === "custom" && startDate && endDate) {
-        params.startDate = startDate;
-        params.endDate = endDate;
+        // Convert YYYY-MM-DD to full datetime with start/end of day
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59.999');
+        params.startDate = start.toISOString();
+        params.endDate = end.toISOString();
       } else if (analytics?.period) {
         params.startDate = analytics.period.start;
         params.endDate = analytics.period.end;
