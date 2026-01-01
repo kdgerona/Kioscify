@@ -170,25 +170,111 @@ export default function ReportsPage() {
   const exportReport = () => {
     if (!analytics) return;
 
-    const report = {
-      generatedAt: new Date().toISOString(),
-      period: analytics.period,
-      sales: analytics.sales,
-      expenses: analytics.expenses,
-      summary: analytics.summary,
-      topProducts: analytics.topProducts,
-      salesByDay: analytics.salesByDay,
-      paymentMethods: getPaymentMethodData(),
+    // Helper function to escape CSV values
+    const escapeCSV = (value: any): string => {
+      if (value === null || value === undefined) return '';
+      const stringValue = String(value);
+      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
     };
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], {
-      type: "application/json",
+    // Build CSV content
+    const csvLines: string[] = [];
+
+    // Report Header
+    const businessName = tenant?.name || 'Business';
+    csvLines.push(`${businessName} (Business Report)`);
+    csvLines.push(`Generated At,${new Date().toLocaleString()}`);
+    csvLines.push(`Period Type,${analytics.period.type}`);
+    csvLines.push(`Start Date,${new Date(analytics.period.start).toLocaleString()}`);
+    csvLines.push(`End Date,${new Date(analytics.period.end).toLocaleString()}`);
+    csvLines.push('');
+
+    // Summary Section
+    csvLines.push('SUMMARY');
+    csvLines.push('Metric,Value');
+    csvLines.push(`Total Sales,${formatCurrency(analytics.sales.totalAmount)}`);
+    csvLines.push(`Total Transactions,${analytics.sales.transactionCount}`);
+    csvLines.push(`Average Transaction,${formatCurrency(analytics.sales.averageTransaction)}`);
+    csvLines.push(`Total Items Sold,${analytics.sales.totalItemsSold}`);
+    csvLines.push(`Sales Growth,${analytics.sales.growth.toFixed(2)}%`);
+    csvLines.push(`Total Expenses,${formatCurrency(analytics.expenses.totalAmount)}`);
+    csvLines.push(`Expense Count,${analytics.expenses.expenseCount}`);
+    csvLines.push(`Average Expense,${formatCurrency(analytics.expenses.averageExpense)}`);
+    csvLines.push(`Gross Profit,${formatCurrency(analytics.summary.grossProfit)}`);
+    csvLines.push(`Profit Margin,${analytics.summary.profitMargin.toFixed(2)}%`);
+    csvLines.push(`Net Revenue,${formatCurrency(analytics.summary.netRevenue)}`);
+    csvLines.push('');
+
+    // Payment Methods Section
+    csvLines.push('SALES BY PAYMENT METHOD');
+    csvLines.push('Payment Method,Total Amount,Transaction Count,Average Amount,Percentage');
+    Object.entries(analytics.sales.paymentMethodBreakdown).forEach(([method, data]) => {
+      const percentage = analytics.sales.totalAmount > 0
+        ? ((data.total / analytics.sales.totalAmount) * 100).toFixed(2)
+        : '0.00';
+      const average = data.count > 0 ? (data.total / data.count).toFixed(2) : '0.00';
+      csvLines.push(`${method},${data.total.toFixed(2)},${data.count},${average},${percentage}%`);
     });
+    csvLines.push('');
+
+    // Expense Categories Section
+    csvLines.push('EXPENSES BY CATEGORY');
+    csvLines.push('Category,Total Amount,Expense Count,Percentage');
+    Object.entries(analytics.expenses.categoryBreakdown).forEach(([category, data]) => {
+      const percentage = analytics.expenses.totalAmount > 0
+        ? ((data.total / analytics.expenses.totalAmount) * 100).toFixed(2)
+        : '0.00';
+      csvLines.push(`${category},${data.total.toFixed(2)},${data.count},${percentage}%`);
+    });
+    csvLines.push('');
+
+    // Top Products Section
+    csvLines.push('TOP SELLING PRODUCTS');
+    csvLines.push('Rank,Product Name,Quantity Sold,Revenue,Average Price,% of Total Sales');
+    analytics.topProducts.forEach((product, index) => {
+      const percentage = analytics.sales.totalAmount > 0
+        ? ((product.revenue / analytics.sales.totalAmount) * 100).toFixed(2)
+        : '0.00';
+      const avgPrice = product.quantity > 0
+        ? (product.revenue / product.quantity).toFixed(2)
+        : '0.00';
+      csvLines.push(
+        `${index + 1},${escapeCSV(product.productName)},${product.quantity},${product.revenue.toFixed(2)},${avgPrice},${percentage}%`
+      );
+    });
+    csvLines.push('');
+
+    // Sales by Day Section
+    csvLines.push('DAILY SALES');
+    csvLines.push('Date,Total Sales,Transaction Count,Average Order Value');
+    analytics.salesByDay.forEach((day) => {
+      const avgOrderValue = day.count > 0 ? (day.total / day.count).toFixed(2) : '0.00';
+      const formattedDate = new Date(day.date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+      csvLines.push(`${formattedDate},${day.total.toFixed(2)},${day.count},${avgOrderValue}`);
+    });
+
+    // Create and download CSV file
+    const csvContent = csvLines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = `report-${new Date().toISOString().split("T")[0]}.json`;
+    // Create filename with business name and date
+    const sanitizedBusinessName = businessName
+      .replace(/[^a-z0-9]+/gi, '-') // Replace non-alphanumeric characters with single hyphen
+      .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+      .toLowerCase();
+    const dateStr = new Date().toISOString().split('T')[0];
+    a.download = `${sanitizedBusinessName}-business-report-${dateStr}.csv`;
     a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const loadTransactions = async () => {
