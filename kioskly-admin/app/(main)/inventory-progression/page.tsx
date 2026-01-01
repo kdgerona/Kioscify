@@ -151,7 +151,12 @@ export default function InventoryProgressionPage() {
       {progression && (
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-200 mb-6">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Period:</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-gray-600">Period:</span>
+              <span className="font-semibold text-gray-900">
+                {viewMode === "weekly_trend" ? "12 weeks" : "30 days"}
+              </span>
+            </div>
             <span className="font-semibold text-gray-900">
               {formatDate(progression.period.start)} -{" "}
               {formatDate(progression.period.end)}
