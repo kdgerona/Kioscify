@@ -240,101 +240,201 @@ export default function InventoryProgressionPage() {
                         <div className="grid grid-cols-2 gap-4 mb-6">
                           <div className="bg-gray-50 rounded-lg p-4">
                             <p className="text-sm text-gray-600 mb-1">
-                              Avg Daily Consumption
+                              {viewMode === "weekly_trend"
+                                ? "Avg Weekly Consumption"
+                                : "Avg Daily Consumption"}
                             </p>
                             <p className="text-xl font-bold text-gray-900">
-                              {item.avgDailyConsumption.toFixed(2)}
+                              {viewMode === "weekly_trend"
+                                ? item.avgWeeklyConsumption?.toFixed(2) ||
+                                  "0.00"
+                                : item.avgDailyConsumption?.toFixed(2) ||
+                                  "0.00"}
                             </p>
                           </div>
                           <div className="bg-gray-50 rounded-lg p-4">
                             <p className="text-sm text-gray-600 mb-1">
-                              Data Points
+                              {viewMode === "weekly_trend"
+                                ? "Weeks Tracked"
+                                : "Days Tracked"}
                             </p>
                             <p className="text-xl font-bold text-gray-900">
-                              {item.dailyData.length}
+                              {viewMode === "weekly_trend"
+                                ? item.weeklyData?.length || 0
+                                : item.dailyData?.length || 0}
                             </p>
                           </div>
                         </div>
 
-                        {/* Daily Data Table */}
+                        {/* Data Table */}
                         <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b border-gray-200">
-                                <th className="text-left py-2 px-3 font-semibold text-gray-700">
-                                  Date
-                                </th>
-                                <th className="text-right py-2 px-3 font-semibold text-gray-700">
-                                  Quantity
-                                </th>
-                                <th className="text-right py-2 px-3 font-semibold text-gray-700">
-                                  Change
-                                </th>
-                                <th className="text-right py-2 px-3 font-semibold text-gray-700">
-                                  %
-                                </th>
-                                <th className="text-right py-2 px-3 font-semibold text-gray-700">
-                                  Consumed
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {item.dailyData
-                                .slice(0, 10)
-                                .map((dataPoint: any, index: number) => {
-                                  const isDecrease = dataPoint.change < 0;
-                                  const changeColor = isDecrease
-                                    ? "#ef4444"
-                                    : "#10b981";
+                          {viewMode === "weekly_trend" && item.weeklyData ? (
+                            <table className="w-full">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  <th className="text-left py-2 px-3 font-semibold text-gray-700">
+                                    Week
+                                  </th>
+                                  <th className="text-right py-2 px-3 font-semibold text-gray-700">
+                                    Avg Qty
+                                  </th>
+                                  <th className="text-right py-2 px-3 font-semibold text-gray-700">
+                                    Change
+                                  </th>
+                                  <th className="text-right py-2 px-3 font-semibold text-gray-700">
+                                    %
+                                  </th>
+                                  <th className="text-right py-2 px-3 font-semibold text-gray-700">
+                                    Consumed
+                                  </th>
+                                  <th className="text-right py-2 px-3 font-semibold text-gray-700">
+                                    Days
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {item.weeklyData
+                                  .slice(0, 10)
+                                  .map((week: any) => {
+                                    const isDecrease = week.weekChange < 0;
+                                    const changeColor = isDecrease
+                                      ? "#ef4444"
+                                      : "#10b981";
 
-                                  return (
-                                    <tr
-                                      key={dataPoint.date}
-                                      className="border-b border-gray-100"
-                                    >
-                                      <td className="py-2 px-3 text-gray-900">
-                                        {formatDate(dataPoint.date)}
-                                      </td>
-                                      <td className="py-2 px-3 text-right font-semibold text-gray-900">
-                                        {dataPoint.quantity}
-                                      </td>
-                                      <td className="py-2 px-3 text-right">
-                                        {dataPoint.change !== 0 && (
-                                          <span
-                                            className="flex items-center justify-end space-x-1"
-                                            style={{ color: changeColor }}
-                                          >
-                                            {isDecrease ? (
-                                              <ArrowDown className="w-3 h-3" />
-                                            ) : (
-                                              <ArrowUp className="w-3 h-3" />
-                                            )}
-                                            <span className="font-semibold">
-                                              {Math.abs(
-                                                dataPoint.change
-                                              ).toFixed(1)}
+                                    return (
+                                      <tr
+                                        key={week.weekStart}
+                                        className="border-b border-gray-100"
+                                      >
+                                        <td className="py-2 px-3 text-gray-900">
+                                          {week.weekRange}
+                                        </td>
+                                        <td className="py-2 px-3 text-right font-semibold text-gray-900">
+                                          {week.avgQuantity}
+                                        </td>
+                                        <td className="py-2 px-3 text-right">
+                                          {week.weekChange !== 0 && (
+                                            <span
+                                              className="flex items-center justify-end space-x-1"
+                                              style={{ color: changeColor }}
+                                            >
+                                              {isDecrease ? (
+                                                <ArrowDown className="w-3 h-3" />
+                                              ) : (
+                                                <ArrowUp className="w-3 h-3" />
+                                              )}
+                                              <span className="font-semibold">
+                                                {Math.abs(
+                                                  week.weekChange
+                                                ).toFixed(1)}
+                                              </span>
                                             </span>
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td className="py-2 px-3 text-right text-sm text-gray-600">
-                                        {dataPoint.percentChange !== 0
-                                          ? `${dataPoint.percentChange.toFixed(1)}%`
-                                          : "-"}
-                                      </td>
-                                      <td className="py-2 px-3 text-right font-semibold text-red-600">
-                                        {dataPoint.consumption > 0
-                                          ? dataPoint.consumption.toFixed(1)
-                                          : "-"}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                            </tbody>
-                          </table>
-                          {item.dailyData.length > 10 && (
+                                          )}
+                                        </td>
+                                        <td className="py-2 px-3 text-right text-sm text-gray-600">
+                                          {week.weekPercentChange !== 0
+                                            ? `${week.weekPercentChange.toFixed(1)}%`
+                                            : "-"}
+                                        </td>
+                                        <td className="py-2 px-3 text-right font-semibold text-red-600">
+                                          {week.totalConsumption > 0
+                                            ? week.totalConsumption.toFixed(1)
+                                            : "-"}
+                                        </td>
+                                        <td className="py-2 px-3 text-right text-sm text-gray-600">
+                                          {week.dataPoints}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <table className="w-full">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  <th className="text-left py-2 px-3 font-semibold text-gray-700">
+                                    Date
+                                  </th>
+                                  <th className="text-right py-2 px-3 font-semibold text-gray-700">
+                                    Quantity
+                                  </th>
+                                  <th className="text-right py-2 px-3 font-semibold text-gray-700">
+                                    Change
+                                  </th>
+                                  <th className="text-right py-2 px-3 font-semibold text-gray-700">
+                                    %
+                                  </th>
+                                  <th className="text-right py-2 px-3 font-semibold text-gray-700">
+                                    Consumed
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {item.dailyData
+                                  ?.slice(0, 10)
+                                  .map((dataPoint: any) => {
+                                    const isDecrease = dataPoint.change < 0;
+                                    const changeColor = isDecrease
+                                      ? "#ef4444"
+                                      : "#10b981";
+
+                                    return (
+                                      <tr
+                                        key={dataPoint.date}
+                                        className="border-b border-gray-100"
+                                      >
+                                        <td className="py-2 px-3 text-gray-900">
+                                          {formatDate(dataPoint.date)}
+                                        </td>
+                                        <td className="py-2 px-3 text-right font-semibold text-gray-900">
+                                          {dataPoint.quantity}
+                                        </td>
+                                        <td className="py-2 px-3 text-right">
+                                          {dataPoint.change !== 0 && (
+                                            <span
+                                              className="flex items-center justify-end space-x-1"
+                                              style={{ color: changeColor }}
+                                            >
+                                              {isDecrease ? (
+                                                <ArrowDown className="w-3 h-3" />
+                                              ) : (
+                                                <ArrowUp className="w-3 h-3" />
+                                              )}
+                                              <span className="font-semibold">
+                                                {Math.abs(
+                                                  dataPoint.change
+                                                ).toFixed(1)}
+                                              </span>
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td className="py-2 px-3 text-right text-sm text-gray-600">
+                                          {dataPoint.percentChange !== 0
+                                            ? `${dataPoint.percentChange.toFixed(1)}%`
+                                            : "-"}
+                                        </td>
+                                        <td className="py-2 px-3 text-right font-semibold text-red-600">
+                                          {dataPoint.consumption > 0
+                                            ? dataPoint.consumption.toFixed(1)
+                                            : "-"}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                          )}
+                          {((viewMode === "weekly_trend" &&
+                            item.weeklyData?.length > 10) ||
+                            (viewMode === "day_over_day" &&
+                              item.dailyData?.length > 10)) && (
                             <p className="text-center text-sm text-gray-500 mt-3">
-                              +{item.dailyData.length - 10} more records
+                              +
+                              {viewMode === "weekly_trend"
+                                ? item.weeklyData.length - 10
+                                : item.dailyData.length - 10}{" "}
+                              more records
                             </p>
                           )}
                         </div>

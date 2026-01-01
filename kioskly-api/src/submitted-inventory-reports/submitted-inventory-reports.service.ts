@@ -15,19 +15,100 @@ import {
 export class SubmittedInventoryReportsService {
   constructor(private prisma: PrismaService) {}
 
+  private aggregateToWeekly(dailyData: any[]): any[] {
+    if (dailyData.length === 0) return [];
+
+    // Helper function to get week start date (Monday)
+    const getWeekStart = (date: Date): string => {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+      d.setDate(diff);
+      return d.toISOString().split('T')[0];
+    };
+
+    // Helper function to get week end date (Sunday)
+    const getWeekEnd = (weekStart: string): string => {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + 6);
+      return d.toISOString().split('T')[0];
+    };
+
+    // Group daily data by week
+    const weeklyMap = new Map<string, any[]>();
+
+    dailyData.forEach((day) => {
+      const weekStart = getWeekStart(new Date(day.date));
+      if (!weeklyMap.has(weekStart)) {
+        weeklyMap.set(weekStart, []);
+      }
+      weeklyMap.get(weekStart)!.push(day);
+    });
+
+    // Convert to weekly aggregates
+    const weeklyData = Array.from(weeklyMap.entries()).map(
+      ([weekStart, days]) => {
+        // Sort days within the week (most recent first)
+        days.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        );
+
+        const weekEnd = getWeekEnd(weekStart);
+        const totalConsumption = days.reduce(
+          (sum, d) => sum + d.consumption,
+          0,
+        );
+        const avgQuantity =
+          days.reduce((sum, d) => sum + d.quantity, 0) / days.length;
+
+        // Calculate week-over-week change (compare first day of this week to last day)
+        const firstDay = days[0]; // Most recent
+        const lastDay = days[days.length - 1]; // Oldest
+        const weekChange = firstDay.quantity - lastDay.quantity;
+        const weekPercentChange =
+          lastDay.quantity !== 0 ? (weekChange / lastDay.quantity) * 100 : 0;
+
+        return {
+          weekStart,
+          weekEnd,
+          weekRange: `${this.formatWeekDate(weekStart)} - ${this.formatWeekDate(weekEnd)}`,
+          avgQuantity: parseFloat(avgQuantity.toFixed(2)),
+          totalConsumption: parseFloat(totalConsumption.toFixed(2)),
+          weekChange: parseFloat(weekChange.toFixed(2)),
+          weekPercentChange: parseFloat(weekPercentChange.toFixed(2)),
+          dataPoints: days.length,
+        };
+      },
+    );
+
+    // Sort by week start (most recent first)
+    weeklyData.sort(
+      (a, b) =>
+        new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime(),
+    );
+
+    return weeklyData;
+  }
+
+  private formatWeekDate(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
   async create(
     createDto: CreateSubmittedInventoryReportDto,
     userId: string,
     tenantId: string,
   ) {
     // Check if report for this date already exists
-    const existingReport =
-      await this.prisma.submittedInventoryReport.findFirst({
+    const existingReport = await this.prisma.submittedInventoryReport.findFirst(
+      {
         where: {
           tenantId,
           reportDate: createDto.reportDate,
         },
-      });
+      },
+    );
 
     if (existingReport) {
       // If replaceExisting is true, delete the old report
@@ -63,10 +144,7 @@ export class SubmittedInventoryReportsService {
     });
   }
 
-  async findAll(
-    tenantId: string,
-    filters: SubmittedInventoryReportFiltersDto,
-  ) {
+  async findAll(tenantId: string, filters: SubmittedInventoryReportFiltersDto) {
     const where: any = { tenantId };
 
     if (filters.reportDate) {
@@ -127,10 +205,7 @@ export class SubmittedInventoryReportsService {
     return report;
   }
 
-  async getProgression(
-    tenantId: string,
-    query: InventoryProgressionQueryDto,
-  ) {
+  async getProgression(tenantId: string, query: InventoryProgressionQueryDto) {
     // Determine date range based on view mode
     const endDate = query.endDate ? new Date(query.endDate) : new Date();
     let startDate: Date;
@@ -139,8 +214,7 @@ export class SubmittedInventoryReportsService {
       startDate = new Date(query.startDate);
     } else {
       // Default ranges
-      const daysToLookBack =
-        query.viewMode === ViewMode.DAY_OVER_DAY ? 30 : 84; // 30 days or 12 weeks
+      const daysToLookBack = query.viewMode === ViewMode.DAY_OVER_DAY ? 30 : 84; // 30 days or 12 weeks
       startDate = new Date(endDate);
       startDate.setDate(startDate.getDate() - daysToLookBack);
     }
@@ -219,9 +293,7 @@ export class SubmittedInventoryReportsService {
           const prevPoint = item.dataPoints[index + 1];
           change = point.quantity - prevPoint.quantity;
           percentChange =
-            prevPoint.quantity !== 0
-              ? (change / prevPoint.quantity) * 100
-              : 0;
+            prevPoint.quantity !== 0 ? (change / prevPoint.quantity) * 100 : 0;
           consumption = change < 0 ? Math.abs(change) : 0; // Only negative changes are consumption
         }
 
@@ -243,6 +315,22 @@ export class SubmittedInventoryReportsService {
           ? consumptions.reduce((sum, c) => sum + c, 0) / consumptions.length
           : 0;
       const totalConsumption = consumptions.reduce((sum, c) => sum + c, 0);
+
+      // For weekly trend, aggregate data by week
+      if (query.viewMode === ViewMode.WEEKLY_TREND) {
+        const weeklyData = this.aggregateToWeekly(processedData);
+        return {
+          inventoryItemId: item.inventoryItemId,
+          itemName: item.itemName,
+          category: item.category,
+          unit: item.unit,
+          weeklyData,
+          totalConsumption: parseFloat(totalConsumption.toFixed(2)),
+          avgWeeklyConsumption: parseFloat(
+            (totalConsumption / Math.max(weeklyData.length, 1)).toFixed(2),
+          ),
+        };
+      }
 
       return {
         inventoryItemId: item.inventoryItemId,
@@ -322,8 +410,7 @@ export class SubmittedInventoryReportsService {
       // Sort by date (most recent first)
       dataPoints.sort(
         (a, b) =>
-          new Date(b.submittedAt).getTime() -
-          new Date(a.submittedAt).getTime(),
+          new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
       );
 
       const latestPoint = dataPoints[0];
@@ -356,7 +443,8 @@ export class SubmittedInventoryReportsService {
       if (dataPoints.length > 1) {
         const consumptions: number[] = [];
         for (let i = 0; i < dataPoints.length - 1; i++) {
-          const consumption = dataPoints[i + 1].quantity - dataPoints[i].quantity;
+          const consumption =
+            dataPoints[i + 1].quantity - dataPoints[i].quantity;
           if (consumption > 0) {
             // Only consider positive consumption (decrease in stock)
             consumptions.push(consumption);
