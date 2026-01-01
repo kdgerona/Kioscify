@@ -229,10 +229,7 @@ export default function InventoryProgressionPage() {
                               <p className="text-sm text-gray-600 mb-1">
                                 Total Consumed
                               </p>
-                              <p
-                                className="text-2xl font-bold"
-                                style={{ color: primaryColor }}
-                              >
+                              <p className="text-2xl font-bold text-black">
                                 {item.totalConsumption}
                               </p>
                             </div>
