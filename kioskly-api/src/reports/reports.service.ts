@@ -310,9 +310,9 @@ export class ReportsService {
       >,
     );
 
-    const topProducts = Object.values(productSales)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
+    const topProducts = Object.values(productSales).sort(
+      (a, b) => b.revenue - a.revenue,
+    );
 
     // Calculate expense metrics
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);

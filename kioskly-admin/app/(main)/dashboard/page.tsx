@@ -349,7 +349,7 @@ export default function DashboardPage() {
         </h2>
 
         {analytics?.topProducts && analytics.topProducts.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -374,7 +374,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {analytics.topProducts.slice(0, 5).map((product, index) => {
+                {analytics.topProducts.map((product, index) => {
                   const percentage =
                     analytics.sales.totalAmount > 0
                       ? (product.revenue / analytics.sales.totalAmount) * 100
