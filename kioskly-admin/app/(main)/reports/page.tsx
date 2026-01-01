@@ -411,7 +411,10 @@ export default function ReportsPage() {
                   backgroundColor: "#fff",
                   border: "1px solid #e5e7eb",
                   borderRadius: "8px",
+                  color: "#000",
                 }}
+                labelStyle={{ color: "#000" }}
+                itemStyle={{ color: "#000" }}
                 formatter={(value: number) => formatCurrency(value)}
               />
               <Line
@@ -800,6 +803,7 @@ export default function ReportsPage() {
                 border: "1px solid #e5e7eb",
                 borderRadius: "8px",
               }}
+              labelStyle={{ color: "#000" }}
               formatter={(value: number, name: string) => {
                 if (name === "Revenue") return formatCurrency(value);
                 return `${value} units`;
@@ -809,7 +813,7 @@ export default function ReportsPage() {
             <Bar
               yAxisId="left"
               dataKey="total"
-              fill={primaryColor}
+              fill="#3b82f6"
               radius={[8, 8, 0, 0]}
               name="Revenue"
             />
@@ -817,9 +821,9 @@ export default function ReportsPage() {
               yAxisId="right"
               type="monotone"
               dataKey="count"
-              stroke="#ef4444"
+              stroke="#10b981"
               strokeWidth={3}
-              dot={{ fill: "#ef4444", r: 4 }}
+              dot={{ fill: "#10b981", r: 4 }}
               name="Quantity Sold"
             />
           </ComposedChart>
