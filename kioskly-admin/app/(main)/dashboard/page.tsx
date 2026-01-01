@@ -181,34 +181,34 @@ export default function DashboardPage() {
   const growth = analytics?.sales?.growth ?? 0;
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Welcome back! 👋</h1>
-        <p className="text-gray-600 mt-2">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome back! 👋</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-2">
           {tenant?.name || "Your Business"} - Overview and statistics
         </p>
       </div>
 
       {/* Today's Overview */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
           Today&apos;s Overview
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Today's Sales */}
           <button
             onClick={loadTodayTransactions}
             disabled={loadingTransactions}
-            className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+            className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-4 sm:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
           >
-            <p className="text-cyan-100 text-sm mb-2">
+            <p className="text-cyan-100 text-xs sm:text-sm mb-2">
               Today&apos;s Sales{" "}
               {loadingTransactions ? "(Loading...)" : "(Click to view)"}
             </p>
-            <p className="text-3xl font-bold">
+            <p className="text-2xl sm:text-3xl font-bold">
               {formatCurrency(dailyAnalytics?.sales?.totalAmount || 0)}
             </p>
-            <p className="text-sm text-cyan-100 mt-2">
+            <p className="text-xs sm:text-sm text-cyan-100 mt-2">
               {dailyAnalytics?.sales?.transactionCount || 0} transaction(s)
             </p>
           </button>
@@ -217,45 +217,45 @@ export default function DashboardPage() {
           <button
             onClick={loadTodayExpenses}
             disabled={loadingExpenses}
-            className="bg-gradient-to-br from-rose-500 to-rose-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+            className="bg-gradient-to-br from-rose-500 to-rose-600 text-white p-4 sm:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
           >
-            <p className="text-rose-100 text-sm mb-2">
+            <p className="text-rose-100 text-xs sm:text-sm mb-2">
               Today&apos;s Expenses{" "}
               {loadingExpenses ? "(Loading...)" : "(Click to view)"}
             </p>
-            <p className="text-3xl font-bold">
+            <p className="text-2xl sm:text-3xl font-bold">
               {formatCurrency(dailyAnalytics?.expenses?.totalAmount || 0)}
             </p>
-            <p className="text-sm text-rose-100 mt-2">
+            <p className="text-xs sm:text-sm text-rose-100 mt-2">
               {dailyAnalytics?.expenses?.expenseCount || 0} expense(s)
             </p>
           </button>
 
           {/* Today's Net */}
-          <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-6 rounded-xl shadow-lg">
-            <p className="text-teal-100 text-sm mb-2">Today&apos;s Net Revenue</p>
-            <p className="text-3xl font-bold">
+          <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-4 sm:p-6 rounded-xl shadow-lg sm:col-span-2 lg:col-span-1">
+            <p className="text-teal-100 text-xs sm:text-sm mb-2">Today&apos;s Net Revenue</p>
+            <p className="text-2xl sm:text-3xl font-bold">
               {formatCurrency(dailyAnalytics?.summary?.netRevenue || 0)}
             </p>
-            <p className="text-sm text-teal-100 mt-2">After expenses</p>
+            <p className="text-xs sm:text-sm text-teal-100 mt-2">After expenses</p>
           </div>
         </div>
       </div>
 
       {/* Monthly Stats Cards */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
           Monthly Overview
         </h2>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Monthly Total Sales */}
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-blue-100 text-sm mb-2">Monthly Sales</p>
-          <p className="text-3xl font-bold">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+          <p className="text-blue-100 text-xs sm:text-sm mb-2">Monthly Sales</p>
+          <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics?.sales?.totalAmount || 0)}
           </p>
-          <p className="text-sm text-blue-100 mt-2">
+          <p className="text-xs sm:text-sm text-blue-100 mt-2">
             {growth >= 0 ? "↑" : "↓"} {Math.abs(growth).toFixed(1)}% from
             previous month
           </p>
@@ -265,110 +265,110 @@ export default function DashboardPage() {
         <button
           onClick={loadTransactions}
           disabled={loadingTransactions}
-          className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+          className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 sm:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
         >
-          <p className="text-green-100 text-sm mb-2">
+          <p className="text-green-100 text-xs sm:text-sm mb-2">
             Transactions{" "}
             {loadingTransactions ? "(Loading...)" : "(Click to view all)"}
           </p>
-          <p className="text-3xl font-bold">
+          <p className="text-2xl sm:text-3xl font-bold">
             {analytics?.sales?.transactionCount || 0}
           </p>
-          <p className="text-sm text-green-100 mt-2">This month</p>
+          <p className="text-xs sm:text-sm text-green-100 mt-2">This month</p>
         </button>
 
         {/* Average Order */}
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-purple-100 text-sm mb-2">Avg. Order Value</p>
-          <p className="text-3xl font-bold">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+          <p className="text-purple-100 text-xs sm:text-sm mb-2">Avg. Order Value</p>
+          <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics?.sales?.averageTransaction || 0)}
           </p>
-          <p className="text-sm text-purple-100 mt-2">Per transaction</p>
+          <p className="text-xs sm:text-sm text-purple-100 mt-2">Per transaction</p>
         </div>
 
         {/* Products Sold */}
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-orange-100 text-sm mb-2">Products Sold</p>
-          <p className="text-3xl font-bold">
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+          <p className="text-orange-100 text-xs sm:text-sm mb-2">Products Sold</p>
+          <p className="text-2xl sm:text-3xl font-bold">
             {analytics?.sales?.totalItemsSold || 0}
           </p>
-          <p className="text-sm text-orange-100 mt-2">This month</p>
+          <p className="text-xs sm:text-sm text-orange-100 mt-2">This month</p>
         </div>
       </div>
 
       {/* Monthly Financial Overview */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
           Monthly Financial Overview
         </h2>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Monthly Total Expenses - Clickable */}
         <button
           onClick={loadExpenses}
           disabled={loadingExpenses}
-          className="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+          className="bg-gradient-to-br from-red-500 to-red-600 text-white p-4 sm:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
         >
-          <p className="text-red-100 text-sm mb-2">
+          <p className="text-red-100 text-xs sm:text-sm mb-2">
             Monthly Expenses{" "}
             {loadingExpenses ? "(Loading...)" : "(Click to view all)"}
           </p>
-          <p className="text-3xl font-bold">
+          <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics?.expenses?.totalAmount || 0)}
           </p>
-          <p className="text-sm text-red-100 mt-2">
+          <p className="text-xs sm:text-sm text-red-100 mt-2">
             {analytics?.expenses?.expenseCount || 0} expense(s)
           </p>
         </button>
 
         {/* Monthly Gross Profit */}
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-emerald-100 text-sm mb-2">Monthly Gross Profit</p>
-          <p className="text-3xl font-bold">
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
+          <p className="text-emerald-100 text-xs sm:text-sm mb-2">Monthly Gross Profit</p>
+          <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics?.summary?.grossProfit || 0)}
           </p>
-          <p className="text-sm text-emerald-100 mt-2">
+          <p className="text-xs sm:text-sm text-emerald-100 mt-2">
             {analytics?.summary?.profitMargin?.toFixed(1) || 0}% margin
           </p>
         </div>
 
         {/* Monthly Net Revenue */}
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg">
-          <p className="text-indigo-100 text-sm mb-2">Monthly Net Revenue</p>
-          <p className="text-3xl font-bold">
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-4 sm:p-6 rounded-xl shadow-lg sm:col-span-2 lg:col-span-1">
+          <p className="text-indigo-100 text-xs sm:text-sm mb-2">Monthly Net Revenue</p>
+          <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics?.summary?.netRevenue || 0)}
           </p>
-          <p className="text-sm text-indigo-100 mt-2">After expenses</p>
+          <p className="text-xs sm:text-sm text-indigo-100 mt-2">After expenses</p>
         </div>
       </div>
 
       {/* Top Products */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">
           Top Selling Products
         </h2>
 
         {analytics?.topProducts && analytics.topProducts.length > 0 ? (
-          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+          <div className="overflow-x-auto max-h-[600px] overflow-y-auto -mx-4 sm:mx-0">
+            <table className="w-full min-w-[640px]">
+              <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Rank
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Product Name
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Quantity Sold
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Revenue
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider hidden sm:table-cell">
                     Avg. Price
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">
                     % of Total Sales
                   </th>
                 </tr>
@@ -389,34 +389,34 @@ export default function DashboardPage() {
                       key={product.productId}
                       className="hover:bg-gray-50 transition"
                     >
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold text-sm">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap">
+                        <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white font-bold text-xs sm:text-sm">
                           {index + 1}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm font-semibold text-gray-900">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3">
+                        <span className="text-xs sm:text-sm font-semibold text-gray-900">
                           {product.productName}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-right">
+                        <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold bg-blue-100 text-blue-800">
                           {product.quantity} units
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
-                        <span className="text-sm font-bold text-gray-900">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-right">
+                        <span className="text-xs sm:text-sm font-bold text-gray-900">
                           {formatCurrency(product.revenue)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
-                        <span className="text-sm text-gray-600">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-right hidden sm:table-cell">
+                        <span className="text-xs sm:text-sm text-gray-600">
                           {formatCurrency(avgPrice)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-right hidden lg:table-cell">
                         <div className="flex items-center justify-end space-x-2">
-                          <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div className="w-16 lg:w-24 bg-gray-200 rounded-full h-2">
                             <div
                               className="h-2 rounded-full"
                               style={{
@@ -425,7 +425,7 @@ export default function DashboardPage() {
                               }}
                             />
                           </div>
-                          <span className="text-sm font-medium text-gray-700 min-w-[3rem]">
+                          <span className="text-xs sm:text-sm font-medium text-gray-700 min-w-[3rem]">
                             {percentage.toFixed(1)}%
                           </span>
                         </div>
@@ -434,25 +434,25 @@ export default function DashboardPage() {
                   );
                 })}
               </tbody>
-              <tfoot className="bg-gray-50 border-t border-gray-200">
+              <tfoot className="bg-gray-50 border-t border-gray-200 sticky bottom-0">
                 <tr>
                   <td
                     colSpan={2}
-                    className="px-4 py-3 text-sm font-bold text-gray-900"
+                    className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-bold text-gray-900"
                   >
                     Total
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
-                    <span className="text-sm font-bold text-gray-900">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-right">
+                    <span className="text-xs sm:text-sm font-bold text-gray-900">
                       {analytics.sales.totalItemsSold} units
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
-                    <span className="text-sm font-bold text-gray-900">
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-right">
+                    <span className="text-xs sm:text-sm font-bold text-gray-900">
                       {formatCurrency(analytics.sales.totalAmount)}
                     </span>
                   </td>
-                  <td colSpan={2}></td>
+                  <td colSpan={2} className="hidden sm:table-cell"></td>
                 </tr>
               </tfoot>
             </table>

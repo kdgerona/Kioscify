@@ -277,7 +277,7 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -291,7 +291,7 @@ export default function ReportsPage() {
 
   if (!analytics) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="text-center text-gray-600">No data available</div>
       </div>
     );
@@ -302,13 +302,13 @@ export default function ReportsPage() {
   const expenseCategoryData = getExpenseCategoryData();
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             Reports & Analytics
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-sm sm:text-base text-gray-600 mt-2">
             Sales performance and business insights
           </p>
         </div>
@@ -343,10 +343,10 @@ export default function ReportsPage() {
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6 sm:mb-8">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-blue-100 text-sm mb-2">Total Sales</p>
-          <p className="text-3xl font-bold">
+          <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics.sales.totalAmount)}
           </p>
           <p className="text-sm text-blue-100 mt-2">
@@ -364,7 +364,7 @@ export default function ReportsPage() {
             Transactions{" "}
             {loadingTransactions ? "(Loading...)" : "(Click to view all)"}
           </p>
-          <p className="text-3xl font-bold">
+          <p className="text-2xl sm:text-3xl font-bold">
             {analytics.sales.transactionCount}
           </p>
           <p className="text-sm text-green-100 mt-2">Completed orders</p>
@@ -372,7 +372,7 @@ export default function ReportsPage() {
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-purple-100 text-sm mb-2">Avg. Order Value</p>
-          <p className="text-3xl font-bold">
+          <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics.sales.averageTransaction)}
           </p>
           <p className="text-sm text-purple-100 mt-2">Per transaction</p>
@@ -380,7 +380,7 @@ export default function ReportsPage() {
 
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-orange-100 text-sm mb-2">Gross Profit</p>
-          <p className="text-3xl font-bold">
+          <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics.summary.grossProfit)}
           </p>
           <p className="text-sm text-orange-100 mt-2">
@@ -390,7 +390,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 sm:mb-8">
         {/* Sales Trend */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-6">
@@ -467,7 +467,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Payment Method Breakdown */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
         <h2 className="text-xl font-bold text-gray-900 mb-6">
           Sales by Payment Method
         </h2>
@@ -570,7 +570,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Top Products Section */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
         <h2 className="text-xl font-bold text-gray-900 mb-6">
           Top Selling Products
         </h2>
@@ -691,7 +691,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Expenses Section */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Expenses</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           {/* Total Expenses Card */}
@@ -704,7 +704,7 @@ export default function ReportsPage() {
               Total Expenses{" "}
               {loadingExpenses ? "(Loading...)" : "(Click to view all)"}
             </p>
-            <p className="text-3xl font-bold">
+            <p className="text-2xl sm:text-3xl font-bold">
               {formatCurrency(analytics.expenses.totalAmount)}
             </p>
             <p className="text-sm text-red-100 mt-2">
@@ -715,7 +715,7 @@ export default function ReportsPage() {
           {/* Average Expense Card */}
           <div className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-6 rounded-xl shadow-lg">
             <p className="text-amber-100 text-sm mb-2">Avg. Expense</p>
-            <p className="text-3xl font-bold">
+            <p className="text-2xl sm:text-3xl font-bold">
               {formatCurrency(analytics.expenses.averageExpense)}
             </p>
             <p className="text-sm text-amber-100 mt-2">Per expense entry</p>
@@ -724,7 +724,7 @@ export default function ReportsPage() {
           {/* Net Profit Card */}
           <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
             <p className="text-emerald-100 text-sm mb-2">Net Revenue</p>
-            <p className="text-3xl font-bold">
+            <p className="text-2xl sm:text-3xl font-bold">
               {formatCurrency(analytics.summary.netRevenue)}
             </p>
             <p className="text-sm text-emerald-100 mt-2">After expenses</p>

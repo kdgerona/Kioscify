@@ -273,7 +273,7 @@ export default function TransactionsPage() {
 
   if (initialLoading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="h-16 bg-gray-200 rounded"></div>
@@ -284,10 +284,10 @@ export default function TransactionsPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Transactions</h1>
-        <p className="text-gray-600 mt-2">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-2">
           View and manage all sales transactions
         </p>
       </div>

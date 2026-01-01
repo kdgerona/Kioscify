@@ -28,10 +28,10 @@ export default function TenantSetupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-100">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-100 px-4 sm:px-6 lg:px-8">
+      <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex flex-col items-center justify-center mb-6">
-          <div className="relative w-48 h-48 mb-4">
+          <div className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 mb-4">
             <Image
               src="/logo.png"
               alt="Kioskly Logo"
@@ -40,23 +40,23 @@ export default function TenantSetupPage() {
               priority
             />
           </div>
-          <h1 className="text-3xl font-bold text-orange-600 mb-2 text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-orange-600 mb-2 text-center">
             Welcome to Kioskly Admin
           </h1>
-          <p className="text-center text-gray-600">
+          <p className="text-center text-sm sm:text-base text-gray-600">
             Enter your store identifier to continue
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2 sm:py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
 
           <div>
-            <label htmlFor="slug" className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="slug" className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
               Store ID / Slug
             </label>
             <input
@@ -64,7 +64,7 @@ export default function TenantSetupPage() {
               type="text"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition text-gray-900"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-gray-100 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition text-gray-900"
               placeholder="e.g., my-store"
               autoCapitalize="none"
               autoCorrect="off"
@@ -79,7 +79,7 @@ export default function TenantSetupPage() {
           <button
             type="submit"
             disabled={loading || !slug.trim()}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 sm:py-3 px-4 text-sm sm:text-base rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <div className="flex items-center justify-center">
@@ -92,11 +92,11 @@ export default function TenantSetupPage() {
           </button>
         </form>
 
-        <div className="mt-8 p-4 bg-orange-50 rounded-lg">
+        <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-orange-50 rounded-lg">
           <div className="flex items-start">
-            <Store className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" />
+            <Store className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-orange-800 mb-1">
+              <p className="text-xs sm:text-sm font-semibold text-orange-800 mb-1">
                 What is a Store ID?
               </p>
               <p className="text-xs text-gray-600">

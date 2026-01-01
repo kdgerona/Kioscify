@@ -155,7 +155,7 @@ export default function InventoryAlertsPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -173,11 +173,11 @@ export default function InventoryAlertsPage() {
     : alertsData?.alerts || [];
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Inventory Alerts</h1>
-        <p className="text-gray-600 mt-2">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Inventory Alerts</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-2">
           Monitor critical inventory issues and take action before stockouts
           occur
         </p>
@@ -232,7 +232,7 @@ export default function InventoryAlertsPage() {
             )}
           </div>
           <p className="text-gray-600 text-sm mb-1">Low Stock Alerts</p>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
             {alertsData?.alertsByType.LOW_STOCK || 0}
           </p>
         </button>
@@ -260,7 +260,7 @@ export default function InventoryAlertsPage() {
             )}
           </div>
           <p className="text-gray-600 text-sm mb-1">Usage Spikes</p>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
             {alertsData?.alertsByType.USAGE_SPIKE || 0}
           </p>
         </button>
@@ -290,7 +290,7 @@ export default function InventoryAlertsPage() {
             )}
           </div>
           <p className="text-gray-600 text-sm mb-1">Projected Stockouts</p>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
             {alertsData?.alertsByType.PROJECTED_STOCKOUT || 0}
           </p>
         </button>

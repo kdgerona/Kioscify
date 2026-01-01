@@ -19,11 +19,16 @@ import {
   ClipboardList,
   ChevronDown,
   ChevronRight,
+  Menu,
+  X,
+  PanelLeftOpen,
+  PanelRightOpen,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
 import { cn } from "@/lib/utils";
+import * as Popover from "@radix-ui/react-popover";
 
 interface NavigationItem {
   name: string;
@@ -61,6 +66,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { tenant } = useTenant();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false); // For desktop minimized state
 
   // Auto-expand parent menu when submenu item is active
   useEffect(() => {
@@ -76,6 +83,13 @@ export default function Sidebar() {
     });
   }, [pathname]);
 
+  // Close mobile menu when route changes (only on small screens)
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setIsMobileMenuOpen(false);
+    }
+  }, [pathname]);
+
   const handleLogout = () => {
     api.logout();
   };
@@ -86,20 +100,104 @@ export default function Sidebar() {
   const textColor = tenant?.themeColors?.text || "#1f2937";
 
   return (
-    <div
-      className="flex flex-col h-full w-64 border-r shadow-sm"
-      style={{
-        backgroundColor: backgroundColor,
-        color: textColor,
-      }}
-    >
+    <>
+      {/* Mobile Menu Toggle - Only visible on mobile when closed */}
+      {!isMobileMenuOpen && (
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg shadow-lg transition-colors hover:opacity-80"
+          style={{
+            backgroundColor: backgroundColor,
+            color: textColor,
+          }}
+          aria-label="Open menu"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
       <div
-        className="p-6 border-b"
+        className={cn(
+          "flex flex-col h-full border-r shadow-sm transition-all duration-300 ease-in-out",
+          // Mobile: fixed with slide animation
+          "fixed lg:relative inset-y-0 left-0 z-40",
+          "lg:transform-none",
+          // Mobile slide behavior
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          // Desktop width behavior
+          isCollapsed ? "lg:w-20" : "lg:w-64",
+          // Mobile always full width when open
+          "w-64"
+        )}
+        style={{
+          backgroundColor: backgroundColor,
+          color: textColor,
+        }}
+      >
+      {/* Mobile Close Button */}
+      {isMobileMenuOpen && (
+        <button
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="lg:hidden absolute top-4 right-4 z-50 p-2 rounded-lg transition-colors hover:bg-gray-100"
+          style={{
+            color: textColor,
+          }}
+          aria-label="Close menu"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Desktop Toggle Button - Above logo */}
+      <div className={cn(
+        "hidden lg:flex items-center border-b",
+        isCollapsed ? "justify-center p-2" : "justify-end px-4 py-2"
+      )}
+      style={{ borderColor: `${primaryColor}20` }}>
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-2 rounded-lg transition-all duration-200 hover:bg-gray-100"
+          style={{
+            color: textColor,
+          }}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? (
+            <PanelRightOpen className="w-5 h-5" />
+          ) : (
+            <PanelLeftOpen className="w-5 h-5" />
+          )}
+        </button>
+      </div>
+
+      <div
+        className={cn(
+          "px-6 py-3 border-b transition-all duration-300",
+          isCollapsed && "lg:p-3",
+          {
+            "pt-14": isMobileMenuOpen,
+          }
+        )}
         style={{ borderColor: `${primaryColor}20` }}
       >
-        <div className="flex items-center space-x-3">
+        <div className={cn(
+          "flex items-center",
+          isCollapsed ? "lg:justify-center lg:flex-col lg:space-x-0" : "space-x-3"
+        )}>
           {tenant?.logoUrl ? (
-            <div className="relative w-10 h-10 flex-shrink-0">
+            <div className={cn(
+              "relative flex-shrink-0",
+              isCollapsed ? "lg:w-8 lg:h-8" : "w-10 h-10"
+            )}>
               <Image
                 src={tenant.logoUrl}
                 alt={tenant.name}
@@ -109,22 +207,32 @@ export default function Sidebar() {
             </div>
           ) : (
             <div
-              className="p-2 rounded-lg"
+              className={cn(
+                "p-2 rounded-lg",
+                isCollapsed && "lg:p-1"
+              )}
               style={{ backgroundColor: `${primaryColor}15` }}
             >
-              <Store className="w-6 h-6" style={{ color: primaryColor }} />
+              <Store className={cn(
+                isCollapsed ? "lg:w-5 lg:h-5" : "w-6 h-6"
+              )} style={{ color: primaryColor }} />
             </div>
           )}
-          <div>
-            <h2 className="text-xl font-bold" style={{ color: textColor }}>
-              {tenant?.name || "Kioskly"}
-            </h2>
-            <p className="text-xs opacity-60">Admin Panel</p>
-          </div>
+          {!isCollapsed && (
+            <div className="lg:block">
+              <h2 className="text-xl font-bold" style={{ color: textColor }}>
+                {tenant?.name || "Kioskly"}
+              </h2>
+              <p className="text-xs opacity-60">Admin Panel</p>
+            </div>
+          )}
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className={cn(
+        "flex-1 p-4 space-y-2 overflow-y-auto",
+        isCollapsed && "lg:p-2"
+      )}>
         {navigation.map((item) => {
           const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
           const hasSubItems = item.subItems && item.subItems.length > 0;
@@ -133,110 +241,192 @@ export default function Sidebar() {
             (subItem) => pathname === subItem.href || pathname?.startsWith(subItem.href + "/")
           );
 
-          const toggleExpanded = () => {
-            setExpandedItems((prev) =>
-              prev.includes(item.name)
-                ? prev.filter((name) => name !== item.name)
-                : [...prev, item.name]
-            );
+          const toggleExpanded = (e: React.MouseEvent) => {
+            e.preventDefault();
+            if (!isCollapsed) {
+              setExpandedItems((prev) =>
+                prev.includes(item.name)
+                  ? prev.filter((name) => name !== item.name)
+                  : [...prev, item.name]
+              );
+            }
           };
 
           return (
             <div key={item.name}>
               {hasSubItems ? (
                 <div>
-                  <button
-                    onClick={toggleExpanded}
-                    className={cn(
-                      "flex items-center justify-between w-full px-4 py-3 rounded-lg transition-all duration-200",
-                      isSubItemActive ? "shadow-md" : ""
-                    )}
-                    style={
-                      isSubItemActive
-                        ? {
-                            backgroundColor: "#ffffff",
-                            color: "#000000",
-                            borderLeft: `3px solid ${primaryColor}`,
+                  {isCollapsed ? (
+                    // Popover for collapsed sidebar
+                    <Popover.Root>
+                      <Popover.Trigger asChild>
+                        <button
+                          className={cn(
+                            "flex items-center w-full rounded-lg transition-all duration-200",
+                            "lg:justify-center lg:px-2 lg:py-3",
+                            isSubItemActive ? "shadow-md" : ""
+                          )}
+                          style={
+                            isSubItemActive
+                              ? {
+                                  backgroundColor: "#ffffff",
+                                  color: "#000000",
+                                  borderLeft: `3px solid ${primaryColor}`,
+                                }
+                              : {
+                                  color: "#000000",
+                                  opacity: 0.7,
+                                }
                           }
-                        : {
-                            color: "#000000",
-                            opacity: 0.7,
-                          }
-                    }
-                    onMouseEnter={(e) => {
-                      if (!isSubItemActive) {
-                        e.currentTarget.style.backgroundColor = `${primaryColor}10`;
-                        e.currentTarget.style.opacity = "1";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSubItemActive) {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                        e.currentTarget.style.opacity = "0.7";
-                      }
-                    }}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <item.icon className="w-5 h-5" />
-                      <span className="font-medium">{item.name}</span>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                  </button>
-                  {isExpanded && (
-                    <div className="ml-4 mt-2 space-y-1">
-                      {item.subItems?.map((subItem) => {
-                        const isSubActive = pathname === subItem.href;
-                        return (
-                          <Link
-                            key={subItem.name}
-                            href={subItem.href}
-                            className={cn(
-                              "flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200",
-                              isSubActive ? "shadow-sm" : ""
-                            )}
-                            style={
-                              isSubActive
-                                ? {
-                                    backgroundColor: "#ffffff",
-                                    color: "#000000",
-                                    fontWeight: "600",
-                                    borderLeft: `3px solid ${primaryColor}`,
-                                  }
-                                : {
-                                    color: "#000000",
-                                    opacity: 0.6,
-                                  }
+                          onMouseEnter={(e) => {
+                            if (!isSubItemActive) {
+                              e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                              e.currentTarget.style.opacity = "1";
                             }
-                            onMouseEnter={(e) => {
-                              if (!isSubActive) {
-                                e.currentTarget.style.backgroundColor = `${primaryColor}10`;
-                                e.currentTarget.style.opacity = "0.8";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSubItemActive) {
+                              e.currentTarget.style.backgroundColor = "transparent";
+                              e.currentTarget.style.opacity = "0.7";
+                            }
+                          }}
+                          title={item.name}
+                        >
+                          <item.icon className="w-5 h-5 flex-shrink-0" />
+                        </button>
+                      </Popover.Trigger>
+                      <Popover.Portal>
+                        <Popover.Content
+                          side="right"
+                          sideOffset={8}
+                          className="z-50 min-w-[200px] rounded-lg border border-gray-200 bg-white p-2 shadow-lg"
+                        >
+                          <div className="space-y-1">
+                            <div className="px-3 py-2 text-sm font-semibold text-gray-900 border-b border-gray-100">
+                              {item.name}
+                            </div>
+                            {item.subItems?.map((subItem) => {
+                              const isSubActive = pathname === subItem.href;
+                              return (
+                                <Link
+                                  key={subItem.name}
+                                  href={subItem.href}
+                                  className={cn(
+                                    "flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-200 text-sm",
+                                    isSubActive ? "bg-gray-100 font-semibold" : "hover:bg-gray-50"
+                                  )}
+                                  style={{
+                                    color: "#000000",
+                                  }}
+                                >
+                                  <subItem.icon className="w-4 h-4" />
+                                  <span>{subItem.name}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </Popover.Content>
+                      </Popover.Portal>
+                    </Popover.Root>
+                  ) : (
+                    // Regular button for expanded sidebar
+                    <>
+                      <button
+                        onClick={toggleExpanded}
+                        className={cn(
+                          "flex items-center w-full rounded-lg transition-all duration-200",
+                          "justify-between px-4 py-3",
+                          isSubItemActive ? "shadow-md" : ""
+                        )}
+                        style={
+                          isSubItemActive
+                            ? {
+                                backgroundColor: "#ffffff",
+                                color: "#000000",
+                                borderLeft: `3px solid ${primaryColor}`,
                               }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isSubActive) {
-                                e.currentTarget.style.backgroundColor = "transparent";
-                                e.currentTarget.style.opacity = "0.6";
+                            : {
+                                color: "#000000",
+                                opacity: 0.7,
                               }
-                            }}
-                          >
-                            <subItem.icon className="w-4 h-4" />
-                            <span className="font-medium text-sm">{subItem.name}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
+                        }
+                        onMouseEnter={(e) => {
+                          if (!isSubItemActive) {
+                            e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                            e.currentTarget.style.opacity = "1";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSubItemActive) {
+                            e.currentTarget.style.backgroundColor = "transparent";
+                            e.currentTarget.style.opacity = "0.7";
+                          }
+                        }}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <item.icon className="w-5 h-5 flex-shrink-0" />
+                          <span className="font-medium">{item.name}</span>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                      </button>
+                      {isExpanded && (
+                        <div className="ml-4 mt-2 space-y-1">
+                          {item.subItems?.map((subItem) => {
+                            const isSubActive = pathname === subItem.href;
+                            return (
+                              <Link
+                                key={subItem.name}
+                                href={subItem.href}
+                                className={cn(
+                                  "flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200",
+                                  isSubActive ? "shadow-sm" : ""
+                                )}
+                                style={
+                                  isSubActive
+                                    ? {
+                                        backgroundColor: "#ffffff",
+                                        color: "#000000",
+                                        fontWeight: "600",
+                                        borderLeft: `3px solid ${primaryColor}`,
+                                      }
+                                    : {
+                                        color: "#000000",
+                                        opacity: 0.6,
+                                      }
+                                }
+                                onMouseEnter={(e) => {
+                                  if (!isSubActive) {
+                                    e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                                    e.currentTarget.style.opacity = "0.8";
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isSubActive) {
+                                    e.currentTarget.style.backgroundColor = "transparent";
+                                    e.currentTarget.style.opacity = "0.6";
+                                  }
+                                }}
+                              >
+                                <subItem.icon className="w-4 h-4" />
+                                <span className="font-medium text-sm">{subItem.name}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               ) : (
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200",
+                    "flex items-center rounded-lg transition-all duration-200",
+                    isCollapsed ? "lg:justify-center lg:px-2 lg:py-3" : "space-x-3 px-4 py-3",
                     isActive ? "shadow-md" : ""
                   )}
                   style={
@@ -263,9 +453,10 @@ export default function Sidebar() {
                       e.currentTarget.style.opacity = "0.7";
                     }
                   }}
+                  title={isCollapsed ? item.name : undefined}
                 >
-                  <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  {!isCollapsed && <span className="font-medium">{item.name}</span>}
                 </Link>
               )}
             </div>
@@ -274,12 +465,18 @@ export default function Sidebar() {
       </nav>
 
       <div
-        className="p-4 border-t"
+        className={cn(
+          "p-4 border-t",
+          isCollapsed && "lg:p-2"
+        )}
         style={{ borderColor: `${primaryColor}20` }}
       >
         <button
           onClick={handleLogout}
-          className="flex items-center space-x-3 px-4 py-3 rounded-lg w-full transition-all duration-200"
+          className={cn(
+            "flex items-center rounded-lg w-full transition-all duration-200",
+            isCollapsed ? "lg:justify-center lg:px-2 lg:py-3" : "space-x-3 px-4 py-3"
+          )}
           style={{ color: "#000000", opacity: 0.7 }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = `${primaryColor}10`;
@@ -289,11 +486,13 @@ export default function Sidebar() {
             e.currentTarget.style.backgroundColor = "transparent";
             e.currentTarget.style.opacity = "0.7";
           }}
+          title={isCollapsed ? "Logout" : undefined}
         >
-          <LogOut className="w-5 h-5" />
-          <span className="font-medium">Logout</span>
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          {!isCollapsed && <span className="font-medium">Logout</span>}
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
