@@ -123,6 +123,46 @@ export default function DashboardPage() {
     }
   };
 
+  const loadTodayTransactions = async () => {
+    try {
+      setLoadingTransactions(true);
+      const params: { startDate?: string; endDate?: string } = {};
+
+      if (dailyAnalytics?.period) {
+        params.startDate = dailyAnalytics.period.start;
+        params.endDate = dailyAnalytics.period.end;
+      }
+
+      const data = await api.getTransactions(params);
+      setTransactions(data);
+      setShowTransactionModal(true);
+    } catch (error) {
+      console.error("Failed to load today's transactions:", error);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  const loadTodayExpenses = async () => {
+    try {
+      setLoadingExpenses(true);
+      const params: { startDate?: string; endDate?: string } = {};
+
+      if (dailyAnalytics?.period) {
+        params.startDate = dailyAnalytics.period.start;
+        params.endDate = dailyAnalytics.period.end;
+      }
+
+      const data = await api.getExpenses(params);
+      setExpenses(data);
+      setShowExpenseModal(true);
+    } catch (error) {
+      console.error("Failed to load today's expenses:", error);
+    } finally {
+      setLoadingExpenses(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8">
@@ -156,26 +196,40 @@ export default function DashboardPage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Today's Sales */}
-          <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-6 rounded-xl shadow-lg">
-            <p className="text-cyan-100 text-sm mb-2">Today&apos;s Sales</p>
+          <button
+            onClick={loadTodayTransactions}
+            disabled={loadingTransactions}
+            className="bg-gradient-to-br from-cyan-500 to-cyan-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+          >
+            <p className="text-cyan-100 text-sm mb-2">
+              Today&apos;s Sales{" "}
+              {loadingTransactions ? "(Loading...)" : "(Click to view)"}
+            </p>
             <p className="text-3xl font-bold">
               {formatCurrency(dailyAnalytics?.sales?.totalAmount || 0)}
             </p>
             <p className="text-sm text-cyan-100 mt-2">
               {dailyAnalytics?.sales?.transactionCount || 0} transaction(s)
             </p>
-          </div>
+          </button>
 
           {/* Today's Expenses */}
-          <div className="bg-gradient-to-br from-rose-500 to-rose-600 text-white p-6 rounded-xl shadow-lg">
-            <p className="text-rose-100 text-sm mb-2">Today&apos;s Expenses</p>
+          <button
+            onClick={loadTodayExpenses}
+            disabled={loadingExpenses}
+            className="bg-gradient-to-br from-rose-500 to-rose-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+          >
+            <p className="text-rose-100 text-sm mb-2">
+              Today&apos;s Expenses{" "}
+              {loadingExpenses ? "(Loading...)" : "(Click to view)"}
+            </p>
             <p className="text-3xl font-bold">
               {formatCurrency(dailyAnalytics?.expenses?.totalAmount || 0)}
             </p>
             <p className="text-sm text-rose-100 mt-2">
               {dailyAnalytics?.expenses?.expenseCount || 0} expense(s)
             </p>
-          </div>
+          </button>
 
           {/* Today's Net */}
           <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-6 rounded-xl shadow-lg">
