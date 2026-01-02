@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { X } from 'lucide-react';
-import { Transaction } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { X } from "lucide-react";
+import { Transaction } from "@/types";
+import { formatCurrency } from "@/lib/utils";
 
 interface TransactionListModalProps {
   isOpen: boolean;
@@ -17,31 +17,31 @@ export default function TransactionListModal({
   onClose,
   transactions,
   primaryColor,
-  title = 'All Transactions',
+  title = "All Transactions",
 }: TransactionListModalProps) {
   if (!isOpen) return null;
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const getPaymentMethodColor = (method: string) => {
     const colors = {
-      CASH: 'bg-green-100 text-green-800',
-      CARD: 'bg-purple-100 text-purple-800',
-      GCASH: 'bg-blue-100 text-blue-800',
-      PAYMAYA: 'bg-amber-100 text-amber-800',
-      ONLINE: 'bg-gray-100 text-gray-800',
-      FOODPANDA: 'bg-pink-100 text-pink-800',
+      CASH: "bg-green-100 text-green-800",
+      CARD: "bg-purple-100 text-purple-800",
+      GCASH: "bg-blue-100 text-blue-800",
+      PAYMAYA: "bg-amber-100 text-amber-800",
+      ONLINE: "bg-gray-100 text-gray-800",
+      FOODPANDA: "bg-pink-100 text-pink-800",
     };
-    return colors[method as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[method as keyof typeof colors] || "bg-gray-100 text-gray-800";
   };
 
   return (
@@ -54,7 +54,9 @@ export default function TransactionListModal({
         >
           <div>
             <h2 className="text-2xl font-bold">{title}</h2>
-            <p className="text-sm opacity-90 mt-1">{transactions.length} transaction(s)</p>
+            <p className="text-sm opacity-90 mt-1">
+              {transactions.length} transaction(s)
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -109,27 +111,89 @@ export default function TransactionListModal({
                   {/* Items Breakdown */}
                   {transaction.items && transaction.items.length > 0 && (
                     <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <h4 className="text-sm font-bold text-gray-700 mb-3">Items:</h4>
+                      <h4 className="text-sm font-bold text-gray-700 mb-3">
+                        Items:
+                      </h4>
                       <div className="space-y-2">
                         {transaction.items.map((item) => (
                           <div
                             key={item.id}
-                            className="flex justify-between items-start"
+                            className="border-l-2 border-gray-300 pl-3 mb-3"
                           >
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-800">
-                                {item.quantity}x {item.product?.name || 'Unknown Product'}
-                                {item.size && ` (${item.size.name})`}
-                              </p>
-                              {item.addons && item.addons.length > 0 && (
-                                <p className="text-xs text-gray-500 ml-2 mt-1">
-                                  + {item.addons.map((a: any) => a.addon?.name || a.name || 'Unknown').join(', ')}
+                            {/* Main product line */}
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-gray-800">
+                                  {item.quantity}x{" "}
+                                  {item.product?.name || "Unknown Product"}
+                                  {item.size && (
+                                    <span className="text-xs text-gray-600">
+                                      {" "}
+                                      ({item.size.name})
+                                    </span>
+                                  )}
                                 </p>
+                              </div>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {formatCurrency(item.subtotal)}
+                              </p>
+                            </div>
+
+                            {/* Price breakdown */}
+                            <div className="ml-4 space-y-0.5">
+                              {/* Base product price */}
+                              <div className="flex justify-between items-center text-xs text-gray-600">
+                                <span>Base price × {item.quantity}</span>
+                                <span>
+                                  {formatCurrency(
+                                    (item.product?.price || 0) * item.quantity
+                                  )}
+                                </span>
+                              </div>
+
+                              {/* Size modifier */}
+                              {item.size && item.size.priceModifier !== 0 && (
+                                <div className="flex justify-between items-center text-xs text-gray-600">
+                                  <span>
+                                    Size modifier ({item.size.name}) ×{" "}
+                                    {item.quantity}
+                                  </span>
+                                  <span>
+                                    {formatCurrency(
+                                      item.size.priceModifier * item.quantity
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Addons with prices */}
+                              {item.addons && item.addons.length > 0 && (
+                                <>
+                                  {item.addons.map(
+                                    (addonItem: any, addonIndex: number) => {
+                                      const addon =
+                                        addonItem.addon || addonItem;
+                                      return (
+                                        <div
+                                          key={addonIndex}
+                                          className="flex justify-between items-center text-xs text-gray-600"
+                                        >
+                                          <span>
+                                            + {addon.name || "Unknown Addon"} ×{" "}
+                                            {item.quantity}
+                                          </span>
+                                          <span>
+                                            {formatCurrency(
+                                              (addon.price || 0) * item.quantity
+                                            )}
+                                          </span>
+                                        </div>
+                                      );
+                                    }
+                                  )}
+                                </>
                               )}
                             </div>
-                            <p className="text-sm font-semibold text-gray-800">
-                              {formatCurrency(item.subtotal)}
-                            </p>
                           </div>
                         ))}
                       </div>
@@ -147,40 +211,45 @@ export default function TransactionListModal({
                   )}
 
                   {/* Payment Details */}
-                  {transaction.paymentMethod === 'CASH' && transaction.cashReceived && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
-                      <h4 className="text-xs font-bold text-green-800 mb-2">
-                        Cash Payment
-                      </h4>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-green-700">Cash Received:</span>
-                          <span className="font-semibold text-green-900">
-                            {formatCurrency(transaction.cashReceived)}
-                          </span>
-                        </div>
-                        {transaction.change !== null && transaction.change !== undefined && (
+                  {transaction.paymentMethod === "CASH" &&
+                    transaction.cashReceived && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                        <h4 className="text-xs font-bold text-green-800 mb-2">
+                          Cash Payment
+                        </h4>
+                        <div className="space-y-1">
                           <div className="flex justify-between text-xs">
-                            <span className="text-green-700">Change:</span>
+                            <span className="text-green-700">
+                              Cash Received:
+                            </span>
                             <span className="font-semibold text-green-900">
-                              {formatCurrency(transaction.change)}
+                              {formatCurrency(transaction.cashReceived)}
                             </span>
                           </div>
-                        )}
+                          {transaction.change !== null &&
+                            transaction.change !== undefined && (
+                              <div className="flex justify-between text-xs">
+                                <span className="text-green-700">Change:</span>
+                                <span className="font-semibold text-green-900">
+                                  {formatCurrency(transaction.change)}
+                                </span>
+                              </div>
+                            )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {transaction.paymentMethod !== 'CASH' && transaction.referenceNumber && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-                      <h4 className="text-xs font-bold text-blue-800 mb-1">
-                        Reference Number
-                      </h4>
-                      <p className="text-xs text-blue-700 font-mono">
-                        {transaction.referenceNumber}
-                      </p>
-                    </div>
-                  )}
+                  {transaction.paymentMethod !== "CASH" &&
+                    transaction.referenceNumber && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                        <h4 className="text-xs font-bold text-blue-800 mb-1">
+                          Reference Number
+                        </h4>
+                        <p className="text-xs text-blue-700 font-mono">
+                          {transaction.referenceNumber}
+                        </p>
+                      </div>
+                    )}
 
                   {/* Remarks */}
                   {transaction.remarks && (
@@ -188,7 +257,9 @@ export default function TransactionListModal({
                       <h4 className="text-xs font-bold text-yellow-800 mb-1">
                         Remarks:
                       </h4>
-                      <p className="text-xs text-yellow-700">{transaction.remarks}</p>
+                      <p className="text-xs text-yellow-700">
+                        {transaction.remarks}
+                      </p>
                     </div>
                   )}
                 </div>

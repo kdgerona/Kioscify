@@ -102,7 +102,9 @@ export default function SubmittedReportsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Submitted Reports</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          Submitted Reports
+        </h1>
         <p className="text-sm sm:text-base text-gray-600 mt-2">
           View all submitted daily sales reports
         </p>
@@ -474,34 +476,91 @@ export default function SubmittedReportsPage() {
                           {transaction.items &&
                             transaction.items.length > 0 && (
                               <div className="mt-2 pt-2 border-t border-gray-100">
-                                <p className="text-xs font-semibold text-gray-700 mb-1">
+                                <p className="text-xs font-semibold text-gray-700 mb-2">
                                   Items:
                                 </p>
-                                <ul className="space-y-1">
+                                <div className="space-y-2">
                                   {transaction.items.map((item) => (
-                                    <li
+                                    <div
                                       key={item.id}
-                                      className="text-xs text-gray-600"
+                                      className="border-l-2 border-gray-300 pl-2"
                                     >
-                                      {item.quantity}x{" "}
-                                      {item.product?.name || "Product"}
-                                      {item.size && ` (${item.size.name})`}
-                                      {item.addons &&
-                                        item.addons.length > 0 && (
-                                          <span className="text-gray-500">
-                                            {" "}
-                                            +{" "}
-                                            {item.addons
-                                              .map((a) => a.addon.name)
-                                              .join(", ")}
+                                      {/* Main product line */}
+                                      <div className="flex justify-between items-start mb-0.5">
+                                        <p className="text-xs font-medium text-gray-800">
+                                          {item.quantity}x{" "}
+                                          {item.product?.name || "Product"}
+                                          {item.size && (
+                                            <span className="text-xs text-gray-600">
+                                              {" "}
+                                              ({item.size.name})
+                                            </span>
+                                          )}
+                                        </p>
+                                        <span className="text-xs font-semibold text-gray-800">
+                                          {formatCurrency(item.subtotal)}
+                                        </span>
+                                      </div>
+
+                                      {/* Price breakdown */}
+                                      <div className="ml-3 space-y-0.5">
+                                        {/* Base price */}
+                                        <div className="flex justify-between items-center text-[10px] text-gray-600">
+                                          <span>Base × {item.quantity}</span>
+                                          <span>
+                                            {formatCurrency(
+                                              (item.product?.price || 0) *
+                                                item.quantity
+                                            )}
                                           </span>
-                                        )}
-                                      <span className="float-right">
-                                        {formatCurrency(item.subtotal)}
-                                      </span>
-                                    </li>
+                                        </div>
+
+                                        {/* Size modifier */}
+                                        {item.size &&
+                                          item.size.priceModifier !== 0 && (
+                                            <div className="flex justify-between items-center text-[10px] text-gray-600">
+                                              <span>
+                                                Size ({item.size.name}) ×{" "}
+                                                {item.quantity}
+                                              </span>
+                                              <span>
+                                                {formatCurrency(
+                                                  item.size.priceModifier *
+                                                    item.quantity
+                                                )}
+                                              </span>
+                                            </div>
+                                          )}
+
+                                        {/* Addons */}
+                                        {item.addons &&
+                                          item.addons.length > 0 &&
+                                          item.addons.map(
+                                            (a: any, idx: number) => {
+                                              const addon = a.addon || a;
+                                              return (
+                                                <div
+                                                  key={idx}
+                                                  className="flex justify-between items-center text-[10px] text-gray-600"
+                                                >
+                                                  <span>
+                                                    + {addon.name || "Addon"} ×{" "}
+                                                    {item.quantity}
+                                                  </span>
+                                                  <span>
+                                                    {formatCurrency(
+                                                      (addon.price || 0) *
+                                                        item.quantity
+                                                    )}
+                                                  </span>
+                                                </div>
+                                              );
+                                            }
+                                          )}
+                                      </div>
+                                    </div>
                                   ))}
-                                </ul>
+                                </div>
                               </div>
                             )}
                         </div>

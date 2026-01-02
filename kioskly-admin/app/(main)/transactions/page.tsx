@@ -286,7 +286,9 @@ export default function TransactionsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          Transactions
+        </h1>
         <p className="text-sm sm:text-base text-gray-600 mt-2">
           View and manage all sales transactions
         </p>
@@ -827,60 +829,79 @@ export default function TransactionsPage() {
                       {selectedTransaction.items.map((item) => (
                         <div
                           key={item.id}
-                          className="p-4 bg-gray-50 rounded-lg"
+                          className="p-4 bg-gray-50 rounded-lg border-l-4 border-gray-300"
                         >
+                          {/* Main product line */}
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
                               <p className="font-medium text-gray-900">
+                                {item.quantity}x{" "}
                                 {item.product?.name || "Product"}
+                                {item.size && (
+                                  <span className="text-sm text-gray-600">
+                                    {" "}
+                                    ({item.size.name})
+                                  </span>
+                                )}
                               </p>
-                              <p className="text-sm text-gray-600">
-                                Quantity: {item.quantity}
-                              </p>
-                              {item.size && (
-                                <p className="text-sm text-gray-600">
-                                  Size: {item.size.name}
-                                  {item.size.priceModifier !== 0 && (
-                                    <span className="ml-1 text-gray-500">
-                                      ({item.size.priceModifier > 0 ? "+" : ""}
-                                      {formatCurrency(item.size.priceModifier)})
-                                    </span>
+                            </div>
+                            <p className="font-bold text-gray-900">
+                              {formatCurrency(item.subtotal)}
+                            </p>
+                          </div>
+
+                          {/* Price breakdown */}
+                          <div className="ml-4 space-y-1 mt-2">
+                            {/* Base price */}
+                            <div className="flex justify-between items-center text-sm text-gray-600">
+                              <span>Base price × {item.quantity}</span>
+                              <span>
+                                {formatCurrency(
+                                  (item.product?.price || 0) * item.quantity
+                                )}
+                              </span>
+                            </div>
+
+                            {/* Size modifier */}
+                            {item.size && item.size.priceModifier !== 0 && (
+                              <div className="flex justify-between items-center text-sm text-gray-600">
+                                <span>
+                                  Size modifier ({item.size.name}) ×{" "}
+                                  {item.quantity}
+                                </span>
+                                <span>
+                                  {formatCurrency(
+                                    item.size.priceModifier * item.quantity
                                   )}
-                                </p>
-                              )}
-                              {item.addons && item.addons.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-sm font-medium text-gray-700">
-                                    Add-ons:
-                                  </p>
-                                  <ul className="ml-3 mt-1 space-y-1">
-                                    {item.addons.map((addonItem, idx) => {
-                                      // Handle both possible structures: { addon: Addon } or Addon directly
-                                      const addon =
-                                        (addonItem as any).addon || addonItem;
-                                      return (
-                                        <li
-                                          key={idx}
-                                          className="text-sm text-gray-600 flex justify-between"
-                                        >
-                                          <span>
-                                            • {addon?.name || "Unknown addon"}
-                                          </span>
-                                          <span className="ml-2 text-gray-500">
-                                            {formatCurrency(addon?.price || 0)}
-                                          </span>
-                                        </li>
-                                      );
-                                    })}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-right ml-4">
-                              <p className="font-bold text-gray-900">
-                                {formatCurrency(item.subtotal)}
-                              </p>
-                            </div>
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Addons with prices */}
+                            {item.addons && item.addons.length > 0 && (
+                              <>
+                                {item.addons.map((addonItem, idx) => {
+                                  const addon =
+                                    (addonItem as any).addon || addonItem;
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="flex justify-between items-center text-sm text-gray-600"
+                                    >
+                                      <span>
+                                        + {addon?.name || "Unknown addon"} ×{" "}
+                                        {item.quantity}
+                                      </span>
+                                      <span>
+                                        {formatCurrency(
+                                          (addon?.price || 0) * item.quantity
+                                        )}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </>
+                            )}
                           </div>
                         </div>
                       ))}
