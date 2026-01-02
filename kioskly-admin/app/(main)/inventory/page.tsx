@@ -343,23 +343,23 @@ export default function InventoryPage() {
                 Object.keys(groupedLowStock).sort();
 
               return (
-                <div className="bg-white rounded-xl shadow-sm p-6 border border-red-200">
-                  <div className="flex items-center space-x-2 mb-6">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                    <h2 className="text-xl font-bold text-gray-900">
+                <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-red-200">
+                  <div className="flex items-center space-x-2 mb-4 sm:mb-6">
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                       Low Stock Alerts
                     </h2>
                   </div>
-                  <div className="space-y-6">
+                  <div className="space-y-4 sm:space-y-6">
                     {sortedLowStockCategories.map((category) => (
                       <div key={category}>
                         {/* Category Header */}
-                        <div className="flex items-center mb-3">
-                          <h3 className="text-lg font-semibold text-gray-800">
+                        <div className="flex items-center mb-3 gap-2">
+                          <h3 className="text-base sm:text-lg font-semibold text-gray-800">
                             {formatCategoryName(category)}
                           </h3>
-                          <div className="flex-1 ml-3 border-t border-red-300"></div>
-                          <span className="ml-3 px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">
+                          <div className="flex-1 border-t border-red-300"></div>
+                          <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 whitespace-nowrap">
                             {groupedLowStock[category].length}{" "}
                             {groupedLowStock[category].length === 1
                               ? "item"
@@ -368,22 +368,22 @@ export default function InventoryPage() {
                         </div>
 
                         {/* Items List */}
-                        <div className="space-y-3">
+                        <div className="space-y-2 sm:space-y-3">
                           {groupedLowStock[category].map((item) => (
                             <div
                               key={item.id}
-                              className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-100"
+                              className="flex items-center justify-between gap-2 p-3 sm:p-4 bg-red-50 rounded-lg border border-red-100"
                             >
-                              <div>
-                                <p className="font-semibold text-gray-900">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">
                                   {item.name}
                                 </p>
                               </div>
-                              <div className="text-right">
-                                <p className="text-lg font-bold text-red-600">
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-base sm:text-lg font-bold text-red-600">
                                   {item.latestQuantity}
                                 </p>
-                                <p className="text-sm text-gray-600">
+                                <p className="text-xs sm:text-sm text-gray-600">
                                   Min: {item.minStockLevel}
                                 </p>
                               </div>
@@ -398,22 +398,22 @@ export default function InventoryPage() {
             })()}
 
           {/* Latest Inventory Counts */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">
+          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
+            <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                 Latest Inventory Counts
               </h2>
               <button
                 onClick={loadLatestInventory}
-                className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+                className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition flex-shrink-0"
                 title="Refresh inventory counts"
               >
-                <RefreshCw className="w-5 h-5" />
+                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
             {/* Filters */}
-            <div className="flex space-x-4 mb-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -421,13 +421,13 @@ export default function InventoryPage() {
                   placeholder="Search items..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
                 />
               </div>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
               >
                 <option value="">All Categories</option>
                 {categories.map((cat) => (
@@ -439,45 +439,45 @@ export default function InventoryPage() {
             </div>
 
             {/* Inventory List - Grouped by Category */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {sortedCategories.map((category) => (
                 <div key={category}>
                   {/* Category Header */}
-                  <div className="flex items-center mb-3">
-                    <h3 className="text-lg font-semibold text-gray-800">
+                  <div className="flex items-center mb-3 gap-2">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-800">
                       {formatCategoryName(category)}
                     </h3>
-                    <div className="flex-1 ml-3 border-t border-gray-300"></div>
-                    <span className="ml-3 px-2 py-1 text-xs rounded-full bg-gray-200 text-gray-700">
+                    <div className="flex-1 border-t border-gray-300"></div>
+                    <span className="px-2 py-1 text-xs rounded-full bg-gray-200 text-gray-700 whitespace-nowrap">
                       {groupedItems[category].length}{" "}
                       {groupedItems[category].length === 1 ? "item" : "items"}
                     </span>
                   </div>
 
                   {/* Items Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {groupedItems[category].map((item) => (
                       <div
                         key={item.id}
-                        className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition"
+                        className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition"
                       >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-900">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">
                               {item.name}
                             </p>
                           </div>
-                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 flex-shrink-0">
                             {item.unit}
                           </span>
                         </div>
-                        <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-600">
+                            <span className="text-xs sm:text-sm text-gray-600">
                               Current Stock:
                             </span>
                             <span
-                              className={`text-lg font-bold ${
+                              className={`text-base sm:text-lg font-bold ${
                                 item.minStockLevel &&
                                 item.latestQuantity &&
                                 item.latestQuantity <= item.minStockLevel
@@ -493,7 +493,7 @@ export default function InventoryPage() {
                               <span className="text-xs text-gray-500">
                                 Min Level:
                               </span>
-                              <span className="text-sm text-gray-600">
+                              <span className="text-xs sm:text-sm text-gray-600">
                                 {item.minStockLevel}
                               </span>
                             </div>
@@ -518,14 +518,14 @@ export default function InventoryPage() {
 
       {/* Items Tab */}
       {activeTab === "items" && (
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
               Manage Inventory Items
             </h2>
             <button
               onClick={() => openItemModal()}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg text-black font-medium transition hover:opacity-90"
+              className="flex items-center justify-center space-x-2 px-4 py-2 rounded-lg text-black font-medium transition hover:opacity-90 text-sm sm:text-base"
               style={{ backgroundColor: primaryColor }}
             >
               <Plus className="w-4 h-4" />
@@ -533,76 +533,78 @@ export default function InventoryPage() {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Name
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Category
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Unit
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Min Level
-                  </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">
-                    Description
-                  </th>
-                  <th className="text-right py-3 px-4 font-semibold text-gray-700">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {inventoryItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-gray-100 hover:bg-gray-50"
-                  >
-                    <td className="py-3 px-4 font-medium text-gray-900">
-                      {item.name}
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">{item.category}</td>
-                    <td className="py-3 px-4 text-gray-600">{item.unit}</td>
-                    <td className="py-3 px-4 text-gray-600">
-                      {item.minStockLevel || "-"}
-                    </td>
-                    <td className="py-3 px-4 text-gray-600 max-w-xs truncate">
-                      {item.description || "-"}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => openItemModal(item)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="min-w-full inline-block align-middle px-4 sm:px-0">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">
+                      Name
+                    </th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">
+                      Category
+                    </th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">
+                      Unit
+                    </th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">
+                      Min Level
+                    </th>
+                    <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">
+                      Description
+                    </th>
+                    <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {inventoryItems.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-gray-100 hover:bg-gray-50"
+                    >
+                      <td className="py-3 px-2 sm:px-4 font-medium text-gray-900 text-xs sm:text-sm">
+                        {item.name}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">{item.category}</td>
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">{item.unit}</td>
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
+                        {item.minStockLevel || "-"}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm max-w-xs truncate">
+                        {item.description || "-"}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4">
+                        <div className="flex items-center justify-end space-x-1 sm:space-x-2">
+                          <button
+                            onClick={() => openItemModal(item)}
+                            className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {inventoryItems.length === 0 && (
             <div className="text-center py-12">
-              <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No inventory items yet</p>
+              <Package className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-sm sm:text-base text-gray-600">No inventory items yet</p>
               <button
                 onClick={() => openItemModal()}
-                className="mt-4 px-6 py-2 rounded-lg text-black font-medium transition hover:opacity-90"
+                className="mt-4 px-4 sm:px-6 py-2 rounded-lg text-black font-medium transition hover:opacity-90 text-sm sm:text-base"
                 style={{ backgroundColor: primaryColor }}
               >
                 Add Your First Item
@@ -614,20 +616,20 @@ export default function InventoryPage() {
 
       {/* Count Tab */}
       {activeTab === "count" && (
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
             Quick Inventory Count
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
             This feature is available in the mobile app for easier counting on
             the go.
           </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-            <Package className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-900 font-semibold mb-2">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6 text-center">
+            <Package className="w-12 h-12 sm:w-16 sm:h-16 text-blue-600 mx-auto mb-3 sm:mb-4" />
+            <p className="text-base sm:text-lg text-gray-900 font-semibold mb-2">
               Use the Kioskly Mobile App
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-xs sm:text-sm text-gray-600">
               Download the mobile app to quickly count inventory with an
               optimized interface designed for daily use.
             </p>
@@ -637,10 +639,10 @@ export default function InventoryPage() {
 
       {/* Item Modal */}
       {showItemModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-4 sm:p-6">
+            <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900">
                 {editingItem ? "Edit Item" : "Add New Item"}
               </h3>
               <button
@@ -649,15 +651,15 @@ export default function InventoryPage() {
                   setEditingItem(null);
                   resetItemForm();
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
+                className="p-2 hover:bg-gray-100 rounded-lg transition flex-shrink-0"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Name *
                 </label>
                 <input
@@ -666,13 +668,13 @@ export default function InventoryPage() {
                   onChange={(e) =>
                     setItemForm({ ...itemForm, name: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
                   placeholder="e.g., Fresh Lemons"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Category *
                 </label>
                 <input
@@ -681,7 +683,7 @@ export default function InventoryPage() {
                   onChange={(e) =>
                     setItemForm({ ...itemForm, category: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
                   placeholder="e.g., MAINS, SYRUPS, etc."
                   list="categories-list"
                 />
@@ -693,7 +695,7 @@ export default function InventoryPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Unit *
                 </label>
                 <input
@@ -702,13 +704,13 @@ export default function InventoryPage() {
                   onChange={(e) =>
                     setItemForm({ ...itemForm, unit: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
                   placeholder="e.g., Box, Bottle, Pack"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Min Stock Level
                 </label>
                 <input
@@ -718,13 +720,13 @@ export default function InventoryPage() {
                   onChange={(e) =>
                     setItemForm({ ...itemForm, minStockLevel: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
                   placeholder="Alert when stock falls below this"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Description
                 </label>
                 <textarea
@@ -732,21 +734,21 @@ export default function InventoryPage() {
                   onChange={(e) =>
                     setItemForm({ ...itemForm, description: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
                   rows={3}
                   placeholder="Optional description"
                 />
               </div>
             </div>
 
-            <div className="flex space-x-3 mt-6">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
               <button
                 onClick={() => {
                   setShowItemModal(false);
                   setEditingItem(null);
                   resetItemForm();
                 }}
-                className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition"
+                className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition text-sm sm:text-base"
               >
                 Cancel
               </button>
@@ -755,7 +757,7 @@ export default function InventoryPage() {
                 disabled={
                   !itemForm.name || !itemForm.category || !itemForm.unit
                 }
-                className="flex-1 px-4 py-2 rounded-lg text-black font-medium transition disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
+                className="flex-1 px-4 py-2 rounded-lg text-black font-medium transition disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 text-sm sm:text-base"
                 style={{ backgroundColor: primaryColor }}
               >
                 {editingItem ? "Update" : "Create"}

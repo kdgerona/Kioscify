@@ -762,53 +762,53 @@ export default function TransactionsPage() {
 
       {/* Transaction Details Modal */}
       {selectedTransaction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">
+            <div className="p-4 sm:p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                   Transaction Details
                 </h2>
                 <button
                   onClick={() => setSelectedTransaction(null)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                  className="text-gray-400 hover:text-gray-600 text-2xl flex-shrink-0"
                 >
                   ×
                 </button>
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Basic Information */}
               <div>
-                <h3 className="font-bold text-gray-900 mb-3 text-lg">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">
                   Basic Information
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Transaction ID</p>
-                    <p className="font-mono text-sm text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Transaction ID</p>
+                    <p className="font-mono text-xs sm:text-sm text-gray-900 break-all">
                       {selectedTransaction.transactionId}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Date & Time</p>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Date & Time</p>
+                    <p className="text-xs sm:text-sm text-gray-900">
                       {formatDateTime(selectedTransaction.timestamp)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Cashier</p>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Cashier</p>
+                    <p className="text-xs sm:text-sm text-gray-900 truncate">
                       {selectedTransaction.user?.email ||
                         selectedTransaction.user?.username ||
                         "N/A"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Payment Status</p>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Payment Status</p>
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getPaymentStatusColor(selectedTransaction.paymentStatus || "COMPLETED")}`}
+                      className={`px-2 sm:px-3 py-1 rounded-full text-xs font-semibold ${getPaymentStatusColor(selectedTransaction.paymentStatus || "COMPLETED")}`}
                     >
                       {getPaymentStatusLabel(
                         selectedTransaction.paymentStatus || "COMPLETED"
@@ -822,40 +822,40 @@ export default function TransactionsPage() {
               {selectedTransaction.items &&
                 selectedTransaction.items.length > 0 && (
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">
                       Order Items
                     </h3>
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       {selectedTransaction.items.map((item) => (
                         <div
                           key={item.id}
-                          className="p-4 bg-gray-50 rounded-lg border-l-4 border-gray-300"
+                          className="p-3 sm:p-4 bg-gray-50 rounded-lg border-l-4 border-gray-300"
                         >
                           {/* Main product line */}
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900">
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm sm:text-base font-medium text-gray-900">
                                 {item.quantity}x{" "}
                                 {item.product?.name || "Product"}
                                 {item.size && (
-                                  <span className="text-sm text-gray-600">
+                                  <span className="text-xs sm:text-sm text-gray-600">
                                     {" "}
                                     ({item.size.name})
                                   </span>
                                 )}
                               </p>
                             </div>
-                            <p className="font-bold text-gray-900">
+                            <p className="text-sm sm:text-base font-bold text-gray-900 flex-shrink-0">
                               {formatCurrency(item.subtotal)}
                             </p>
                           </div>
 
                           {/* Price breakdown */}
-                          <div className="ml-4 space-y-1 mt-2">
+                          <div className="ml-2 sm:ml-4 space-y-1 mt-2">
                             {/* Base price */}
-                            <div className="flex justify-between items-center text-sm text-gray-600">
-                              <span>Base price × {item.quantity}</span>
-                              <span>
+                            <div className="flex justify-between items-center gap-2 text-xs sm:text-sm text-gray-600">
+                              <span className="truncate">Base price × {item.quantity}</span>
+                              <span className="flex-shrink-0">
                                 {formatCurrency(
                                   (item.product?.price || 0) * item.quantity
                                 )}
@@ -864,12 +864,12 @@ export default function TransactionsPage() {
 
                             {/* Size modifier */}
                             {item.size && item.size.priceModifier !== 0 && (
-                              <div className="flex justify-between items-center text-sm text-gray-600">
-                                <span>
+                              <div className="flex justify-between items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                <span className="truncate">
                                   Size modifier ({item.size.name}) ×{" "}
                                   {item.quantity}
                                 </span>
-                                <span>
+                                <span className="flex-shrink-0">
                                   {formatCurrency(
                                     item.size.priceModifier * item.quantity
                                   )}
@@ -886,13 +886,13 @@ export default function TransactionsPage() {
                                   return (
                                     <div
                                       key={idx}
-                                      className="flex justify-between items-center text-sm text-gray-600"
+                                      className="flex justify-between items-center gap-2 text-xs sm:text-sm text-gray-600"
                                     >
-                                      <span>
+                                      <span className="truncate">
                                         + {addon?.name || "Unknown addon"} ×{" "}
                                         {item.quantity}
                                       </span>
-                                      <span>
+                                      <span className="flex-shrink-0">
                                         {formatCurrency(
                                           (addon?.price || 0) * item.quantity
                                         )}
@@ -911,21 +911,21 @@ export default function TransactionsPage() {
 
               {/* Financial Summary */}
               <div>
-                <h3 className="font-bold text-gray-900 mb-3 text-lg">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">
                   Financial Summary
                 </h3>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Subtotal</span>
-                    <span className="text-sm font-medium text-gray-900">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-xs sm:text-sm text-gray-600">Subtotal</span>
+                    <span className="text-xs sm:text-sm font-medium text-gray-900">
                       {formatCurrency(selectedTransaction.subtotal)}
                     </span>
                   </div>
-                  <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
-                    <span className="text-base font-bold text-gray-900">
+                  <div className="border-t border-gray-200 pt-2 flex justify-between items-center gap-2">
+                    <span className="text-sm sm:text-base font-bold text-gray-900">
                       Total
                     </span>
-                    <span className="text-xl font-bold text-gray-900">
+                    <span className="text-lg sm:text-xl font-bold text-gray-900">
                       {formatCurrency(selectedTransaction.total)}
                     </span>
                   </div>
@@ -934,13 +934,13 @@ export default function TransactionsPage() {
 
               {/* Payment Information */}
               <div>
-                <h3 className="font-bold text-gray-900 mb-3 text-lg">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">
                   Payment Information
                 </h3>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg space-y-3">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Payment Method</p>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Payment Method</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">
                       {getPaymentMethodLabel(selectedTransaction.paymentMethod)}
                     </p>
                   </div>
@@ -951,10 +951,10 @@ export default function TransactionsPage() {
                       {selectedTransaction.cashReceived !== null &&
                         selectedTransaction.cashReceived !== undefined && (
                           <div>
-                            <p className="text-sm text-gray-600 mb-1">
+                            <p className="text-xs sm:text-sm text-gray-600 mb-1">
                               Cash Received
                             </p>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-xs sm:text-sm font-medium text-gray-900">
                               {formatCurrency(selectedTransaction.cashReceived)}
                             </p>
                           </div>
@@ -962,8 +962,8 @@ export default function TransactionsPage() {
                       {selectedTransaction.change !== null &&
                         selectedTransaction.change !== undefined && (
                           <div>
-                            <p className="text-sm text-gray-600 mb-1">Change</p>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-xs sm:text-sm text-gray-600 mb-1">Change</p>
+                            <p className="text-xs sm:text-sm font-medium text-gray-900">
                               {formatCurrency(selectedTransaction.change)}
                             </p>
                           </div>
@@ -975,10 +975,10 @@ export default function TransactionsPage() {
                   {selectedTransaction.paymentMethod !== "CASH" &&
                     selectedTransaction.referenceNumber && (
                       <div>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-xs sm:text-sm text-gray-600 mb-1">
                           Reference Number
                         </p>
-                        <p className="text-sm font-mono font-medium text-gray-900">
+                        <p className="text-xs sm:text-sm font-mono font-medium text-gray-900 break-all">
                           {selectedTransaction.referenceNumber}
                         </p>
                       </div>
@@ -989,11 +989,11 @@ export default function TransactionsPage() {
               {/* Remarks/Notes */}
               {selectedTransaction.remarks && (
                 <div>
-                  <h3 className="font-bold text-gray-900 mb-3 text-lg">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">
                     Remarks
                   </h3>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                    <p className="text-xs sm:text-sm text-gray-700 whitespace-pre-wrap break-words">
                       {selectedTransaction.remarks}
                     </p>
                   </div>
@@ -1004,16 +1004,16 @@ export default function TransactionsPage() {
               {selectedTransaction.voidStatus &&
                 selectedTransaction.voidStatus !== "NONE" && (
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-3 text-lg">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">
                       Void Information
                     </h3>
-                    <div className="bg-red-50 border border-red-200 p-4 rounded-lg space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">
+                    <div className="bg-red-50 border border-red-200 p-3 sm:p-4 rounded-lg space-y-3">
+                      <div className="flex justify-between items-center gap-2">
+                        <span className="text-xs sm:text-sm text-gray-600">
                           Void Status
                         </span>
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${getVoidStatusBadgeClass(selectedTransaction.voidStatus)}`}
+                          className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${getVoidStatusBadgeClass(selectedTransaction.voidStatus)}`}
                         >
                           {selectedTransaction.voidStatus}
                         </span>
@@ -1021,32 +1021,32 @@ export default function TransactionsPage() {
 
                       {selectedTransaction.voidReason && (
                         <div>
-                          <p className="text-sm text-gray-600 mb-1">
+                          <p className="text-xs sm:text-sm text-gray-600 mb-1">
                             Void Reason
                           </p>
-                          <p className="text-sm text-gray-900 bg-white p-3 rounded border border-red-100">
+                          <p className="text-xs sm:text-sm text-gray-900 bg-white p-3 rounded border border-red-100 break-words">
                             {selectedTransaction.voidReason}
                           </p>
                         </div>
                       )}
 
                       {selectedTransaction.voidRequester && (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                           <div>
-                            <p className="text-sm text-gray-600 mb-1">
+                            <p className="text-xs sm:text-sm text-gray-600 mb-1">
                               Requested By
                             </p>
-                            <p className="text-sm text-gray-900">
+                            <p className="text-xs sm:text-sm text-gray-900 truncate">
                               {selectedTransaction.voidRequester.email ||
                                 selectedTransaction.voidRequester.username}
                             </p>
                           </div>
                           {selectedTransaction.voidRequestedAt && (
                             <div>
-                              <p className="text-sm text-gray-600 mb-1">
+                              <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                 Requested At
                               </p>
-                              <p className="text-sm text-gray-900">
+                              <p className="text-xs sm:text-sm text-gray-900">
                                 {formatDateTime(
                                   selectedTransaction.voidRequestedAt
                                 )}
@@ -1057,22 +1057,22 @@ export default function TransactionsPage() {
                       )}
 
                       {selectedTransaction.voidReviewer && (
-                        <div className="grid grid-cols-2 gap-4 pt-3 border-t border-red-200">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-3 border-t border-red-200">
                           <div>
-                            <p className="text-sm text-gray-600 mb-1">
+                            <p className="text-xs sm:text-sm text-gray-600 mb-1">
                               Reviewed By
                             </p>
-                            <p className="text-sm text-gray-900">
+                            <p className="text-xs sm:text-sm text-gray-900 truncate">
                               {selectedTransaction.voidReviewer.email ||
                                 selectedTransaction.voidReviewer.username}
                             </p>
                           </div>
                           {selectedTransaction.voidReviewedAt && (
                             <div>
-                              <p className="text-sm text-gray-600 mb-1">
+                              <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                 Reviewed At
                               </p>
-                              <p className="text-sm text-gray-900">
+                              <p className="text-xs sm:text-sm text-gray-900">
                                 {formatDateTime(
                                   selectedTransaction.voidReviewedAt
                                 )}
@@ -1085,10 +1085,10 @@ export default function TransactionsPage() {
                       {selectedTransaction.voidStatus === "REJECTED" &&
                         selectedTransaction.voidRejectionReason && (
                           <div>
-                            <p className="text-sm text-gray-600 mb-1">
+                            <p className="text-xs sm:text-sm text-gray-600 mb-1">
                               Rejection Reason
                             </p>
-                            <p className="text-sm text-gray-900 bg-white p-3 rounded border border-red-100">
+                            <p className="text-xs sm:text-sm text-gray-900 bg-white p-3 rounded border border-red-100 break-words">
                               {selectedTransaction.voidRejectionReason}
                             </p>
                           </div>

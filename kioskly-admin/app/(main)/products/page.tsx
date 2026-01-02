@@ -206,9 +206,9 @@ export default function ProductsPage() {
         <button
           onClick={openCreateModal}
           style={{ backgroundColor: primaryColor }}
-          className="flex items-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90"
+          className="flex items-center justify-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90 text-sm sm:text-base w-full sm:w-auto"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Add Product</span>
         </button>
       </div>
@@ -237,7 +237,7 @@ export default function ProductsPage() {
             >
               {/* Product Image */}
               {product.image ? (
-                <div className="w-full h-48 bg-gray-100 overflow-hidden">
+                <div className="w-full h-40 sm:h-48 bg-gray-100 overflow-hidden">
                   <img
                     src={product.image}
                     alt={product.name}
@@ -245,15 +245,15 @@ export default function ProductsPage() {
                   />
                 </div>
               ) : (
-                <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
-                  <ImageIcon className="w-16 h-16 text-gray-300" />
+                <div className="w-full h-40 sm:h-48 bg-gray-100 flex items-center justify-center">
+                  <ImageIcon className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300" />
                 </div>
               )}
 
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+              <div className="p-4 sm:p-6">
+                <div className="flex items-start justify-between mb-3 sm:mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1 break-words">
                       {product.name}
                     </h3>
                     <p className="text-xs text-gray-500">
@@ -264,17 +264,17 @@ export default function ProductsPage() {
                   </div>
                 </div>
 
-                <div className="mb-4">
-                  <p className="text-2xl font-bold text-black">
+                <div className="mb-3 sm:mb-4">
+                  <p className="text-xl sm:text-2xl font-bold text-black">
                     {formatCurrency(Number(product.price) || 0)}
                   </p>
                   <p className="text-xs text-gray-500">Base Price</p>
                 </div>
 
                 {product.sizes && product.sizes.length > 0 && (
-                  <div className="mb-4">
+                  <div className="mb-3 sm:mb-4">
                     <div className="flex items-center space-x-1 mb-2">
-                      <Ruler className="w-4 h-4 text-gray-400" />
+                      <Ruler className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
                       <p className="text-xs font-medium text-gray-700">
                         Sizes Available:
                       </p>
@@ -283,11 +283,11 @@ export default function ProductsPage() {
                       {product.sizes.map((size) => (
                         <span
                           key={size.id}
-                          className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs"
+                          className="inline-flex items-center px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs break-all"
                         >
                           {size.name}
                           {size.priceModifier !== 0 && (
-                            <span className="ml-1 text-blue-600">
+                            <span className="ml-1 text-blue-600 whitespace-nowrap">
                               ({size.priceModifier > 0 ? "+" : ""}
                               {formatCurrency(size.priceModifier)})
                             </span>
@@ -299,9 +299,9 @@ export default function ProductsPage() {
                 )}
 
                 {product.addons && product.addons.length > 0 && (
-                  <div className="mb-4">
+                  <div className="mb-3 sm:mb-4">
                     <div className="flex items-center space-x-1 mb-2">
-                      <Sparkles className="w-4 h-4 text-gray-400" />
+                      <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
                       <p className="text-xs font-medium text-gray-700">
                         Addons Available:
                       </p>
@@ -310,10 +310,10 @@ export default function ProductsPage() {
                       {product.addons.map((addon) => (
                         <span
                           key={addon.id}
-                          className="inline-flex items-center px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs"
+                          className="inline-flex items-center px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs break-all"
                         >
                           {addon.name}
-                          <span className="ml-1 text-purple-600">
+                          <span className="ml-1 text-purple-600 whitespace-nowrap">
                             (+{formatCurrency(addon.price)})
                           </span>
                         </span>
@@ -322,20 +322,20 @@ export default function ProductsPage() {
                   </div>
                 )}
 
-                <div className="flex space-x-2">
+                <div className="flex gap-2">
                   <button
                     onClick={() => openEditModal(product)}
-                    className="flex-1 flex items-center justify-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2 rounded-lg transition"
+                    className="flex-1 flex items-center justify-center space-x-1 sm:space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 sm:px-3 py-2 rounded-lg transition"
                   >
-                    <Edit className="w-4 h-4" />
-                    <span className="text-sm font-medium">Edit</span>
+                    <Edit className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium">Edit</span>
                   </button>
                   <button
                     onClick={() => handleDelete(product)}
-                    className="flex-1 flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg transition"
+                    className="flex-1 flex items-center justify-center space-x-1 sm:space-x-2 bg-red-50 hover:bg-red-100 text-red-600 px-2 sm:px-3 py-2 rounded-lg transition"
                   >
-                    <Trash2 className="w-4 h-4" />
-                    <span className="text-sm font-medium">Delete</span>
+                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium">Delete</span>
                   </button>
                 </div>
               </div>
@@ -343,34 +343,34 @@ export default function ProductsPage() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No products found</p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
+          <Package className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 text-sm sm:text-base">No products found</p>
         </div>
       )}
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-4xl w-full my-8">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-4xl w-full my-4 sm:my-8">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                 {editingProduct ? "Edit Product" : "Create Product"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
             <form
               onSubmit={handleSubmit}
-              className="p-6 space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto"
+              className="p-4 sm:p-6 space-y-3 sm:space-y-4 max-h-[calc(100vh-8rem)] sm:max-h-[calc(100vh-12rem)] overflow-y-auto"
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Product Name *
                 </label>
                 <input
@@ -380,13 +380,13 @@ export default function ProductsPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 text-sm sm:text-base"
                   placeholder="e.g., Classic Lemonade"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Category *
                 </label>
                 <select
@@ -395,7 +395,7 @@ export default function ProductsPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, categoryId: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 text-sm sm:text-base"
                 >
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
@@ -406,7 +406,7 @@ export default function ProductsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Base Price *
                 </label>
                 <input
@@ -418,7 +418,7 @@ export default function ProductsPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, price: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 text-sm sm:text-base"
                   placeholder="0.00"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -427,10 +427,10 @@ export default function ProductsPage() {
               </div>
 
               {(sizes.length > 0 || addons.length > 0) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   {sizes.length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                         Available Sizes (Optional)
                       </label>
                       <div className="border border-gray-300 rounded-lg p-3 space-y-2 h-40 overflow-y-auto">
@@ -483,7 +483,7 @@ export default function ProductsPage() {
 
                   {addons.length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                         Available Addons (Optional)
                       </label>
                       <div className="border border-gray-300 rounded-lg p-3 space-y-2 h-40 overflow-y-auto">
@@ -531,12 +531,12 @@ export default function ProductsPage() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Product Image
                 </label>
                 <div className="space-y-3">
                   {imagePreview && (
-                    <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
+                    <div className="relative w-full h-40 sm:h-48 bg-gray-100 rounded-lg overflow-hidden">
                       <img
                         src={imagePreview}
                         alt="Preview"
@@ -547,10 +547,10 @@ export default function ProductsPage() {
                   <div className="flex items-center space-x-2">
                     <label
                       htmlFor="image-upload"
-                      className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition"
+                      className="flex-1 flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition"
                     >
-                      <Upload className="w-4 h-4 text-gray-600" />
-                      <span className="text-sm text-gray-700">
+                      <Upload className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm text-gray-700 truncate">
                         {selectedImage ? selectedImage.name : "Choose Image"}
                       </span>
                     </label>
@@ -568,12 +568,12 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              <div className="flex space-x-3 pt-4">
+              <div className="flex gap-2 sm:gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
                   disabled={uploadingImage}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   Cancel
                 </button>
@@ -581,7 +581,7 @@ export default function ProductsPage() {
                   type="submit"
                   disabled={uploadingImage}
                   style={{ backgroundColor: primaryColor }}
-                  className="flex-1 px-4 py-2 text-black rounded-lg transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-3 sm:px-4 py-2 text-black rounded-lg transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   {uploadingImage
                     ? "Uploading..."

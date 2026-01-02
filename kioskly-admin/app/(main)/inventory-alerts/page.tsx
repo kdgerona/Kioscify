@@ -184,17 +184,17 @@ export default function InventoryAlertsPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="flex space-x-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
         <Link
           href="/inventory-reports"
-          className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium transition hover:bg-gray-50"
+          className="flex items-center justify-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium transition hover:bg-gray-50 text-sm sm:text-base"
         >
           <Package className="w-4 h-4" />
           <span>View Reports</span>
         </Link>
         <Link
           href="/inventory-progression"
-          className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium transition hover:bg-gray-50"
+          className="flex items-center justify-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium transition hover:bg-gray-50 text-sm sm:text-base"
         >
           <TrendingUp className="w-4 h-4" />
           <span>View Progression</span>
@@ -206,33 +206,33 @@ export default function InventoryAlertsPage() {
           title="Refresh"
         >
           <RefreshCw
-            className={`w-5 h-5 ${refreshing ? "animate-spin" : ""}`}
+            className={`w-4 h-4 sm:w-5 sm:h-5 ${refreshing ? "animate-spin" : ""}`}
           />
         </button>
       </div>
 
       {/* Alert Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
         <button
           onClick={() =>
             setSelectedType(selectedType === "LOW_STOCK" ? null : "LOW_STOCK")
           }
-          className={`bg-white rounded-xl shadow-sm p-6 border-2 transition hover:shadow-md text-left ${
+          className={`bg-white rounded-xl shadow-sm p-4 sm:p-6 border-2 transition hover:shadow-md text-left ${
             selectedType === "LOW_STOCK" ? "border-red-500" : "border-gray-200"
           }`}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-red-500 p-3 rounded-lg">
-              <Package className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="bg-red-500 p-2 sm:p-3 rounded-lg">
+              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             {selectedType === "LOW_STOCK" && (
-              <span className="text-sm font-semibold text-red-600">
+              <span className="text-xs sm:text-sm font-semibold text-red-600">
                 FILTERED
               </span>
             )}
           </div>
-          <p className="text-gray-600 text-sm mb-1">Low Stock Alerts</p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">Low Stock Alerts</p>
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
             {alertsData?.alertsByType.LOW_STOCK || 0}
           </p>
         </button>
@@ -243,24 +243,24 @@ export default function InventoryAlertsPage() {
               selectedType === "USAGE_SPIKE" ? null : "USAGE_SPIKE"
             )
           }
-          className={`bg-white rounded-xl shadow-sm p-6 border-2 transition hover:shadow-md text-left ${
+          className={`bg-white rounded-xl shadow-sm p-4 sm:p-6 border-2 transition hover:shadow-md text-left ${
             selectedType === "USAGE_SPIKE"
               ? "border-orange-500"
               : "border-gray-200"
           }`}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-orange-500 p-3 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="bg-orange-500 p-2 sm:p-3 rounded-lg">
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             {selectedType === "USAGE_SPIKE" && (
-              <span className="text-sm font-semibold text-orange-600">
+              <span className="text-xs sm:text-sm font-semibold text-orange-600">
                 FILTERED
               </span>
             )}
           </div>
-          <p className="text-gray-600 text-sm mb-1">Usage Spikes</p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">Usage Spikes</p>
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
             {alertsData?.alertsByType.USAGE_SPIKE || 0}
           </p>
         </button>
@@ -273,24 +273,24 @@ export default function InventoryAlertsPage() {
                 : "PROJECTED_STOCKOUT"
             )
           }
-          className={`bg-white rounded-xl shadow-sm p-6 border-2 transition hover:shadow-md text-left ${
+          className={`bg-white rounded-xl shadow-sm p-4 sm:p-6 border-2 transition hover:shadow-md text-left ${
             selectedType === "PROJECTED_STOCKOUT"
               ? "border-red-500"
               : "border-gray-200"
           }`}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-red-600 p-3 rounded-lg">
-              <Clock className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="bg-red-600 p-2 sm:p-3 rounded-lg">
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             {selectedType === "PROJECTED_STOCKOUT" && (
-              <span className="text-sm font-semibold text-red-600">
+              <span className="text-xs sm:text-sm font-semibold text-red-600">
                 FILTERED
               </span>
             )}
           </div>
-          <p className="text-gray-600 text-sm mb-1">Projected Stockouts</p>
-          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">Projected Stockouts</p>
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
             {alertsData?.alertsByType.PROJECTED_STOCKOUT || 0}
           </p>
         </button>
@@ -298,20 +298,20 @@ export default function InventoryAlertsPage() {
 
       {/* Alerts List */}
       {!alertsData || alertsData.totalAlerts === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 border border-gray-200 text-center">
-          <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <p className="text-gray-900 text-xl font-bold mb-2">All Clear!</p>
-          <p className="text-gray-600">
+        <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 border border-gray-200 text-center">
+          <CheckCircle2 className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-4" />
+          <p className="text-gray-900 text-lg sm:text-xl font-bold mb-2">All Clear!</p>
+          <p className="text-gray-600 text-sm sm:text-base">
             No active alerts at this time. All inventory levels are healthy.
           </p>
         </div>
       ) : filteredAlerts.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 border border-gray-200 text-center">
-          <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <p className="text-gray-900 text-xl font-bold mb-2">
+        <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 border border-gray-200 text-center">
+          <CheckCircle2 className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-4" />
+          <p className="text-gray-900 text-lg sm:text-xl font-bold mb-2">
             No {getAlertTypeLabel(selectedType!)} Alerts
           </p>
-          <p className="text-gray-600">There are no alerts in this category.</p>
+          <p className="text-gray-600 text-sm sm:text-base">There are no alerts in this category.</p>
         </div>
       ) : (
         (() => {
@@ -328,9 +328,9 @@ export default function InventoryAlertsPage() {
           const sortedCategories = Object.keys(groupedAlerts).sort();
 
           return (
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8">
               {selectedType && (
-                <div className="text-sm text-gray-600 mb-4">
+                <div className="text-xs sm:text-sm text-gray-600 mb-4">
                   Showing {filteredAlerts.length}{" "}
                   {getAlertTypeLabel(selectedType)} alert
                   {filteredAlerts.length !== 1 ? "s" : ""}
@@ -339,12 +339,12 @@ export default function InventoryAlertsPage() {
               {sortedCategories.map((category) => (
                 <div key={category}>
                   {/* Category Header */}
-                  <div className="flex items-center mb-4">
-                    <h2 className="text-2xl font-bold text-gray-800">
+                  <div className="flex items-center mb-3 sm:mb-4 gap-2 sm:gap-4">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">
                       {formatCategoryName(category)}
                     </h2>
-                    <div className="flex-1 ml-4 border-t-2 border-gray-300"></div>
-                    <span className="ml-4 px-3 py-1 text-sm rounded-full bg-red-100 text-red-700 font-semibold">
+                    <div className="flex-1 border-t-2 border-gray-300"></div>
+                    <span className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-full bg-red-100 text-red-700 font-semibold whitespace-nowrap flex-shrink-0">
                       {groupedAlerts[category].length}{" "}
                       {groupedAlerts[category].length === 1
                         ? "alert"
@@ -365,27 +365,27 @@ export default function InventoryAlertsPage() {
                         return (
                           <div
                             key={`${alert.type}-${alert.itemId}-${index}`}
-                            className="bg-white rounded-xl shadow-sm p-6 border border-gray-200"
+                            className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200"
                           >
                             {/* Alert Header */}
-                            <div className="flex items-start justify-between mb-4">
-                              <div className="flex items-start space-x-4">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                              <div className="flex items-start space-x-3 sm:space-x-4">
                                 <div
-                                  className="p-3 rounded-lg"
+                                  className="p-2 sm:p-3 rounded-lg flex-shrink-0"
                                   style={{ backgroundColor: severityBgColor }}
                                 >
                                   <Icon
-                                    className="w-6 h-6"
+                                    className="w-5 h-5 sm:w-6 sm:h-6"
                                     style={{ color: severityColor }}
                                   />
                                 </div>
-                                <div>
-                                  <div className="flex items-center space-x-3 mb-1">
-                                    <h3 className="text-xl font-bold text-gray-900">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 break-words">
                                       {alert.itemName}
                                     </h3>
                                     <span
-                                      className="px-3 py-1 rounded-full text-xs font-bold"
+                                      className="px-2 sm:px-3 py-1 rounded-full text-xs font-bold flex-shrink-0"
                                       style={{
                                         backgroundColor: severityBgColor,
                                         color: severityColor,
@@ -394,43 +394,43 @@ export default function InventoryAlertsPage() {
                                       {alert.severity}
                                     </span>
                                   </div>
-                                  <p className="text-sm text-gray-600">
+                                  <p className="text-xs sm:text-sm text-gray-600">
                                     Unit: {alert.unit}
                                   </p>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg">
+                              <div className="text-left sm:text-right flex-shrink-0">
+                                <span className="inline-block px-2 sm:px-3 py-1 bg-gray-100 text-gray-700 text-xs sm:text-sm font-semibold rounded-lg">
                                   {getAlertTypeLabel(alert.type)}
                                 </span>
                               </div>
                             </div>
 
                             {/* Alert Details */}
-                            <div className="bg-gray-50 rounded-lg p-4">
+                            <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
                               {alert.type === "LOW_STOCK" && (
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Current Quantity
                                     </p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                                       {alert.currentQuantity}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Minimum Level
                                     </p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                                       {alert.minStockLevel}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Shortfall
                                     </p>
-                                    <p className="text-2xl font-bold text-red-600">
+                                    <p className="text-xl sm:text-2xl font-bold text-red-600">
                                       -{alert.shortfall}
                                     </p>
                                   </div>
@@ -438,28 +438,28 @@ export default function InventoryAlertsPage() {
                               )}
 
                               {alert.type === "USAGE_SPIKE" && (
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Latest Consumption
                                     </p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                                       {alert.latestConsumption?.toFixed(1)}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Average Consumption
                                     </p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                                       {alert.averageConsumption?.toFixed(1)}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Increase
                                     </p>
-                                    <p className="text-2xl font-bold text-orange-600">
+                                    <p className="text-xl sm:text-2xl font-bold text-orange-600">
                                       +{alert.percentageIncrease?.toFixed(1)}%
                                     </p>
                                   </div>
@@ -467,36 +467,36 @@ export default function InventoryAlertsPage() {
                               )}
 
                               {alert.type === "PROJECTED_STOCKOUT" && (
-                                <div className="grid grid-cols-4 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Current Quantity
                                     </p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                                       {alert.currentQuantity}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Daily Consumption
                                     </p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
                                       {alert.avgDailyConsumption?.toFixed(1)}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Days Until Stockout
                                     </p>
-                                    <p className="text-2xl font-bold text-red-600">
+                                    <p className="text-xl sm:text-2xl font-bold text-red-600">
                                       {alert.daysUntilStockout} days
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-sm text-gray-600 mb-1">
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
                                       Estimated Date
                                     </p>
-                                    <p className="text-lg font-bold text-red-600">
+                                    <p className="text-base sm:text-lg font-bold text-red-600">
                                       {alert.estimatedStockoutDate &&
                                         formatDate(alert.estimatedStockoutDate)}
                                     </p>

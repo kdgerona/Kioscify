@@ -86,45 +86,45 @@ export default function InventoryReportsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 sm:mb-8">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-blue-500 p-3 rounded-lg">
-              <FileText className="w-6 h-6 text-white" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="bg-blue-500 p-2 sm:p-3 rounded-lg">
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Total Reports</p>
-          <p className="text-2xl font-bold text-gray-900">{stats?.totalReports || 0}</p>
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">Total Reports</p>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats?.totalReports || 0}</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-green-500 p-3 rounded-lg">
-              <Calendar className="w-6 h-6 text-white" />
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="bg-green-500 p-2 sm:p-3 rounded-lg">
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
           </div>
-          <p className="text-gray-600 text-sm mb-1">This Month</p>
-          <p className="text-2xl font-bold text-gray-900">{stats?.reportsThisMonth || 0}</p>
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">This Month</p>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats?.reportsThisMonth || 0}</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-purple-500 p-3 rounded-lg">
-              <User className="w-6 h-6 text-white" />
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="bg-purple-500 p-2 sm:p-3 rounded-lg">
+              <User className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
           </div>
-          <p className="text-gray-600 text-sm mb-1">Last Submission</p>
-          <p className="text-sm font-bold text-gray-900">
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">Last Submission</p>
+          <p className="text-xs sm:text-sm font-bold text-gray-900">
             {stats?.lastSubmission ? formatDate(stats.lastSubmission.date) : 'No reports yet'}
           </p>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="flex space-x-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
         <Link
           href="/inventory-progression"
-          className="flex items-center space-x-2 px-4 py-2 rounded-lg text-black font-medium transition hover:opacity-90"
+          className="flex items-center justify-center space-x-2 px-4 py-2 rounded-lg text-black font-medium transition hover:opacity-90 text-sm sm:text-base"
           style={{ backgroundColor: primaryColor }}
         >
           <TrendingUp className="w-4 h-4" />
@@ -132,7 +132,7 @@ export default function InventoryReportsPage() {
         </Link>
         <Link
           href="/inventory-alerts"
-          className="flex items-center space-x-2 px-4 py-2 bg-red-600 rounded-lg text-white font-medium transition hover:bg-red-700"
+          className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 rounded-lg text-white font-medium transition hover:bg-red-700 text-sm sm:text-base"
         >
           <AlertTriangle className="w-4 h-4" />
           <span>View Alerts</span>
@@ -143,63 +143,65 @@ export default function InventoryReportsPage() {
           className="flex items-center justify-center p-2 border border-gray-300 rounded-lg text-gray-700 font-medium transition hover:bg-gray-50 disabled:opacity-50"
           title="Refresh"
         >
-          <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${refreshing ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
       {/* Reports List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Submitted Reports</h2>
+        <div className="p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Submitted Reports</h2>
 
           {reports.length === 0 ? (
             <div className="text-center py-12">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-2">No inventory reports yet</p>
-              <p className="text-sm text-gray-500">
+              <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-sm sm:text-base text-gray-600 mb-2">No inventory reports yet</p>
+              <p className="text-xs sm:text-sm text-gray-500">
                 Reports will appear here once submitted from the mobile app
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Report Date</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Submitted At</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Submitted By</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Items</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.map((report) => (
-                    <tr key={report.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 font-medium text-gray-900">
-                        {formatDate(report.reportDate)}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {formatDateTime(report.submittedAt)}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {report.user.username}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {report.inventorySnapshot.totalItems} items
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {report.notes ? (
-                          <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                            Has notes
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="min-w-full inline-block align-middle px-4 sm:px-0">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Report Date</th>
+                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Submitted At</th>
+                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Submitted By</th>
+                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Items</th>
+                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Notes</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {reports.map((report) => (
+                      <tr key={report.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-2 sm:px-4 font-medium text-gray-900 text-xs sm:text-sm">
+                          {formatDate(report.reportDate)}
+                        </td>
+                        <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
+                          {formatDateTime(report.submittedAt)}
+                        </td>
+                        <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
+                          {report.user.username}
+                        </td>
+                        <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
+                          {report.inventorySnapshot.totalItems} items
+                        </td>
+                        <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
+                          {report.notes ? (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              Has notes
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

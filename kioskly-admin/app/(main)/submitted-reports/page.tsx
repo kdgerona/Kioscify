@@ -111,8 +111,8 @@ export default function SubmittedReportsPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-6">
-        <div className="flex items-center gap-4">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200 mb-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
           <div className="flex-1">
             <DatePicker
               date={startDate}
@@ -127,22 +127,24 @@ export default function SubmittedReportsPage() {
               placeholder="Submission end date"
             />
           </div>
-          <button
-            onClick={() => loadReports(false)}
-            className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
-            title="Refresh reports"
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
-          {(startDate || endDate) && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={clearFilters}
-              className="text-gray-600 hover:text-gray-900 p-2 rounded-lg border border-gray-300 hover:border-gray-400 transition"
-              title="Clear filters"
+              onClick={() => loadReports(false)}
+              className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+              title="Refresh reports"
             >
-              <X className="w-5 h-5" />
+              <RefreshCw className="w-5 h-5" />
             </button>
-          )}
+            {(startDate || endDate) && (
+              <button
+                onClick={clearFilters}
+                className="text-gray-600 hover:text-gray-900 p-2 rounded-lg border border-gray-300 hover:border-gray-400 transition"
+                title="Clear filters"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -235,16 +237,16 @@ export default function SubmittedReportsPage() {
 
       {/* Detail Modal */}
       {(selectedReport || loadingDetails) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">
+            <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                   Report Details
                 </h2>
                 <button
                   onClick={() => setSelectedReport(null)}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                  className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl flex-shrink-0"
                 >
                   ×
                 </button>
@@ -252,37 +254,47 @@ export default function SubmittedReportsPage() {
             </div>
 
             {loadingDetails ? (
-              <div className="p-12 flex flex-col items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-                <p className="text-gray-600">Loading report details...</p>
+              <div className="p-8 sm:p-12 flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-indigo-600 mb-4"></div>
+                <p className="text-sm sm:text-base text-gray-600">
+                  Loading report details...
+                </p>
               </div>
             ) : selectedReport ? (
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                 {/* Metadata */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Report Date</p>
-                    <p className="text-lg font-semibold text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                      Report Date
+                    </p>
+                    <p className="text-base sm:text-lg font-semibold text-gray-900">
                       {selectedReport.reportDate}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Submitted At</p>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                      Submitted At
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-900">
                       {formatDateTime(selectedReport.submittedAt)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Submitted By</p>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                      Submitted By
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-900 break-words">
                       {selectedReport.user?.email ||
                         selectedReport.user?.username}{" "}
                       ({selectedReport.user?.role})
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 mb-1">Period Covered</p>
-                    <p className="text-xs text-gray-700">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                      Period Covered
+                    </p>
+                    <p className="text-xs text-gray-700 break-words">
                       {new Date(selectedReport.periodStart).toLocaleString()} -{" "}
                       {new Date(selectedReport.periodEnd).toLocaleString()}
                     </p>
@@ -290,27 +302,35 @@ export default function SubmittedReportsPage() {
                 </div>
 
                 {/* Summary */}
-                <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 rounded-xl">
-                  <h3 className="text-lg font-bold mb-4">Summary</h3>
-                  <div className="grid grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-4 sm:p-6 rounded-xl">
+                  <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">
+                    Summary
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div>
-                      <p className="text-emerald-100 text-sm">Gross Profit</p>
-                      <p className="text-2xl font-bold">
+                      <p className="text-emerald-100 text-xs sm:text-sm">
+                        Gross Profit
+                      </p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold">
                         {formatCurrency(
                           selectedReport.summarySnapshot.grossProfit
                         )}
                       </p>
                     </div>
                     <div>
-                      <p className="text-emerald-100 text-sm">Profit Margin</p>
-                      <p className="text-2xl font-bold">
+                      <p className="text-emerald-100 text-xs sm:text-sm">
+                        Profit Margin
+                      </p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold">
                         {selectedReport.summarySnapshot.profitMargin.toFixed(2)}
                         %
                       </p>
                     </div>
                     <div>
-                      <p className="text-emerald-100 text-sm">Net Revenue</p>
-                      <p className="text-2xl font-bold">
+                      <p className="text-emerald-100 text-xs sm:text-sm">
+                        Net Revenue
+                      </p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold">
                         {formatCurrency(
                           selectedReport.summarySnapshot.netRevenue
                         )}
@@ -320,47 +340,55 @@ export default function SubmittedReportsPage() {
                 </div>
 
                 {/* Sales Snapshot */}
-                <div className="bg-blue-50 p-6 rounded-xl border-2 border-blue-200">
-                  <h3 className="text-lg font-bold text-blue-900 mb-4">
+                <div className="bg-blue-50 p-4 sm:p-6 rounded-xl border-2 border-blue-200">
+                  <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-3 sm:mb-4">
                     Sales
                   </h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <p className="text-sm text-blue-700">Total Amount</p>
-                      <p className="text-xl font-bold text-blue-900">
+                      <p className="text-xs sm:text-sm text-blue-700">
+                        Total Amount
+                      </p>
+                      <p className="text-lg sm:text-xl font-bold text-blue-900">
                         {formatCurrency(
                           selectedReport.salesSnapshot.totalAmount
                         )}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-blue-700">Transactions</p>
-                      <p className="text-xl font-bold text-blue-900">
+                      <p className="text-xs sm:text-sm text-blue-700">
+                        Transactions
+                      </p>
+                      <p className="text-lg sm:text-xl font-bold text-blue-900">
                         {selectedReport.salesSnapshot.transactionCount}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-blue-700">Avg Transaction</p>
-                      <p className="text-lg font-semibold text-blue-900">
+                      <p className="text-xs sm:text-sm text-blue-700">
+                        Avg Transaction
+                      </p>
+                      <p className="text-base sm:text-lg font-semibold text-blue-900">
                         {formatCurrency(
                           selectedReport.salesSnapshot.averageTransaction
                         )}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-blue-700">Items Sold</p>
-                      <p className="text-lg font-semibold text-blue-900">
+                      <p className="text-xs sm:text-sm text-blue-700">
+                        Items Sold
+                      </p>
+                      <p className="text-base sm:text-lg font-semibold text-blue-900">
                         {selectedReport.salesSnapshot.totalItemsSold}
                       </p>
                     </div>
                   </div>
 
                   {/* Payment Method Breakdown */}
-                  <div className="mt-4 pt-4 border-t border-blue-300">
-                    <p className="text-sm font-bold text-blue-900 mb-2">
+                  <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-blue-300">
+                    <p className="text-xs sm:text-sm font-bold text-blue-900 mb-2">
                       Payment Methods
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {Object.entries(
                         selectedReport.salesSnapshot
                           .paymentMethodBreakdown as Record<
@@ -368,9 +396,12 @@ export default function SubmittedReportsPage() {
                           { total: number; count: number }
                         >
                       ).map(([method, data]) => (
-                        <div key={method} className="bg-white p-3 rounded-lg">
+                        <div
+                          key={method}
+                          className="bg-white p-2 sm:p-3 rounded-lg"
+                        >
                           <p className="text-xs text-gray-600">{method}</p>
-                          <p className="text-sm font-bold text-gray-900">
+                          <p className="text-xs sm:text-sm font-bold text-gray-900">
                             {formatCurrency(data.total)}
                           </p>
                           <p className="text-xs text-gray-500">
@@ -383,28 +414,32 @@ export default function SubmittedReportsPage() {
                 </div>
 
                 {/* Expenses Snapshot */}
-                <div className="bg-red-50 p-6 rounded-xl border-2 border-red-200">
-                  <h3 className="text-lg font-bold text-red-900 mb-4">
+                <div className="bg-red-50 p-4 sm:p-6 rounded-xl border-2 border-red-200">
+                  <h3 className="text-base sm:text-lg font-bold text-red-900 mb-3 sm:mb-4">
                     Expenses
                   </h3>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div>
-                      <p className="text-sm text-red-700">Total Amount</p>
-                      <p className="text-xl font-bold text-red-900">
+                      <p className="text-xs sm:text-sm text-red-700">
+                        Total Amount
+                      </p>
+                      <p className="text-lg sm:text-xl font-bold text-red-900">
                         {formatCurrency(
                           selectedReport.expensesSnapshot.totalAmount
                         )}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-red-700">Count</p>
-                      <p className="text-xl font-bold text-red-900">
+                      <p className="text-xs sm:text-sm text-red-700">Count</p>
+                      <p className="text-lg sm:text-xl font-bold text-red-900">
                         {selectedReport.expensesSnapshot.expenseCount}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-red-700">Avg Expense</p>
-                      <p className="text-lg font-semibold text-red-900">
+                      <p className="text-xs sm:text-sm text-red-700">
+                        Avg Expense
+                      </p>
+                      <p className="text-base sm:text-lg font-semibold text-red-900">
                         {formatCurrency(
                           selectedReport.expensesSnapshot.averageExpense
                         )}
@@ -413,11 +448,11 @@ export default function SubmittedReportsPage() {
                   </div>
 
                   {/* Category Breakdown */}
-                  <div className="mt-4 pt-4 border-t border-red-300">
-                    <p className="text-sm font-bold text-red-900 mb-2">
+                  <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-red-300">
+                    <p className="text-xs sm:text-sm font-bold text-red-900 mb-2">
                       Categories
                     </p>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {Object.entries(
                         selectedReport.expensesSnapshot
                           .categoryBreakdown as Record<
@@ -425,9 +460,12 @@ export default function SubmittedReportsPage() {
                           { total: number; count: number }
                         >
                       ).map(([category, data]) => (
-                        <div key={category} className="bg-white p-3 rounded-lg">
+                        <div
+                          key={category}
+                          className="bg-white p-2 sm:p-3 rounded-lg"
+                        >
                           <p className="text-xs text-gray-600">{category}</p>
-                          <p className="text-sm font-bold text-gray-900">
+                          <p className="text-xs sm:text-sm font-bold text-gray-900">
                             {formatCurrency(data.total)}
                           </p>
                           <p className="text-xs text-gray-500">
@@ -440,8 +478,8 @@ export default function SubmittedReportsPage() {
                 </div>
 
                 {/* Transaction Details */}
-                <div className="bg-gray-50 p-6 rounded-xl">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">
+                <div className="bg-gray-50 p-4 sm:p-6 rounded-xl">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
                     Transactions (
                     {selectedReport.transactions?.length ||
                       selectedReport.transactionIds.length}
@@ -449,23 +487,23 @@ export default function SubmittedReportsPage() {
                   </h3>
                   {selectedReport.transactions &&
                   selectedReport.transactions.length > 0 ? (
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                    <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
                       {selectedReport.transactions.map((transaction) => (
                         <div
                           key={transaction.id}
-                          className="bg-white p-4 rounded-lg border border-gray-200"
+                          className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200"
                         >
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <p className="text-sm font-semibold text-gray-900">
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900 break-all">
                                 Transaction #{transaction.transactionId}
                               </p>
                               <p className="text-xs text-gray-500">
                                 {formatDateTime(transaction.timestamp)}
                               </p>
                             </div>
-                            <div className="text-right">
-                              <p className="text-lg font-bold text-gray-900">
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-base sm:text-lg font-bold text-gray-900">
                                 {formatCurrency(transaction.total)}
                               </p>
                               <p className="text-xs text-gray-600">
@@ -574,8 +612,8 @@ export default function SubmittedReportsPage() {
                 </div>
 
                 {/* Expense Details */}
-                <div className="bg-gray-50 p-6 rounded-xl">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">
+                <div className="bg-gray-50 p-4 sm:p-6 rounded-xl">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
                     Expenses (
                     {selectedReport.expenses?.length ||
                       selectedReport.expenseIds.length}
@@ -583,26 +621,26 @@ export default function SubmittedReportsPage() {
                   </h3>
                   {selectedReport.expenses &&
                   selectedReport.expenses.length > 0 ? (
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                    <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
                       {selectedReport.expenses.map((expense) => (
                         <div
                           key={expense.id}
-                          className="bg-white p-4 rounded-lg border border-gray-200"
+                          className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200"
                         >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <p className="text-sm font-semibold text-gray-900">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900 break-words">
                                 {expense.description}
                               </p>
                               <p className="text-xs text-gray-500 mt-1">
                                 {formatDateTime(expense.date)}
                               </p>
-                              <div className="flex items-center gap-2 mt-1">
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
                                 <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
                                   {expense.category}
                                 </span>
                                 {expense.user && (
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-gray-500 truncate">
                                     by{" "}
                                     {expense.user.username ||
                                       expense.user.email}
@@ -610,13 +648,13 @@ export default function SubmittedReportsPage() {
                                 )}
                               </div>
                               {expense.notes && (
-                                <p className="text-xs text-sm sm:text-base text-gray-600 mt-2 italic">
+                                <p className="text-xs sm:text-sm text-gray-600 mt-2 italic break-words">
                                   {expense.notes}
                                 </p>
                               )}
                             </div>
-                            <div className="text-right ml-4">
-                              <p className="text-lg font-bold text-red-600">
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-base sm:text-lg font-bold text-red-600">
                                 {formatCurrency(expense.amount)}
                               </p>
                             </div>
@@ -625,17 +663,19 @@ export default function SubmittedReportsPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">No expenses found</p>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      No expenses found
+                    </p>
                   )}
                 </div>
 
                 {/* Notes */}
                 {selectedReport.notes && (
-                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                    <p className="text-sm font-semibold text-yellow-800 mb-1">
+                  <div className="bg-yellow-50 border border-yellow-200 p-3 sm:p-4 rounded-lg">
+                    <p className="text-xs sm:text-sm font-semibold text-yellow-800 mb-1">
                       Notes:
                     </p>
-                    <p className="text-sm text-yellow-900">
+                    <p className="text-xs sm:text-sm text-yellow-900 break-words">
                       {selectedReport.notes}
                     </p>
                   </div>

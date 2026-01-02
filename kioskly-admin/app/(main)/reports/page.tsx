@@ -432,7 +432,7 @@ export default function ReportsPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6 sm:mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             Reports & Analytics
@@ -441,7 +441,7 @@ export default function ReportsPage() {
             Sales performance and business insights
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={loadReportData}
             className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
@@ -452,10 +452,10 @@ export default function ReportsPage() {
           <button
             onClick={exportReport}
             style={{ backgroundColor: primaryColor }}
-            className="flex items-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90"
+            className="flex items-center justify-center gap-2 text-black px-3 sm:px-4 py-2 rounded-lg transition hover:opacity-90 whitespace-nowrap"
           >
-            <Download className="w-5 h-5" />
-            <span>Export Report</span>
+            <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-sm sm:text-base">Export Report</span>
           </button>
         </div>
       </div>

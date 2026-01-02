@@ -105,67 +105,67 @@ export default function CategoriesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6 sm:mb-8">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Categories</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-2">Organize your products into categories</p>
         </div>
         <button
           onClick={openCreateModal}
           style={{ backgroundColor: primaryColor }}
-          className="flex items-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90"
+          className="flex items-center justify-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90 text-sm sm:text-base w-full sm:w-auto flex-shrink-0"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Add Category</span>
         </button>
       </div>
 
       {/* Categories Grid */}
       {categories.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {categories.map((category) => (
             <div
               key={category.id}
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition"
             >
-              <div className="p-6">
-                <div className="flex items-center mb-4">
-                  <div className="p-3 rounded-lg" style={{ backgroundColor: `${primaryColor}20` }}>
-                    <FolderOpen className="w-6 h-6" style={{ color: primaryColor }} />
+              <div className="p-4 sm:p-6">
+                <div className="flex items-center mb-3 sm:mb-4">
+                  <div className="p-2 sm:p-3 rounded-lg flex-shrink-0" style={{ backgroundColor: `${primaryColor}20` }}>
+                    <FolderOpen className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: primaryColor }} />
                   </div>
-                  <div className="ml-4 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold text-gray-900">{category.name}</h3>
-                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+                  <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 break-words">{category.name}</h3>
+                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600 whitespace-nowrap flex-shrink-0">
                         #{category.sequenceNo ?? 0}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-500">
                       {new Date(category.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
 
                 {category.description && (
-                  <p className="text-sm text-gray-600 mb-4 min-h-[40px]">
+                  <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 min-h-[40px] break-words">
                     {category.description}
                   </p>
                 )}
 
-                <div className="flex space-x-2 mt-4">
+                <div className="flex gap-2 mt-3 sm:mt-4">
                   <button
                     onClick={() => openEditModal(category)}
-                    className="flex-1 flex items-center justify-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2 rounded-lg transition"
+                    className="flex-1 flex items-center justify-center space-x-1 sm:space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 sm:px-3 py-2 rounded-lg transition"
                   >
-                    <Edit className="w-4 h-4" />
-                    <span className="text-sm font-medium">Edit</span>
+                    <Edit className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium">Edit</span>
                   </button>
                   <button
                     onClick={() => handleDelete(category)}
-                    className="flex-1 flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg transition"
+                    className="flex-1 flex items-center justify-center space-x-1 sm:space-x-2 bg-red-50 hover:bg-red-100 text-red-600 px-2 sm:px-3 py-2 rounded-lg transition"
                   >
-                    <Trash2 className="w-4 h-4" />
-                    <span className="text-sm font-medium">Delete</span>
+                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium">Delete</span>
                   </button>
                 </div>
               </div>
@@ -173,15 +173,15 @@ export default function CategoriesPage() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 mb-4">No categories found</p>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
+          <FolderOpen className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-sm sm:text-base text-gray-600 mb-4">No categories found</p>
           <button
             onClick={openCreateModal}
             style={{ backgroundColor: primaryColor }}
-            className="inline-flex items-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90"
+            className="inline-flex items-center justify-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90 text-sm sm:text-base"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Create Your First Category</span>
           </button>
         </div>
@@ -189,23 +189,23 @@ export default function CategoriesPage() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-lg w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                 {editingCategory ? 'Edit Category' : 'Create Category'}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Category Name *
                 </label>
                 <input
@@ -213,26 +213,26 @@ export default function CategoriesPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 text-sm sm:text-base"
                   placeholder="e.g., Coffee, Tea, Smoothies"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Description
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 text-sm sm:text-base"
                   placeholder="Category description (optional)"
                   rows={3}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Sequence Number
                 </label>
                 <input
@@ -240,7 +240,7 @@ export default function CategoriesPage() {
                   min="0"
                   value={formData.sequenceNo}
                   onChange={(e) => setFormData({ ...formData, sequenceNo: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 text-sm sm:text-base"
                   placeholder="0"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -248,18 +248,18 @@ export default function CategoriesPage() {
                 </p>
               </div>
 
-              <div className="flex space-x-3 pt-4">
+              <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                  className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition text-sm sm:text-base"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   style={{ backgroundColor: primaryColor }}
-                  className="flex-1 px-4 py-2 text-black rounded-lg transition hover:opacity-90"
+                  className="flex-1 px-3 sm:px-4 py-2 text-black rounded-lg transition hover:opacity-90 text-sm sm:text-base"
                 >
                   {editingCategory ? 'Update' : 'Create'}
                 </button>

@@ -104,7 +104,7 @@ export default function AddonsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
             Addons
           </h1>
@@ -115,61 +115,61 @@ export default function AddonsPage() {
         <button
           onClick={openCreateModal}
           style={{ backgroundColor: primaryColor }}
-          className="flex items-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90"
+          className="flex items-center justify-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90 text-sm sm:text-base w-full sm:w-auto flex-shrink-0"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           <span>Add Addon</span>
         </button>
       </div>
 
       {/* Addons Grid */}
       {addons.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {addons.map((addon) => (
             <div
               key={addon.id}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition"
+              className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">
+              <div className="flex items-start justify-between mb-3 sm:mb-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1 break-words">
                     {addon.name}
                   </h3>
                 </div>
-                <Sparkles className="w-6 h-6 text-gray-400" />
+                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 flex-shrink-0 ml-2" />
               </div>
 
-              <div className="mb-4">
-                <p className="text-2xl font-bold text-black">
+              <div className="mb-3 sm:mb-4">
+                <p className="text-xl sm:text-2xl font-bold text-black break-all">
                   {formatCurrency(addon.price)}
                 </p>
                 <p className="text-xs text-gray-500">Additional Price</p>
               </div>
 
-              <div className="flex space-x-2">
+              <div className="flex gap-2">
                 <button
                   onClick={() => openEditModal(addon)}
-                  className="flex-1 flex items-center justify-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-2 rounded-lg transition"
+                  className="flex-1 flex items-center justify-center space-x-1 sm:space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 sm:px-3 py-2 rounded-lg transition"
                 >
-                  <Edit className="w-4 h-4" />
-                  <span className="text-sm font-medium">Edit</span>
+                  <Edit className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium">Edit</span>
                 </button>
                 <button
                   onClick={() => handleDelete(addon)}
-                  className="flex-1 flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg transition"
+                  className="flex-1 flex items-center justify-center space-x-1 sm:space-x-2 bg-red-50 hover:bg-red-100 text-red-600 px-2 sm:px-3 py-2 rounded-lg transition"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span className="text-sm font-medium">Delete</span>
+                  <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium">Delete</span>
                 </button>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Sparkles className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No addons found</p>
-          <p className="text-sm text-gray-500 mt-2">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
+          <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-sm sm:text-base text-gray-600">No addons found</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-2">
             Create your first addon to get started
           </p>
         </div>
@@ -177,23 +177,23 @@ export default function AddonsPage() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-lg w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                 {editingAddon ? "Edit Addon" : "Create Addon"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Addon Name *
                 </label>
                 <input
@@ -203,13 +203,13 @@ export default function AddonsPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 text-sm sm:text-base"
                   placeholder="e.g., Extra Shot, Whipped Cream, Caramel Drizzle"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Price *
                 </label>
                 <input
@@ -221,7 +221,7 @@ export default function AddonsPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, price: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 text-sm sm:text-base"
                   placeholder="0.00"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -229,18 +229,18 @@ export default function AddonsPage() {
                 </p>
               </div>
 
-              <div className="flex space-x-3 pt-4">
+              <div className="flex gap-2 sm:gap-3 pt-3 sm:pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                  className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition text-sm sm:text-base"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   style={{ backgroundColor: primaryColor }}
-                  className="flex-1 px-4 py-2 text-black rounded-lg transition hover:opacity-90"
+                  className="flex-1 px-3 sm:px-4 py-2 text-black rounded-lg transition hover:opacity-90 text-sm sm:text-base"
                 >
                   {editingAddon ? "Update" : "Create"}
                 </button>
