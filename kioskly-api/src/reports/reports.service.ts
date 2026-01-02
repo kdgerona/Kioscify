@@ -231,7 +231,11 @@ export class ReportsService {
       include: {
         items: {
           include: {
-            product: true,
+            product: {
+              include: {
+                category: true,
+              },
+            },
           },
         },
       },
@@ -290,6 +294,7 @@ export class ReportsService {
             acc[productId] = {
               productId,
               productName: item.product.name,
+              categoryName: item.product.category?.name,
               quantity: 0,
               revenue: 0,
             };
@@ -304,6 +309,7 @@ export class ReportsService {
         {
           productId: string;
           productName: string;
+          categoryName?: string;
           quantity: number;
           revenue: number;
         }

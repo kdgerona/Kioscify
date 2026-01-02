@@ -44,6 +44,7 @@ interface AnalyticsData {
   topProducts: Array<{
     productId: string;
     productName: string;
+    categoryName?: string;
     quantity: number;
     revenue: number;
   }>;
@@ -183,7 +184,9 @@ export default function DashboardPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome back! 👋</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          Welcome back! 👋
+        </h1>
         <p className="text-sm sm:text-base text-gray-600 mt-2">
           {tenant?.name || "Your Business"} - Overview and statistics
         </p>
@@ -233,11 +236,15 @@ export default function DashboardPage() {
 
           {/* Today's Net */}
           <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-4 sm:p-6 rounded-xl shadow-lg sm:col-span-2 lg:col-span-1">
-            <p className="text-teal-100 text-xs sm:text-sm mb-2">Today&apos;s Net Revenue</p>
+            <p className="text-teal-100 text-xs sm:text-sm mb-2">
+              Today&apos;s Net Revenue
+            </p>
             <p className="text-2xl sm:text-3xl font-bold">
               {formatCurrency(dailyAnalytics?.summary?.netRevenue || 0)}
             </p>
-            <p className="text-xs sm:text-sm text-teal-100 mt-2">After expenses</p>
+            <p className="text-xs sm:text-sm text-teal-100 mt-2">
+              After expenses
+            </p>
           </div>
         </div>
       </div>
@@ -279,16 +286,22 @@ export default function DashboardPage() {
 
         {/* Average Order */}
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
-          <p className="text-purple-100 text-xs sm:text-sm mb-2">Avg. Order Value</p>
+          <p className="text-purple-100 text-xs sm:text-sm mb-2">
+            Avg. Order Value
+          </p>
           <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics?.sales?.averageTransaction || 0)}
           </p>
-          <p className="text-xs sm:text-sm text-purple-100 mt-2">Per transaction</p>
+          <p className="text-xs sm:text-sm text-purple-100 mt-2">
+            Per transaction
+          </p>
         </div>
 
         {/* Products Sold */}
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
-          <p className="text-orange-100 text-xs sm:text-sm mb-2">Products Sold</p>
+          <p className="text-orange-100 text-xs sm:text-sm mb-2">
+            Products Sold
+          </p>
           <p className="text-2xl sm:text-3xl font-bold">
             {analytics?.sales?.totalItemsSold || 0}
           </p>
@@ -323,7 +336,9 @@ export default function DashboardPage() {
 
         {/* Monthly Gross Profit */}
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
-          <p className="text-emerald-100 text-xs sm:text-sm mb-2">Monthly Gross Profit</p>
+          <p className="text-emerald-100 text-xs sm:text-sm mb-2">
+            Monthly Gross Profit
+          </p>
           <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics?.summary?.grossProfit || 0)}
           </p>
@@ -334,11 +349,15 @@ export default function DashboardPage() {
 
         {/* Monthly Net Revenue */}
         <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-4 sm:p-6 rounded-xl shadow-lg sm:col-span-2 lg:col-span-1">
-          <p className="text-indigo-100 text-xs sm:text-sm mb-2">Monthly Net Revenue</p>
+          <p className="text-indigo-100 text-xs sm:text-sm mb-2">
+            Monthly Net Revenue
+          </p>
           <p className="text-2xl sm:text-3xl font-bold">
             {formatCurrency(analytics?.summary?.netRevenue || 0)}
           </p>
-          <p className="text-xs sm:text-sm text-indigo-100 mt-2">After expenses</p>
+          <p className="text-xs sm:text-sm text-indigo-100 mt-2">
+            After expenses
+          </p>
         </div>
       </div>
 
@@ -358,6 +377,9 @@ export default function DashboardPage() {
                   </th>
                   <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Product Name
+                  </th>
+                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                    Category
                   </th>
                   <th className="px-2 sm:px-4 py-2 sm:py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Quantity Sold
@@ -399,6 +421,11 @@ export default function DashboardPage() {
                           {product.productName}
                         </span>
                       </td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
+                        <span className="text-xs sm:text-sm text-gray-600">
+                          {product.categoryName || "N/A"}
+                        </span>
+                      </td>
                       <td className="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap text-right">
                         <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold bg-blue-100 text-blue-800">
                           {product.quantity} units
@@ -437,7 +464,7 @@ export default function DashboardPage() {
               <tfoot className="bg-gray-50 border-t border-gray-200 sticky bottom-0">
                 <tr>
                   <td
-                    colSpan={2}
+                    colSpan={3}
                     className="px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-bold text-gray-900"
                   >
                     Total

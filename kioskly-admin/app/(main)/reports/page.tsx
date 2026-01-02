@@ -53,6 +53,7 @@ interface AnalyticsData {
   topProducts: Array<{
     productId: string;
     productName: string;
+    categoryName?: string;
     quantity: number;
     revenue: number;
   }>;
@@ -77,7 +78,9 @@ export default function ReportsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     loadReportData();
@@ -94,8 +97,8 @@ export default function ReportsPage() {
 
       if (period === "custom" && startDate && endDate) {
         // Convert YYYY-MM-DD to full datetime with start/end of day
-        const start = new Date(startDate + 'T00:00:00');
-        const end = new Date(endDate + 'T23:59:59.999');
+        const start = new Date(startDate + "T00:00:00");
+        const end = new Date(endDate + "T23:59:59.999");
         params.startDate = start.toISOString();
         params.endDate = end.toISOString();
       }
@@ -172,9 +175,13 @@ export default function ReportsPage() {
 
     // Helper function to escape CSV values
     const escapeCSV = (value: any): string => {
-      if (value === null || value === undefined) return '';
+      if (value === null || value === undefined) return "";
       const stringValue = String(value);
-      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+      if (
+        stringValue.includes(",") ||
+        stringValue.includes('"') ||
+        stringValue.includes("\n")
+      ) {
         return `"${stringValue.replace(/"/g, '""')}"`;
       }
       return stringValue;
@@ -184,94 +191,130 @@ export default function ReportsPage() {
     const csvLines: string[] = [];
 
     // Report Header
-    const businessName = tenant?.name || 'Business';
+    const businessName = tenant?.name || "Business";
     csvLines.push(`${businessName} (Business Report)`);
     csvLines.push(`Generated At,${new Date().toLocaleString()}`);
     csvLines.push(`Period Type,${analytics.period.type}`);
-    csvLines.push(`Start Date,${new Date(analytics.period.start).toLocaleString()}`);
-    csvLines.push(`End Date,${new Date(analytics.period.end).toLocaleString()}`);
-    csvLines.push('');
+    csvLines.push(
+      `Start Date,${new Date(analytics.period.start).toLocaleString()}`
+    );
+    csvLines.push(
+      `End Date,${new Date(analytics.period.end).toLocaleString()}`
+    );
+    csvLines.push("");
 
     // Summary Section
-    csvLines.push('SUMMARY');
-    csvLines.push('Metric,Value');
+    csvLines.push("SUMMARY");
+    csvLines.push("Metric,Value");
     csvLines.push(`Total Sales,${formatCurrency(analytics.sales.totalAmount)}`);
     csvLines.push(`Total Transactions,${analytics.sales.transactionCount}`);
-    csvLines.push(`Average Transaction,${formatCurrency(analytics.sales.averageTransaction)}`);
+    csvLines.push(
+      `Average Transaction,${formatCurrency(analytics.sales.averageTransaction)}`
+    );
     csvLines.push(`Total Items Sold,${analytics.sales.totalItemsSold}`);
     csvLines.push(`Sales Growth,${analytics.sales.growth.toFixed(2)}%`);
-    csvLines.push(`Total Expenses,${formatCurrency(analytics.expenses.totalAmount)}`);
+    csvLines.push(
+      `Total Expenses,${formatCurrency(analytics.expenses.totalAmount)}`
+    );
     csvLines.push(`Expense Count,${analytics.expenses.expenseCount}`);
-    csvLines.push(`Average Expense,${formatCurrency(analytics.expenses.averageExpense)}`);
-    csvLines.push(`Gross Profit,${formatCurrency(analytics.summary.grossProfit)}`);
-    csvLines.push(`Profit Margin,${analytics.summary.profitMargin.toFixed(2)}%`);
-    csvLines.push(`Net Revenue,${formatCurrency(analytics.summary.netRevenue)}`);
-    csvLines.push('');
+    csvLines.push(
+      `Average Expense,${formatCurrency(analytics.expenses.averageExpense)}`
+    );
+    csvLines.push(
+      `Gross Profit,${formatCurrency(analytics.summary.grossProfit)}`
+    );
+    csvLines.push(
+      `Profit Margin,${analytics.summary.profitMargin.toFixed(2)}%`
+    );
+    csvLines.push(
+      `Net Revenue,${formatCurrency(analytics.summary.netRevenue)}`
+    );
+    csvLines.push("");
 
     // Payment Methods Section
-    csvLines.push('SALES BY PAYMENT METHOD');
-    csvLines.push('Payment Method,Total Amount,Transaction Count,Average Amount,Percentage');
-    Object.entries(analytics.sales.paymentMethodBreakdown).forEach(([method, data]) => {
-      const percentage = analytics.sales.totalAmount > 0
-        ? ((data.total / analytics.sales.totalAmount) * 100).toFixed(2)
-        : '0.00';
-      const average = data.count > 0 ? (data.total / data.count).toFixed(2) : '0.00';
-      csvLines.push(`${method},${data.total.toFixed(2)},${data.count},${average},${percentage}%`);
-    });
-    csvLines.push('');
+    csvLines.push("SALES BY PAYMENT METHOD");
+    csvLines.push(
+      "Payment Method,Total Amount,Transaction Count,Average Amount,Percentage"
+    );
+    Object.entries(analytics.sales.paymentMethodBreakdown).forEach(
+      ([method, data]) => {
+        const percentage =
+          analytics.sales.totalAmount > 0
+            ? ((data.total / analytics.sales.totalAmount) * 100).toFixed(2)
+            : "0.00";
+        const average =
+          data.count > 0 ? (data.total / data.count).toFixed(2) : "0.00";
+        csvLines.push(
+          `${method},${data.total.toFixed(2)},${data.count},${average},${percentage}%`
+        );
+      }
+    );
+    csvLines.push("");
 
     // Expense Categories Section
-    csvLines.push('EXPENSES BY CATEGORY');
-    csvLines.push('Category,Total Amount,Expense Count,Percentage');
-    Object.entries(analytics.expenses.categoryBreakdown).forEach(([category, data]) => {
-      const percentage = analytics.expenses.totalAmount > 0
-        ? ((data.total / analytics.expenses.totalAmount) * 100).toFixed(2)
-        : '0.00';
-      csvLines.push(`${category},${data.total.toFixed(2)},${data.count},${percentage}%`);
-    });
-    csvLines.push('');
+    csvLines.push("EXPENSES BY CATEGORY");
+    csvLines.push("Category,Total Amount,Expense Count,Percentage");
+    Object.entries(analytics.expenses.categoryBreakdown).forEach(
+      ([category, data]) => {
+        const percentage =
+          analytics.expenses.totalAmount > 0
+            ? ((data.total / analytics.expenses.totalAmount) * 100).toFixed(2)
+            : "0.00";
+        csvLines.push(
+          `${category},${data.total.toFixed(2)},${data.count},${percentage}%`
+        );
+      }
+    );
+    csvLines.push("");
 
     // Top Products Section
-    csvLines.push('TOP SELLING PRODUCTS');
-    csvLines.push('Rank,Product Name,Quantity Sold,Revenue,Average Price,% of Total Sales');
+    csvLines.push("TOP SELLING PRODUCTS");
+    csvLines.push(
+      "Rank,Product Name,Category,Quantity Sold,Revenue,Average Price,% of Total Sales"
+    );
     analytics.topProducts.forEach((product, index) => {
-      const percentage = analytics.sales.totalAmount > 0
-        ? ((product.revenue / analytics.sales.totalAmount) * 100).toFixed(2)
-        : '0.00';
-      const avgPrice = product.quantity > 0
-        ? (product.revenue / product.quantity).toFixed(2)
-        : '0.00';
+      const percentage =
+        analytics.sales.totalAmount > 0
+          ? ((product.revenue / analytics.sales.totalAmount) * 100).toFixed(2)
+          : "0.00";
+      const avgPrice =
+        product.quantity > 0
+          ? (product.revenue / product.quantity).toFixed(2)
+          : "0.00";
       csvLines.push(
-        `${index + 1},${escapeCSV(product.productName)},${product.quantity},${product.revenue.toFixed(2)},${avgPrice},${percentage}%`
+        `${index + 1},${escapeCSV(product.productName)},${escapeCSV(product.categoryName || "N/A")},${product.quantity},${product.revenue.toFixed(2)},${avgPrice},${percentage}%`
       );
     });
-    csvLines.push('');
+    csvLines.push("");
 
     // Sales by Day Section
-    csvLines.push('DAILY SALES');
-    csvLines.push('Date,Total Sales,Transaction Count,Average Order Value');
+    csvLines.push("DAILY SALES");
+    csvLines.push("Date,Total Sales,Transaction Count,Average Order Value");
     analytics.salesByDay.forEach((day) => {
-      const avgOrderValue = day.count > 0 ? (day.total / day.count).toFixed(2) : '0.00';
-      const formattedDate = new Date(day.date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+      const avgOrderValue =
+        day.count > 0 ? (day.total / day.count).toFixed(2) : "0.00";
+      const formattedDate = new Date(day.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
       });
-      csvLines.push(`${formattedDate},${day.total.toFixed(2)},${day.count},${avgOrderValue}`);
+      csvLines.push(
+        `${formattedDate},${day.total.toFixed(2)},${day.count},${avgOrderValue}`
+      );
     });
 
     // Create and download CSV file
-    const csvContent = csvLines.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = csvLines.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     // Create filename with business name and date
     const sanitizedBusinessName = businessName
-      .replace(/[^a-z0-9]+/gi, '-') // Replace non-alphanumeric characters with single hyphen
-      .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+      .replace(/[^a-z0-9]+/gi, "-") // Replace non-alphanumeric characters with single hyphen
+      .replace(/^-+|-+$/g, "") // Remove leading/trailing hyphens
       .toLowerCase();
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = new Date().toISOString().split("T")[0];
     a.download = `${sanitizedBusinessName}-business-report-${dateStr}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
@@ -285,8 +328,8 @@ export default function ReportsPage() {
 
       if (period === "custom" && startDate && endDate) {
         // Convert YYYY-MM-DD to full datetime with start/end of day
-        const start = new Date(startDate + 'T00:00:00');
-        const end = new Date(endDate + 'T23:59:59.999');
+        const start = new Date(startDate + "T00:00:00");
+        const end = new Date(endDate + "T23:59:59.999");
         params.startDate = start.toISOString();
         params.endDate = end.toISOString();
       } else if (analytics?.period) {
@@ -311,8 +354,8 @@ export default function ReportsPage() {
 
       if (period === "custom" && startDate && endDate) {
         // Convert YYYY-MM-DD to full datetime with start/end of day
-        const start = new Date(startDate + 'T00:00:00');
-        const end = new Date(endDate + 'T23:59:59.999');
+        const start = new Date(startDate + "T00:00:00");
+        const end = new Date(endDate + "T23:59:59.999");
         params.startDate = start.toISOString();
         params.endDate = end.toISOString();
       } else if (analytics?.period) {
@@ -338,8 +381,8 @@ export default function ReportsPage() {
 
       if (period === "custom" && startDate && endDate) {
         // Convert YYYY-MM-DD to full datetime with start/end of day
-        const start = new Date(startDate + 'T00:00:00');
-        const end = new Date(endDate + 'T23:59:59.999');
+        const start = new Date(startDate + "T00:00:00");
+        const end = new Date(endDate + "T23:59:59.999");
         params.startDate = start.toISOString();
         params.endDate = end.toISOString();
       } else if (analytics?.period) {
@@ -618,7 +661,10 @@ export default function ReportsPage() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className={`text-sm font-semibold ${color.text}`}>
-                      {method} {loadingTransactions && selectedPaymentMethod === method ? "(Loading...)" : "(Click to view)"}
+                      {method}{" "}
+                      {loadingTransactions && selectedPaymentMethod === method
+                        ? "(Loading...)"
+                        : "(Click to view)"}
                     </span>
                     <span
                       className={`${color.badge} ${color.text} text-xs px-2 py-1 rounded-full font-medium`}
@@ -671,6 +717,9 @@ export default function ReportsPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Product Name
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Category
+                  </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Quantity Sold
                   </th>
@@ -711,6 +760,11 @@ export default function ReportsPage() {
                           {product.productName}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-600">
+                          {product.categoryName || "N/A"}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
                           {product.quantity} units
@@ -749,7 +803,7 @@ export default function ReportsPage() {
               <tfoot className="bg-gray-50 border-t border-gray-200">
                 <tr>
                   <td
-                    colSpan={2}
+                    colSpan={3}
                     className="px-4 py-3 text-sm font-bold text-gray-900"
                   >
                     Total
@@ -925,7 +979,11 @@ export default function ReportsPage() {
         }}
         transactions={transactions}
         primaryColor={primaryColor}
-        title={selectedPaymentMethod ? `${selectedPaymentMethod} Transactions` : 'All Transactions'}
+        title={
+          selectedPaymentMethod
+            ? `${selectedPaymentMethod} Transactions`
+            : "All Transactions"
+        }
       />
 
       {/* Expense List Modal */}
