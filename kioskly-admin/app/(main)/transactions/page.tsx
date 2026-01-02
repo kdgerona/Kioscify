@@ -565,23 +565,41 @@ export default function TransactionsPage() {
           {/* Status Filter */}
           <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-200">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-1">
                 <label className="font-medium text-gray-700">Status:</label>
-                <select
-                  value={voidStatusFilter}
-                  onChange={(e) => setVoidStatusFilter(e.target.value as any)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white text-gray-900"
-                >
-                  <option value="PENDING">Pending</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="REJECTED">Rejected</option>
-                  <option value="ALL">All</option>
-                </select>
+                <div className="relative flex-1 max-w-xs">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+                  <select
+                    value={voidStatusFilter}
+                    onChange={(e) => setVoidStatusFilter(e.target.value as "PENDING" | "APPROVED" | "REJECTED" | "ALL")}
+                    className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
+                  >
+                    <option value="PENDING">Pending</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                    <option value="ALL">All</option>
+                  </select>
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <svg
+                      className="w-4 h-4 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </div>
               </div>
               <button
                 onClick={loadVoidRequests}
                 disabled={loadingVoidRequests}
-                className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                 title="Refresh void requests"
               >
                 <RefreshCw

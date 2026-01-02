@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
   Ruler,
   Sparkles,
+  Filter,
 } from "lucide-react";
 import type { Product, Category, Size, Addon } from "@/types";
 import { useTenant } from "@/contexts/TenantContext";
@@ -389,20 +390,37 @@ export default function ProductsPage() {
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Category *
                 </label>
-                <select
-                  required
-                  value={formData.categoryId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, categoryId: e.target.value })
-                  }
-                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900 text-sm sm:text-base"
-                >
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    required
+                    value={formData.categoryId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, categoryId: e.target.value })
+                    }
+                    className="w-full px-3 sm:px-4 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
+                  >
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <svg
+                      className="w-4 h-4 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
               <div>
