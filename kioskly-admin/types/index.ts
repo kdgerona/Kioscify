@@ -19,7 +19,7 @@ export interface User {
   tenantId: string;
   username: string;
   email?: string;
-  role: 'ADMIN' | 'CASHIER';
+  role: "ADMIN" | "CASHIER";
   createdAt: string;
   updatedAt: string;
 }
@@ -39,6 +39,7 @@ export interface Size {
   tenantId: string;
   name: string;
   priceModifier: number;
+  volume?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,6 +61,8 @@ export interface Product {
   price: number;
   image?: string;
   category?: Category;
+  sizes?: Size[];
+  addons?: Addon[];
   createdAt: string;
   updatedAt: string;
 }
@@ -83,14 +86,14 @@ export interface Transaction {
   userId: string;
   subtotal: number;
   total: number;
-  paymentMethod: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE';
+  paymentMethod: "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE";
   cashReceived?: number | null;
   change?: number | null;
   referenceNumber?: string | null;
   remarks?: string | null;
   timestamp: string;
-  paymentStatus?: 'PENDING' | 'COMPLETED' | 'FAILED';
-  voidStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  paymentStatus?: "PENDING" | "COMPLETED" | "FAILED";
+  voidStatus?: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
   voidReason?: string | null;
   voidRequestedBy?: string | null;
   voidRequestedAt?: string | null;
@@ -175,7 +178,15 @@ export interface Expense {
   userId: string;
   description: string;
   amount: number;
-  category: 'SUPPLIES' | 'UTILITIES' | 'RENT' | 'SALARIES' | 'MARKETING' | 'MAINTENANCE' | 'TRANSPORTATION' | 'MISCELLANEOUS';
+  category:
+    | "SUPPLIES"
+    | "UTILITIES"
+    | "RENT"
+    | "SALARIES"
+    | "MARKETING"
+    | "MAINTENANCE"
+    | "TRANSPORTATION"
+    | "MISCELLANEOUS";
   date: string;
   receipt?: string;
   notes?: string;

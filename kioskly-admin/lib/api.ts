@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError } from "axios";
 import type {
   AuthResponse,
   LoginCredentials,
@@ -15,10 +15,11 @@ import type {
   InventoryStats,
   SubmittedReport,
   Expense,
-} from '@/types';
+} from "@/types";
 
 // API base URL - includes the /api/v1 prefix
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1";
 
 class ApiClient {
   private client: AxiosInstance;
@@ -28,16 +29,17 @@ class ApiClient {
     this.client = axios.create({
       baseURL: API_BASE_URL,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     // Add request interceptor to include auth token
     this.client.interceptors.request.use((config) => {
       // Always read from localStorage to ensure we have the latest token
-      const token = typeof window !== 'undefined'
-        ? localStorage.getItem('auth_token')
-        : this.token;
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("auth_token")
+          : this.token;
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -56,8 +58,8 @@ class ApiClient {
         if (error.response?.status === 401) {
           // Unauthorized - clear token and redirect to login
           this.clearToken();
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
           }
         }
         return Promise.reject(error);
@@ -65,30 +67,30 @@ class ApiClient {
     );
 
     // Load token from localStorage on initialization
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token');
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("auth_token");
     }
   }
 
   setToken(token: string) {
     this.token = token;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("auth_token", token);
     }
   }
 
   clearToken() {
     this.token = null;
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth_token");
     }
   }
 
   getToken() {
     // Always read from localStorage to ensure we have the latest token
     // This prevents stale cached values in Next.js SSR/hydration scenarios
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('auth_token');
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("auth_token");
       if (token && token !== this.token) {
         this.token = token; // Sync the cache
       }
@@ -99,15 +101,18 @@ class ApiClient {
 
   // Auth endpoints
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const { data } = await this.client.post<AuthResponse>('/auth/login', credentials);
+    const { data } = await this.client.post<AuthResponse>(
+      "/auth/login",
+      credentials
+    );
     this.setToken(data.accessToken);
     return data;
   }
 
   logout() {
     this.clearToken();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
     }
   }
 
@@ -119,7 +124,9 @@ class ApiClient {
     paymentStatus?: string;
     transactionId?: string;
   }): Promise<Transaction[]> {
-    const { data } = await this.client.get<Transaction[]>('/transactions', { params });
+    const { data } = await this.client.get<Transaction[]>("/transactions", {
+      params,
+    });
     return data;
   }
 
@@ -132,28 +139,40 @@ class ApiClient {
     totalSales: number;
     totalTransactions: number;
     averageOrderValue: number;
-    topProducts: Array<{ product: Product; totalSold: number; revenue: number }>;
+    topProducts: Array<{
+      product: Product;
+      totalSold: number;
+      revenue: number;
+    }>;
   }> {
-    const { data} = await this.client.get('/transactions/stats');
+    const { data } = await this.client.get("/transactions/stats");
     return data;
   }
 
   // Void request endpoints
   async getVoidRequests(params?: {
-    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+    status?: "PENDING" | "APPROVED" | "REJECTED" | "ALL";
     startDate?: string;
     endDate?: string;
   }): Promise<Transaction[]> {
-    const { data } = await this.client.get<Transaction[]>('/transactions/void-requests', { params });
+    const { data } = await this.client.get<Transaction[]>(
+      "/transactions/void-requests",
+      { params }
+    );
     return data;
   }
 
   async approveVoidRequest(id: string): Promise<Transaction> {
-    const { data } = await this.client.patch<Transaction>(`/transactions/void-requests/${id}/approve`);
+    const { data } = await this.client.patch<Transaction>(
+      `/transactions/void-requests/${id}/approve`
+    );
     return data;
   }
 
-  async rejectVoidRequest(id: string, rejectionReason?: string): Promise<Transaction> {
+  async rejectVoidRequest(
+    id: string,
+    rejectionReason?: string
+  ): Promise<Transaction> {
     const { data } = await this.client.patch<Transaction>(
       `/transactions/void-requests/${id}/reject`,
       { rejectionReason }
@@ -167,7 +186,7 @@ class ApiClient {
     endDate?: string;
     category?: string;
   }): Promise<Expense[]> {
-    const { data } = await this.client.get<Expense[]>('/expenses', { params });
+    const { data } = await this.client.get<Expense[]>("/expenses", { params });
     return data;
   }
 
@@ -178,7 +197,7 @@ class ApiClient {
 
   // Products endpoints
   async getProducts(): Promise<Product[]> {
-    const { data } = await this.client.get<Product[]>('/products');
+    const { data } = await this.client.get<Product[]>("/products");
     return data;
   }
 
@@ -187,13 +206,32 @@ class ApiClient {
     return data;
   }
 
-  async createProduct(product: { name: string; categoryId: string; price: number; id?: string }): Promise<Product> {
-    const { data } = await this.client.post<Product>('/products', product);
+  async createProduct(product: {
+    name: string;
+    categoryId: string;
+    price: number;
+    id?: string;
+    sizeIds?: string[];
+    addonIds?: string[];
+  }): Promise<Product> {
+    const { data } = await this.client.post<Product>("/products", product);
     return data;
   }
 
-  async updateProduct(id: string, product: { name?: string; categoryId?: string; price?: number }): Promise<Product> {
-    const { data } = await this.client.patch<Product>(`/products/${id}`, product);
+  async updateProduct(
+    id: string,
+    product: {
+      name?: string;
+      categoryId?: string;
+      price?: number;
+      sizeIds?: string[];
+      addonIds?: string[];
+    }
+  ): Promise<Product> {
+    const { data } = await this.client.patch<Product>(
+      `/products/${id}`,
+      product
+    );
     return data;
   }
 
@@ -203,19 +241,23 @@ class ApiClient {
 
   async uploadProductImage(id: string, file: File): Promise<Product> {
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append("image", file);
 
-    const { data } = await this.client.post<Product>(`/products/${id}/image`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const { data } = await this.client.post<Product>(
+      `/products/${id}/image`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
     return data;
   }
 
   // Categories endpoints
   async getCategories(): Promise<Category[]> {
-    const { data } = await this.client.get<Category[]>('/categories');
+    const { data } = await this.client.get<Category[]>("/categories");
     return data;
   }
 
@@ -224,13 +266,23 @@ class ApiClient {
     return data;
   }
 
-  async createCategory(category: Omit<Category, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<Category> {
-    const { data } = await this.client.post<Category>('/categories', category);
+  async createCategory(
+    category: Omit<Category, "id" | "tenantId" | "createdAt" | "updatedAt">
+  ): Promise<Category> {
+    const { data } = await this.client.post<Category>("/categories", category);
     return data;
   }
 
-  async updateCategory(id: string, category: Partial<Omit<Category, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>>): Promise<Category> {
-    const { data } = await this.client.patch<Category>(`/categories/${id}`, category);
+  async updateCategory(
+    id: string,
+    category: Partial<
+      Omit<Category, "id" | "tenantId" | "createdAt" | "updatedAt">
+    >
+  ): Promise<Category> {
+    const { data } = await this.client.patch<Category>(
+      `/categories/${id}`,
+      category
+    );
     return data;
   }
 
@@ -240,16 +292,21 @@ class ApiClient {
 
   // Sizes endpoints
   async getSizes(): Promise<Size[]> {
-    const { data } = await this.client.get<Size[]>('/sizes');
+    const { data } = await this.client.get<Size[]>("/sizes");
     return data;
   }
 
-  async createSize(size: Omit<Size, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<Size> {
-    const { data } = await this.client.post<Size>('/sizes', size);
+  async createSize(
+    size: Omit<Size, "id" | "tenantId" | "createdAt" | "updatedAt">
+  ): Promise<Size> {
+    const { data } = await this.client.post<Size>("/sizes", size);
     return data;
   }
 
-  async updateSize(id: string, size: Partial<Omit<Size, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>>): Promise<Size> {
+  async updateSize(
+    id: string,
+    size: Partial<Omit<Size, "id" | "tenantId" | "createdAt" | "updatedAt">>
+  ): Promise<Size> {
     const { data } = await this.client.patch<Size>(`/sizes/${id}`, size);
     return data;
   }
@@ -260,16 +317,21 @@ class ApiClient {
 
   // Addons endpoints
   async getAddons(): Promise<Addon[]> {
-    const { data } = await this.client.get<Addon[]>('/addons');
+    const { data } = await this.client.get<Addon[]>("/addons");
     return data;
   }
 
-  async createAddon(addon: Omit<Addon, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<Addon> {
-    const { data } = await this.client.post<Addon>('/addons', addon);
+  async createAddon(
+    addon: Omit<Addon, "id" | "tenantId" | "createdAt" | "updatedAt">
+  ): Promise<Addon> {
+    const { data } = await this.client.post<Addon>("/addons", addon);
     return data;
   }
 
-  async updateAddon(id: string, addon: Partial<Omit<Addon, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>>): Promise<Addon> {
+  async updateAddon(
+    id: string,
+    addon: Partial<Omit<Addon, "id" | "tenantId" | "createdAt" | "updatedAt">>
+  ): Promise<Addon> {
     const { data } = await this.client.patch<Addon>(`/addons/${id}`, addon);
     return data;
   }
@@ -280,13 +342,13 @@ class ApiClient {
 
   // Tenant endpoints
   async getCurrentTenant(): Promise<Tenant> {
-    const { data } = await this.client.get<Tenant>('/tenants/me');
+    const { data } = await this.client.get<Tenant>("/tenants/me");
     return data;
   }
 
   // Reports endpoints
   async getAnalytics(params?: {
-    period?: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'overall' | 'custom';
+    period?: "daily" | "weekly" | "monthly" | "yearly" | "overall" | "custom";
     startDate?: string;
     endDate?: string;
   }): Promise<{
@@ -326,30 +388,48 @@ class ApiClient {
       count: number;
     }>;
   }> {
-    const { data } = await this.client.get('/reports/analytics', { params });
+    const { data } = await this.client.get("/reports/analytics", { params });
     return data;
   }
 
   // Inventory Items endpoints
   async getInventoryItems(category?: string): Promise<InventoryItem[]> {
-    const { data } = await this.client.get<InventoryItem[]>('/inventory/items', {
-      params: category ? { category } : undefined,
-    });
+    const { data } = await this.client.get<InventoryItem[]>(
+      "/inventory/items",
+      {
+        params: category ? { category } : undefined,
+      }
+    );
     return data;
   }
 
   async getInventoryItemById(id: string): Promise<InventoryItem> {
-    const { data } = await this.client.get<InventoryItem>(`/inventory/items/${id}`);
+    const { data } = await this.client.get<InventoryItem>(
+      `/inventory/items/${id}`
+    );
     return data;
   }
 
-  async createInventoryItem(item: Omit<InventoryItem, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>): Promise<InventoryItem> {
-    const { data } = await this.client.post<InventoryItem>('/inventory/items', item);
+  async createInventoryItem(
+    item: Omit<InventoryItem, "id" | "tenantId" | "createdAt" | "updatedAt">
+  ): Promise<InventoryItem> {
+    const { data } = await this.client.post<InventoryItem>(
+      "/inventory/items",
+      item
+    );
     return data;
   }
 
-  async updateInventoryItem(id: string, item: Partial<Omit<InventoryItem, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>>): Promise<InventoryItem> {
-    const { data } = await this.client.patch<InventoryItem>(`/inventory/items/${id}`, item);
+  async updateInventoryItem(
+    id: string,
+    item: Partial<
+      Omit<InventoryItem, "id" | "tenantId" | "createdAt" | "updatedAt">
+    >
+  ): Promise<InventoryItem> {
+    const { data } = await this.client.patch<InventoryItem>(
+      `/inventory/items/${id}`,
+      item
+    );
     return data;
   }
 
@@ -363,14 +443,20 @@ class ApiClient {
     endDate?: string;
     inventoryItemId?: string;
   }): Promise<InventoryRecord[]> {
-    const { data } = await this.client.get<InventoryRecord[]>('/inventory/records', { params });
+    const { data } = await this.client.get<InventoryRecord[]>(
+      "/inventory/records",
+      { params }
+    );
     return data;
   }
 
   async getLatestInventory(date?: string): Promise<LatestInventoryItem[]> {
-    const { data } = await this.client.get<LatestInventoryItem[]>('/inventory/latest', {
-      params: date ? { date } : undefined,
-    });
+    const { data } = await this.client.get<LatestInventoryItem[]>(
+      "/inventory/latest",
+      {
+        params: date ? { date } : undefined,
+      }
+    );
     return data;
   }
 
@@ -380,22 +466,30 @@ class ApiClient {
     date?: string;
     notes?: string;
   }): Promise<InventoryRecord> {
-    const { data } = await this.client.post<InventoryRecord>('/inventory/records', record);
+    const { data } = await this.client.post<InventoryRecord>(
+      "/inventory/records",
+      record
+    );
     return data;
   }
 
-  async bulkCreateInventoryRecords(records: Array<{
-    inventoryItemId: string;
-    quantity: number;
-    date?: string;
-    notes?: string;
-  }>): Promise<InventoryRecord[]> {
-    const { data } = await this.client.post<InventoryRecord[]>('/inventory/records/bulk', { records });
+  async bulkCreateInventoryRecords(
+    records: Array<{
+      inventoryItemId: string;
+      quantity: number;
+      date?: string;
+      notes?: string;
+    }>
+  ): Promise<InventoryRecord[]> {
+    const { data } = await this.client.post<InventoryRecord[]>(
+      "/inventory/records/bulk",
+      { records }
+    );
     return data;
   }
 
   async getInventoryStats(): Promise<InventoryStats> {
-    const { data } = await this.client.get<InventoryStats>('/inventory/stats');
+    const { data } = await this.client.get<InventoryStats>("/inventory/stats");
     return data;
   }
 
@@ -406,12 +500,17 @@ class ApiClient {
     endDate?: string;
     userId?: string;
   }): Promise<SubmittedReport[]> {
-    const { data } = await this.client.get<SubmittedReport[]>('/submitted-reports', { params });
+    const { data } = await this.client.get<SubmittedReport[]>(
+      "/submitted-reports",
+      { params }
+    );
     return data;
   }
 
   async getSubmittedReportById(id: string): Promise<SubmittedReport> {
-    const { data } = await this.client.get<SubmittedReport>(`/submitted-reports/${id}`);
+    const { data } = await this.client.get<SubmittedReport>(
+      `/submitted-reports/${id}`
+    );
     return data;
   }
 
@@ -419,7 +518,7 @@ class ApiClient {
     totalReports: number;
     reportsThisMonth: number;
   }> {
-    const { data} = await this.client.get('/submitted-reports/stats');
+    const { data } = await this.client.get("/submitted-reports/stats");
     return data;
   }
 
@@ -430,27 +529,36 @@ class ApiClient {
     endDate?: string;
     userId?: string;
   }): Promise<any[]> {
-    const { data } = await this.client.get('/submitted-inventory-reports', { params });
+    const { data } = await this.client.get("/submitted-inventory-reports", {
+      params,
+    });
     return data;
   }
 
   async getSubmittedInventoryReportById(id: string): Promise<any> {
-    const { data } = await this.client.get(`/submitted-inventory-reports/${id}`);
+    const { data } = await this.client.get(
+      `/submitted-inventory-reports/${id}`
+    );
     return data;
   }
 
   async getInventoryProgression(params: {
-    viewMode: 'day_over_day' | 'weekly_trend';
+    viewMode: "day_over_day" | "weekly_trend";
     startDate?: string;
     endDate?: string;
     categoryFilter?: string;
   }): Promise<any> {
-    const { data } = await this.client.get('/submitted-inventory-reports/progression', { params });
+    const { data } = await this.client.get(
+      "/submitted-inventory-reports/progression",
+      { params }
+    );
     return data;
   }
 
   async getInventoryAlerts(): Promise<any> {
-    const { data } = await this.client.get('/submitted-inventory-reports/alerts');
+    const { data } = await this.client.get(
+      "/submitted-inventory-reports/alerts"
+    );
     return data;
   }
 
@@ -462,7 +570,9 @@ class ApiClient {
       submittedAt: string;
     } | null;
   }> {
-    const { data } = await this.client.get('/submitted-inventory-reports/stats');
+    const { data } = await this.client.get(
+      "/submitted-inventory-reports/stats"
+    );
     return data;
   }
 }
