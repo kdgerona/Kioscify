@@ -3,6 +3,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum TimePeriod {
   DAILY = 'daily',
+  YESTERDAY = 'yesterday',
   WEEKLY = 'weekly',
   MONTHLY = 'monthly',
   YEARLY = 'yearly',

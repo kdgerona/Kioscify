@@ -39,6 +39,27 @@ export class ReportsService {
         );
         break;
 
+      case TimePeriod.YESTERDAY:
+        start = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - 1,
+          0,
+          0,
+          0,
+          0,
+        );
+        end = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - 1,
+          23,
+          59,
+          59,
+          999,
+        );
+        break;
+
       case TimePeriod.WEEKLY: {
         const dayOfWeek = now.getDay();
         const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
