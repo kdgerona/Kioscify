@@ -5,6 +5,11 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
@@ -15,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   createExpense,
   getExpenses,
+  requestVoidExpense,
   ExpenseResponse,
   CreateExpensePayload,
   ExpenseCategory,
@@ -28,6 +34,27 @@ export default function ExpensesScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showVoidModal, setShowVoidModal] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+  const [isSubmittingVoid, setIsSubmittingVoid] = useState(false);
+  const [selectedVoidExpense, setSelectedVoidExpense] =
+    useState<ExpenseResponse | null>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Listen to keyboard show/hide events
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const { tenant } = useTenant();
   const { user } = useAuth();
@@ -114,6 +141,77 @@ export default function ExpensesScreen() {
       .join(" ");
   };
 
+  const openVoidModal = (expense: ExpenseResponse) => {
+    // Validate void status
+    if (expense.voidStatus === "APPROVED") {
+      alert("This expense is already voided.");
+      return;
+    }
+    if (expense.voidStatus === "PENDING") {
+      alert("A void request is already pending for this expense.");
+      return;
+    }
+
+    setSelectedVoidExpense(expense);
+    setVoidReason("");
+    setShowVoidModal(true);
+  };
+
+  const closeVoidModal = () => {
+    setShowVoidModal(false);
+    setSelectedVoidExpense(null);
+    setVoidReason("");
+  };
+
+  const handleSubmitVoid = async () => {
+    if (!selectedVoidExpense) return;
+
+    if (voidReason.trim().length < 10) {
+      alert("Please provide a reason of at least 10 characters.");
+      return;
+    }
+
+    setIsSubmittingVoid(true);
+    try {
+      const updated = await requestVoidExpense(
+        selectedVoidExpense.id,
+        voidReason.trim()
+      );
+
+      // Update the expense in the list
+      setExpenses(
+        expenses.map((e) => (e.id === updated.id ? updated : e))
+      );
+
+      closeVoidModal();
+      alert("Void request submitted successfully!");
+    } catch (err) {
+      console.error("Failed to submit void request:", err);
+      alert("Failed to submit void request. Please try again.");
+    } finally {
+      setIsSubmittingVoid(false);
+    }
+  };
+
+  const getVoidStatusBadge = (voidStatus?: string) => {
+    if (!voidStatus || voidStatus === "NONE") return null;
+
+    const statusConfig = {
+      PENDING: { label: "Void Pending", color: "bg-yellow-500" },
+      APPROVED: { label: "VOIDED", color: "bg-red-500" },
+      REJECTED: { label: "Void Rejected", color: "bg-gray-500" },
+    };
+
+    const config = statusConfig[voidStatus as keyof typeof statusConfig];
+    if (!config) return null;
+
+    return (
+      <View className={`${config.color} px-2 py-1 rounded-md ml-2`}>
+        <Text className="text-white text-xs font-semibold">{config.label}</Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
@@ -196,15 +294,18 @@ export default function ExpensesScreen() {
                     <Text className="text-xl font-bold" style={{ color: textColor }}>
                       {formatCurrency(expense.amount)}
                     </Text>
-                    <View
-                      className="px-3 py-1 rounded-full mt-1"
-                      style={{
-                        backgroundColor: primaryColor,
-                      }}
-                    >
-                      <Text className="text-xs font-semibold" style={{ color: textColor }}>
-                        {getCategoryLabel(expense.category)}
-                      </Text>
+                    <View className="flex-row items-center mt-1">
+                      <View
+                        className="px-3 py-1 rounded-full"
+                        style={{
+                          backgroundColor: primaryColor,
+                        }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: textColor }}>
+                          {getCategoryLabel(expense.category)}
+                        </Text>
+                      </View>
+                      {getVoidStatusBadge(expense.voidStatus)}
                     </View>
                   </View>
                 </View>
@@ -220,6 +321,82 @@ export default function ExpensesScreen() {
                         {expense.notes}
                       </Text>
                     </View>
+                  </View>
+                )}
+
+                {/* Void Information */}
+                {expense.voidStatus &&
+                  expense.voidStatus !== "NONE" && (
+                    <View className="border-t border-gray-200 pt-3 mt-2">
+                      <View className="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <Text className="text-sm font-semibold text-red-800 mb-2">
+                          Void Status: {expense.voidStatus}
+                        </Text>
+                        {expense.voidReason && (
+                          <View className="mb-2">
+                            <Text className="text-xs text-gray-600 font-semibold">
+                              Reason:
+                            </Text>
+                            <Text className="text-xs text-gray-700 mt-1">
+                              {expense.voidReason}
+                            </Text>
+                          </View>
+                        )}
+                        {expense.voidRequester && (
+                          <Text className="text-xs text-gray-600">
+                            Requested by: {expense.voidRequester.email}
+                          </Text>
+                        )}
+                        {expense.voidRequestedAt && (
+                          <Text className="text-xs text-gray-600">
+                            Requested:{" "}
+                            {formatDate(expense.voidRequestedAt)}
+                          </Text>
+                        )}
+                        {expense.voidReviewer && (
+                          <Text className="text-xs text-gray-600 mt-1">
+                            Reviewed by: {expense.voidReviewer.email}
+                          </Text>
+                        )}
+                        {expense.voidReviewedAt && (
+                          <Text className="text-xs text-gray-600">
+                            Reviewed: {formatDate(expense.voidReviewedAt)}
+                          </Text>
+                        )}
+                        {expense.voidStatus === "REJECTED" &&
+                          expense.voidRejectionReason && (
+                            <View className="mt-2 pt-2 border-t border-red-300">
+                              <Text className="text-xs text-gray-600 font-semibold">
+                                Rejection Reason:
+                              </Text>
+                              <Text className="text-xs text-gray-700 mt-1">
+                                {expense.voidRejectionReason}
+                              </Text>
+                            </View>
+                          )}
+                      </View>
+                    </View>
+                  )}
+
+                {/* Request Void Button */}
+                {(!expense.voidStatus ||
+                  expense.voidStatus === "NONE" ||
+                  expense.voidStatus === "REJECTED") && (
+                  <View className="border-t border-gray-200 pt-3 mt-2">
+                    <TouchableOpacity
+                      onPress={() => openVoidModal(expense)}
+                      className="flex-row items-center justify-center self-start px-3 py-1.5 rounded-md"
+                      style={{ backgroundColor: "#ef4444" }}
+                    >
+                      <Ionicons
+                        name="close-circle-outline"
+                        size={16}
+                        color="white"
+                      />
+                      <Text className="text-white text-sm ml-1.5">
+                        Request Void
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
@@ -241,6 +418,133 @@ export default function ExpensesScreen() {
         onSubmit={handleAddExpense}
         isLoading={isSubmitting}
       />
+
+      {/* Void Request Modal */}
+      <Modal
+        visible={showVoidModal}
+        transparent
+        animationType="slide"
+        onRequestClose={closeVoidModal}
+      >
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : "padding"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <View className="flex-1 bg-black/50 justify-center items-center px-4">
+            <View
+              className="w-full bg-white rounded-lg"
+              style={{
+                maxWidth: 512,
+                maxHeight: isKeyboardVisible ? "70%" : "85%",
+              }}
+            >
+              {/* Modal Header */}
+              <View
+                className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
+                style={{ backgroundColor: "#fee2e2" }}
+              >
+                <Text
+                  className="text-xl font-bold"
+                  style={{ color: textColor }}
+                >
+                  Request Void
+                </Text>
+                <TouchableOpacity
+                  onPress={closeVoidModal}
+                  className="w-11 h-11 items-center justify-center rounded-full"
+                  style={{ backgroundColor: `${textColor}15` }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text
+                    className="text-3xl font-bold leading-none"
+                    style={{ color: textColor }}
+                  >
+                    ×
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Modal Body */}
+              <ScrollView
+                className="flex-shrink"
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+                bounces={true}
+              >
+                <View className="px-6 py-4">
+                  {selectedVoidExpense && (
+                    <View className="mb-4 bg-gray-50 rounded-lg p-3">
+                      <Text className="text-sm text-gray-600 mb-1">
+                        Expense: {selectedVoidExpense.description}
+                      </Text>
+                      <Text className="text-sm text-gray-600">
+                        Amount: {formatCurrency(selectedVoidExpense.amount)}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View className="mb-4">
+                    <Text
+                      className="text-sm font-semibold mb-2"
+                      style={{ color: textColor }}
+                    >
+                      Reason for Void (minimum 10 characters)
+                    </Text>
+                    <TextInput
+                      className="bg-gray-100 rounded-lg px-4 py-3 text-base border-2 border-gray-200"
+                      style={{ color: textColor, minHeight: 120 }}
+                      placeholder="Enter reason for voiding this expense..."
+                      placeholderTextColor="#9ca3af"
+                      value={voidReason}
+                      onChangeText={setVoidReason}
+                      multiline
+                      numberOfLines={5}
+                      textAlignVertical="top"
+                      autoFocus
+                    />
+                    <Text className="text-xs text-gray-500 mt-2">
+                      {voidReason.length} / 10 characters minimum
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Action Buttons - Fixed at bottom */}
+              <View className="px-6 py-4 border-t border-gray-200 bg-white rounded-b-lg">
+                <View className="flex-row gap-3">
+                  <TouchableOpacity
+                    onPress={closeVoidModal}
+                    className="flex-1 bg-gray-200 rounded-lg py-3 items-center"
+                    disabled={isSubmittingVoid}
+                  >
+                    <Text className="text-gray-700 font-semibold">Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleSubmitVoid}
+                    className="flex-1 rounded-lg py-3 items-center"
+                    style={{
+                      backgroundColor:
+                        voidReason.trim().length >= 10 && !isSubmittingVoid
+                          ? "#ef4444"
+                          : "#d1d5db",
+                    }}
+                    disabled={voidReason.trim().length < 10 || isSubmittingVoid}
+                  >
+                    {isSubmittingVoid ? (
+                      <ActivityIndicator color="white" />
+                    ) : (
+                      <Text className="text-white font-semibold">
+                        Submit Request
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }

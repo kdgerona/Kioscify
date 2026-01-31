@@ -45,6 +45,25 @@ export interface ExpenseResponse {
     email: string;
     role: string;
   };
+  voidStatus?: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+  voidReason?: string;
+  voidRequestedBy?: string;
+  voidRequestedAt?: string;
+  voidReviewedBy?: string;
+  voidReviewedAt?: string;
+  voidRejectionReason?: string;
+  voidRequester?: {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+  };
+  voidReviewer?: {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -376,6 +395,59 @@ export const getExpenseStats = async (
     return data;
   } catch (error) {
     console.error("Failed to fetch expense stats:", error);
+    throw error;
+  }
+};
+
+/**
+ * Request void for an expense
+ * @param expenseId - Expense ID to void
+ * @param reason - Reason for voiding
+ * @returns Updated expense
+ */
+export const requestVoidExpense = async (
+  expenseId: string,
+  reason: string
+): Promise<ExpenseResponse> => {
+  try {
+    console.log("🔵 REQUESTING EXPENSE VOID:", expenseId);
+
+    safeReactotron.display({
+      name: "REQUEST EXPENSE VOID",
+      value: { expenseId, reason },
+      preview: `Requesting void for expense ${expenseId}`,
+    });
+
+    const response = await apiPost(`/expenses/${expenseId}/void-request`, {
+      reason,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log("🔴 EXPENSE VOID REQUEST ERROR:", errorText);
+
+      safeReactotron.display({
+        name: "EXPENSE VOID REQUEST ERROR",
+        value: { status: response.status, error: errorText },
+        preview: "Expense void request failed",
+        important: true,
+      });
+
+      throw new Error(`Failed to request expense void: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("🟢 EXPENSE VOID REQUEST SUBMITTED:", data.id);
+
+    safeReactotron.display({
+      name: "EXPENSE VOID REQUEST SUCCESS",
+      value: data,
+      preview: `Void request submitted for expense ${data.id}`,
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Failed to request expense void:", error);
     throw error;
   }
 };

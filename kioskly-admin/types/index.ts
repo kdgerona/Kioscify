@@ -198,6 +198,15 @@ export interface Expense {
   date: string;
   receipt?: string;
   notes?: string;
+  voidStatus?: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+  voidReason?: string | null;
+  voidRequestedBy?: string | null;
+  voidRequestedAt?: string | null;
+  voidReviewedBy?: string | null;
+  voidReviewedAt?: string | null;
+  voidRejectionReason?: string | null;
+  voidRequester?: User;
+  voidReviewer?: User;
   createdAt: string;
   updatedAt: string;
   user?: User;

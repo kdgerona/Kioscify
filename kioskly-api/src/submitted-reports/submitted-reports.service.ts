@@ -153,6 +153,11 @@ export class SubmittedReportsService {
       },
     });
 
+    // Check for voided expenses
+    const voidedExpenseIds = expenses
+      .filter((e) => (e as any).voidStatus === 'APPROVED')
+      .map((e) => e.id);
+
     return {
       ...report,
       transactions,
@@ -160,6 +165,9 @@ export class SubmittedReportsService {
       // Flag if any transactions were voided after submission
       hasVoidedTransactions: voidedTransactionIds.length > 0,
       voidedTransactionIds,
+      // Flag if any expenses were voided after submission
+      hasVoidedExpenses: voidedExpenseIds.length > 0,
+      voidedExpenseIds,
     };
   }
 

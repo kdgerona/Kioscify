@@ -137,7 +137,7 @@ export class ReportsService {
       },
     });
 
-    // Fetch expenses for the day
+    // Fetch expenses for the day (excluding approved void expenses)
     const expenses = await this.prisma.expense.findMany({
       where: {
         tenantId,
@@ -145,6 +145,10 @@ export class ReportsService {
           gte: startOfDay,
           lte: endOfDay,
         },
+        // Exclude APPROVED void expenses
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       },
     });
 
@@ -265,7 +269,7 @@ export class ReportsService {
       },
     });
 
-    // Fetch expenses for the period
+    // Fetch expenses for the period (excluding approved void expenses)
     const expenses = await this.prisma.expense.findMany({
       where: {
         tenantId,
@@ -273,6 +277,10 @@ export class ReportsService {
           gte: start,
           lte: end,
         },
+        // Exclude APPROVED void expenses
+        voidStatus: {
+          not: 'APPROVED',
+        } as any,
       },
       orderBy: {
         date: 'asc',

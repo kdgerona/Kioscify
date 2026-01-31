@@ -61,8 +61,10 @@ model User {
   inventoryRecords          InventoryRecord[]
   submittedReports          SubmittedReport[]
   submittedInventoryReports SubmittedInventoryReport[]
-  voidRequestsCreated       Transaction[]  @relation("VoidRequests")
-  voidRequestsReviewed      Transaction[]  @relation("VoidReviews")
+  voidRequestsCreated            Transaction[]  @relation("VoidRequests")
+  voidRequestsReviewed           Transaction[]  @relation("VoidReviews")
+  expenseVoidRequestsCreated     Expense[]      @relation("ExpenseVoidRequests")
+  expenseVoidRequestsReviewed    Expense[]      @relation("ExpenseVoidReviews")
 
   @@unique([tenantId, username])
   @@unique([tenantId, email])
@@ -247,19 +249,28 @@ enum VoidStatus {
 }
 
 model Expense {
-  id          String          @id @default(auto()) @map("_id") @db.ObjectId
-  tenantId    String          @db.ObjectId
-  userId      String          @db.ObjectId
-  description String
-  amount      Float
-  category    ExpenseCategory
-  date        DateTime        @default(now())
-  receipt     String?
-  notes       String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user        User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  id                   String          @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId             String          @db.ObjectId
+  userId               String          @db.ObjectId
+  description          String
+  amount               Float
+  category             ExpenseCategory
+  date                 DateTime        @default(now())
+  receipt              String?
+  notes                String?
+  voidStatus           VoidStatus      @default(NONE)
+  voidReason           String?
+  voidRequestedBy      String?         @db.ObjectId
+  voidRequestedAt      DateTime?
+  voidReviewedBy       String?         @db.ObjectId
+  voidReviewedAt       DateTime?
+  voidRejectionReason  String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  tenant               Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                 User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  voidRequester        User?           @relation("ExpenseVoidRequests", fields: [voidRequestedBy], references: [id], onDelete: SetNull)
+  voidReviewer         User?           @relation("ExpenseVoidReviews", fields: [voidReviewedBy], references: [id], onDelete: SetNull)
 
   @@map("expenses")
 }

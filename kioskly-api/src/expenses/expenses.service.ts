@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
-import { Prisma } from '@prisma/client';
+import { ExpenseVoidStatusFilter } from './dto/expense-void-filters.dto';
+import { Prisma, VoidStatus } from '@prisma/client';
 
 type ExpenseWithUser = Prisma.ExpenseGetPayload<{
   include: {
@@ -42,10 +47,26 @@ export class ExpensesService {
             role: true,
           },
         },
+        voidRequester: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidReviewer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
       },
     });
 
-    return this.formatExpense(expense);
+    return this.formatExpenseWithVoid(expense);
   }
 
   async findAll(
@@ -87,11 +108,27 @@ export class ExpensesService {
             role: true,
           },
         },
+        voidRequester: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidReviewer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
       },
       orderBy: { date: 'desc' },
     });
 
-    return expenses.map((e) => this.formatExpense(e));
+    return expenses.map((e) => this.formatExpenseWithVoid(e));
   }
 
   async findOne(id: string, tenantId: string) {
@@ -106,6 +143,22 @@ export class ExpensesService {
             role: true,
           },
         },
+        voidRequester: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidReviewer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
       },
     });
 
@@ -113,7 +166,7 @@ export class ExpensesService {
       throw new NotFoundException(`Expense with ID ${id} not found`);
     }
 
-    return this.formatExpense(expense);
+    return this.formatExpenseWithVoid(expense);
   }
 
   async update(
@@ -144,10 +197,26 @@ export class ExpensesService {
             role: true,
           },
         },
+        voidRequester: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidReviewer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
       },
     });
 
-    return this.formatExpense(updated);
+    return this.formatExpenseWithVoid(updated);
   }
 
   async remove(id: string, tenantId: string) {
@@ -221,6 +290,244 @@ export class ExpensesService {
     };
   }
 
+  async requestVoid(
+    expenseId: string,
+    tenantId: string,
+    userId: string,
+    reason: string,
+  ) {
+    const expense = await this.prisma.expense.findFirst({
+      where: { id: expenseId, tenantId },
+    });
+
+    if (!expense) {
+      throw new NotFoundException(`Expense with ID ${expenseId} not found`);
+    }
+
+    if (expense.voidStatus === VoidStatus.APPROVED) {
+      throw new BadRequestException('This expense is already voided');
+    }
+
+    if (expense.voidStatus === VoidStatus.PENDING) {
+      throw new BadRequestException(
+        'A void request is already pending for this expense',
+      );
+    }
+
+    const updated = await this.prisma.expense.update({
+      where: { id: expenseId },
+      data: {
+        voidStatus: VoidStatus.PENDING,
+        voidReason: reason,
+        voidRequestedBy: userId,
+        voidRequestedAt: new Date(),
+        voidRejectionReason: null,
+        voidReviewedBy: null,
+        voidReviewedAt: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidRequester: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidReviewer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return this.formatExpenseWithVoid(updated);
+  }
+
+  async getVoidRequests(
+    tenantId: string,
+    filters?: {
+      status?: ExpenseVoidStatusFilter;
+      startDate?: string;
+      endDate?: string;
+    },
+  ) {
+    const where: Prisma.ExpenseWhereInput = { tenantId };
+
+    if (filters?.status && filters.status !== ExpenseVoidStatusFilter.ALL) {
+      where.voidStatus = filters.status as VoidStatus;
+    } else if (!filters?.status) {
+      where.voidStatus = VoidStatus.PENDING;
+    } else {
+      where.voidStatus = { not: VoidStatus.NONE };
+    }
+
+    if (filters?.startDate || filters?.endDate) {
+      where.voidRequestedAt = {};
+      if (filters.startDate) {
+        where.voidRequestedAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        where.voidRequestedAt.lte = new Date(filters.endDate);
+      }
+    }
+
+    const expenses = await this.prisma.expense.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidRequester: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidReviewer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: { voidRequestedAt: 'desc' },
+    });
+
+    return expenses.map((e) => this.formatExpenseWithVoid(e));
+  }
+
+  async approveVoid(expenseId: string, tenantId: string, reviewerId: string) {
+    const expense = await this.prisma.expense.findFirst({
+      where: { id: expenseId, tenantId },
+    });
+
+    if (!expense) {
+      throw new NotFoundException(`Expense with ID ${expenseId} not found`);
+    }
+
+    if (expense.voidStatus !== VoidStatus.PENDING) {
+      throw new BadRequestException(
+        'Can only approve pending void requests',
+      );
+    }
+
+    const updated = await this.prisma.expense.update({
+      where: { id: expenseId },
+      data: {
+        voidStatus: VoidStatus.APPROVED,
+        voidReviewedBy: reviewerId,
+        voidReviewedAt: new Date(),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidRequester: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidReviewer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return this.formatExpenseWithVoid(updated);
+  }
+
+  async rejectVoid(
+    expenseId: string,
+    tenantId: string,
+    reviewerId: string,
+    rejectionReason?: string,
+  ) {
+    const expense = await this.prisma.expense.findFirst({
+      where: { id: expenseId, tenantId },
+    });
+
+    if (!expense) {
+      throw new NotFoundException(`Expense with ID ${expenseId} not found`);
+    }
+
+    if (expense.voidStatus !== VoidStatus.PENDING) {
+      throw new BadRequestException('Can only reject pending void requests');
+    }
+
+    const updated = await this.prisma.expense.update({
+      where: { id: expenseId },
+      data: {
+        voidStatus: VoidStatus.REJECTED,
+        voidReviewedBy: reviewerId,
+        voidReviewedAt: new Date(),
+        voidRejectionReason: rejectionReason || null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidRequester: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+        voidReviewer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return this.formatExpenseWithVoid(updated);
+  }
+
   private formatExpense(expense: ExpenseWithUser) {
     return {
       id: expense.id,
@@ -232,6 +539,31 @@ export class ExpensesService {
       notes: expense.notes,
       userId: expense.userId,
       user: expense.user,
+      createdAt: expense.createdAt,
+      updatedAt: expense.updatedAt,
+    };
+  }
+
+  private formatExpenseWithVoid(expense: any) {
+    return {
+      id: expense.id,
+      description: expense.description,
+      amount: expense.amount,
+      category: expense.category,
+      date: expense.date,
+      receipt: expense.receipt,
+      notes: expense.notes,
+      userId: expense.userId,
+      user: expense.user,
+      voidStatus: expense.voidStatus,
+      voidReason: expense.voidReason,
+      voidRequestedBy: expense.voidRequestedBy,
+      voidRequestedAt: expense.voidRequestedAt,
+      voidReviewedBy: expense.voidReviewedBy,
+      voidReviewedAt: expense.voidReviewedAt,
+      voidRejectionReason: expense.voidRejectionReason,
+      voidRequester: expense.voidRequester,
+      voidReviewer: expense.voidReviewer,
       createdAt: expense.createdAt,
       updatedAt: expense.updatedAt,
     };
