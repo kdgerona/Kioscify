@@ -77,9 +77,15 @@ export class ExpensesService {
       category?: string;
       minAmount?: number;
       maxAmount?: number;
+      includeVoided?: boolean;
     },
   ) {
     const where: Prisma.ExpenseWhereInput = { tenantId };
+
+    // Exclude approved void expenses by default
+    if (!filters?.includeVoided) {
+      where.voidStatus = { not: VoidStatus.APPROVED };
+    }
 
     if (filters?.startDate || filters?.endDate) {
       where.date = {};
@@ -259,6 +265,8 @@ export class ExpensesService {
         date: {
           gte: startDate,
         },
+        // Exclude approved void expenses from stats
+        voidStatus: { not: VoidStatus.APPROVED },
       },
     });
 

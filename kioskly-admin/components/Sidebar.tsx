@@ -25,6 +25,7 @@ import {
   PanelRightOpen,
   Ruler,
   Sparkles,
+  Wallet,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
@@ -46,6 +47,7 @@ interface NavigationItem {
 const navigation: NavigationItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Transactions", href: "/transactions", icon: Receipt },
+  { name: "Expenses", href: "/expenses", icon: Wallet },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Submitted Reports", href: "/submitted-reports", icon: FileText },
   { name: "Inventory", href: "/inventory", icon: Boxes },
