@@ -431,5 +431,11 @@ The mobile app (`kioskly-app`) connects directly to your API:
 
 ---
 
+# Seed
+npm run prisma:seed --workspace=kioskly-api
+
+## Within docker api container
+docker exec -it kioskly-api node dist/prisma/seed.js
+
 For more help, check the individual project README files or open an issue.
 

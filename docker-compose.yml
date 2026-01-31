@@ -54,11 +54,11 @@ services:
         reservations:
           memory: 256M
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "mongo --quiet --eval \"db.adminCommand('ping')\" || mongo admin -u $$MONGO_INITDB_ROOT_USERNAME -p $$MONGO_INITDB_ROOT_PASSWORD --quiet --eval \"db.adminCommand('ping')\""]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 40s
+      start_period: 60s
 
   # ================================
   # Kioskly API (NestJS Backend)
