@@ -3,7 +3,7 @@
 import { Calendar } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 
-export type TimePeriod = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'overall' | 'custom';
+export type TimePeriod = 'daily' | 'yesterday' | 'weekly' | 'monthly' | 'yearly' | 'overall' | 'custom';
 
 interface DateRangeSelectorProps {
   period: TimePeriod;
@@ -26,6 +26,7 @@ export default function DateRangeSelector({
 }: DateRangeSelectorProps) {
   const periods: { value: TimePeriod; label: string }[] = [
     { value: 'daily', label: 'Today' },
+    { value: 'yesterday', label: 'Yesterday' },
     { value: 'weekly', label: 'This Week' },
     { value: 'monthly', label: 'This Month' },
     { value: 'yearly', label: 'This Year' },

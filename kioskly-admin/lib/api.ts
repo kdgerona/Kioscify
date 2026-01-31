@@ -348,7 +348,7 @@ class ApiClient {
 
   // Reports endpoints
   async getAnalytics(params?: {
-    period?: "daily" | "weekly" | "monthly" | "yearly" | "overall" | "custom";
+    period?: "daily" | "yesterday" | "weekly" | "monthly" | "yearly" | "overall" | "custom";
     startDate?: string;
     endDate?: string;
   }): Promise<{
