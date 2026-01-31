@@ -16,7 +16,10 @@ import {
   Search,
   X,
   Filter,
+  Calendar,
+  CalendarX,
 } from "lucide-react";
+import { ExpirationBatch } from "@/types";
 
 export default function InventoryPage() {
   const { tenant } = useTenant();
@@ -42,7 +45,10 @@ export default function InventoryPage() {
     unit: "",
     description: "",
     minStockLevel: "",
+    requiresExpirationDate: false,
+    expirationWarningDays: "7",
   });
+  const [batchesMap, setBatchesMap] = useState<Map<string, ExpirationBatch[]>>(new Map());
 
   // Helper function to format category names to human-readable text
   const formatCategoryName = (category: string): string => {
@@ -70,6 +76,7 @@ export default function InventoryPage() {
         loadStats(),
         loadLatestInventory(),
         loadInventoryItems(),
+        loadExpirationBatches(),
       ]);
     } catch (error) {
       console.error("Failed to load inventory data:", error);
@@ -94,6 +101,51 @@ export default function InventoryPage() {
     } catch (error) {
       console.error("Failed to load latest inventory:", error);
     }
+  };
+
+  const loadExpirationBatches = async () => {
+    try {
+      const reports = await api.getSubmittedInventoryReports();
+      if (reports.length > 0) {
+        const latestReport = reports[0];
+        const newBatchesMap = new Map<string, ExpirationBatch[]>();
+        if (latestReport.inventorySnapshot?.items) {
+          latestReport.inventorySnapshot.items.forEach((item: any) => {
+            if (item.expirationBatches && item.expirationBatches.length > 0) {
+              newBatchesMap.set(item.inventoryItemId, item.expirationBatches);
+            }
+          });
+        }
+        setBatchesMap(newBatchesMap);
+      }
+    } catch (error) {
+      console.error("Failed to load expiration batches:", error);
+    }
+  };
+
+  // Get expiration status for a batch
+  const getExpirationStatus = (
+    expirationDate: string | undefined,
+    warningDays: number = 7
+  ): { status: "expired" | "expiring-soon" | "warning" | "ok"; daysLeft: number | null } => {
+    if (!expirationDate) return { status: "ok", daysLeft: null };
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const expDate = new Date(expirationDate);
+    expDate.setHours(0, 0, 0, 0);
+
+    const daysLeft = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft < 0) return { status: "expired", daysLeft };
+    if (daysLeft <= 3) return { status: "expiring-soon", daysLeft };
+    if (daysLeft <= warningDays) return { status: "warning", daysLeft };
+    return { status: "ok", daysLeft };
+  };
+
+  const formatExpirationDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
   const loadInventoryItems = async () => {
@@ -147,6 +199,10 @@ export default function InventoryPage() {
         minStockLevel: itemForm.minStockLevel
           ? parseFloat(itemForm.minStockLevel)
           : undefined,
+        requiresExpirationDate: itemForm.requiresExpirationDate,
+        expirationWarningDays: itemForm.requiresExpirationDate && itemForm.expirationWarningDays
+          ? parseInt(itemForm.expirationWarningDays)
+          : undefined,
       });
       await loadInventoryItems();
       await loadStats();
@@ -168,6 +224,10 @@ export default function InventoryPage() {
         description: itemForm.description || undefined,
         minStockLevel: itemForm.minStockLevel
           ? parseFloat(itemForm.minStockLevel)
+          : undefined,
+        requiresExpirationDate: itemForm.requiresExpirationDate,
+        expirationWarningDays: itemForm.requiresExpirationDate && itemForm.expirationWarningDays
+          ? parseInt(itemForm.expirationWarningDays)
           : undefined,
       });
       await loadInventoryItems();
@@ -200,6 +260,8 @@ export default function InventoryPage() {
       unit: "",
       description: "",
       minStockLevel: "",
+      requiresExpirationDate: false,
+      expirationWarningDays: "7",
     });
   };
 
@@ -212,6 +274,8 @@ export default function InventoryPage() {
         unit: item.unit,
         description: item.description || "",
         minStockLevel: item.minStockLevel?.toString() || "",
+        requiresExpirationDate: item.requiresExpirationDate || false,
+        expirationWarningDays: item.expirationWarningDays?.toString() || "7",
       });
     } else {
       setEditingItem(null);
@@ -475,51 +539,150 @@ export default function InventoryPage() {
 
                   {/* Items Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                    {groupedItems[category].map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition"
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">
-                              {item.name}
-                            </p>
-                          </div>
-                          <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 flex-shrink-0">
-                            {item.unit}
-                          </span>
-                        </div>
-                        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs sm:text-sm text-gray-600">
-                              Current Stock:
-                            </span>
-                            <span
-                              className={`text-base sm:text-lg font-bold ${
-                                item.minStockLevel &&
-                                item.latestQuantity &&
-                                item.latestQuantity <= item.minStockLevel
-                                  ? "text-red-600"
-                                  : "text-green-600"
-                              }`}
-                            >
-                              {item.latestQuantity ?? "-"}
+                    {groupedItems[category].map((item) => {
+                      const itemBatches = batchesMap.get(item.id) || [];
+                      const hasExpirationBatches = item.requiresExpirationDate && itemBatches.length > 0;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition"
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">
+                                {item.name}
+                              </p>
+                              {item.requiresExpirationDate && (
+                                <span className="inline-flex items-center gap-1 text-xs text-amber-600 mt-1">
+                                  <Calendar className="w-3 h-3" />
+                                  Tracks expiration
+                                </span>
+                              )}
+                            </div>
+                            <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 flex-shrink-0">
+                              {item.unit}
                             </span>
                           </div>
-                          {item.minStockLevel && (
-                            <div className="flex items-center justify-between mt-1">
-                              <span className="text-xs text-gray-500">
-                                Min Level:
-                              </span>
+                          <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200">
+                            <div className="flex items-center justify-between">
                               <span className="text-xs sm:text-sm text-gray-600">
-                                {item.minStockLevel}
+                                Current Stock:
+                              </span>
+                              <span
+                                className={`text-base sm:text-lg font-bold ${
+                                  item.minStockLevel &&
+                                  item.latestQuantity &&
+                                  item.latestQuantity <= item.minStockLevel
+                                    ? "text-red-600"
+                                    : "text-green-600"
+                                }`}
+                              >
+                                {item.latestQuantity ?? "-"}
                               </span>
                             </div>
-                          )}
+                            {item.minStockLevel && (
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-xs text-gray-500">
+                                  Min Level:
+                                </span>
+                                <span className="text-xs sm:text-sm text-gray-600">
+                                  {item.minStockLevel}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Expiration Batches Display */}
+                            {hasExpirationBatches && (
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <p className="text-xs font-semibold text-gray-700 mb-2">
+                                  Expiration Batches:
+                                </p>
+                                <div className="space-y-2">
+                                  {itemBatches.map((batch, idx) => {
+                                    const { status, daysLeft } = getExpirationStatus(
+                                      batch.expirationDate,
+                                      item.expirationWarningDays || 7
+                                    );
+
+                                    const getBatchStyles = () => {
+                                      switch (status) {
+                                        case "expired":
+                                          return {
+                                            bg: "bg-red-100",
+                                            border: "border-red-300",
+                                            text: "text-red-700",
+                                            icon: <CalendarX className="w-3 h-3" />,
+                                          };
+                                        case "expiring-soon":
+                                          return {
+                                            bg: "bg-orange-100",
+                                            border: "border-orange-300",
+                                            text: "text-orange-700",
+                                            icon: <Calendar className="w-3 h-3" />,
+                                          };
+                                        case "warning":
+                                          return {
+                                            bg: "bg-amber-100",
+                                            border: "border-amber-300",
+                                            text: "text-amber-700",
+                                            icon: <Calendar className="w-3 h-3" />,
+                                          };
+                                        default:
+                                          return {
+                                            bg: "bg-green-50",
+                                            border: "border-green-200",
+                                            text: "text-green-700",
+                                            icon: <Calendar className="w-3 h-3" />,
+                                          };
+                                      }
+                                    };
+
+                                    const styles = getBatchStyles();
+
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className={`flex items-center justify-between p-2 rounded-md border ${styles.bg} ${styles.border}`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className={styles.text}>{styles.icon}</span>
+                                          <span className={`text-xs font-medium ${styles.text}`}>
+                                            {batch.expirationDate
+                                              ? formatExpirationDate(batch.expirationDate)
+                                              : "No date"}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-bold text-gray-900">
+                                            Qty: {batch.quantity}
+                                          </span>
+                                          {status === "expired" && (
+                                            <span className="px-1.5 py-0.5 text-xs font-bold bg-red-600 text-white rounded">
+                                              EXPIRED
+                                            </span>
+                                          )}
+                                          {status === "expiring-soon" && daysLeft !== null && (
+                                            <span className="px-1.5 py-0.5 text-xs font-bold bg-orange-500 text-white rounded">
+                                              {daysLeft}d
+                                            </span>
+                                          )}
+                                          {status === "warning" && daysLeft !== null && (
+                                            <span className="px-1.5 py-0.5 text-xs font-bold bg-amber-500 text-white rounded">
+                                              {daysLeft}d
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -757,6 +920,54 @@ export default function InventoryPage() {
                   rows={3}
                   placeholder="Optional description"
                 />
+              </div>
+
+              {/* Expiration Date Settings */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="flex items-center space-x-3 mb-3">
+                  <input
+                    type="checkbox"
+                    id="requiresExpirationDate"
+                    checked={itemForm.requiresExpirationDate}
+                    onChange={(e) =>
+                      setItemForm({
+                        ...itemForm,
+                        requiresExpirationDate: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label
+                    htmlFor="requiresExpirationDate"
+                    className="text-xs sm:text-sm font-medium text-gray-700"
+                  >
+                    Require expiration date tracking
+                  </label>
+                </div>
+
+                {itemForm.requiresExpirationDate && (
+                  <div className="ml-7">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Warning days before expiry
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={itemForm.expirationWarningDays}
+                      onChange={(e) =>
+                        setItemForm({
+                          ...itemForm,
+                          expirationWarningDays: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
+                      placeholder="7"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Alert when items expire within this many days
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

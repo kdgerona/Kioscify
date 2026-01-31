@@ -2,6 +2,11 @@ import { apiPost, apiGet } from "../utils/api";
 import { safeReactotron } from "../utils/reactotron";
 import { InventoryCategory } from "./inventoryService";
 
+export interface ExpirationBatch {
+  quantity: number;
+  expirationDate?: string; // ISO 8601 format
+}
+
 export interface InventoryItemSnapshot {
   inventoryItemId: string;
   itemName: string;
@@ -10,6 +15,9 @@ export interface InventoryItemSnapshot {
   quantity: number;
   minStockLevel?: number;
   recordDate: string;
+  requiresExpirationDate?: boolean;
+  expirationWarningDays?: number;
+  expirationBatches?: ExpirationBatch[];
 }
 
 export interface InventorySnapshot {
@@ -76,11 +84,12 @@ export interface InventoryProgression {
 }
 
 export interface InventoryAlert {
-  type: "LOW_STOCK" | "USAGE_SPIKE" | "PROJECTED_STOCKOUT";
+  type: "LOW_STOCK" | "USAGE_SPIKE" | "PROJECTED_STOCKOUT" | "EXPIRED" | "EXPIRING_SOON";
   severity: "LOW" | "MEDIUM" | "HIGH";
   itemId: string;
   itemName: string;
   category: string;
+  unit?: string;
   currentQuantity?: number;
   minStockLevel?: number;
   shortfall?: number;
@@ -90,6 +99,11 @@ export interface InventoryAlert {
   avgDailyConsumption?: number;
   daysUntilStockout?: number;
   estimatedStockoutDate?: string;
+  // Expiration-specific fields
+  batchQuantity?: number;
+  expirationDate?: string;
+  daysExpiredAgo?: number;
+  daysUntilExpiration?: number;
 }
 
 export interface InventoryAlerts {
@@ -99,6 +113,8 @@ export interface InventoryAlerts {
     LOW_STOCK: number;
     USAGE_SPIKE: number;
     PROJECTED_STOCKOUT: number;
+    EXPIRED: number;
+    EXPIRING_SOON: number;
   };
   alerts: InventoryAlert[];
 }

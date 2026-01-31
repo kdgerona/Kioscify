@@ -6,9 +6,29 @@ import {
   ValidateNested,
   IsDateString,
   IsBoolean,
+  IsInt,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+
+export class ExpirationBatchDto {
+  @ApiProperty({
+    example: 10,
+    description: 'Quantity in this batch',
+  })
+  @IsNumber()
+  quantity: number;
+
+  @ApiProperty({
+    example: '2024-03-15T00:00:00.000Z',
+    required: false,
+    description: 'Expiration date for this batch (ISO 8601 format)',
+  })
+  @IsOptional()
+  @IsDateString()
+  expirationDate?: string;
+}
 
 export class InventoryItemSnapshotDto {
   @ApiProperty()
@@ -39,6 +59,34 @@ export class InventoryItemSnapshotDto {
   @ApiProperty()
   @IsDateString()
   recordDate: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Whether this item requires expiration date tracking',
+  })
+  @IsOptional()
+  @IsBoolean()
+  requiresExpirationDate?: boolean;
+
+  @ApiProperty({
+    required: false,
+    description: 'Number of days before expiration to trigger warning alerts',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expirationWarningDays?: number;
+
+  @ApiProperty({
+    type: [ExpirationBatchDto],
+    required: false,
+    description: 'Batches with different expiration dates',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ExpirationBatchDto)
+  expirationBatches?: ExpirationBatchDto[];
 }
 
 export class InventorySnapshotDto {

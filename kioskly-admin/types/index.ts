@@ -135,8 +135,15 @@ export interface InventoryItem {
   unit: string;
   description?: string;
   minStockLevel?: number;
+  requiresExpirationDate?: boolean;
+  expirationWarningDays?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ExpirationBatch {
+  quantity: number;
+  expirationDate?: string;
 }
 
 export interface InventoryRecord {
@@ -156,6 +163,7 @@ export interface InventoryRecord {
 export interface LatestInventoryItem extends InventoryItem {
   latestQuantity?: number;
   latestRecordDate?: string;
+  previousQuantity?: number;
 }
 
 export interface InventoryStats {

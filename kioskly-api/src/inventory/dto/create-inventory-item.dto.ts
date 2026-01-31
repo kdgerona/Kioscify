@@ -5,6 +5,9 @@ import {
   IsEnum,
   IsOptional,
   IsNumber,
+  IsBoolean,
+  IsInt,
+  Min,
 } from 'class-validator';
 
 export enum InventoryCategory {
@@ -58,4 +61,23 @@ export class CreateInventoryItemDto {
   @IsNumber()
   @IsOptional()
   minStockLevel?: number;
+
+  @ApiProperty({
+    example: false,
+    required: false,
+    description: 'Whether this item requires expiration date tracking',
+  })
+  @IsBoolean()
+  @IsOptional()
+  requiresExpirationDate?: boolean;
+
+  @ApiProperty({
+    example: 7,
+    required: false,
+    description: 'Number of days before expiration to trigger warning alerts',
+  })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  expirationWarningDays?: number;
 }

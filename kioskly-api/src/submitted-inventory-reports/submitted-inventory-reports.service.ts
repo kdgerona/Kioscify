@@ -378,6 +378,8 @@ export class SubmittedInventoryReportsService {
           LOW_STOCK: 0,
           USAGE_SPIKE: 0,
           PROJECTED_STOCKOUT: 0,
+          EXPIRED: 0,
+          EXPIRING_SOON: 0,
         },
         alerts: [],
       };
@@ -401,9 +403,15 @@ export class SubmittedInventoryReportsService {
           category: item.category,
           unit: item.unit,
           minStockLevel: item.minStockLevel,
+          requiresExpirationDate: item.requiresExpirationDate,
+          expirationWarningDays: item.expirationWarningDays,
+          expirationBatches: item.expirationBatches || [],
         });
       });
     });
+
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
     // Calculate alerts for each item
     itemsMap.forEach((dataPoints, inventoryItemId) => {
@@ -437,6 +445,61 @@ export class SubmittedInventoryReportsService {
           minStockLevel,
           shortfall: parseFloat(shortfall.toFixed(2)),
         });
+      }
+
+      // Alert: Expiration alerts
+      if (
+        latestPoint.requiresExpirationDate &&
+        latestPoint.expirationBatches &&
+        latestPoint.expirationBatches.length > 0
+      ) {
+        const warningDays = latestPoint.expirationWarningDays || 7;
+
+        for (const batch of latestPoint.expirationBatches) {
+          if (!batch.expirationDate || batch.quantity <= 0) continue;
+
+          const expirationDate = new Date(batch.expirationDate);
+          expirationDate.setHours(0, 0, 0, 0);
+
+          const daysUntilExpiration = Math.ceil(
+            (expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          );
+
+          if (daysUntilExpiration < 0) {
+            // Already expired
+            alerts.push({
+              type: 'EXPIRED',
+              severity: 'HIGH',
+              itemId: inventoryItemId,
+              itemName: latestPoint.itemName,
+              category: latestPoint.category,
+              unit: latestPoint.unit,
+              batchQuantity: batch.quantity,
+              expirationDate: expirationDate.toISOString().split('T')[0],
+              daysExpiredAgo: Math.abs(daysUntilExpiration),
+            });
+          } else if (daysUntilExpiration <= warningDays) {
+            // Expiring soon
+            const severity =
+              daysUntilExpiration <= 3
+                ? 'HIGH'
+                : daysUntilExpiration <= 7
+                  ? 'MEDIUM'
+                  : 'LOW';
+
+            alerts.push({
+              type: 'EXPIRING_SOON',
+              severity,
+              itemId: inventoryItemId,
+              itemName: latestPoint.itemName,
+              category: latestPoint.category,
+              unit: latestPoint.unit,
+              batchQuantity: batch.quantity,
+              expirationDate: expirationDate.toISOString().split('T')[0],
+              daysUntilExpiration,
+            });
+          }
+        }
       }
 
       // Calculate consumptions for usage spike and stockout alerts
@@ -518,6 +581,8 @@ export class SubmittedInventoryReportsService {
       USAGE_SPIKE: alerts.filter((a) => a.type === 'USAGE_SPIKE').length,
       PROJECTED_STOCKOUT: alerts.filter((a) => a.type === 'PROJECTED_STOCKOUT')
         .length,
+      EXPIRED: alerts.filter((a) => a.type === 'EXPIRED').length,
+      EXPIRING_SOON: alerts.filter((a) => a.type === 'EXPIRING_SOON').length,
     };
 
     return {

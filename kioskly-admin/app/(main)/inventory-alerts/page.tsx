@@ -10,10 +10,12 @@ import {
   Package,
   RefreshCw,
   CheckCircle2,
+  Calendar,
+  CalendarX,
 } from "lucide-react";
 import Link from "next/link";
 
-type AlertType = "LOW_STOCK" | "USAGE_SPIKE" | "PROJECTED_STOCKOUT";
+type AlertType = "LOW_STOCK" | "USAGE_SPIKE" | "PROJECTED_STOCKOUT" | "EXPIRED" | "EXPIRING_SOON";
 type Severity = "HIGH" | "MEDIUM" | "LOW";
 
 interface InventoryAlert {
@@ -32,6 +34,11 @@ interface InventoryAlert {
   avgDailyConsumption?: number;
   daysUntilStockout?: number;
   estimatedStockoutDate?: string;
+  // Expiration-specific fields
+  batchQuantity?: number;
+  expirationDate?: string;
+  daysExpiredAgo?: number;
+  daysUntilExpiration?: number;
 }
 
 interface AlertsData {
@@ -40,6 +47,8 @@ interface AlertsData {
     LOW_STOCK: number;
     USAGE_SPIKE: number;
     PROJECTED_STOCKOUT: number;
+    EXPIRED: number;
+    EXPIRING_SOON: number;
   };
   alertsBySeverity: {
     HIGH: number;
@@ -135,6 +144,10 @@ export default function InventoryAlertsPage() {
         return TrendingUp;
       case "PROJECTED_STOCKOUT":
         return Clock;
+      case "EXPIRED":
+        return CalendarX;
+      case "EXPIRING_SOON":
+        return Calendar;
       default:
         return AlertTriangle;
     }
@@ -148,6 +161,10 @@ export default function InventoryAlertsPage() {
         return "Usage Spike";
       case "PROJECTED_STOCKOUT":
         return "Projected Stockout";
+      case "EXPIRED":
+        return "Expired";
+      case "EXPIRING_SOON":
+        return "Expiring Soon";
       default:
         return type;
     }
@@ -212,7 +229,59 @@ export default function InventoryAlertsPage() {
       </div>
 
       {/* Alert Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 sm:gap-6 mb-6">
+        <button
+          onClick={() =>
+            setSelectedType(selectedType === "EXPIRED" ? null : "EXPIRED")
+          }
+          className={`bg-white rounded-xl shadow-sm p-4 sm:p-6 border-2 transition hover:shadow-md text-left ${
+            selectedType === "EXPIRED" ? "border-red-700" : "border-gray-200"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="bg-red-700 p-2 sm:p-3 rounded-lg">
+              <CalendarX className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            </div>
+            {selectedType === "EXPIRED" && (
+              <span className="text-xs sm:text-sm font-semibold text-red-700">
+                FILTERED
+              </span>
+            )}
+          </div>
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">Expired Items</p>
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
+            {alertsData?.alertsByType.EXPIRED || 0}
+          </p>
+        </button>
+
+        <button
+          onClick={() =>
+            setSelectedType(
+              selectedType === "EXPIRING_SOON" ? null : "EXPIRING_SOON"
+            )
+          }
+          className={`bg-white rounded-xl shadow-sm p-4 sm:p-6 border-2 transition hover:shadow-md text-left ${
+            selectedType === "EXPIRING_SOON"
+              ? "border-amber-500"
+              : "border-gray-200"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="bg-amber-500 p-2 sm:p-3 rounded-lg">
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            </div>
+            {selectedType === "EXPIRING_SOON" && (
+              <span className="text-xs sm:text-sm font-semibold text-amber-600">
+                FILTERED
+              </span>
+            )}
+          </div>
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">Expiring Soon</p>
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
+            {alertsData?.alertsByType.EXPIRING_SOON || 0}
+          </p>
+        </button>
+
         <button
           onClick={() =>
             setSelectedType(selectedType === "LOW_STOCK" ? null : "LOW_STOCK")
@@ -231,7 +300,7 @@ export default function InventoryAlertsPage() {
               </span>
             )}
           </div>
-          <p className="text-gray-600 text-xs sm:text-sm mb-1">Low Stock Alerts</p>
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">Low Stock</p>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
             {alertsData?.alertsByType.LOW_STOCK || 0}
           </p>
@@ -289,7 +358,7 @@ export default function InventoryAlertsPage() {
               </span>
             )}
           </div>
-          <p className="text-gray-600 text-xs sm:text-sm mb-1">Projected Stockouts</p>
+          <p className="text-gray-600 text-xs sm:text-sm mb-1">Stockouts</p>
           <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">
             {alertsData?.alertsByType.PROJECTED_STOCKOUT || 0}
           </p>
@@ -499,6 +568,66 @@ export default function InventoryAlertsPage() {
                                     <p className="text-base sm:text-lg font-bold text-red-600">
                                       {alert.estimatedStockoutDate &&
                                         formatDate(alert.estimatedStockoutDate)}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {alert.type === "EXPIRED" && (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                                  <div>
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                                      Batch Quantity
+                                    </p>
+                                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                                      {alert.batchQuantity}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                                      Expiration Date
+                                    </p>
+                                    <p className="text-base sm:text-lg font-bold text-red-700">
+                                      {alert.expirationDate &&
+                                        formatDate(alert.expirationDate)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                                      Expired
+                                    </p>
+                                    <p className="text-xl sm:text-2xl font-bold text-red-700">
+                                      {alert.daysExpiredAgo} days ago
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {alert.type === "EXPIRING_SOON" && (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                                  <div>
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                                      Batch Quantity
+                                    </p>
+                                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                                      {alert.batchQuantity}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                                      Expiration Date
+                                    </p>
+                                    <p className="text-base sm:text-lg font-bold text-amber-600">
+                                      {alert.expirationDate &&
+                                        formatDate(alert.expirationDate)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                                      Expires In
+                                    </p>
+                                    <p className="text-xl sm:text-2xl font-bold text-amber-600">
+                                      {alert.daysUntilExpiration} days
                                     </p>
                                   </div>
                                 </div>

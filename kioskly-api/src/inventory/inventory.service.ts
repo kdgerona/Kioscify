@@ -263,6 +263,8 @@ export class InventoryService {
         unit: item.unit,
         description: item.description,
         minStockLevel: item.minStockLevel,
+        requiresExpirationDate: item.requiresExpirationDate,
+        expirationWarningDays: item.expirationWarningDays,
         latestQuantity: latestData?.quantity ?? null,
         latestRecordDate: latestData?.date ?? null,
         previousQuantity: previousQuantity ?? null,

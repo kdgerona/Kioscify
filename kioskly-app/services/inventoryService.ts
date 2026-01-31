@@ -52,6 +52,8 @@ export interface LatestInventoryItem {
   unit: string;
   description?: string;
   minStockLevel?: number;
+  requiresExpirationDate?: boolean;
+  expirationWarningDays?: number;
   latestQuantity: number | null;
   latestRecordDate: string | null;
   previousQuantity: number | null;
