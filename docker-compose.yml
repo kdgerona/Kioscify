@@ -22,14 +22,15 @@ services:
       dockerfile: dockerfile
     container_name: kioskly-mongo
     restart: unless-stopped
-    ports:
-      - "27017:27017"
+    # ports:
+    #   - "27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-root}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-s3cr3t}
       MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-kioskly}
       MONGO_REPLICA_HOST: mongo
       MONGO_REPLICA_PORT: 27017
+    command: mongod --auth --replSet rs0
     volumes:
       - mongo-data:/data/db
       - mongo-config:/data/configdb
