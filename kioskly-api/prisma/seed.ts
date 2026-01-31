@@ -8,11 +8,11 @@ async function main() {
 
   // Create Mr. Lemon - Maasin Branch tenant
   const tenant = await prisma.tenant.upsert({
-    where: { slug: 'mr-lemon-maasin' },
+    where: { slug: 'mr-lemon-metro-maasin' },
     update: {},
     create: {
       name: 'Mr. Lemon - Maasin Branch',
-      slug: 'mr-lemon-maasin',
+      slug: 'mr-lemon-metro-maasin',
       description: 'Refreshing lemonade and calamansi drinks',
       contactEmail: 'maasin@mrlemon.com',
       contactPhone: '+63 123 456 7890',
@@ -31,7 +31,7 @@ async function main() {
   console.log('✓ Created tenant:', tenant.name);
 
   // Create default admin user
-  const adminPassword = await bcrypt.hash('admin123', 10);
+  const adminPassword = await bcrypt.hash('MrLemon@Admin25', 10);
   const admin = await prisma.user.upsert({
     where: {
       tenantId_username: {
@@ -54,7 +54,7 @@ async function main() {
   console.log('✓ Created admin user:', admin.username);
 
   // Create default cashier user
-  const cashierPassword = await bcrypt.hash('cashier123', 10);
+  const cashierPassword = await bcrypt.hash('MrLemon@Cash25', 10);
   const cashier = await prisma.user.upsert({
     where: {
       tenantId_username: {
@@ -730,8 +730,8 @@ async function main() {
   console.log(`  Name: ${tenant.name}`);
   console.log(`  Slug: ${tenant.slug}`);
   console.log('\n📝 Default credentials:');
-  console.log('  Admin: username=admin, password=admin123');
-  console.log('  Cashier: username=cashier, password=cashier123\n');
+  console.log('  Admin: username=admin, password=MrLemon@Admin25');
+  console.log('  Cashier: username=cashier, password=MrLemon@Cash25\n');
 }
 
 main()
