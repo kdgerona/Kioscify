@@ -43,3 +43,6 @@ lerna-debug.log*
 
 # Uploads
 /uploads
+
+# Seed file (contains sensitive credentials)
+prisma/seed.ts
