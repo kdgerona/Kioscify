@@ -41,3 +41,8 @@ lerna-debug.log*
 *.log
 .cache/
 
+# Nginx
+docker/nginx/ssl/
+
+# MongoDB
+mongo-dump
