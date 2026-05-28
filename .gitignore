@@ -46,3 +46,4 @@ docker/nginx/ssl/
 
 # MongoDB
 mongo-dump
+backups/
