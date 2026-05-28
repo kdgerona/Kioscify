@@ -4,198 +4,149 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Kioskly is a multi-tenant POS (Point of Sale) kiosk system for beverage businesses. Built as a monorepo using Turborepo, it consists of a NestJS backend API and a React Native/Expo mobile application.
-
-## Architecture
-
-### Monorepo Structure
+Kioskly is a multi-tenant POS (Point of Sale) system for beverage businesses. Built as a monorepo using Turborepo with three packages:
 - **kioskly-api**: NestJS backend with Prisma ORM and MongoDB
-- **kioskly-app**: React Native/Expo mobile application
-
-Both packages are managed through npm workspaces and Turborepo for efficient parallel builds and caching.
-
-### Multi-Tenancy
-The system supports multiple businesses with complete data isolation:
-- Each tenant has unique branding (logo, theme colors)
-- All data (users, products, categories, transactions) is scoped to tenants
-- Tenants are identified by unique slugs (e.g., "coffee-shop")
-- Mobile app loads tenant configuration at startup via slug entry
+- **kioskly-admin**: Next.js 15 admin dashboard (web)
+- **kioskly-app**: React Native/Expo mobile POS app (not in npm workspaces — managed separately)
 
 ## Development Commands
 
 ### Root Level (Turborepo)
 ```bash
-npm run dev              # Run all apps in development mode (parallel)
+npm run dev              # Run API + admin in parallel
 npm run build            # Build all packages with caching
 npm run test             # Run tests across all packages
 npm run lint             # Lint all packages
 npm run clean            # Clean all build artifacts and node_modules
 
-# Individual workspace commands
-npm run api:dev          # Run API only
-npm run app:dev          # Run mobile app only
-npm run api:build        # Build API only
-npm run app:build        # Build app only
+npm run api:dev          # API only (watch mode, port 3000)
+npm run admin:dev        # Admin dashboard only (Next.js dev)
+npm run app:dev          # Mobile app only (Expo, not in workspace — runs via cd)
 ```
 
 ### API (kioskly-api)
 ```bash
-# Development
-npm run start:dev        # Start API in watch mode (port 3000)
-npm run start:prod       # Start production build
-
-# Prisma Database
-npm run prisma:generate  # Generate Prisma Client (run after schema changes)
-npm run prisma:migrate   # Run database migrations
+npm run start:dev        # Start with watch mode
+npm run prisma:generate  # Regenerate Prisma Client after schema changes
+npm run prisma:migrate   # Run migrations
 npm run prisma:studio    # Open Prisma Studio GUI
-npm run prisma:seed      # Seed database with initial data
-
-# Testing
-npm run test             # Run unit tests
-npm run test:watch       # Run tests in watch mode
-npm run test:cov         # Run tests with coverage
-npm run test:e2e         # Run end-to-end tests
+npm run prisma:seed      # Seed initial data (requires tenant to exist first)
+npm run test             # Unit tests
+npm run test:e2e         # E2E tests
 ```
 
-### Mobile App (kioskly-app)
+### Mobile App (kioskly-app — run from that directory)
 ```bash
-npm start                # Start Expo dev server (interactive menu)
-npm run android          # Run on Android emulator/device
-npm run ios              # Run on iOS simulator/device
-npm run web              # Run web version
-npm run lint             # Run ESLint
+npm start                # Expo dev server
+npm run android          # Android emulator/device
+npm run ios              # iOS simulator/device
 ```
 
-## Database Architecture
+## Database
 
 ### MongoDB Setup
-- Uses MongoDB with replica set enabled (required for Prisma transactions)
-- Configured via Docker Compose in `docker/docker-compose.yml`
-- Replica set name: `rs0`
-- Default credentials: `admin:admin123` (change in production)
+- Requires replica set (for Prisma transactions) — configured via `docker/docker-compose.yml`
+- Replica set name: `rs0`, default credentials: `admin:admin123`
 
-Start MongoDB:
 ```bash
-docker-compose up -d      # From project root
+docker-compose up -d    # Start MongoDB
 ```
 
-Connection string format:
-```
-mongodb://admin:admin123@localhost:27017/kioskly?authSource=admin&replicaSet=rs0
-```
+Connection string: `mongodb://admin:admin123@localhost:27017/kioskly?authSource=admin&replicaSet=rs0`
 
-### Schema Design (Multi-Tenant)
-All models have `tenantId` foreign key for data isolation:
-- **Tenant**: Stores business info, logo, theme colors
-- **User**: Tenant-scoped users (ADMIN/CASHIER roles)
-- **Category**: Product categories per tenant
-- **Product**: Products with category relationship
-- **Size**: Size options with price modifiers
-- **Addon**: Product add-ons/extras
-- **Transaction**: Sales records with payment details
-- **TransactionItem**: Line items with size and addon selections
+### Schema Models (Multi-Tenant)
+All models include `tenantId` for isolation. Key models:
 
-Key constraints:
-- Username/email unique per tenant (not globally)
-- All data cascades on tenant deletion
-- Users cannot be deleted if they have transactions (onDelete: Restrict)
+| Model | Purpose |
+|---|---|
+| Tenant | Business config, branding, themeColors |
+| User | ADMIN / CASHIER roles, scoped per tenant |
+| Category, Product, Size, Addon | Menu/product catalog |
+| Transaction, TransactionItem | Sales records with void workflow |
+| Expense | Business expenses with void workflow |
+| InventoryItem, InventoryRecord | Inventory tracking |
+| SubmittedReport | Daily snapshot report (sales + expenses) |
+| SubmittedInventoryReport | Daily inventory snapshot |
+
+**Void workflow**: Transactions and Expenses have `voidStatus` (NONE → PENDING → APPROVED/REJECTED) managed by separate requester/reviewer user references.
+
+Constraints: username/email unique per tenant (not globally); users with transactions cannot be deleted (Restrict); all other data cascades on tenant deletion.
 
 ## Backend (kioskly-api)
 
-### Technology Stack
-- NestJS with TypeScript
-- Prisma ORM with MongoDB
-- JWT authentication with Passport
-- Swagger/OpenAPI documentation
-- bcrypt for password hashing
-- Multer for file uploads (tenant logos)
+### API Prefix & Docs
+- All routes prefixed with `/api/v1` (configurable via `API_PREFIX` env var)
+- `GET /health` is excluded from prefix (for load balancers)
+- Swagger UI: `http://localhost:3000/api/v1/docs`
 
 ### Module Structure
 ```
 src/
-├── auth/           # JWT authentication, login, registration
-├── tenants/        # Tenant CRUD, logo upload (ADMIN only)
-├── categories/     # Category management
-├── products/       # Product management
-├── sizes/          # Size management
-├── addons/         # Addon management
-├── transactions/   # Transaction processing, statistics
-├── common/         # Shared decorators, guards, pipes
-│   ├── decorators/ # @Roles(), @Tenant() decorators
-│   └── guards/     # JwtAuthGuard, RolesGuard
-└── prisma/         # PrismaService wrapper
+├── auth/                         # JWT login, register, profile
+├── tenants/                      # Tenant CRUD + logo upload (ADMIN only)
+├── categories/                   # Category management
+├── products/                     # Product management
+├── sizes/                        # Size options
+├── addons/                       # Add-ons/extras
+├── transactions/                 # Sales records + void workflow
+├── expenses/                     # Expense tracking + void workflow
+├── inventory/                    # Inventory items and records
+├── reports/                      # Aggregated reporting
+├── submitted-reports/            # Snapshot daily reports
+├── submitted-inventory-reports/  # Snapshot inventory reports
+├── common/
+│   ├── decorators/               # @Roles(), @TenantId()
+│   └── guards/                   # JwtAuthGuard, RolesGuard
+└── prisma/                       # PrismaService
 ```
 
-### Authentication & Authorization
-- JWT tokens expire in 7 days (configurable via JWT_EXPIRES_IN)
-- Role-based access control (ADMIN, CASHIER)
-- Use `@Roles()` decorator for endpoint protection
-- Tenant management endpoints are ADMIN-only
+### Auth Patterns
+- JWT tokens (7-day default). Use `@UseGuards(JwtAuthGuard, RolesGuard)` at controller level.
+- `@Roles('ADMIN')` for admin-only endpoints.
+- `@TenantId()` param decorator extracts `tenantId` from JWT payload.
+- Login requires `tenantId` in the request body alongside credentials.
 
 ### File Uploads
-- Logos stored in `uploads/logos/` directory
-- Served statically at `/uploads/logos/:filename`
-- Validation: JPG, PNG, GIF, SVG (max 5MB)
-- Filenames: `{originalname}-{timestamp}.{ext}`
+- Logos: `uploads/logos/` directory, served at `/uploads/logos/:filename`
+- Ensure `mkdir -p kioskly-api/uploads/logos` before first run.
 
-### API Documentation
-Swagger UI available at `http://localhost:3000/api` when running
+## Admin Dashboard (kioskly-admin)
 
-### Default Seed Data
-After running `npm run prisma:seed`:
-- Admin user: `username=admin`, `password=admin123`
-- Cashier user: `username=cashier`, `password=cashier123`
-- Sample categories, products, sizes, addons (if tenant exists)
+Next.js 15 App Router web app for tenant administrators.
+
+### Routes (`app/(main)/`)
+`dashboard`, `products`, `categories`, `sizes`, `addons`, `transactions`, `expenses`, `inventory`, `inventory-alerts`, `inventory-progression`, `inventory-reports`, `submitted-reports`, `reports`, `settings`
+
+Entry flow: `tenant-setup` → `login` → `(main)` layout with sidebar
+
+### Key Patterns
+- API client: `lib/api.ts` — Axios instance that reads `auth_token` from `localStorage` on each request
+- TenantContext (`contexts/TenantContext.tsx`): same slug-based pattern as mobile app, persists to `localStorage`
+- UI components: Radix UI primitives + Tailwind CSS + `tailwind-merge`/`clsx`
+
+### Environment Variable
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
+```
 
 ## Frontend (kioskly-app)
 
 ### Technology Stack
-- React Native 0.81.5 with React 19
-- Expo SDK 54 with New Architecture enabled
-- Expo Router (file-based routing)
-- NativeWind v4 (TailwindCSS for React Native)
-- TypeScript with strict mode
+- React Native 0.81.5 with React 19, Expo SDK 54 (New Architecture enabled)
+- Expo Router (file-based routing), NativeWind v4 (Tailwind for React Native)
 - AsyncStorage for tenant persistence
 
 ### App Flow
-1. **Tenant Setup** (`app/tenant-setup.tsx`): Enter store slug
-2. **Login** (`app/index.tsx`): Authenticate with tenant branding
-3. **Home/POS** (`app/home.tsx`): Product browsing, ordering, checkout
+1. `app/tenant-setup.tsx` — enter store slug
+2. `app/index.tsx` — login with tenant branding
+3. `app/home.tsx` — POS product browsing, ordering, checkout
 
-### Tenant Context
-Global state managed via `contexts/TenantContext.tsx`:
-- Fetches tenant by slug from API
-- Stores tenant info and theme colors
-- Persists selected tenant to AsyncStorage
-- Provides `useTenant()` hook for accessing tenant state
-
-### Dynamic Theming
-Theme colors applied throughout the app:
-- Primary: Main brand color (buttons, headers)
-- Secondary: Secondary accents (gradients)
-- Accent: Highlights (selected items)
-- Background/Text: Base colors
-
-Custom color classes available:
-```tsx
-className="bg-primary text-secondary-gold border-accent"
-```
-
-### Styling with NativeWind
-- Use `className` prop with Tailwind utilities (not `style`)
-- Import `global.css` at top of each screen
-- Metro bundler configured via `withNativeWind()`
-- Babel preset: `nativewind/babel`
-
-### State Management
-Currently uses local React state (useState/useEffect):
-- No global state library (Redux, Zustand, etc.)
-- Tenant context is the only shared state
-- Order state managed in `app/home.tsx`
+### Styling
+Use `className` (NativeWind) not `style` prop. Import `global.css` at top of each screen. Theme colors (primary, secondary, accent) come from `useTenant()` and are applied via tenant context.
 
 ## Environment Variables
 
-### API (.env)
+### API (.env in kioskly-api/)
 ```env
 DATABASE_URL="mongodb://admin:admin123@localhost:27017/kioskly?authSource=admin&replicaSet=rs0"
 JWT_SECRET="change-this-in-production"
@@ -203,141 +154,39 @@ JWT_EXPIRES_IN="7d"
 PORT=3000
 NODE_ENV=development
 UPLOAD_PATH=./uploads
+API_PREFIX=api/v1
+```
+
+### Admin (.env.local in kioskly-admin/)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
 ```
 
 ### Mobile App
-No environment variables currently used. API URL is hardcoded in contexts (should be configured for production).
+API URL is hardcoded in contexts — configure for production.
 
-## Turborepo Configuration
+## Turborepo
 
-### Task Pipeline
-Defined in `turbo.json`:
-- **build**: Caches outputs (`dist/`, `.next/`, `.expo/`, `build/`)
-- **dev/start**: No caching (persistent processes)
-- **lint/test**: Depends on `^build` completing first
-- **test:cov**: Caches coverage reports
+`kioskly-app` is **not** in npm workspaces (`package.json` workspaces only lists `kioskly-api` and `kioskly-admin`). To install dependencies for the mobile app, `cd kioskly-app && npm install` directly.
 
-### Cache Invalidation
-Cache invalidates when:
-- Source files change
-- Dependencies change
-- Environment variables change (see `globalEnv` in turbo.json)
-
-Force cache bypass:
 ```bash
+# Install dependency in a workspace
+npm install <package> --workspace=kioskly-api
+npm install <package> --workspace=kioskly-admin
+
+# Force bypass Turborepo cache
 npm run build -- --force
 ```
 
-### Workspace Commands
-```bash
-# Run command in specific workspace
-npm run <script> --workspace=kioskly-api
+## Common Issues
 
-# Install dependency in workspace
-npm install <package> --workspace=kioskly-api
-npm install -D <package> --workspace=kioskly-app
+**MongoDB replica set errors**: Check `docker-compose ps`, verify `replicaSet=rs0` in `DATABASE_URL`, inspect with:
+```bash
+docker exec -it kioskly-mongodb mongosh -u admin -p admin123 --authenticationDatabase admin --eval "rs.status()"
 ```
 
-## Testing Multi-Tenancy
+**Prisma client out of sync**: Run `npm run prisma:generate --workspace=kioskly-api` after any schema changes.
 
-### Create a Tenant
-```bash
-# Login first to get JWT token
-curl -X POST http://localhost:3000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}'
+**Metro bundler cache**: `cd kioskly-app && npm start -- --reset-cache`
 
-# Create tenant (use token from login)
-curl -X POST http://localhost:3000/tenants \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Demo Coffee Shop",
-    "slug": "demo-coffee",
-    "themeColors": {
-      "primary": "#8b4513",
-      "secondary": "#a67c52",
-      "accent": "#d4a574",
-      "background": "#ffffff",
-      "text": "#1f2937"
-    }
-  }'
-```
-
-### Upload Tenant Logo
-```bash
-curl -X POST http://localhost:3000/tenants/{tenantId}/logo \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -F "logo=@path/to/logo.png"
-```
-
-### Test in Mobile App
-1. Launch app with `npm start`
-2. Enter tenant slug (e.g., "demo-coffee")
-3. Login with admin credentials
-4. Verify branding and theme colors
-
-## Common Issues & Solutions
-
-### MongoDB Replica Set Errors
-If Prisma complains about replica set:
-1. Verify Docker is running: `docker-compose ps`
-2. Check replica set status: `docker exec -it kioskly-mongodb mongosh -u admin -p admin123 --authenticationDatabase admin --eval "rs.status()"`
-3. Ensure DATABASE_URL includes `replicaSet=rs0`
-
-### Prisma Client Out of Sync
-After schema changes, always run:
-```bash
-npm run prisma:generate --workspace=kioskly-api
-```
-
-### Metro Bundler Cache Issues
-Clear cache and restart:
-```bash
-npm start -- --reset-cache  # From kioskly-app
-```
-
-### Turbo Cache Issues
-```bash
-npm run clean        # Clear all caches
-npm install          # Reinstall dependencies
-npm run build        # Rebuild from scratch
-```
-
-## Code Style & Patterns
-
-### Backend (NestJS)
-- Use DTOs for request/response validation (class-validator)
-- Apply guards at controller level: `@UseGuards(JwtAuthGuard, RolesGuard)`
-- Use `@Tenant()` decorator to access tenant context (not implemented yet in all modules)
-- Return consistent response shapes
-- Use Prisma transactions for multi-step operations
-
-### Frontend (React Native)
-- Functional components with hooks
-- Use `useTenant()` for accessing tenant state
-- Apply theme colors dynamically via tenant context
-- Use NativeWind classes for styling (no inline styles)
-- Handle loading/error states explicitly
-
-### TypeScript
-- Strict mode enabled in both projects
-- Define interfaces for all data structures
-- Use type inference where possible
-- Avoid `any` type (use `unknown` if necessary)
-
-## Important Notes
-
-1. **Seed Data**: Current seed file doesn't create tenants automatically. Create tenants manually before seeding products.
-
-2. **API URL**: Mobile app has hardcoded API URL. Configure this for production deployments.
-
-3. **Security**: Default credentials (admin/admin123) are for development only. Change in production.
-
-4. **File Uploads**: The `uploads/` directory must exist. Create with `mkdir -p kioskly-api/uploads/logos`.
-
-5. **MongoDB Replica Set**: Required for Prisma transactions. Use provided Docker Compose setup.
-
-6. **Turborepo Caching**: If builds behave unexpectedly, try `--force` flag to bypass cache.
-
-7. **New Architecture**: Expo's New Architecture is enabled. Some legacy libraries may not be compatible.
+**Seed data**: The seed file does not create tenants. Create a tenant via the API first, then seed.
