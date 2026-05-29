@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   Company,
   Brand,
+  ThemeColors,
   Store,
   PlatformStats,
   User,
@@ -181,6 +182,13 @@ class ApiClient {
     return data;
   }
 
+  async getBrandById(id: string, companyId: string): Promise<Brand> {
+    const { data } = await this.client.get<Brand>(`/brands/${id}`, {
+      params: { companyId },
+    });
+    return data;
+  }
+
   async createBrand(payload: {
     name: string;
     slug: string;
@@ -188,6 +196,23 @@ class ApiClient {
     companyId: string;
   }): Promise<Brand> {
     const { data } = await this.client.post<Brand>('/brands', payload);
+    return data;
+  }
+
+  async updateBrand(
+    id: string,
+    payload: Partial<{ name: string; description: string; themeColors: ThemeColors; isActive: boolean }>
+  ): Promise<Brand> {
+    const { data } = await this.client.patch<Brand>(`/brands/${id}`, payload);
+    return data;
+  }
+
+  async uploadBrandLogo(id: string, file: File): Promise<Brand> {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const { data } = await this.client.post<Brand>(`/brands/${id}/upload-logo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   }
 

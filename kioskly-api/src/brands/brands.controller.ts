@@ -56,6 +56,16 @@ export class BrandsController {
     return this.brandsService.findAllByCompany(companyId);
   }
 
+  @Get('validate-subdomain')
+  @ApiOperation({ summary: 'Validate company+brand subdomain pair (public, no auth)' })
+  @ApiResponse({ status: 200, description: 'Validation result with brand branding data' })
+  validateSubdomain(
+    @Query('companySlug') companySlug: string,
+    @Query('brandSlug') brandSlug: string,
+  ) {
+    return this.brandsService.validateSubdomain(companySlug, brandSlug);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')

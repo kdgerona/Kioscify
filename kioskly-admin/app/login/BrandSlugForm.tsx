@@ -1,22 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
-export default function CompanySlugForm() {
-  const [slug, setSlug] = useState('');
+export default function BrandSlugForm() {
+  const [companySlug, setCompanySlug] = useState('');
+  const [brandSlug, setBrandSlug] = useState('');
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!slug.trim()) return;
+    if (!companySlug.trim() || !brandSlug.trim()) return;
     setLoading(true);
-
-    const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'kioscify.com';
-    const protocol = window.location.protocol;
-    const port = window.location.port;
-    const portSuffix = port ? `:${port}` : '';
-    window.location.href = `${protocol}//${slug.trim().toLowerCase()}.store.${platformDomain}${portSuffix}/login`;
+    router.push(`/${companySlug.trim().toLowerCase()}/${brandSlug.trim().toLowerCase()}`);
   };
 
   return (
@@ -27,28 +25,41 @@ export default function CompanySlugForm() {
             <Image src="/logo.png" alt="Kioscify" fill className="object-contain" priority />
           </div>
           <h1 className="text-2xl font-bold text-orange-600 text-center">Store Management Portal</h1>
-          <p className="text-gray-500 text-sm mt-1 text-center">Enter your company identifier to continue</p>
+          <p className="text-gray-500 text-sm mt-1 text-center">Enter your company and brand to continue</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Company Slug</label>
             <input
               type="text"
-              value={slug}
-              onChange={e => setSlug(e.target.value)}
+              value={companySlug}
+              onChange={e => setCompanySlug(e.target.value)}
               required
               autoCapitalize="none"
               autoCorrect="off"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-sm text-gray-900"
               placeholder="e.g. greatserve"
             />
-            <p className="text-xs text-gray-500 mt-1">Provided by your Kioscify platform administrator</p>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Brand Slug</label>
+            <input
+              type="text"
+              value={brandSlug}
+              onChange={e => setBrandSlug(e.target.value)}
+              required
+              autoCapitalize="none"
+              autoCorrect="off"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-sm text-gray-900"
+              placeholder="e.g. mr-lemon"
+            />
+          </div>
+          <p className="text-xs text-gray-400">Provided by your Kioscify platform administrator</p>
 
           <button
             type="submit"
-            disabled={loading || !slug.trim()}
+            disabled={loading || !companySlug.trim() || !brandSlug.trim()}
             className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             {loading ? 'Redirecting...' : 'Continue'}

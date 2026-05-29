@@ -29,12 +29,21 @@ export interface Company {
   updatedAt: string;
 }
 
+export interface ThemeColors {
+  primary?: string;
+  secondary?: string;
+  accent?: string;
+  background?: string;
+  text?: string;
+}
+
 export interface Brand {
   id: string;
   name: string;
   slug: string;
   description?: string;
   logoUrl?: string;
+  themeColors?: ThemeColors;
   companyId: string;
   isActive: boolean;
   storeCount?: number;

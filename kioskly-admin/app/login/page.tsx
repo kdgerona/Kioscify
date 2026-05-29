@@ -1,20 +1,30 @@
 import { headers } from 'next/headers';
 import LoginForm from './LoginForm';
-import CompanySlugForm from './CompanySlugForm';
+import BrandSlugForm from './BrandSlugForm';
 
-interface CompanyInfo {
+interface BrandInfo {
   name: string;
   logoUrl: string | null;
+  themeColors: {
+    primary?: string;
+    secondary?: string;
+    accent?: string;
+    background?: string;
+    text?: string;
+  } | null;
 }
 
-async function fetchCompanyInfo(slug: string): Promise<CompanyInfo | null> {
+async function fetchBrandInfo(companySlug: string, brandSlug: string): Promise<BrandInfo | null> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
   try {
-    const res = await fetch(`${apiUrl}/companies/validate-subdomain/${slug}`, { cache: 'no-store' });
+    const res = await fetch(
+      `${apiUrl}/brands/validate-subdomain?companySlug=${encodeURIComponent(companySlug)}&brandSlug=${encodeURIComponent(brandSlug)}`,
+      { cache: 'no-store' }
+    );
     if (!res.ok) return null;
     const data = await res.json();
-    if (!data.valid || !data.isActive) return null;
-    return { name: data.name, logoUrl: data.logoUrl };
+    if (!data.valid || !data.brand) return null;
+    return data.brand;
   } catch {
     return null;
   }
@@ -23,12 +33,13 @@ async function fetchCompanyInfo(slug: string): Promise<CompanyInfo | null> {
 export default async function LoginPage() {
   const headersList = await headers();
   const companySlug = headersList.get('x-company-slug');
+  const brandSlug = headersList.get('x-brand-slug');
 
-  // No company subdomain — show generic portal (company slug entry + redirect)
-  if (!companySlug) {
-    return <CompanySlugForm />;
+  // No subdomain context — show generic portal (company + brand slug entry)
+  if (!companySlug || !brandSlug) {
+    return <BrandSlugForm />;
   }
 
-  const company = await fetchCompanyInfo(companySlug);
-  return <LoginForm companySlug={companySlug} company={company} />;
+  const brand = await fetchBrandInfo(companySlug, brandSlug);
+  return <LoginForm companySlug={companySlug} brandSlug={brandSlug} brand={brand} />;
 }

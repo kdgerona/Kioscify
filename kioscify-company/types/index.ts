@@ -39,6 +39,8 @@ export interface Brand {
     primary?: string;
     secondary?: string;
     accent?: string;
+    background?: string;
+    text?: string;
   };
   isActive: boolean;
   storeCount?: number;

@@ -29,6 +29,7 @@ import { OnboardAdminDto } from '../companies/dto/company.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { CompanyId, TenantId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('stores')
@@ -41,7 +42,10 @@ export class StoresController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
-  @ApiOperation({ summary: 'List all stores (filtered by company for COMPANY_ADMIN; optional ?companyId= for PLATFORM_ADMIN)' })
+  @ApiOperation({
+    summary:
+      'List all stores (filtered by company for COMPANY_ADMIN; optional ?companyId= for PLATFORM_ADMIN)',
+  })
   @ApiQuery({ name: 'companyId', required: false })
   @ApiQuery({ name: 'brandId', required: false })
   findAll(
@@ -50,7 +54,8 @@ export class StoresController {
     @Query('brandId') brandId: string,
     @Request() req,
   ) {
-    const companyId = req.user.role === 'PLATFORM_ADMIN' ? queryCompanyId : jwtCompanyId;
+    const companyId =
+      req.user.role === 'PLATFORM_ADMIN' ? queryCompanyId : jwtCompanyId;
     return this.storesService.findAll(companyId, brandId);
   }
 
@@ -61,9 +66,15 @@ export class StoresController {
   }
 
   @Get('slug/:slug')
-  @ApiOperation({ summary: 'Get store by slug (used by mobile app login)' })
+  @Public()
+  @ApiOperation({
+    summary: 'Get store by slug — public, used for login branding before auth',
+  })
   @ApiQuery({ name: 'companySlug', required: false })
-  findBySlug(@Param('slug') slug: string, @Query('companySlug') companySlug?: string) {
+  findBySlug(
+    @Param('slug') slug: string,
+    @Query('companySlug') companySlug?: string,
+  ) {
     return this.storesService.findBySlug(slug, companySlug);
   }
 
@@ -78,8 +89,15 @@ export class StoresController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
-  @ApiOperation({ summary: 'Create a store (PLATFORM_ADMIN always; COMPANY_ADMIN if canOnboardStores=true)' })
-  create(@Body() dto: CreateStoreDto, @Request() req, @CompanyId() companyId: string) {
+  @ApiOperation({
+    summary:
+      'Create a store (PLATFORM_ADMIN always; COMPANY_ADMIN if canOnboardStores=true)',
+  })
+  create(
+    @Body() dto: CreateStoreDto,
+    @Request() req,
+    @CompanyId() companyId: string,
+  ) {
     return this.storesService.create(dto, req.user.role, companyId);
   }
 
@@ -102,7 +120,9 @@ export class StoresController {
   @Post(':id/onboard-admin')
   @UseGuards(RolesGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
-  @ApiOperation({ summary: 'Create first STORE_ADMIN user (returns temporary password)' })
+  @ApiOperation({
+    summary: 'Create first STORE_ADMIN user (returns temporary password)',
+  })
   onboardAdmin(@Param('id') id: string, @Body() dto: OnboardAdminDto) {
     return this.storesService.onboardAdmin(id, dto);
   }
@@ -126,12 +146,20 @@ export class StoresController {
       }),
       fileFilter: (req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-        cb(allowed.includes(file.mimetype) ? null : new Error('Invalid file type'), allowed.includes(file.mimetype));
+        cb(
+          allowed.includes(file.mimetype)
+            ? null
+            : new Error('Invalid file type'),
+          allowed.includes(file.mimetype),
+        );
       },
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  uploadLogo(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+  uploadLogo(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     return this.storesService.uploadLogo(id, `/uploads/logos/${file.filename}`);
   }
 }

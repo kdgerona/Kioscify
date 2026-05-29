@@ -154,9 +154,23 @@ class ApiClient {
 
   async updateBrand(
     id: string,
-    payload: Partial<{ name: string; description: string }>
+    payload: Partial<{
+      name: string;
+      description: string;
+      themeColors: Brand['themeColors'];
+      isActive: boolean;
+    }>
   ): Promise<Brand> {
     const { data } = await this.client.patch<Brand>(`/brands/${id}`, payload);
+    return data;
+  }
+
+  async uploadBrandLogo(id: string, file: File): Promise<Brand> {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const { data } = await this.client.post<Brand>(`/brands/${id}/upload-logo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   }
 

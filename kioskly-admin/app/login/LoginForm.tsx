@@ -5,17 +5,24 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
 
-interface CompanyInfo {
+interface BrandInfo {
   name: string;
   logoUrl: string | null;
+  themeColors: {
+    primary?: string;
+    secondary?: string;
+    accent?: string;
+  } | null;
 }
 
 export default function LoginForm({
   companySlug,
-  company,
+  brandSlug,
+  brand,
 }: {
   companySlug: string;
-  company: CompanyInfo | null;
+  brandSlug: string;
+  brand: BrandInfo | null;
 }) {
   const router = useRouter();
   const { fetchTenantBySlug } = useTenant();
@@ -24,6 +31,8 @@ export default function LoginForm({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const primaryColor = brand?.themeColors?.primary || '#ea580c';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +47,7 @@ export default function LoginForm({
         username,
         password,
         storeSlug: storeSlug.trim().toLowerCase(),
+        companySlug,
       });
 
       const allowedRoles = ['STORE_ADMIN', 'ADMIN'];
@@ -74,14 +84,17 @@ export default function LoginForm({
   };
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000';
-  const logoSrc = company?.logoUrl
-    ? company.logoUrl.startsWith('http')
-      ? company.logoUrl
-      : `${apiBase}${company.logoUrl}`
+  const logoSrc = brand?.logoUrl
+    ? brand.logoUrl.startsWith('http')
+      ? brand.logoUrl
+      : `${apiBase}${brand.logoUrl}`
     : null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-100 px-4">
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: `linear-gradient(to bottom right, ${primaryColor}15, ${primaryColor}30)` }}
+    >
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex flex-col items-center mb-6">
           {logoSrc ? (
@@ -89,19 +102,22 @@ export default function LoginForm({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={logoSrc}
-                alt={company!.name}
+                alt={brand!.name}
                 className="w-24 h-24 object-contain rounded-xl"
               />
             </div>
           ) : (
-            <div className="w-24 h-24 bg-orange-500 rounded-xl flex items-center justify-center mb-4">
+            <div
+              className="w-24 h-24 rounded-xl flex items-center justify-center mb-4"
+              style={{ backgroundColor: primaryColor }}
+            >
               <span className="text-white text-3xl font-bold">
-                {company ? company.name[0].toUpperCase() : 'K'}
+                {brand ? brand.name[0].toUpperCase() : 'K'}
               </span>
             </div>
           )}
           <h1 className="text-2xl font-bold text-gray-900 text-center">
-            {company ? company.name : 'Store Portal'}
+            {brand ? brand.name : 'Store Portal'}
           </h1>
           <p className="text-gray-500 text-sm mt-1">Store Management Portal</p>
         </div>
@@ -122,7 +138,8 @@ export default function LoginForm({
               required
               autoCapitalize="none"
               autoCorrect="off"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-sm text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none text-sm text-gray-900"
+              style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
               placeholder="e.g. mr-lemon-branch-1"
             />
           </div>
@@ -149,7 +166,8 @@ export default function LoginForm({
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            className="w-full text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:brightness-90"
+            style={{ backgroundColor: primaryColor }}
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>

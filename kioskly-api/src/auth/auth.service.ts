@@ -4,7 +4,6 @@ import {
   ConflictException,
   ForbiddenException,
   BadRequestException,
-  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -46,8 +45,9 @@ export class AuthService {
       symbols[crypto.randomInt(symbols.length)],
     ];
 
-    const rest = Array.from({ length: length - required.length }, () =>
-      all[crypto.randomInt(all.length)],
+    const rest = Array.from(
+      { length: length - required.length },
+      () => all[crypto.randomInt(all.length)],
     );
 
     return [...required, ...rest].sort(() => crypto.randomInt(3) - 1).join('');
@@ -62,46 +62,65 @@ export class AuthService {
   async loginStore(dto: LoginDto) {
     // Resolve store by slug (optionally scoped to company for uniqueness)
     const storeWhere = dto.companySlug
-      ? { slug: dto.storeSlug, company: { slug: dto.companySlug }, isActive: true }
+      ? {
+          slug: dto.storeSlug,
+          company: { slug: dto.companySlug },
+          isActive: true,
+        }
       : { slug: dto.storeSlug, isActive: true };
 
     const store = await this.prisma.tenant.findFirst({ where: storeWhere });
+    console.log('[loginStore] storeSlug:', dto.storeSlug, '| store found:', store ? `id=${store.id}` : 'NULL');
     if (!store) throw new UnauthorizedException('Invalid credentials');
 
-    // Find user by username — could be in the primary tenantId or via UserStoreAccess
-    const user = await this.prisma.user.findFirst({
-      where: {
-        username: dto.username,
-        isActive: true,
-        OR: [
-          { tenantId: store.id },
-          { storeAccess: { some: { tenantId: store.id, isActive: true } } },
-        ],
-      },
+    // Simple lookup — no complex nested includes (Prisma MongoDB can silently return
+    // null when include chains are too deep). Tenant data is fetched separately.
+    let user: any = await this.prisma.user.findFirst({
+      where: { username: dto.username, isActive: true, tenantId: store.id },
+    });
+
+    // Fall back to UserStoreAccess for multi-store users
+    if (!user) {
+      const access = await this.prisma.userStoreAccess.findFirst({
+        where: { tenantId: store.id, isActive: true },
+        include: { user: true },
+      });
+      if (access?.user?.username === dto.username && access.user.isActive) {
+        user = access.user;
+      }
+    }
+
+    console.log('[loginStore] user found:', user ? `id=${user.id}` : 'NULL');
+
+    console.log('[loginStore] dto.password:', JSON.stringify(dto.password));
+    console.log('[loginStore] hash in db:', user.password?.substring(0, 30));
+    const passwordMatch = await bcrypt.compare(dto.password, user.password);
+    console.log('[loginStore] password match:', passwordMatch);
+    if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
+
+    // Fetch related data needed to build the stores list (kept separate from auth query)
+    const storeSelect = {
+      id: true, name: true, slug: true, brandId: true, companyId: true,
+      brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true } },
+      company: { select: { id: true, name: true, slug: true, logoUrl: true } },
+    };
+    const userWithRelations = await this.prisma.user.findUnique({
+      where: { id: user.id },
       include: {
+        tenant: { select: storeSelect },
         storeAccess: {
           where: { isActive: true },
-          include: {
-            tenant: {
-              select: {
-                id: true, name: true, slug: true, brandId: true, companyId: true,
-                brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true } },
-                company: { select: { id: true, name: true, slug: true, logoUrl: true } },
-              },
-            },
-          },
+          include: { tenant: { select: storeSelect } },
         },
       },
     });
-
-    if (!user || !(await bcrypt.compare(dto.password, user.password))) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    const enrichedUser = { ...user, ...userWithRelations };
 
     // Build full list of accessible stores
-    const accessibleStores = this.buildAccessibleStoresList(user, store.id);
+    const accessibleStores = this.buildAccessibleStoresList(enrichedUser, store.id);
 
-    const activeStore = accessibleStores.find((s) => s.id === store.id) ?? accessibleStores[0];
+    const activeStore =
+      accessibleStores.find((s) => s.id === store.id) ?? accessibleStores[0];
 
     const role = user.role === 'ADMIN' ? 'STORE_ADMIN' : user.role;
     const payload = {
@@ -154,7 +173,13 @@ export class AuthService {
 
     const targetStore = await this.prisma.tenant.findUnique({
       where: { id: targetStoreId },
-      select: { id: true, name: true, slug: true, brandId: true, companyId: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        brandId: true,
+        companyId: true,
+      },
     });
     if (!targetStore || !targetStore) throw new UnauthorizedException();
 
@@ -180,7 +205,15 @@ export class AuthService {
   private buildAccessibleStoresList(
     user: any,
     preferredStoreId?: string,
-  ): Array<{ id: string; name: string; slug: string; brandId: string | null; companyId: string | null; brand: any; company: any }> {
+  ): Array<{
+    id: string;
+    name: string;
+    slug: string;
+    brandId: string | null;
+    companyId: string | null;
+    brand: any;
+    company: any;
+  }> {
     const stores = new Map<string, any>();
 
     // Primary store from tenantId
@@ -215,7 +248,9 @@ export class AuthService {
 
     // Preferred store first
     if (preferredStoreId) {
-      list.sort((a, b) => (a.id === preferredStoreId ? -1 : b.id === preferredStoreId ? 1 : 0));
+      list.sort((a, b) =>
+        a.id === preferredStoreId ? -1 : b.id === preferredStoreId ? 1 : 0,
+      );
     }
 
     return list;
@@ -306,13 +341,18 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
 
-    const isCurrentValid = await bcrypt.compare(dto.currentPassword, user.password);
+    const isCurrentValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
     if (!isCurrentValid) {
       throw new UnauthorizedException('Current password is incorrect');
     }
 
     if (dto.newPassword === dto.currentPassword) {
-      throw new BadRequestException('New password must differ from current password');
+      throw new BadRequestException(
+        'New password must differ from current password',
+      );
     }
 
     if (!PASSWORD_REGEX.test(dto.newPassword)) {
@@ -373,9 +413,13 @@ export class AuthService {
     tenantId: string,
   ) {
     const existing = await this.prisma.user.findFirst({
-      where: { tenantId, OR: [{ username: data.username }, { email: data.email }] },
+      where: {
+        tenantId,
+        OR: [{ username: data.username }, { email: data.email }],
+      },
     });
-    if (existing) throw new ConflictException('Username or email already exists');
+    if (existing)
+      throw new ConflictException('Username or email already exists');
 
     const hashed = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
     return this.prisma.user.create({

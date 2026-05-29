@@ -11,6 +11,30 @@ import { CreateBrandDto, UpdateBrandDto } from './dto/brand.dto';
 export class BrandsService {
   constructor(private prisma: PrismaService) {}
 
+  async validateSubdomain(companySlug: string, brandSlug: string) {
+    const company = await this.prisma.company.findUnique({
+      where: { slug: companySlug },
+      select: { id: true, name: true, isActive: true },
+    });
+    if (!company || !company.isActive) {
+      return { valid: false, companyId: null, brandId: null, company: null, brand: null };
+    }
+    const brand = await this.prisma.brand.findFirst({
+      where: { slug: brandSlug, companyId: company.id, isActive: true },
+      select: { id: true, name: true, logoUrl: true, themeColors: true, isActive: true },
+    });
+    if (!brand) {
+      return { valid: false, companyId: company.id, brandId: null, company: null, brand: null };
+    }
+    return {
+      valid: true,
+      companyId: company.id,
+      brandId: brand.id,
+      company: { name: company.name },
+      brand: { name: brand.name, logoUrl: brand.logoUrl, themeColors: brand.themeColors },
+    };
+  }
+
   async findAllByCompany(companyId: string) {
     return this.prisma.brand.findMany({
       where: companyId ? { companyId } : {},

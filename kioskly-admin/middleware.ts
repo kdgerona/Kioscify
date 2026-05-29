@@ -2,57 +2,45 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  const host = request.headers.get('host') || '';
-  const hostname = host.split(':')[0];
+  const { pathname } = request.nextUrl;
 
-  // Plain localhost in dev — skip subdomain logic
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+  // Match /<companySlug>/<brandSlug> or /<companySlug>/<brandSlug>/<rest>
+  const match = pathname.match(/^\/([a-z0-9-]+)\/([a-z0-9-]+)(\/.*)?$/);
+
+  // No match — /login, /dashboard, /_next, etc. — pass through unchanged
+  if (!match) {
     return NextResponse.next();
   }
 
-  const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || 'kioscify.com';
-  const genericStore = `store.${platformDomain}`;
-  const storeSuffix = `.store.${platformDomain}`;
-
-  // Generic portal (store.<domain>) — pass through, no company context
-  if (hostname === genericStore) {
-    return NextResponse.next();
-  }
-
-  // Must end with .store.<domain> — anything else isn't a valid store portal URL
-  if (!hostname.endsWith(storeSuffix)) {
-    return NextResponse.redirect(new URL('/invalid-subdomain', request.url));
-  }
-
-  const companySubdomain = hostname.slice(0, hostname.length - storeSuffix.length);
-
-  if (!companySubdomain) {
-    return NextResponse.next();
-  }
+  const [, companySlug, brandSlug, rest] = match;
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
   try {
-    const res = await fetch(`${apiUrl}/companies/validate-subdomain/${companySubdomain}`, {
-      cache: 'no-store',
-    });
+    const res = await fetch(
+      `${apiUrl}/brands/validate-subdomain?companySlug=${encodeURIComponent(companySlug)}&brandSlug=${encodeURIComponent(brandSlug)}`,
+      { cache: 'no-store' }
+    );
     const data = await res.json();
 
-    if (!data.valid || !data.isActive) {
-      // Unknown or inactive company — redirect to generic portal
-      const redirectUrl = request.nextUrl.clone();
-      redirectUrl.hostname = genericStore;
-      redirectUrl.pathname = '/login';
-      return NextResponse.redirect(redirectUrl);
+    if (!data.valid) {
+      // Unknown or inactive company/brand — send to generic login
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   } catch {
     // API unreachable — let through so users aren't locked out during downtime
   }
 
+  // Rewrite to internal route, preserving company+brand context via headers
+  const rewriteUrl = request.nextUrl.clone();
+  rewriteUrl.pathname = rest || '/login';
+
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-company-slug', companySubdomain);
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  requestHeaders.set('x-company-slug', companySlug);
+  requestHeaders.set('x-brand-slug', brandSlug);
+
+  return NextResponse.rewrite(rewriteUrl, { request: { headers: requestHeaders } });
 }
 
 export const config = {
-  matcher: ['/((?!_next|api|favicon.ico|invalid-subdomain).*)'],
+  matcher: ['/((?!_next|api|favicon\\.ico|logo\\.png).*)'],
 };

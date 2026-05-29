@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Brand, Category, Product, Size, Addon, InventoryBrandTemplate } from '@/types';
-import { Plus, Pencil, Trash2, X, ChevronLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save } from 'lucide-react';
 
-type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'inventory';
+type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'inventory' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -15,6 +15,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'sizes', label: 'Sizes' },
   { id: 'addons', label: 'Add-ons' },
   { id: 'inventory', label: 'Inventory Items' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 // ─── Simple inline edit row ───────────────────────────────────────────────
@@ -85,6 +86,14 @@ export default function BrandDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Settings tab state
+  const [settingsName, setSettingsName] = useState('');
+  const [settingsDescription, setSettingsDescription] = useState('');
+  const [settingsTheme, setSettingsTheme] = useState<Brand['themeColors']>({});
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+
   // Tab data
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -106,10 +115,50 @@ export default function BrandDetailPage() {
   useEffect(() => {
     api
       .getBrandById(brandId)
-      .then(setBrand)
+      .then(b => {
+        setBrand(b);
+        setSettingsName(b.name);
+        setSettingsDescription(b.description || '');
+        setSettingsTheme(b.themeColors || {});
+      })
       .catch(() => setError('Failed to load brand'))
       .finally(() => setLoading(false));
   }, [brandId]);
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!brand) return;
+    setSettingsSaving(true);
+    try {
+      const updated = await api.updateBrand(brand.id, {
+        name: settingsName,
+        description: settingsDescription || undefined,
+        themeColors: Object.keys(settingsTheme || {}).length ? settingsTheme : undefined,
+      });
+      setBrand(updated);
+      setSettingsSuccess(true);
+      setTimeout(() => setSettingsSuccess(false), 3000);
+    } catch {
+      // no-op
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !brand) return;
+    setLogoUploading(true);
+    try {
+      const updated = await api.uploadBrandLogo(brand.id, file);
+      setBrand(prev => prev ? { ...prev, logoUrl: updated.logoUrl } : prev);
+    } catch {
+      // no-op
+    } finally {
+      setLogoUploading(false);
+      e.target.value = '';
+    }
+  };
 
   // Load tab data
   const loadTab = useCallback(
@@ -310,6 +359,104 @@ export default function BrandDetailPage() {
               ))
             )}
           </TabSection>
+        )}
+
+        {/* Settings */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6 max-w-xl">
+            {/* Logo */}
+            <div className="bg-white rounded-lg border">
+              <div className="px-6 py-4 border-b">
+                <h2 className="font-semibold text-gray-900">Brand Logo</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Displayed on the Store Portal login page</p>
+              </div>
+              <div className="p-6 flex items-center gap-6">
+                <div className="w-20 h-20 rounded-xl border border-gray-200 flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
+                  {brand.logoUrl ? (
+                    <img src={brand.logoUrl} alt="Brand logo" className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-3xl font-bold text-gray-300">{brand.name[0]?.toUpperCase()}</span>
+                  )}
+                </div>
+                <div>
+                  <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                    logoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}>
+                    <Upload className="w-4 h-4" />
+                    {logoUploading ? 'Uploading...' : 'Upload Logo'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      disabled={logoUploading}
+                      onChange={handleLogoUpload}
+                    />
+                  </label>
+                  <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Info + Theme */}
+            <div className="bg-white rounded-lg border">
+              <div className="px-6 py-4 border-b">
+                <h2 className="font-semibold text-gray-900">Brand Settings</h2>
+              </div>
+              <form onSubmit={handleSaveSettings} className="p-6 space-y-4">
+                {settingsSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+                    Settings saved
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Brand Name</label>
+                  <input
+                    type="text"
+                    value={settingsName}
+                    onChange={e => setSettingsName(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={settingsDescription}
+                    onChange={e => setSettingsDescription(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
+                  />
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Theme Colors</p>
+                  <p className="text-xs text-gray-400 mb-3">These colors are used as branding in the Store Portal login page</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => (
+                      <div key={key} className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={settingsTheme?.[key] || (key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : '#ea580c')}
+                          onChange={e => setSettingsTheme(prev => ({ ...prev, [key]: e.target.value }))}
+                          className="w-9 h-9 rounded cursor-pointer border border-gray-200 p-0.5"
+                        />
+                        <span className="text-sm text-gray-600 capitalize">{key}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={settingsSaving}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  <Save className="w-4 h-4" />
+                  {settingsSaving ? 'Saving...' : 'Save Settings'}
+                </button>
+              </form>
+            </div>
+          </div>
         )}
 
         {/* Inventory Items */}
