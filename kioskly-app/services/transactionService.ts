@@ -1,5 +1,6 @@
 import { apiPost, apiGet, apiPatch } from "../utils/api";
 import { safeReactotron } from "../utils/reactotron";
+import { enqueue, generateClientId } from "./syncEngine";
 
 interface TransactionItemAddon {
   addonId: string;
@@ -94,7 +95,42 @@ export interface TransactionResponse {
 }
 
 /**
- * Create a new transaction on the backend
+ * Create a transaction — offline-first. Tries network; falls back to local queue.
+ * The clientId ensures no duplicates when the queue syncs later.
+ */
+export const createTransactionOffline = async (
+  transactionData: CreateTransactionPayload
+): Promise<{ transaction: TransactionResponse | null; queued: boolean; clientId: string }> => {
+  const clientId = await generateClientId();
+  const payload = { ...transactionData, clientId };
+
+  try {
+    const response = await apiPost("/transactions", payload);
+
+    if (response.ok) {
+      const data: TransactionResponse = await response.json();
+      return { transaction: data, queued: false, clientId };
+    }
+
+    if (response.status === 409) {
+      // Already exists — treat as success
+      const data = await response.json().catch(() => ({}));
+      return { transaction: data as TransactionResponse, queued: false, clientId };
+    }
+
+    // Non-network error (4xx) — don't queue, surface to user
+    const errorText = await response.text();
+    throw new Error(`Failed to create transaction: ${errorText}`);
+  } catch (networkError: any) {
+    if (networkError.message?.includes("Failed to create")) throw networkError;
+    // Network failure — queue for later
+    await enqueue("transaction", "/transactions", payload as unknown as Record<string, unknown>, clientId);
+    return { transaction: null, queued: true, clientId };
+  }
+};
+
+/**
+ * Create a new transaction on the backend (original — direct only, no queue)
  * @param transactionData - Transaction data to send to the API
  * @returns Created transaction response
  */

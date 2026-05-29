@@ -5,14 +5,27 @@ import {
   Get,
   UseGuards,
   Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import {
+  LoginDto,
+  CompanyLoginDto,
+  PlatformLoginDto,
+  ChangePasswordDto,
+  SwitchStoreDto,
+} from './dto/login.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+
+const LOGIN_THROTTLE = { default: { ttl: 900000, limit: 5 } }; // 5 attempts per 15 minutes
 
 @ApiTags('auth')
 @Controller('auth')
@@ -20,32 +33,67 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
-  @ApiOperation({ summary: 'Login with username and password' })
+  @HttpCode(HttpStatus.OK)
+  @Throttle(LOGIN_THROTTLE)
+  @ApiOperation({ summary: 'Store user login (STORE_ADMIN / CASHIER)' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto, loginDto.tenantId);
+  @ApiResponse({ status: 429, description: 'Too many login attempts' })
+  login(@Body() dto: LoginDto) {
+    return this.authService.loginStore(dto);
   }
 
-  @Post('register')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Post('company-login')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(LOGIN_THROTTLE)
+  @ApiOperation({ summary: 'Company admin login (COMPANY_ADMIN)' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Too many login attempts' })
+  companyLogin(@Body() dto: CompanyLoginDto) {
+    return this.authService.loginCompany(dto);
+  }
+
+  @Post('platform-login')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(LOGIN_THROTTLE)
+  @ApiOperation({ summary: 'Platform admin login (PLATFORM_ADMIN)' })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Too many login attempts' })
+  platformLogin(@Body() dto: PlatformLoginDto) {
+    return this.authService.loginPlatform(dto);
+  }
+
+  @Post('switch-store')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Register a new user (admin only)' })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
-  @ApiResponse({ status: 409, description: 'Username or email already exists' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
-  async register(@Body() registerDto: RegisterDto, @Request() req) {
-    return this.authService.register(registerDto, req.user.tenantId);
+  @ApiOperation({ summary: 'Switch active store (for STORE_ADMIN with multiple stores)' })
+  @ApiResponse({ status: 200, description: 'New JWT with updated store context' })
+  @ApiResponse({ status: 403, description: 'No access to that store' })
+  switchStore(@Body() dto: SwitchStoreDto, @Request() req) {
+    return this.authService.switchStore(req.user.id, dto.targetStoreId);
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change password (required on first login)' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 400, description: 'Password does not meet requirements' })
+  @ApiResponse({ status: 401, description: 'Current password is incorrect' })
+  changePassword(@Body() dto: ChangePasswordDto, @Request() req) {
+    return this.authService.changePassword(req.user.id, dto);
   }
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getProfile(@Request() req) {
+  @ApiResponse({ status: 200, description: 'Profile retrieved' })
+  getProfile(@Request() req) {
     return this.authService.getProfile(req.user.id);
   }
 }

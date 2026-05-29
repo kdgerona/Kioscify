@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { safeReactotron } from "../utils/reactotron";
 
-const TENANT_SLUG_KEY = "@kioskly:tenant_slug";
+const TENANT_SLUG_KEY = "@kioscify:store_slug";
+const BRAND_DATA_KEY = "@kioscify:brand_data";
+const COMPANY_DATA_KEY = "@kioscify:company_data";
 
 export interface ThemeColors {
   primary: string;
@@ -12,8 +14,27 @@ export interface ThemeColors {
   text: string;
 }
 
+export interface Brand {
+  id: string;
+  companyId: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  themeColors?: ThemeColors;
+  isActive: boolean;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+}
+
 export interface Tenant {
   id: string;
+  brandId?: string;
+  companyId?: string;
   name: string;
   slug: string;
   description?: string;
@@ -23,10 +44,16 @@ export interface Tenant {
   address?: string;
   themeColors?: ThemeColors;
   isActive: boolean;
+  brand?: Brand;
+  company?: Company;
 }
 
 interface TenantContextType {
   tenant: Tenant | null;
+  brand: Brand | null;
+  company: Company | null;
+  brandId: string | null;
+  companyId: string | null;
   setTenant: (tenant: Tenant | null) => void;
   loading: boolean;
   error: string | null;
@@ -50,6 +77,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [brand, setBrand] = useState<Brand | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
@@ -64,7 +93,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
           "API URL is not configured. Please set EXPO_PUBLIC_API_URL in your .env file"
         );
       }
-      const response = await fetch(`${apiUrl}/tenants/slug/${slug}`);
+      const response = await fetch(`${apiUrl}/stores/slug/${slug}`);
 
       if (!response.ok) {
         throw new Error("Tenant not found");
@@ -91,7 +120,16 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setTenant(tenantWithTheme);
 
-      // Store the slug in AsyncStorage for persistence
+      // Store brand and company data
+      if (tenantWithTheme.brand) {
+        setBrand(tenantWithTheme.brand);
+        await AsyncStorage.setItem(BRAND_DATA_KEY, JSON.stringify(tenantWithTheme.brand));
+      }
+      if (tenantWithTheme.company) {
+        setCompany(tenantWithTheme.company);
+        await AsyncStorage.setItem(COMPANY_DATA_KEY, JSON.stringify(tenantWithTheme.company));
+      }
+
       await AsyncStorage.setItem(TENANT_SLUG_KEY, slug);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch tenant");
@@ -103,9 +141,10 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearTenant = useCallback(async () => {
     setTenant(null);
+    setBrand(null);
+    setCompany(null);
     setError(null);
-    // Clear the stored slug from AsyncStorage
-    await AsyncStorage.removeItem(TENANT_SLUG_KEY);
+    await AsyncStorage.multiRemove([TENANT_SLUG_KEY, BRAND_DATA_KEY, COMPANY_DATA_KEY]);
   }, []);
 
   const loadStoredTenant = useCallback(async () => {
@@ -130,6 +169,10 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     <TenantContext.Provider
       value={{
         tenant,
+        brand,
+        company,
+        brandId: brand?.id ?? tenant?.brandId ?? null,
+        companyId: company?.id ?? tenant?.companyId ?? null,
         setTenant,
         loading,
         error,

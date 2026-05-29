@@ -11,55 +11,37 @@ import { UpdateSizeDto } from './dto/update-size.dto';
 export class SizesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createSizeDto: CreateSizeDto, tenantId: string) {
+  async create(createSizeDto: CreateSizeDto, brandId: string) {
     const { id, name, priceModifier, volume } = createSizeDto;
 
-    const existingSize = await this.prisma.size.findUnique({
-      where: { id },
-    });
-
-    if (existingSize) {
-      throw new ConflictException('Size with this ID already exists');
-    }
+    const existingSize = await this.prisma.size.findUnique({ where: { id } });
+    if (existingSize) throw new ConflictException('Size with this ID already exists');
 
     return this.prisma.size.create({
-      data: { id, name, priceModifier, volume, tenantId },
+      data: { id, name, priceModifier, volume, brandId },
     });
   }
 
-  async findAll(tenantId: string) {
+  async findAll(brandId: string) {
     return this.prisma.size.findMany({
-      where: { tenantId },
+      where: { brandId },
       orderBy: { name: 'asc' },
     });
   }
 
-  async findOne(id: string, tenantId: string) {
-    const size = await this.prisma.size.findFirst({
-      where: { id, tenantId },
-    });
-
-    if (!size) {
-      throw new NotFoundException(`Size with ID ${id} not found`);
-    }
-
+  async findOne(id: string, brandId: string) {
+    const size = await this.prisma.size.findFirst({ where: { id, brandId } });
+    if (!size) throw new NotFoundException(`Size with ID ${id} not found`);
     return size;
   }
 
-  async update(id: string, updateSizeDto: UpdateSizeDto, tenantId: string) {
-    await this.findOne(id, tenantId); // Check if exists
-
-    return this.prisma.size.update({
-      where: { id },
-      data: updateSizeDto,
-    });
+  async update(id: string, updateSizeDto: UpdateSizeDto, brandId: string) {
+    await this.findOne(id, brandId);
+    return this.prisma.size.update({ where: { id }, data: updateSizeDto });
   }
 
-  async remove(id: string, tenantId: string) {
-    await this.findOne(id, tenantId); // Check if exists
-
-    return this.prisma.size.delete({
-      where: { id },
-    });
+  async remove(id: string, brandId: string) {
+    await this.findOne(id, brandId);
+    return this.prisma.size.delete({ where: { id } });
   }
 }

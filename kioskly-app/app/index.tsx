@@ -22,7 +22,7 @@ export default function Index() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const { tenant, clearTenant, initializing: tenantInitializing } = useTenant();
+  const { tenant, brand, company, clearTenant, initializing: tenantInitializing } = useTenant();
   const { user, login, loading, error, clearError, initializing: authInitializing } = useAuth();
 
   useEffect(() => {
@@ -72,7 +72,16 @@ export default function Index() {
     }
 
     try {
-      await login(username, password, tenant.id);
+      await login(username, password, tenant.slug);
+
+      // Check if user has multiple stores — if so, show store picker
+      const storesRaw = await (await import("@react-native-async-storage/async-storage")).default.getItem("@kioscify:accessible_stores");
+      const stores = storesRaw ? JSON.parse(storesRaw) : [];
+      if (stores.length > 1) {
+        router.replace("/store-picker" as Href);
+        return;
+      }
+
       // Navigate to home page after successful login
       router.replace("/home");
     } catch {
@@ -99,9 +108,12 @@ export default function Index() {
     return null; // Will redirect to tenant-setup
   }
 
-  const primaryColor = tenant.themeColors?.primary || "#ea580c";
-  const textColor = tenant.themeColors?.text || "#1f2937";
-  const logoUri = tenant.logoUrl ? tenant?.logoUrl : null;
+  // Brand theme takes priority over store theme
+  const primaryColor = brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
+  // Company logo takes priority for branding
+  const logoUri = company?.logoUrl ?? brand?.logoUrl ?? tenant?.logoUrl ?? null;
+  const displayName = brand?.name ?? company?.name ?? tenant.name;
 
   return (
     <KeyboardAvoidingView

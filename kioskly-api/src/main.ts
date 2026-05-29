@@ -5,29 +5,38 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Set global API prefix - makes nginx routing much simpler
-  // All routes will be prefixed with /api/v1 (e.g., /api/v1/auth, /api/v1/products)
+  // Security headers (helmet must come before CORS)
+  app.use(helmet());
+
+  // API prefix — all routes under /api/v1; health check excluded for load balancers
   const globalPrefix = process.env.API_PREFIX || 'api/v1';
   app.setGlobalPrefix(globalPrefix, {
-    exclude: ['health'], // Health check remains at root for load balancers
+    exclude: ['health'],
   });
 
-  // Serve static files for uploaded logos
+  // Serve static uploads
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads',
   });
 
-  // Enable CORS for React Native app
+  // CORS — restrict to known portal origins in production
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : true; // allow all in development
+
   app.enableCors({
-    origin: true, // Allow all origins in development - restrict in production
+    origin: allowedOrigins,
     credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-company-slug'],
   });
 
-  // Enable validation pipe globally
+  // Global validation pipe — strip unknown fields, transform types
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -36,19 +45,28 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger setup
+  // Swagger
   const config = new DocumentBuilder()
-    .setTitle('Kioskly POS API')
-    .setDescription('API for Kioskly Point of Sale application')
+    .setTitle('Kioscify API')
+    .setDescription('Kioscify Store Management & Monitoring Platform API')
     .setVersion('1.0')
     .addBearerAuth()
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('tenants', 'Multi-tenant management')
-    .addTag('categories', 'Product categories management')
-    .addTag('products', 'Products management')
-    .addTag('sizes', 'Size options management')
-    .addTag('addons', 'Add-ons management')
-    .addTag('transactions', 'Transactions and sales')
+    .addTag('auth', 'Authentication — store, company, and platform login')
+    .addTag('platform', 'Platform Admin — Kioscify internal (PLATFORM_ADMIN only)')
+    .addTag('companies', 'Company management')
+    .addTag('brands', 'Brand management')
+    .addTag('stores', 'Store management (was: tenants)')
+    .addTag('users', 'User management (store and company level)')
+    .addTag('categories', 'Product categories (brand-scoped)')
+    .addTag('products', 'Products (brand-scoped)')
+    .addTag('sizes', 'Sizes (brand-scoped)')
+    .addTag('addons', 'Add-ons (brand-scoped)')
+    .addTag('transactions', 'Sales transactions (store-scoped)')
+    .addTag('expenses', 'Expenses (store-scoped)')
+    .addTag('inventory', 'Inventory management')
+    .addTag('reports', 'Analytics and reporting')
+    .addTag('submitted-reports', 'Daily submitted reports')
+    .addTag('submitted-inventory-reports', 'Inventory submitted reports')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -56,8 +74,8 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`\n🚀 Kioskly API is running on: http://localhost:${port}`);
-  console.log(`📚 Swagger documentation: http://localhost:${port}/${globalPrefix}/docs\n`);
+  console.log(`\n🚀 Kioscify API running on: http://localhost:${port}`);
+  console.log(`📚 Swagger docs: http://localhost:${port}/${globalPrefix}/docs\n`);
 }
 
 void bootstrap();

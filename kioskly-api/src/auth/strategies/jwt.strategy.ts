@@ -5,21 +5,30 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { auth } from '../../constants/env.constants';
 
-interface JwtPayload {
+export interface JwtPayload {
   sub: string;
   username: string;
-  role?: 'ADMIN' | 'CASHIER';
+  role: string;
   tenantId?: string;
+  brandId?: string;
+  companyId?: string;
+  mustChangePassword?: boolean;
   iat?: number;
   exp?: number;
 }
 
-interface ValidatedUser {
+export interface AuthenticatedUser {
   id: string;
-  tenantId: string;
   username: string;
   email: string;
-  role: 'ADMIN' | 'CASHIER';
+  firstName: string;
+  lastName: string;
+  role: string;
+  tenantId?: string | null;
+  brandId?: string | null;
+  companyId?: string | null;
+  isFirstLogin: boolean;
+  mustChangePassword: boolean;
 }
 
 @Injectable()
@@ -35,23 +44,40 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayload): Promise<ValidatedUser> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    const user = (await this.prisma.user.findUnique({
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
+    const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
         id: true,
         tenantId: true,
+        brandId: true,
+        companyId: true,
         username: true,
         email: true,
+        firstName: true,
+        lastName: true,
         role: true,
+        isFirstLogin: true,
+        isActive: true,
       },
-    })) as ValidatedUser | null;
+    });
 
-    if (!user) {
+    if (!user || !user.isActive) {
       throw new UnauthorizedException();
     }
 
-    return user;
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      tenantId: user.tenantId,
+      brandId: user.brandId,
+      companyId: user.companyId,
+      isFirstLogin: user.isFirstLogin,
+      mustChangePassword: user.isFirstLogin,
+    };
   }
 }

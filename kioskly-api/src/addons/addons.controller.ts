@@ -21,7 +21,7 @@ import { UpdateAddonDto } from './dto/update-addon.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { TenantId } from '../common/decorators/tenant.decorator';
+import { BrandId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('addons')
 @Controller('addons')
@@ -30,13 +30,13 @@ export class AddonsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new addon (admin only)' })
   @ApiResponse({ status: 201, description: 'Addon created successfully' })
   @ApiResponse({ status: 409, description: 'Addon already exists' })
-  create(@Body() createAddonDto: CreateAddonDto, @TenantId() tenantId: string) {
-    return this.addonsService.create(createAddonDto, tenantId);
+  create(@Body() createAddonDto: CreateAddonDto, @BrandId() brandId: string) {
+    return this.addonsService.create(createAddonDto, brandId);
   }
 
   @Get()
@@ -44,8 +44,8 @@ export class AddonsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all addons' })
   @ApiResponse({ status: 200, description: 'Addons retrieved successfully' })
-  findAll(@TenantId() tenantId: string) {
-    return this.addonsService.findAll(tenantId);
+  findAll(@BrandId() brandId: string) {
+    return this.addonsService.findAll(brandId);
   }
 
   @Get(':id')
@@ -54,13 +54,13 @@ export class AddonsController {
   @ApiOperation({ summary: 'Get a single addon by ID' })
   @ApiResponse({ status: 200, description: 'Addon retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Addon not found' })
-  findOne(@Param('id') id: string, @TenantId() tenantId: string) {
-    return this.addonsService.findOne(id, tenantId);
+  findOne(@Param('id') id: string, @BrandId() brandId: string) {
+    return this.addonsService.findOne(id, brandId);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update an addon (admin only)' })
   @ApiResponse({ status: 200, description: 'Addon updated successfully' })
@@ -68,19 +68,19 @@ export class AddonsController {
   update(
     @Param('id') id: string,
     @Body() updateAddonDto: UpdateAddonDto,
-    @TenantId() tenantId: string,
+    @BrandId() brandId: string,
   ) {
-    return this.addonsService.update(id, updateAddonDto, tenantId);
+    return this.addonsService.update(id, updateAddonDto, brandId);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete an addon (admin only)' })
   @ApiResponse({ status: 200, description: 'Addon deleted successfully' })
   @ApiResponse({ status: 404, description: 'Addon not found' })
-  remove(@Param('id') id: string, @TenantId() tenantId: string) {
-    return this.addonsService.remove(id, tenantId);
+  remove(@Param('id') id: string, @BrandId() brandId: string) {
+    return this.addonsService.remove(id, brandId);
   }
 }

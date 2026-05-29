@@ -440,4 +440,52 @@ export class ReportsService {
       ),
     };
   }
+
+  // ─── Time of Day Trends ────────────────────────────────────────────────────
+
+  async getTimeOfDayTrends(tenantId: string, startDate: Date, endDate: Date) {
+    // Enforce 2-year max range
+    const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+    if (endDate.getTime() - startDate.getTime() > TWO_YEARS_MS) {
+      const { BadRequestException } = await import('@nestjs/common');
+      throw new BadRequestException('Date range cannot exceed 2 years');
+    }
+
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        tenantId,
+        timestamp: { gte: startDate, lte: endDate },
+        voidStatus: { not: 'APPROVED' } as any,
+      },
+      select: { timestamp: true, total: true },
+    });
+
+    // Aggregate by hour (0-23)
+    const hourlyData: Record<number, { hour: number; count: number; totalRevenue: number }> = {};
+    for (let h = 0; h < 24; h++) {
+      hourlyData[h] = { hour: h, count: 0, totalRevenue: 0 };
+    }
+
+    for (const tx of transactions) {
+      const hour = new Date(tx.timestamp).getHours();
+      hourlyData[hour].count += 1;
+      hourlyData[hour].totalRevenue += tx.total;
+    }
+
+    return {
+      period: { start: startDate.toISOString(), end: endDate.toISOString() },
+      hourlyBreakdown: Object.values(hourlyData),
+    };
+  }
+
+  // ─── 2-year limit enforcement ──────────────────────────────────────────────
+
+  validateDateRange(startDate?: Date, endDate?: Date) {
+    if (!startDate || !endDate) return;
+    const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+    if (endDate.getTime() - startDate.getTime() > TWO_YEARS_MS) {
+      const { BadRequestException } = require('@nestjs/common');
+      throw new BadRequestException('Date range cannot exceed 2 years');
+    }
+  }
 }

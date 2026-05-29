@@ -4,23 +4,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Kioskly is a multi-tenant POS (Point of Sale) system for beverage businesses. Built as a monorepo using Turborepo with three packages:
-- **kioskly-api**: NestJS backend with Prisma ORM and MongoDB
-- **kioskly-admin**: Next.js 15 admin dashboard (web)
-- **kioskly-app**: React Native/Expo mobile POS app (not in npm workspaces — managed separately)
+**Kioscify** is a Store Management & Monitoring Platform for multi-brand franchise businesses. Built as a monorepo using Turborepo.
+
+### New Business Model Hierarchy
+```
+Kioscify (Platform) → Company → Brand → Store/Tenant
+```
+
+### Packages
+- **kioskly-api** → will be renamed `kioscify-api`: NestJS backend with Prisma ORM and MongoDB
+- **kioskly-admin** → will be renamed `kioscify-store`: Store Portal (Next.js 15) — operational dashboards for store owners
+- **kioscify-company** _(new)_: Company + Brand Portal (Next.js 15, port 3001) — accessed via `<slug>.kioscify.com` subdomain
+- **kioscify-platform** _(new)_: Kioscify Platform Admin (Next.js 15, port 3002) — Kevin's internal admin
+- **kioskly-app** → will be renamed `kioscify-app`: React Native/Expo mobile app for store staff (not in npm workspaces — managed separately)
+
+### User Roles
+| Role | Portal | Scope |
+|---|---|---|
+| PLATFORM_ADMIN | kioscify-platform | Kioscify-wide |
+| COMPANY_ADMIN | kioscify-company | One Company + its Brands |
+| STORE_ADMIN | kioscify-store + mobile | One Store |
+| CASHIER | mobile only | One Store |
 
 ## Development Commands
 
 ### Root Level (Turborepo)
 ```bash
-npm run dev              # Run API + admin in parallel
+npm run dev              # Run all packages in parallel
 npm run build            # Build all packages with caching
 npm run test             # Run tests across all packages
 npm run lint             # Lint all packages
 npm run clean            # Clean all build artifacts and node_modules
 
 npm run api:dev          # API only (watch mode, port 3000)
-npm run admin:dev        # Admin dashboard only (Next.js dev)
+npm run admin:dev        # Store Portal only (Next.js dev, port 3000)
+npm run company:dev      # Company + Brand Portal (Next.js dev, port 3001)
+npm run platform:dev     # Platform Admin (Next.js dev, port 3002)
 npm run app:dev          # Mobile app only (Expo, not in workspace — runs via cd)
 ```
 

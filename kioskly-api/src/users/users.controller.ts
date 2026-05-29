@@ -1,0 +1,154 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { UsersService } from './users.service';
+import {
+  CreateStoreUserDto,
+  UpdateStoreUserDto,
+  CreateCompanyUserDto,
+} from './dto/user.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { TenantId, CompanyId } from '../common/decorators/tenant.decorator';
+
+@ApiTags('users')
+@Controller('users')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+export class UsersController {
+  constructor(private usersService: UsersService) {}
+
+  // ─── Store users (STORE_ADMIN manages their own store) ────────────────────
+
+  @Get('stores/:storeId')
+  @UseGuards(RolesGuard)
+  @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'List users in a store' })
+  getStoreUsers(@Param('storeId') storeId: string, @TenantId() tenantId: string) {
+    return this.usersService.getStoreUsers(storeId, tenantId);
+  }
+
+  @Post('stores/:storeId')
+  @UseGuards(RolesGuard)
+  @Roles('STORE_ADMIN')
+  @ApiOperation({ summary: 'Create a store user (returns temporary password)' })
+  createStoreUser(
+    @Param('storeId') storeId: string,
+    @Body() dto: CreateStoreUserDto,
+    @TenantId() tenantId: string,
+    @Request() req,
+  ) {
+    return this.usersService.createStoreUser(storeId, tenantId, dto, req.user.id);
+  }
+
+  @Patch('stores/:storeId/:userId')
+  @UseGuards(RolesGuard)
+  @Roles('STORE_ADMIN')
+  @ApiOperation({ summary: 'Update a store user' })
+  updateStoreUser(
+    @Param('storeId') storeId: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateStoreUserDto,
+    @TenantId() tenantId: string,
+    @Request() req,
+  ) {
+    return this.usersService.updateStoreUser(storeId, userId, tenantId, req.user.id, dto);
+  }
+
+  @Delete('stores/:storeId/:userId')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('STORE_ADMIN')
+  @ApiOperation({ summary: 'Deactivate a store user (soft delete)' })
+  deleteStoreUser(
+    @Param('storeId') storeId: string,
+    @Param('userId') userId: string,
+    @TenantId() tenantId: string,
+    @Request() req,
+  ) {
+    return this.usersService.deleteStoreUser(storeId, userId, tenantId, req.user.id);
+  }
+
+  // ─── Company users (COMPANY_ADMIN manages their own company) ─────────────
+
+  @Get('companies/:companyId')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'List COMPANY_ADMIN users for a company' })
+  getCompanyUsers(
+    @Param('companyId') companyId: string,
+    @CompanyId() requestingCompanyId: string,
+  ) {
+    return this.usersService.getCompanyUsers(companyId, requestingCompanyId);
+  }
+
+  @Post('companies/:companyId')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN')
+  @ApiOperation({ summary: 'Create additional COMPANY_ADMIN user (returns temporary password)' })
+  createCompanyUser(
+    @Param('companyId') companyId: string,
+    @Body() dto: CreateCompanyUserDto,
+    @CompanyId() requestingCompanyId: string,
+  ) {
+    return this.usersService.createCompanyUser(companyId, requestingCompanyId, dto);
+  }
+
+  // ─── Multi-store access management ───────────────────────────────────────
+
+  @Get(':userId/stores')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'List all stores a user has access to' })
+  getStoreAccess(@Param('userId') userId: string) {
+    return this.usersService.getStoreAccess(userId);
+  }
+
+  @Post('stores/:storeId/assign')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Link an existing user to a store (COMPANY_ADMIN / PLATFORM_ADMIN only)' })
+  assignUserToStore(
+    @Param('storeId') storeId: string,
+    @Body() dto: { username: string; role: 'STORE_ADMIN' | 'CASHIER' },
+    @CompanyId() companyId: string,
+    @Request() req,
+  ) {
+    return this.usersService.assignUserToStore(storeId, dto, companyId, req.user.role);
+  }
+
+  @Delete('stores/:storeId/:userId/access')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Revoke a user\'s access to a store' })
+  revokeStoreAccess(
+    @Param('storeId') storeId: string,
+    @Param('userId') userId: string,
+    @CompanyId() companyId: string,
+    @Request() req,
+  ) {
+    return this.usersService.revokeStoreAccess(storeId, userId, companyId, req.user.role);
+  }
+
+  @Get('search')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Search users within a company (for store assignment)' })
+  searchUsers(@Query('q') query: string, @CompanyId() companyId: string) {
+    return this.usersService.searchUsersInCompany(companyId, query ?? '');
+  }
+}

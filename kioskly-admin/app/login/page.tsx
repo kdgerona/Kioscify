@@ -35,33 +35,34 @@ export default function LoginPage() {
       const response = await api.login({
         username,
         password,
-        tenantId: tenant?.id
+        storeSlug: tenant?.slug ?? '',
       });
 
-      console.log('✅ Login successful!', response);
-      console.log('👤 User role:', response.user.role);
-
-      // Check if user is ADMIN
-      if (response.user.role !== 'ADMIN') {
-        console.log('❌ Access denied - not an admin');
-        setError('Access denied. Admin privileges required.');
+      const allowedRoles = ['STORE_ADMIN', 'ADMIN'];
+      if (!allowedRoles.includes(response.user.role)) {
+        setError('Access denied. Store Admin access required.');
         api.logout();
         setLoading(false);
         return;
       }
 
-      // Store user info
       localStorage.setItem('user', JSON.stringify(response.user));
-      console.log('💾 User stored in localStorage');
 
-      // Check if token was saved
-      const savedToken = api.getToken();
-      console.log('🎫 Token saved:', !!savedToken);
+      // Redirect to change-password on first login
+      if ((response as any).mustChangePassword || response.user.isFirstLogin) {
+        router.push('/change-password');
+        return;
+      }
 
-      // Redirect to dashboard
-      console.log('🚀 Redirecting to dashboard...');
+      // If user has multiple stores, show store picker
+      const stores = (response as any).stores ?? [];
+      if (stores.length > 1) {
+        sessionStorage.setItem('accessible_stores', JSON.stringify(stores));
+        router.push('/store-picker');
+        return;
+      }
+
       router.push('/dashboard');
-      console.log('✅ Router.push called');
     } catch (err: any) {
       console.error('❌ Login failed:', err);
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
@@ -85,7 +86,9 @@ export default function LoginPage() {
     );
   }
 
-  const primaryColor = tenant.themeColors?.primary || '#ea580c';
+  // Use brand theme colors if available, otherwise fall back to store or default
+  const primaryColor = tenant.brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? '#ea580c';
+  const brandLogoUrl = tenant.brand?.logoUrl ?? tenant.company?.logoUrl ?? tenant.logoUrl;
 
   return (
     <div
@@ -104,31 +107,22 @@ export default function LoginPage() {
         </button>
 
         <div className="flex flex-col items-center justify-center mb-6">
-          {tenant.logoUrl ? (
+          {brandLogoUrl ? (
             <div className="relative w-24 h-24 sm:w-32 sm:h-32 mb-4">
-              <Image
-                src={tenant.logoUrl}
-                alt={tenant.name}
-                fill
-                className="object-contain"
-              />
+              <Image src={brandLogoUrl} alt={tenant.brand?.name ?? tenant.name} fill className="object-contain" />
             </div>
           ) : (
-            <div className="relative w-24 h-24 sm:w-32 sm:h-32 mb-4">
-              <Image
-                src="/logo.png"
-                alt="Kioskly"
-                fill
-                className="object-contain"
-              />
+            <div className="w-24 h-24 sm:w-32 sm:h-32 mb-4 rounded-full flex items-center justify-center text-3xl font-bold text-white" style={{ backgroundColor: primaryColor }}>
+              {(tenant.brand?.name ?? tenant.name).charAt(0).toUpperCase()}
             </div>
           )}
 
           <h1 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-1">
-            {tenant.name}
+            {tenant.brand?.name ?? tenant.name}
           </h1>
+          <p className="text-center text-sm text-gray-500">{tenant.name}</p>
           <p className="text-center text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-            Admin Dashboard
+            Store Management Portal
           </p>
         </div>
 
@@ -179,8 +173,8 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6">
-          Admin access only
+        <p className="text-center text-xs text-gray-400 mt-4 sm:mt-6">
+          Powered by <span className="font-semibold">Kioscify</span>
         </p>
       </div>
     </div>

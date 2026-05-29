@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Receipt,
   BarChart3,
-  Package,
-  FolderOpen,
   Settings,
   LogOut,
   Store,
@@ -23,9 +22,10 @@ import {
   X,
   PanelLeftOpen,
   PanelRightOpen,
-  Ruler,
-  Sparkles,
   Wallet,
+  Users,
+  PackageSearch,
+  ChevronsUpDown,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
@@ -51,6 +51,7 @@ const navigation: NavigationItem[] = [
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Submitted Reports", href: "/submitted-reports", icon: FileText },
   { name: "Inventory", href: "/inventory", icon: Boxes },
+  { name: "Inventory Items", href: "/inventory-items", icon: PackageSearch },
   {
     name: "Inventory Reports",
     href: "#",
@@ -61,19 +62,34 @@ const navigation: NavigationItem[] = [
       { name: "Alerts", href: "/inventory-alerts", icon: AlertTriangle },
     ],
   },
-  { name: "Products", href: "/products", icon: Package },
-  { name: "Categories", href: "/categories", icon: FolderOpen },
-  { name: "Sizes", href: "/sizes", icon: Ruler },
-  { name: "Addons", href: "/addons", icon: Sparkles },
+  { name: "Users", href: "/users", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
+interface AccessibleStore {
+  id: string;
+  name: string;
+  slug: string;
+  brand?: { name: string; themeColors?: { primary: string } } | null;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
-  const { tenant } = useTenant();
+  const router = useRouter();
+  const { tenant, fetchTenantBySlug } = useTenant();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false); // For desktop minimized state
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [accessibleStores, setAccessibleStores] = useState<AccessibleStore[]>([]);
+  const [showStoreSwitcher, setShowStoreSwitcher] = useState(false);
+  const [switching, setSwitching] = useState(false);
+
+  useEffect(() => {
+    const raw = typeof window !== "undefined"
+      ? localStorage.getItem("kioscify_accessible_stores")
+      : null;
+    if (raw) setAccessibleStores(JSON.parse(raw));
+  }, []);
 
   // Auto-expand parent menu when submenu item is active
   useEffect(() => {
@@ -100,6 +116,29 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     api.logout();
+  };
+
+  const handleSwitchStore = async (store: AccessibleStore) => {
+    if (store.id === tenant?.id) { setShowStoreSwitcher(false); return; }
+    setSwitching(true);
+    try {
+      const result = await api.switchStore(store.id);
+      api.setToken(result.accessToken);
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        user.tenantId = store.id;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+      await fetchTenantBySlug(store.slug);
+      setShowStoreSwitcher(false);
+      router.refresh();
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Failed to switch store:", err);
+    } finally {
+      setSwitching(false);
+    }
   };
 
   // Get tenant theme colors with fallbacks
@@ -235,15 +274,56 @@ export default function Sidebar() {
               </div>
             )}
             {!isCollapsed && (
-              <div className="lg:block">
-                <h2 className="text-xl font-bold" style={{ color: textColor }}>
-                  {tenant?.name || "Kioskly"}
+              <div className="lg:block flex-1 min-w-0">
+                <h2 className="text-xl font-bold truncate" style={{ color: textColor }}>
+                  {tenant?.name || "Kioscify"}
                 </h2>
-                <p className="text-xs opacity-60">Admin Panel</p>
+                <p className="text-xs opacity-60">Store Portal</p>
               </div>
             )}
           </div>
         </div>
+
+        {/* Store Switcher — shown only if user has 2+ stores and sidebar is not collapsed */}
+        {accessibleStores.length > 1 && !isCollapsed && (
+          <div className="relative px-4 py-2 border-b" style={{ borderColor: `${primaryColor}20` }}>
+            <button
+              onClick={() => setShowStoreSwitcher((v) => !v)}
+              disabled={switching}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-gray-100 transition disabled:opacity-50"
+              style={{ color: textColor }}
+            >
+              <span className="truncate font-medium">{tenant?.name ?? "Select store"}</span>
+              <ChevronsUpDown className="w-4 h-4 flex-shrink-0 opacity-50" />
+            </button>
+
+            {showStoreSwitcher && (
+              <div className="absolute left-4 right-4 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+                {accessibleStores.map((store) => (
+                  <button
+                    key={store.id}
+                    onClick={() => handleSwitchStore(store)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-gray-50 transition",
+                      store.id === tenant?.id && "bg-indigo-50 text-indigo-700 font-medium"
+                    )}
+                  >
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                      style={{ backgroundColor: store.brand?.themeColors?.primary ?? primaryColor }}
+                    >
+                      {store.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="truncate">{store.name}</span>
+                    {store.id === tenant?.id && (
+                      <span className="ml-auto text-xs text-indigo-500">Active</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <nav
           className={cn(

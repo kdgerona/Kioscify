@@ -1,25 +1,55 @@
-export interface Tenant {
+export interface ThemeColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  text: string;
+}
+
+export interface Brand {
+  id: string;
+  companyId: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  themeColors?: ThemeColors;
+  isActive: boolean;
+}
+
+export interface Company {
   id: string;
   name: string;
   slug: string;
   logoUrl?: string;
-  themeColors: {
-    primary: string;
-    secondary: string;
-    accent: string;
-    background: string;
-    text: string;
-  };
+}
+
+export interface Tenant {
+  id: string;
+  brandId?: string;
+  companyId?: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  themeColors?: ThemeColors;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  brand?: Brand;
+  company?: Company;
 }
 
 export interface User {
   id: string;
-  tenantId: string;
+  tenantId?: string;
+  companyId?: string;
+  brandId?: string;
   username: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
-  role: "ADMIN" | "CASHIER";
+  role: "STORE_ADMIN" | "CASHIER" | "ADMIN" | "COMPANY_ADMIN" | "PLATFORM_ADMIN";
+  isActive?: boolean;
+  isFirstLogin?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -117,7 +147,22 @@ export interface AuthResponse {
 export interface LoginCredentials {
   username: string;
   password: string;
-  tenantId?: string;
+  storeSlug: string;
+  companySlug?: string;
+}
+
+export interface StoreUserCreatePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  username: string;
+  role: "STORE_ADMIN" | "CASHIER";
+}
+
+export interface TimeOfDayData {
+  hour: number;
+  count: number;
+  totalRevenue: number;
 }
 
 export interface ApiError {

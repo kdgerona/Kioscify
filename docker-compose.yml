@@ -1,5 +1,5 @@
 # ================================
-# Kioskly - Production Docker Compose
+# Kioscify - Production Docker Compose
 # ================================
 #
 # Usage:
@@ -17,7 +17,7 @@
 # For production with SSL, uncomment the certbot service and configure nginx SSL
 #
 
-name: kioskly-production
+name: kioscify-production
 
 services:
   # ================================
@@ -103,19 +103,19 @@ services:
       start_period: 30s
 
   # ================================
-  # Kioskly Admin (Next.js Frontend)
+  # Store Portal (kioscify-store, was kioskly-admin)
   # ================================
-  admin:
+  store:
     build:
-      context: ./kioskly-admin
+      context: ./kioskly-admin       # rename dir to kioscify-store when ready
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api/v1}
-    container_name: kioskly-admin
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://kioscify.kdgerona.com/api/v1}
+    container_name: kioscify-store
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api/v1}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://kioscify.kdgerona.com/api/v1}
     networks:
       - kioskly-frontend
     security_opt:
@@ -134,6 +134,82 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ================================
+  # Company + Brand Portal (kioscify-company)
+  # ================================
+  company:
+    build:
+      context: ./kioscify-company
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://kioscify.kdgerona.com/api/v1}
+        NEXT_PUBLIC_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:-kioscify.kdgerona.com}
+    container_name: kioscify-company
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://kioscify.kdgerona.com/api/v1}
+      NEXT_PUBLIC_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:-kioscify.kdgerona.com}
+    networks:
+      - kioskly-frontend
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ================================
+  # Platform Admin (kioscify-platform)
+  # ================================
+  platform:
+    build:
+      context: ./kioscify-platform
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://kioscify.kdgerona.com/api/v1}
+    container_name: kioscify-platform
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://kioscify.kdgerona.com/api/v1}
+    networks:
+      - kioskly-frontend
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -171,7 +247,9 @@ services:
           memory: 32M
     depends_on:
       - api
-      - admin
+      - store
+      - company
+      - platform
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s

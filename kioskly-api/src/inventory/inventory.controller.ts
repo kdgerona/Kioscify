@@ -28,7 +28,9 @@ import {
   BulkCreateInventoryRecordDto,
 } from './dto/create-inventory-record.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { TenantId } from '../common/decorators/tenant.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { TenantId, BrandId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('inventory')
 @Controller('inventory')
@@ -37,14 +39,35 @@ import { TenantId } from '../common/decorators/tenant.decorator';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-  // Inventory Items Endpoints
+  // ─── Brand-level inventory templates (COMPANY_ADMIN) ─────────────────────
+
+  @Post('brand-templates')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Create brand inventory template (fans out to all stores)' })
+  createBrandTemplate(
+    @Body() createDto: CreateInventoryItemDto,
+    @BrandId() brandId: string,
+  ) {
+    return this.inventoryService.createBrandTemplate(createDto, brandId);
+  }
+
+  @Get('brand-templates')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Get all brand inventory templates' })
+  findBrandTemplates(
+    @BrandId() brandId: string,
+    @Query('category') category?: string,
+  ) {
+    return this.inventoryService.findBrandTemplates(brandId, category);
+  }
+
+  // ─── Store-level inventory items (STORE_ADMIN / CASHIER) ─────────────────
+
   @Post('items')
-  @ApiOperation({ summary: 'Create a new inventory item' })
-  @ApiResponse({
-    status: 201,
-    description: 'Inventory item created successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiOperation({ summary: 'Create a store inventory item (store-level only)' })
+  @ApiResponse({ status: 201, description: 'Inventory item created successfully' })
   createItem(
     @Body() createDto: CreateInventoryItemDto,
     @TenantId() tenantId: string,
@@ -204,8 +227,7 @@ export class InventoryController {
     @Query('date') date?: string,
     @TenantId() tenantId?: string,
   ) {
-    const targetDate = date ? new Date(date) : undefined;
-    return this.inventoryService.getLatestInventory(tenantId!, targetDate);
+    return this.inventoryService.getLatestInventory(tenantId!);
   }
 
   @Get('stats')

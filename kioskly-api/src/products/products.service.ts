@@ -37,14 +37,14 @@ export class ProductsService {
     this.baseUrl = this.configService.get<string>(appConstants.base_url) || '';
   }
 
-  async create(createProductDto: CreateProductDto, tenantId: string) {
+  async create(createProductDto: CreateProductDto, brandId: string) {
     const { id, name, price, categoryId, image, sizeIds, addonIds } =
       createProductDto;
 
     // Generate ID from product name if not provided
     let productId = id;
     if (!productId) {
-      productId = await this.generateProductId(name, tenantId);
+      productId = await this.generateProductId(name, brandId);
     } else {
       // Check if manually provided ID already exists
       const existingProduct = await this.prisma.product.findUnique({
@@ -64,7 +64,7 @@ export class ProductsService {
         price,
         categoryId,
         image,
-        tenantId,
+        brandId,
         productSizes: sizeIds
           ? {
               create: sizeIds.map((sizeId) => ({
@@ -100,7 +100,7 @@ export class ProductsService {
 
   private async generateProductId(
     name: string,
-    tenantId: string,
+    brandId: string,
   ): Promise<string> {
     // Create slug from product name
     const baseSlug = name
@@ -116,7 +116,7 @@ export class ProductsService {
       const existing = await this.prisma.product.findFirst({
         where: {
           id: slug,
-          tenantId,
+          brandId,
         },
       });
 
@@ -130,8 +130,8 @@ export class ProductsService {
     }
   }
 
-  async findAll(tenantId: string, categoryId?: string) {
-    const where: Prisma.ProductWhereInput = { tenantId };
+  async findAll(brandId: string, categoryId?: string) {
+    const where: Prisma.ProductWhereInput = { brandId };
     if (categoryId) {
       where.categoryId = categoryId;
     }
@@ -157,9 +157,9 @@ export class ProductsService {
     return products.map((product) => this.formatProduct(product));
   }
 
-  async findOne(id: string, tenantId: string) {
+  async findOne(id: string, brandId: string) {
     const product = await this.prisma.product.findFirst({
-      where: { id, tenantId },
+      where: { id, brandId },
       include: {
         category: true,
         productSizes: {
@@ -185,9 +185,9 @@ export class ProductsService {
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
-    tenantId: string,
+    brandId: string,
   ) {
-    await this.findOne(id, tenantId); // Check if exists
+    await this.findOne(id, brandId); // Check if exists
 
     const { sizeIds, addonIds, ...productData } = updateProductDto;
 
@@ -231,8 +231,8 @@ export class ProductsService {
     return this.formatProduct(product);
   }
 
-  async updateImage(id: string, imageUrl: string, tenantId: string) {
-    await this.findOne(id, tenantId); // Check if exists
+  async updateImage(id: string, imageUrl: string, brandId: string) {
+    await this.findOne(id, brandId); // Check if exists
 
     const product = await this.prisma.product.update({
       where: { id },
@@ -255,8 +255,8 @@ export class ProductsService {
     return this.formatProduct(product);
   }
 
-  async remove(id: string, tenantId: string) {
-    await this.findOne(id, tenantId); // Check if exists
+  async remove(id: string, brandId: string) {
+    await this.findOne(id, brandId); // Check if exists
 
     return this.prisma.product.delete({
       where: { id },

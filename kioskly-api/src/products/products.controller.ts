@@ -29,7 +29,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { TenantId } from '../common/decorators/tenant.decorator';
+import { BrandId } from '../common/decorators/tenant.decorator';
 
 // Interface for uploaded file
 interface MulterFile {
@@ -51,16 +51,16 @@ export class ProductsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new product (admin only)' })
   @ApiResponse({ status: 201, description: 'Product created successfully' })
   @ApiResponse({ status: 409, description: 'Product already exists' })
   create(
     @Body() createProductDto: CreateProductDto,
-    @TenantId() tenantId: string,
+    @BrandId() brandId: string,
   ) {
-    return this.productsService.create(createProductDto, tenantId);
+    return this.productsService.create(createProductDto, brandId);
   }
 
   @Get()
@@ -72,23 +72,23 @@ export class ProductsController {
   })
   @ApiResponse({ status: 200, description: 'Products retrieved successfully' })
   findAll(
-    @TenantId() tenantId: string,
+    @BrandId() brandId: string,
     @Query('categoryId') categoryId?: string,
   ) {
-    return this.productsService.findAll(tenantId, categoryId);
+    return this.productsService.findAll(brandId, categoryId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single product by ID with sizes and addons' })
   @ApiResponse({ status: 200, description: 'Product retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Product not found' })
-  findOne(@Param('id') id: string, @TenantId() tenantId: string) {
-    return this.productsService.findOne(id, tenantId);
+  findOne(@Param('id') id: string, @BrandId() brandId: string) {
+    return this.productsService.findOne(id, brandId);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a product (admin only)' })
   @ApiResponse({ status: 200, description: 'Product updated successfully' })
@@ -96,14 +96,14 @@ export class ProductsController {
   update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
-    @TenantId() tenantId: string,
+    @BrandId() brandId: string,
   ) {
-    return this.productsService.update(id, updateProductDto, tenantId);
+    return this.productsService.update(id, updateProductDto, brandId);
   }
 
   @Post(':id/image')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Upload product image (admin only)' })
   @ApiResponse({ status: 200, description: 'Image uploaded successfully' })
@@ -145,7 +145,7 @@ export class ProductsController {
   )
   async uploadImage(
     @Param('id') id: string,
-    @TenantId() tenantId: string,
+    @BrandId() brandId: string,
     @UploadedFile() file?: MulterFile,
   ) {
     if (!file) {
@@ -153,17 +153,17 @@ export class ProductsController {
     }
 
     const imageUrl = `/uploads/products/${file.filename}`;
-    return this.productsService.updateImage(id, imageUrl, tenantId);
+    return this.productsService.updateImage(id, imageUrl, brandId);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a product (admin only)' })
   @ApiResponse({ status: 200, description: 'Product deleted successfully' })
   @ApiResponse({ status: 404, description: 'Product not found' })
-  remove(@Param('id') id: string, @TenantId() tenantId: string) {
-    return this.productsService.remove(id, tenantId);
+  remove(@Param('id') id: string, @BrandId() brandId: string) {
+    return this.productsService.remove(id, brandId);
   }
 }

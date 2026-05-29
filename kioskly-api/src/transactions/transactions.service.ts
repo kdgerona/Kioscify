@@ -49,13 +49,25 @@ export class TransactionsService {
     userId: string,
     tenantId: string,
   ) {
-    const { items, ...transactionData } = createTransactionDto;
+    const { items, clientId, ...transactionData } = createTransactionDto;
+
+    // Offline deduplication: if clientId already exists, return 409
+    if (clientId) {
+      const existing = await this.prisma.transaction.findFirst({
+        where: { tenantId, clientId },
+      });
+      if (existing) {
+        const { ConflictException } = await import('@nestjs/common');
+        throw new ConflictException({ message: 'Transaction already synced', id: existing.id });
+      }
+    }
 
     const transaction = await this.prisma.transaction.create({
       data: {
         ...transactionData,
         userId,
         tenantId,
+        clientId,
         items: {
           create: items.map((item) => ({
             productId: item.productId,

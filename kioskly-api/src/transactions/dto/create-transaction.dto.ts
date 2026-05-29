@@ -98,4 +98,9 @@ export class CreateTransactionDto {
   @ValidateNested({ each: true })
   @Type(() => TransactionItemDto)
   items: TransactionItemDto[];
+
+  @ApiProperty({ example: 'uuid-v4-here', required: false, description: 'Device UUID for offline deduplication' })
+  @IsString()
+  @IsOptional()
+  clientId?: string;
 }

@@ -3,8 +3,8 @@ import "./globals.css";
 import { TenantProvider } from "@/contexts/TenantContext";
 
 export const metadata: Metadata = {
-  title: "Kioskly Admin - Business Dashboard",
-  description: "Manage your POS system, view transactions, and generate reports",
+  title: "Kioscify - Store Management Portal",
+  description: "Manage your store operations, view transactions, and generate reports",
 };
 
 export const viewport: Viewport = {
