@@ -217,12 +217,15 @@ async function main() {
   log('');
 
   if (isDryRun) {
-    dryLog('Dry run complete. No changes written. Remove --dry-run to execute.');
-    rl.close();
-    return;
+    dryLog('Dry run complete — no changes written.');
+    log('');
   }
 
-  const confirm = await prompt('Proceed with migration? (yes/no): ');
+  const confirmPrompt = isDryRun
+    ? 'Proceed with the actual migration now? (yes/no): '
+    : 'Proceed with migration? (yes/no): ';
+
+  const confirm = await prompt(confirmPrompt);
   if (confirm.toLowerCase() !== 'yes') {
     log('Migration cancelled.');
     rl.close();

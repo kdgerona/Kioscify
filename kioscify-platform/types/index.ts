@@ -51,6 +51,7 @@ export interface Store {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  brand?: { id: string; name: string; slug: string };
 }
 
 export interface PlatformStats {
@@ -77,5 +78,6 @@ export interface OnboardStorePayload {
   storeName: string;
   storeSlug: string;
   brandId: string;
+  companyId: string;
   admin: OnboardAdminPayload;
 }

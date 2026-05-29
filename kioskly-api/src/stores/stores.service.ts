@@ -34,9 +34,12 @@ export class StoresService {
     return store;
   }
 
-  async findAll(companyId?: string) {
+  async findAll(companyId?: string, brandId?: string) {
+    const where: Record<string, string> = {};
+    if (companyId) where.companyId = companyId;
+    if (brandId) where.brandId = brandId;
     const stores = await this.prisma.tenant.findMany({
-      where: companyId ? { companyId } : {},
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         brand: { select: { id: true, name: true, slug: true } },

@@ -27,9 +27,12 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
 
-    // Global rate limiting: 100 req per minute per IP by default
-    // Login endpoints have stricter limits applied via @Throttle() decorator
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    // Global rate limiting — fully configurable via env vars
+    // Defaults: 100 req/min globally, 20 login attempts per 15 min
+    ThrottlerModule.forRoot([{
+      ttl:   parseInt(process.env.THROTTLE_GLOBAL_TTL  ?? '60000'),
+      limit: parseInt(process.env.THROTTLE_GLOBAL_LIMIT ?? '100'),
+    }]),
 
     PrismaModule,
     AuthModule,

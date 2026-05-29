@@ -38,11 +38,12 @@ class ApiClient {
       return config;
     });
 
-    // Handle 401 globally
+    // Handle 401 globally — but not on auth endpoints (wrong password should show inline error)
     this.client.interceptors.response.use(
       response => response,
       (error: AxiosError) => {
-        if (error.response?.status === 401) {
+        const isAuthEndpoint = error.config?.url?.includes('/auth/');
+        if (error.response?.status === 401 && !isAuthEndpoint) {
           this.clearToken();
           if (typeof window !== 'undefined') {
             window.location.href = '/login';

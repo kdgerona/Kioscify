@@ -23,12 +23,14 @@ export class CompaniesService {
   async validateSubdomain(slug: string) {
     const company = await this.prisma.company.findUnique({
       where: { slug },
-      select: { id: true, slug: true, isActive: true },
+      select: { id: true, slug: true, name: true, logoUrl: true, isActive: true },
     });
     return {
       valid: !!company,
       companyId: company?.id ?? null,
       isActive: company?.isActive ?? false,
+      name: company?.name ?? null,
+      logoUrl: company?.logoUrl ?? null,
     };
   }
 

@@ -58,7 +58,8 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError<ApiError>) => {
-        if (error.response?.status === 401) {
+        const isAuthEndpoint = error.config?.url?.includes('/auth/');
+        if (error.response?.status === 401 && !isAuthEndpoint) {
           // Unauthorized - clear token and redirect to login
           this.clearToken();
           if (typeof window !== "undefined") {

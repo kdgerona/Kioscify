@@ -38,7 +38,8 @@ class ApiClient {
     this.client.interceptors.response.use(
       response => response,
       (error: AxiosError) => {
-        if (error.response?.status === 401) {
+        const isAuthEndpoint = error.config?.url?.includes('/auth/');
+        if (error.response?.status === 401 && !isAuthEndpoint) {
           this.clearToken();
           if (typeof window !== 'undefined') {
             window.location.href = '/login';
@@ -136,6 +137,15 @@ class ApiClient {
     return data;
   }
 
+  async uploadCompanyLogo(id: string, file: File): Promise<Company> {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const { data } = await this.client.post<Company>(`/companies/${id}/upload-logo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  }
+
   async updateCompany(
     id: string,
     payload: Partial<{
@@ -183,6 +193,13 @@ class ApiClient {
 
   // ─── Stores ───────────────────────────────────────────────────────────────
 
+  async getStoresByCompany(companyId: string): Promise<Store[]> {
+    const { data } = await this.client.get<Store[]>('/stores', {
+      params: { companyId },
+    });
+    return data;
+  }
+
   async getStoresByBrand(brandId: string): Promise<Store[]> {
     const { data } = await this.client.get<Store[]>('/stores', {
       params: { brandId },
@@ -190,10 +207,19 @@ class ApiClient {
     return data;
   }
 
+  async updateStore(
+    id: string,
+    payload: Partial<{ name: string; isActive: boolean }>
+  ): Promise<Store> {
+    const { data } = await this.client.patch<Store>(`/stores/${id}`, payload);
+    return data;
+  }
+
   async createStore(payload: {
     name: string;
     slug: string;
     brandId: string;
+    companyId: string;
   }): Promise<Store> {
     const { data } = await this.client.post<Store>('/stores', payload);
     return data;
@@ -215,11 +241,11 @@ class ApiClient {
     user: User;
     temporaryPassword: string;
   }> {
-    // Create store first, then onboard admin
     const newStore = await this.createStore({
       name: payload.storeName,
       slug: payload.storeSlug,
       brandId: payload.brandId,
+      companyId: payload.companyId,
     });
     const adminResult = await this.onboardStoreAdmin(newStore.id, payload.admin);
     return { store: newStore, ...adminResult };

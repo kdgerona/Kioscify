@@ -41,10 +41,17 @@ export class StoresController {
   @Get()
   @UseGuards(RolesGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
-  @ApiOperation({ summary: 'List all stores (filtered by company for COMPANY_ADMIN)' })
-  findAll(@CompanyId() companyId: string, @Request() req) {
-    const filterCompanyId = req.user.role === 'PLATFORM_ADMIN' ? undefined : companyId;
-    return this.storesService.findAll(filterCompanyId);
+  @ApiOperation({ summary: 'List all stores (filtered by company for COMPANY_ADMIN; optional ?companyId= for PLATFORM_ADMIN)' })
+  @ApiQuery({ name: 'companyId', required: false })
+  @ApiQuery({ name: 'brandId', required: false })
+  findAll(
+    @CompanyId() jwtCompanyId: string,
+    @Query('companyId') queryCompanyId: string,
+    @Query('brandId') brandId: string,
+    @Request() req,
+  ) {
+    const companyId = req.user.role === 'PLATFORM_ADMIN' ? queryCompanyId : jwtCompanyId;
+    return this.storesService.findAll(companyId, brandId);
   }
 
   @Get('me')

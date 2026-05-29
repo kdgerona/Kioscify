@@ -11,7 +11,9 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Security headers (helmet must come before CORS)
-  app.use(helmet());
+  // crossOriginResourcePolicy set to cross-origin so logo/image uploads can load
+  // from company and brand portal subdomains (different origin than the API)
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
   // API prefix — all routes under /api/v1; health check excluded for load balancers
   const globalPrefix = process.env.API_PREFIX || 'api/v1';
@@ -24,13 +26,29 @@ async function bootstrap() {
     prefix: '/uploads',
   });
 
-  // CORS — restrict to known portal origins in production
-  const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-    : true; // allow all in development
+  // CORS — supports exact origins and wildcard patterns (e.g. http://*.kioscify.localhost)
+  // Set ALLOWED_ORIGINS as a comma-separated list in .env.
+  // Leave unset to allow all origins in development.
+  const rawOrigins = process.env.ALLOWED_ORIGINS;
+
+  const originHandler = rawOrigins
+    ? (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        // Non-browser requests (curl, Postman, server-to-server) have no origin
+        if (!origin) return callback(null, true);
+        const allowed = rawOrigins.split(',').some((pattern) => {
+          const p = pattern.trim();
+          if (p.includes('*')) {
+            const regex = new RegExp('^' + p.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+            return regex.test(origin);
+          }
+          return p === origin;
+        });
+        callback(allowed ? null : new Error(`CORS: origin ${origin} not allowed`), allowed);
+      }
+    : true;
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: originHandler,
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-company-slug'],

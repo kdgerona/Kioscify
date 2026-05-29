@@ -13,7 +13,7 @@ export class BrandsService {
 
   async findAllByCompany(companyId: string) {
     return this.prisma.brand.findMany({
-      where: { companyId },
+      where: companyId ? { companyId } : {},
       include: {
         _count: { select: { stores: true, products: true, categories: true } },
       },
@@ -21,9 +21,9 @@ export class BrandsService {
     });
   }
 
-  async findOne(id: string, companyId: string) {
+  async findOne(id: string, companyId: string | undefined) {
     const brand = await this.prisma.brand.findFirst({
-      where: { id, companyId },
+      where: companyId ? { id, companyId } : { id },
       include: {
         stores: {
           select: { id: true, name: true, slug: true, isActive: true },

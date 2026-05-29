@@ -32,6 +32,12 @@ export class CreateBrandDto {
   @Type(() => ThemeColorsDto)
   @IsOptional()
   themeColors?: ThemeColorsDto;
+
+  // Used by PLATFORM_ADMIN — COMPANY_ADMIN's companyId comes from JWT instead
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  companyId?: string;
 }
 
 export class UpdateBrandDto extends PartialType(CreateBrandDto) {

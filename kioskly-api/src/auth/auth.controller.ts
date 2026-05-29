@@ -25,7 +25,13 @@ import {
 } from './dto/login.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
-const LOGIN_THROTTLE = { default: { ttl: 900000, limit: 5 } }; // 5 attempts per 15 minutes
+// Configurable via env — defaults to 20 attempts per 15 min
+const LOGIN_THROTTLE = {
+  default: {
+    ttl:   parseInt(process.env.THROTTLE_LOGIN_TTL   ?? '900000'),  // 15 min window
+    limit: parseInt(process.env.THROTTLE_LOGIN_LIMIT ?? '20'),      // attempts per window
+  },
+};
 
 @ApiTags('auth')
 @Controller('auth')

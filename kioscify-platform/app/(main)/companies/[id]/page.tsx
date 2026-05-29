@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import type { Company, Brand, OnboardAdminPayload } from '@/types';
+import type { Company, Brand, Store, OnboardAdminPayload } from '@/types';
 import {
   ChevronLeft,
   Plus,
@@ -12,10 +12,11 @@ import {
   Check,
   Save,
   UserPlus,
-  Store,
+  Store as StoreIcon,
+  Upload,
 } from 'lucide-react';
 
-type Tab = 'settings' | 'brands';
+type Tab = 'settings' | 'brands' | 'stores';
 
 // ─── Modal wrapper ────────────────────────────────────────────────────────
 
@@ -162,6 +163,7 @@ export default function CompanyDetailPage() {
 
   const [company, setCompany] = useState<Company | null>(null);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('settings');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +175,7 @@ export default function CompanyDetailPage() {
   // Modals
   const [showOnboardAdmin, setShowOnboardAdmin] = useState(false);
   const [showCreateBrand, setShowCreateBrand] = useState(false);
-  const [showOnboardStore, setShowOnboardStore] = useState<{ brandId: string; brandName: string } | null>(null);
+  const [showOnboardStore, setShowOnboardStore] = useState<{ brandId: string; brandName: string } | 'pick' | null>(null);
 
   // Settings form
   const [canCreateBrands, setCanCreateBrands] = useState(false);
@@ -183,6 +185,10 @@ export default function CompanyDetailPage() {
   const [isActive, setIsActive] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+
+  // Logo upload
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoSuccess, setLogoSuccess] = useState(false);
 
   // Onboard admin form
   const [adminFirstName, setAdminFirstName] = useState('');
@@ -211,12 +217,14 @@ export default function CompanyDetailPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [companyData, brandsData] = await Promise.all([
+      const [companyData, brandsData, storesData] = await Promise.all([
         api.getCompanyById(companyId),
         api.getBrandsByCompany(companyId),
+        api.getStoresByCompany(companyId),
       ]);
       setCompany(companyData);
       setBrands(brandsData);
+      setStores(storesData);
       setCanCreateBrands(companyData.canCreateBrands);
       setCanOnboardStores(companyData.canOnboardStores);
       setCompanyName(companyData.name);
@@ -251,6 +259,23 @@ export default function CompanyDetailPage() {
       // no-op
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    try {
+      const updated = await api.uploadCompanyLogo(companyId, file);
+      setCompany(updated);
+      setLogoSuccess(true);
+      setTimeout(() => setLogoSuccess(false), 3000);
+    } catch {
+      // no-op
+    } finally {
+      setLogoUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -306,7 +331,7 @@ export default function CompanyDetailPage() {
 
   const handleOnboardStore = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!showOnboardStore) return;
+    if (!showOnboardStore || showOnboardStore === 'pick') return;
     setStoreError(null);
     setStoreLoading(true);
     try {
@@ -314,6 +339,7 @@ export default function CompanyDetailPage() {
         storeName: storeNameField,
         storeSlug: storeSlugField,
         brandId: showOnboardStore.brandId,
+        companyId,
         admin: {
           firstName: storeAdminFirst,
           lastName: storeAdminLast,
@@ -322,6 +348,7 @@ export default function CompanyDetailPage() {
         },
       });
       setStorePassword({ storeName: result.store.name, password: result.temporaryPassword });
+      setStores(prev => [...prev, result.store]);
       setStoreNameField('');
       setStoreSlugField('');
       setStoreAdminFirst('');
@@ -334,6 +361,15 @@ export default function CompanyDetailPage() {
       setStoreError(axiosErr?.response?.data?.message || 'Failed to onboard store');
     } finally {
       setStoreLoading(false);
+    }
+  };
+
+  const handleToggleStoreActive = async (store: Store) => {
+    try {
+      const updated = await api.updateStore(store.id, { isActive: !store.isActive });
+      setStores(prev => prev.map(s => s.id === store.id ? updated : s));
+    } catch {
+      // no-op — toggle reverts visually on next render
     }
   };
 
@@ -387,7 +423,7 @@ export default function CompanyDetailPage() {
       {/* Tabs */}
       <div className="border-b">
         <nav className="flex gap-1">
-          {(['settings', 'brands'] as Tab[]).map(tab => (
+          {(['settings', 'brands', 'stores'] as Tab[]).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -398,6 +434,11 @@ export default function CompanyDetailPage() {
               }`}
             >
               {tab}
+              {tab === 'stores' && stores.length > 0 && (
+                <span className="ml-1.5 text-xs bg-gray-100 text-gray-600 rounded-full px-1.5 py-0.5">
+                  {stores.length}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -470,6 +511,44 @@ export default function CompanyDetailPage() {
             </form>
           </div>
 
+          {/* Logo upload */}
+          <div className="bg-white rounded-lg border">
+            <div className="px-6 py-4 border-b">
+              <h2 className="font-semibold text-gray-900">Company Logo</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Displayed on the company portal login page</p>
+            </div>
+            <div className="p-6 flex items-center gap-6">
+              <div className="w-20 h-20 rounded-xl border border-gray-200 flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
+                {company.logoUrl ? (
+                  <img src={company.logoUrl} alt="Company logo" className="w-full h-full object-contain" />
+                ) : (
+                  <span className="text-3xl font-bold text-gray-300">{company.name[0]?.toUpperCase()}</span>
+                )}
+              </div>
+              <div className="flex-1">
+                {logoSuccess && (
+                  <p className="text-green-600 text-sm mb-2">Logo updated</p>
+                )}
+                <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                  logoUploading
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                }`}>
+                  <Upload className="w-4 h-4" />
+                  {logoUploading ? 'Uploading...' : 'Upload Logo'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="sr-only"
+                    disabled={logoUploading}
+                    onChange={handleLogoUpload}
+                  />
+                </label>
+                <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+              </div>
+            </div>
+          </div>
+
           {/* Onboard admin */}
           <div className="bg-white rounded-lg border">
             <div className="px-6 py-4 border-b flex items-center justify-between">
@@ -529,10 +608,68 @@ export default function CompanyDetailPage() {
                         }
                         className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 rounded px-2.5 py-1.5"
                       >
-                        <Store className="w-3.5 h-3.5" />
+                        <StoreIcon className="w-3.5 h-3.5" />
                         Onboard Store
                       </button>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stores tab */}
+      {activeTab === 'stores' && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowOnboardStore('pick')}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Onboard Store
+            </button>
+          </div>
+
+          {stores.length === 0 ? (
+            <div className="bg-white rounded-lg border py-16 text-center text-gray-400 text-sm">
+              No stores yet
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg border divide-y">
+              {stores.map(store => (
+                <div key={store.id} className="px-5 py-4 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{store.name}</p>
+                    <p className="text-xs text-gray-400">
+                      {store.slug}
+                      {store.brand && (
+                        <span className="ml-2 text-gray-300">·</span>
+                      )}
+                      {store.brand && (
+                        <span className="ml-2 text-indigo-500">{store.brand.name}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      store.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                    }`}>
+                      {store.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    <button
+                      onClick={() => handleToggleStoreActive(store)}
+                      title={store.isActive ? 'Deactivate store' : 'Activate store'}
+                      className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${
+                        store.isActive ? 'bg-indigo-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                        store.isActive ? 'translate-x-4' : 'translate-x-0'
+                      }`} />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -638,8 +775,31 @@ export default function CompanyDetailPage() {
         </Modal>
       )}
 
+      {/* Brand picker (shown when Onboard Store is triggered from Stores tab) */}
+      {showOnboardStore === 'pick' && (
+        <Modal title="Select Brand" onClose={() => setShowOnboardStore(null)}>
+          <div className="space-y-2">
+            <p className="text-sm text-gray-500 mb-3">Choose which brand this store belongs to:</p>
+            {brands.length === 0 ? (
+              <p className="text-sm text-gray-400">No brands found. Create a brand first.</p>
+            ) : (
+              brands.map(brand => (
+                <button
+                  key={brand.id}
+                  onClick={() => setShowOnboardStore({ brandId: brand.id, brandName: brand.name })}
+                  className="w-full text-left px-4 py-3 rounded-lg border hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                >
+                  <p className="font-medium text-gray-900 text-sm">{brand.name}</p>
+                  <p className="text-xs text-gray-400">{brand.slug}</p>
+                </button>
+              ))
+            )}
+          </div>
+        </Modal>
+      )}
+
       {/* Onboard store modal */}
-      {showOnboardStore && (
+      {showOnboardStore && showOnboardStore !== 'pick' && (
         <Modal
           title={`Onboard Store — ${showOnboardStore.brandName}`}
           onClose={() => { setShowOnboardStore(null); setStoreError(null); }}

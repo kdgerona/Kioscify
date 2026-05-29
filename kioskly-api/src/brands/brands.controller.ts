@@ -6,10 +6,12 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
   UploadedFile,
   UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -43,7 +45,14 @@ export class BrandsController {
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List all brands for the requesting company' })
-  findAll(@CompanyId() companyId: string) {
+  findAll(
+    @CompanyId() jwtCompanyId: string,
+    @Query('companyId') queryCompanyId: string,
+    @Request() req,
+  ) {
+    // PLATFORM_ADMIN has no companyId in JWT — accept it as a query param instead
+    const companyId =
+      req.user.role === 'PLATFORM_ADMIN' ? queryCompanyId : jwtCompanyId;
     return this.brandsService.findAllByCompany(companyId);
   }
 
@@ -52,7 +61,14 @@ export class BrandsController {
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single brand' })
-  findOne(@Param('id') id: string, @CompanyId() companyId: string) {
+  findOne(
+    @Param('id') id: string,
+    @CompanyId() jwtCompanyId: string,
+    @Query('companyId') queryCompanyId: string,
+    @Request() req,
+  ) {
+    const companyId =
+      req.user.role === 'PLATFORM_ADMIN' ? queryCompanyId : jwtCompanyId;
     return this.brandsService.findOne(id, companyId);
   }
 
@@ -63,16 +79,20 @@ export class BrandsController {
   @ApiOperation({ summary: 'Create a brand (PLATFORM_ADMIN always; COMPANY_ADMIN only if canCreateBrands=true)' })
   async create(
     @Body() dto: CreateBrandDto,
-    @CompanyId() companyId: string,
+    @CompanyId() jwtCompanyId: string,
     @Request() req,
   ) {
+    // PLATFORM_ADMIN sends companyId in the body; COMPANY_ADMIN uses JWT claim
+    const companyId = req.user.role === 'PLATFORM_ADMIN' ? dto.companyId : jwtCompanyId;
+    if (!companyId) throw new BadRequestException('companyId is required');
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { canCreateBrands: true },
     });
+    const { companyId: _ignored, ...brandData } = dto;
     return this.brandsService.create(
       companyId,
-      dto,
+      brandData as CreateBrandDto,
       req.user.role,
       company?.canCreateBrands ?? false,
     );
