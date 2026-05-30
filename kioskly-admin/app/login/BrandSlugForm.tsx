@@ -43,7 +43,7 @@ export default function BrandSlugForm() {
 
           <h1 className="text-3xl font-bold text-white mb-2 drop-shadow">Kioscify</h1>
           <p className="text-white/70 text-sm max-w-xs leading-relaxed">
-            Store Management &amp; Monitoring Platform for modern franchise businesses.
+            Smart Store Management &amp; Monitoring Platform for modern businesses.
           </p>
 
           <div className="flex flex-wrap justify-center gap-2 mt-8">
@@ -91,7 +91,7 @@ export default function BrandSlugForm() {
                 autoCorrect="off"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
                 style={{ '--tw-ring-color': KIOSCIFY_ORANGE } as React.CSSProperties}
-                placeholder="e.g. greatserve"
+                placeholder="e.g. your-company"
               />
             </div>
 
@@ -106,7 +106,7 @@ export default function BrandSlugForm() {
                 autoCorrect="off"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
                 style={{ '--tw-ring-color': KIOSCIFY_ORANGE } as React.CSSProperties}
-                placeholder="e.g. mr-lemon"
+                placeholder="e.g. your-brand"
               />
             </div>
 

@@ -244,7 +244,7 @@ export default function LoginForm({
                     : "border-gray-200 bg-white hover:border-gray-300"
                 }`}
                 style={{ "--tw-ring-color": primaryColor } as React.CSSProperties}
-                placeholder="e.g. mr-lemon-branch-1"
+                placeholder="e.g. your-branch"
               />
             </div>
 

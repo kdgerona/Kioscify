@@ -126,7 +126,7 @@ export default function BrandsPage() {
                   onChange={e => handleNameChange(e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                  placeholder="e.g. Bubble Tea Co."
+                  placeholder="e.g. Brand Name"
                 />
               </div>
               <div>
@@ -138,7 +138,7 @@ export default function BrandsPage() {
                   required
                   pattern="[a-z0-9-]+"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                  placeholder="e.g. bubble-tea-co"
+                  placeholder="e.g. brand-name"
                 />
                 <p className="text-xs text-gray-400 mt-1">Lowercase letters, numbers, and hyphens only</p>
               </div>
