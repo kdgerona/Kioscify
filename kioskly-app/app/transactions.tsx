@@ -256,7 +256,7 @@ export default function Transactions() {
       >
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
-            <Ionicons name="arrow-back" size={24} color={primaryColor} />
+            <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
           <Text className="text-2xl font-bold" style={{ color: textColor }}>
             Daily Sales
