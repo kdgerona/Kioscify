@@ -494,7 +494,7 @@ export default function Home() {
   };
 
   return (
-    <SafeAreaView className="w-full h-full bg-gray-50">
+    <SafeAreaView style={{ flex: 1, backgroundColor }}>
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"
