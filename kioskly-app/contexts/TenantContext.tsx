@@ -58,7 +58,7 @@ interface TenantContextType {
   loading: boolean;
   error: string | null;
   initializing: boolean;
-  fetchTenantBySlug: (slug: string) => Promise<void>;
+  fetchTenantBySlug: (slug: string, options?: { companySlug?: string; brandSlug?: string }) => Promise<void>;
   clearTenant: () => Promise<void>;
   loadStoredTenant: () => Promise<void>;
 }
@@ -83,7 +83,10 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
 
-  const fetchTenantBySlug = useCallback(async (slug: string) => {
+  const fetchTenantBySlug = useCallback(async (
+    slug: string,
+    options?: { companySlug?: string; brandSlug?: string },
+  ) => {
     setLoading(true);
     setError(null);
     try {
@@ -93,7 +96,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
           "API URL is not configured. Please set EXPO_PUBLIC_API_URL in your .env file"
         );
       }
-      const response = await fetch(`${apiUrl}/stores/slug/${slug}`);
+      const params = new URLSearchParams();
+      if (options?.companySlug) params.set('companySlug', options.companySlug);
+      if (options?.brandSlug) params.set('brandSlug', options.brandSlug);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const response = await fetch(`${apiUrl}/stores/slug/${slug}${query}`);
 
       if (!response.ok) {
         throw new Error("Tenant not found");
