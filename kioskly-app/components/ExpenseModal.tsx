@@ -50,9 +50,9 @@ export default function ExpenseModal({
   const [validationError, setValidationError] = useState("");
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#ea580c";
-  const textColor = tenant?.themeColors?.text || "#1f2937";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
 
   // Reset form when modal is closed
   useEffect(() => {

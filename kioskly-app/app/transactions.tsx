@@ -683,7 +683,7 @@ export default function Transactions() {
               {/* Modal Header */}
               <View
                 className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-                style={{ backgroundColor: "#fee2e2" }}
+                style={{ backgroundColor: primaryColor }}
               >
                 <Text
                   className="text-xl font-bold"
@@ -767,7 +767,7 @@ export default function Transactions() {
                     style={{
                       backgroundColor:
                         voidReason.trim().length >= 10 && !isSubmittingVoid
-                          ? "#ef4444"
+                          ? primaryColor
                           : "#d1d5db",
                     }}
                     disabled={voidReason.trim().length < 10 || isSubmittingVoid}
