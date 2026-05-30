@@ -392,20 +392,11 @@ export default function Index() {
                   <Text style={{ color: "#6b7280", fontSize: 14 }}>Cancel</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={{ alignItems: "center", paddingVertical: 6, marginTop: 4 }}
-                  onPress={handleChangeCompanyBrand}
-                  disabled={changeStoreLoading}
-                >
-                  <Text style={{ color: "#9ca3af", fontSize: 12 }}>
-                    Change Company / Brand
-                  </Text>
-                </TouchableOpacity>
               </>
             )}
           </View>
 
-          {/* Below-card actions — only visible in login mode */}
+          {/* Below-card actions */}
           {mode === "login" && (
             <TouchableOpacity
               style={{ marginTop: 20, paddingVertical: 8 }}
@@ -414,6 +405,17 @@ export default function Index() {
             >
               <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 14 }}>
                 Change Store
+              </Text>
+            </TouchableOpacity>
+          )}
+          {mode === "change-store" && (
+            <TouchableOpacity
+              style={{ marginTop: 16, paddingVertical: 8 }}
+              onPress={handleChangeCompanyBrand}
+              disabled={changeStoreLoading}
+            >
+              <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+                Change Company / Brand
               </Text>
             </TouchableOpacity>
           )}
