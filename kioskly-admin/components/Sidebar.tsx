@@ -74,7 +74,7 @@ interface AccessibleStore {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { tenant, fetchTenantBySlug } = useTenant();
+  const { tenant, brand, fetchTenantBySlug } = useTenant();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -139,10 +139,16 @@ export default function Sidebar() {
     }
   };
 
-  // Get tenant theme colors with fallbacks
-  const primaryColor = tenant?.themeColors?.primary || "#ea580c";
-  const backgroundColor = tenant?.themeColors?.background || "#ffffff";
-  const textColor = tenant?.themeColors?.text || "#1f2937";
+  // Brand theme takes priority over store theme
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
+  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3000';
+  const rawLogoUrl = brand?.logoUrl ?? tenant?.logoUrl ?? null;
+  const logoSrc = rawLogoUrl
+    ? rawLogoUrl.startsWith('http') ? rawLogoUrl : `${apiBase}${rawLogoUrl}`
+    : null;
 
   return (
     <>
@@ -246,7 +252,7 @@ export default function Sidebar() {
                 : "space-x-3"
             )}
           >
-            {tenant?.logoUrl ? (
+            {logoSrc ? (
               <div
                 className={cn(
                   "relative flex-shrink-0",
@@ -254,10 +260,11 @@ export default function Sidebar() {
                 )}
               >
                 <Image
-                  src={tenant.logoUrl}
-                  alt={tenant.name}
+                  src={logoSrc}
+                  alt={brand?.name ?? tenant?.name ?? ''}
                   fill
-                  className="object-contain border-2 border-white rounded-full"
+                  className="object-contain rounded-lg"
+                  unoptimized
                 />
               </div>
             ) : (
@@ -274,9 +281,11 @@ export default function Sidebar() {
             {!isCollapsed && (
               <div className="lg:block flex-1 min-w-0">
                 <h2 className="text-xl font-bold truncate" style={{ color: textColor }}>
-                  {tenant?.name || "Kioscify"}
+                  {tenant?.name ?? "Store Portal"}
                 </h2>
-                <p className="text-xs opacity-60">Store Portal</p>
+                {brand?.name && (
+                  <p className="text-xs opacity-60 truncate">{brand.name}</p>
+                )}
               </div>
             )}
           </div>

@@ -507,7 +507,7 @@ export default function BrandDetailPage() {
 
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Theme Colors</p>
-                  <p className="text-xs text-gray-400 mb-3">These colors are used as branding in the Store Portal login page</p>
+                  <p className="text-xs text-gray-400 mb-3">These colors are used as branding in the Store Portal and App</p>
                   <div className="grid grid-cols-2 gap-3">
                     {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => (
                       <div key={key} className="flex items-center gap-3">

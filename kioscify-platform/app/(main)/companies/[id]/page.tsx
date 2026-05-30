@@ -889,7 +889,7 @@ export default function CompanyDetailPage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Used as branding in the Store Portal login</p>
+                <p className="text-xs text-gray-400 mt-1">These colors are used as branding in the Store Portal and App</p>
               </div>
 
               <div className="flex gap-3 pt-1">

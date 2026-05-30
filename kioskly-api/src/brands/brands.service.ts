@@ -80,7 +80,20 @@ export class BrandsService {
 
   async update(id: string, companyId: string, dto: UpdateBrandDto) {
     await this.assertOwnership(id, companyId);
-    return this.prisma.brand.update({ where: { id }, data: dto });
+    const { themeColors, ...rest } = dto;
+    const data: any = { ...rest };
+    if (themeColors) {
+      // Prisma MongoDB embedded types require all fields — fetch existing and merge
+      const existing = await this.prisma.brand.findFirst({ where: { id } });
+      data.themeColors = {
+        primary: themeColors.primary ?? existing?.themeColors?.primary ?? '#ea580c',
+        secondary: themeColors.secondary ?? existing?.themeColors?.secondary ?? '#fb923c',
+        accent: themeColors.accent ?? existing?.themeColors?.accent ?? '#fdba74',
+        background: themeColors.background ?? existing?.themeColors?.background ?? '#ffffff',
+        text: themeColors.text ?? existing?.themeColors?.text ?? '#1f2937',
+      };
+    }
+    return this.prisma.brand.update({ where: { id }, data });
   }
 
   async remove(id: string, companyId: string, requestingRole: string) {
@@ -125,8 +138,10 @@ export class BrandsService {
     }
   }
 
-  private async assertOwnership(id: string, companyId: string) {
-    const brand = await this.prisma.brand.findFirst({ where: { id, companyId, tombstone: { not: 1 } } });
+  private async assertOwnership(id: string, companyId: string | undefined) {
+    const where: any = { id, tombstone: { not: 1 } };
+    if (companyId) where.companyId = companyId;
+    const brand = await this.prisma.brand.findFirst({ where });
     if (!brand) throw new NotFoundException(`Brand ${id} not found`);
     return brand;
   }

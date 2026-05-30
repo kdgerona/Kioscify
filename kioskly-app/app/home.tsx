@@ -81,7 +81,7 @@ const generateTransactionId = (): string => {
 
 export default function Home() {
   const router = useRouter();
-  const { tenant } = useTenant();
+  const { tenant, brand } = useTenant();
   const { user, logout } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -163,10 +163,11 @@ export default function Home() {
     return null; // Will redirect to login or tenant-setup
   }
 
-  const primaryColor = tenant.themeColors?.primary || "#ea580c";
-  const textColor = tenant.themeColors?.text || "#1f2937";
-  const logoUri = tenant.logoUrl || null;
-  const backgroundColor = tenant.themeColors?.background || "#ffffff";
+  // Brand theme takes priority over store theme
+  const primaryColor = brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
+  const backgroundColor = brand?.themeColors?.background ?? tenant.themeColors?.background ?? "#ffffff";
+  const logoUri = brand?.logoUrl ?? tenant.logoUrl ?? null;
 
   const openCustomizeModal = (product: Product) => {
     setSelectedProduct(product);
