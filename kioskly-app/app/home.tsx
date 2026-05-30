@@ -505,16 +505,6 @@ export default function Home() {
             <Text className="text-2xl font-bold" style={{ color: textColor }}>
               {tenant.name}
             </Text>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, backgroundColor: "white", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", borderWidth: 1, borderColor: "#f3f4f6", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 }}>
-              <Image
-                source={require("../assets/images/logo-only.png")}
-                style={{ width: 20, height: 20 }}
-                resizeMode="contain"
-              />
-              <Text style={{ fontSize: 11, color: "#9ca3af" }}>
-                Powered by <Text style={{ fontWeight: "600", color: "#4b5563" }}>Kioscify</Text>
-              </Text>
-            </View>
           </View>
         </View>
         <View className="flex-row gap-6">
@@ -559,11 +549,11 @@ export default function Home() {
       {/* Main Content */}
       <View className="flex-1 flex-row">
         {/* Category Panel */}
-        <View className="w-1/5 bg-white border-r border-gray-200 p-4">
+        <View className="w-1/5 bg-white border-r border-gray-200 p-4" style={{ flex: 1 }}>
           <Text className="text-lg font-bold mb-4" style={{ color: textColor }}>
             Categories
           </Text>
-          <ScrollView>
+          <ScrollView style={{ flex: 1 }}>
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.id}
@@ -586,6 +576,18 @@ export default function Home() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+          <View style={{ paddingTop: 12, marginTop: 8, borderTopWidth: 1, borderTopColor: "#f3f4f6", alignItems: "center" }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "white", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: "#f3f4f6", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 }}>
+              <Image
+                source={require("../assets/images/logo-with-appname.png")}
+                style={{ width: 20, height: 20 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 11, color: "#9ca3af" }}>
+                Powered by <Text style={{ fontWeight: "600", color: "#4b5563" }}>Kioscify</Text>
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Products Panel */}

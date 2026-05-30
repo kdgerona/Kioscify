@@ -15,7 +15,6 @@ import { useRouter, Href } from "expo-router";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import LogoWithAppName from "../assets/images/logo-with-appname.png";
-import KioscifyLogo from "../assets/images/logo-only.png";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function Index() {
@@ -430,7 +429,7 @@ export default function Index() {
             }}
           >
             <Image
-              source={KioscifyLogo}
+              source={LogoWithAppName}
               style={{ width: 20, height: 20 }}
               resizeMode="contain"
             />
