@@ -52,6 +52,9 @@ export class BrandsService {
         stores: {
           select: { id: true, name: true, slug: true, isActive: true },
         },
+        company: {
+          select: { slug: true, canOnboardStores: true },
+        },
         _count: { select: { stores: true, products: true, categories: true, inventoryItems: true } },
       },
     });
