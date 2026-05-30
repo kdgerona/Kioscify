@@ -508,39 +508,21 @@ export default function Home() {
           </View>
         </View>
         <View className="flex-row gap-6">
-          <TouchableOpacity
-            className="rounded-lg p-2"
-            style={{ backgroundColor: primaryColor }}
-            onPress={() => router.push("/transactions" as Href)}
-          >
+          <TouchableOpacity className="p-2" onPress={() => router.push("/transactions" as Href)}>
             <Ionicons name="receipt-outline" size={24} color={textColor} />
           </TouchableOpacity>
-          <TouchableOpacity
-            className="rounded-lg p-2"
-            style={{ backgroundColor: primaryColor }}
-            onPress={() => router.push("/expenses" as Href)}
-          >
+          <TouchableOpacity className="p-2" onPress={() => router.push("/expenses" as Href)}>
             <Ionicons name="wallet-outline" size={24} color={textColor} />
           </TouchableOpacity>
-          <TouchableOpacity
-            className="rounded-lg p-2"
-            style={{ backgroundColor: primaryColor }}
-            onPress={() => router.push("/inventory" as Href)}
-          >
+          <TouchableOpacity className="p-2" onPress={() => router.push("/inventory" as Href)}>
             <Ionicons name="cube-outline" size={24} color={textColor} />
           </TouchableOpacity>
           <View className="w-px bg-black self-stretch mx-2" />
-          <TouchableOpacity
-            className="rounded-lg p-2"
-            onPress={() => router.push("/change-password" as Href)}
-          >
+          <TouchableOpacity className="p-2" onPress={() => router.push("/change-password" as Href)}>
             <Ionicons name="key-outline" size={24} color={textColor} />
           </TouchableOpacity>
           <View className="w-px bg-black self-stretch mx-2" />
-          <TouchableOpacity
-            className="rounded-lg p-2"
-            onPress={handleLogout}
-          >
+          <TouchableOpacity className="p-2" onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color={textColor} />
           </TouchableOpacity>
         </View>
