@@ -7,6 +7,7 @@ import {
   Image,
   Linking,
   useWindowDimensions,
+  ScrollView,
 } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
@@ -15,6 +16,8 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useTenant } from "../contexts/TenantContext";
 import AppLogo from "../assets/images/logo-only.png";
+
+const ORANGE = "#ea580c";
 
 interface QRPayload {
   v: number;
@@ -62,12 +65,7 @@ export default function TenantSetup() {
     setScanError("");
     try {
       const payload: QRPayload = JSON.parse(data);
-      if (
-        payload.v !== 1 ||
-        !payload.company ||
-        !payload.brand ||
-        !payload.store
-      ) {
+      if (payload.v !== 1 || !payload.company || !payload.brand || !payload.store) {
         setScanError("Invalid QR code. Please use manual entry below.");
         return;
       }
@@ -107,135 +105,174 @@ export default function TenantSetup() {
     );
   }
 
+  // ── Form content (shared between portrait stacked and landscape right panel) ──
+  const formContent = (
+    <>
+      <TouchableOpacity
+        onPress={handleScanPress}
+        disabled={loading}
+        style={{
+          borderWidth: 2, borderColor: ORANGE, borderRadius: 10,
+          paddingVertical: 12, alignItems: "center", marginBottom: 12,
+        }}
+      >
+        <Text style={{ color: ORANGE, fontSize: 15, fontWeight: "700" }}>
+          Scan QR Code
+        </Text>
+      </TouchableOpacity>
+
+      {permission && !permission.granted && !permission.canAskAgain && (
+        <View style={{ backgroundColor: "#fff7ed", borderWidth: 1, borderColor: "#fed7aa", borderRadius: 10, padding: 12, marginBottom: 12 }}>
+          <Text style={{ color: "#9a3412", fontSize: 12, textAlign: "center" }}>
+            Camera access is required to scan QR codes.{" "}
+            <Text style={{ fontWeight: "700", textDecorationLine: "underline" }} onPress={() => Linking.openSettings()}>
+              Enable in Settings
+            </Text>
+            {" "}or use manual entry below.
+          </Text>
+        </View>
+      )}
+
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
+        <Text style={{ marginHorizontal: 10, fontSize: 11, color: "#9ca3af" }}>or enter manually</Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
+      </View>
+
+      <View style={{ marginBottom: 8 }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: "#374151", marginBottom: 4 }}>Company Slug</Text>
+        <TextInput
+          style={{ backgroundColor: "#f3f4f6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: "#111827" }}
+          placeholder="e.g., your-company"
+          placeholderTextColor="#9ca3af"
+          value={companySlug}
+          onChangeText={setCompanySlug}
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+        />
+      </View>
+
+      <View style={{ marginBottom: 8 }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: "#374151", marginBottom: 4 }}>Brand Slug</Text>
+        <TextInput
+          style={{ backgroundColor: "#f3f4f6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: "#111827" }}
+          placeholder="e.g., your-brand"
+          placeholderTextColor="#9ca3af"
+          value={brandSlug}
+          onChangeText={setBrandSlug}
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+        />
+      </View>
+
+      <View style={{ marginBottom: 12 }}>
+        <Text style={{ fontSize: 12, fontWeight: "600", color: "#374151", marginBottom: 4 }}>Store ID</Text>
+        <TextInput
+          style={{ backgroundColor: "#f3f4f6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: "#111827" }}
+          placeholder="e.g., my-store"
+          placeholderTextColor="#9ca3af"
+          value={slug}
+          onChangeText={setSlug}
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+        />
+        <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 3 }}>
+          These are provided by your Kioscify platform administrator.
+        </Text>
+      </View>
+
+      {(error || scanError) && (
+        <View style={{ backgroundColor: "#fee2e2", borderWidth: 1, borderColor: "#fca5a5", borderRadius: 10, padding: 10, marginBottom: 10 }}>
+          <Text style={{ color: "#dc2626", fontSize: 13 }}>{error || scanError}</Text>
+        </View>
+      )}
+
+      <TouchableOpacity
+        onPress={handleContinue}
+        disabled={loading || !slug.trim() || !companySlug.trim() || !brandSlug.trim()}
+        style={{
+          backgroundColor: loading || !slug.trim() || !companySlug.trim() || !brandSlug.trim() ? "#d1d5db" : ORANGE,
+          borderRadius: 10, paddingVertical: 13, alignItems: "center",
+        }}
+      >
+        {loading ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text style={{ color: "white", fontSize: 15, fontWeight: "700" }}>Continue</Text>
+        )}
+      </TouchableOpacity>
+    </>
+  );
+
+  // ── LANDSCAPE: split screen ──────────────────────────────────────────────────
+  if (isLandscape) {
+    return (
+      <View style={{ flex: 1, flexDirection: "row" }}>
+        {/* Left panel — Kioscify branding */}
+        <View style={{ width: "40%", backgroundColor: ORANGE, overflow: "hidden" }}>
+          {/* Decorative rings */}
+          <View style={{ position: "absolute", top: -60, left: -60, width: 240, height: 240, borderRadius: 120, borderWidth: 30, borderColor: "white", opacity: 0.1 }} />
+          <View style={{ position: "absolute", bottom: -80, right: -80, width: 280, height: 280, borderRadius: 140, borderWidth: 35, borderColor: "white", opacity: 0.1 }} />
+          <View style={{ position: "absolute", bottom: 40, left: 16, width: 80, height: 80, borderRadius: 40, backgroundColor: "white", opacity: 0.1 }} />
+
+          <SafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
+            <View style={{ width: 80, height: 80, backgroundColor: "white", borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 }}>
+              <Image source={AppLogo} style={{ width: 60, height: 60 }} resizeMode="contain" />
+            </View>
+            <Text style={{ color: "white", fontSize: 20, fontWeight: "800", textAlign: "center", marginBottom: 6 }}>
+              Welcome to{"\n"}Kioscify
+            </Text>
+            <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, textAlign: "center", lineHeight: 18 }}>
+              Smart Store Management{"\n"}& Monitoring Platform
+            </Text>
+          </SafeAreaView>
+        </View>
+
+        {/* Right panel — form */}
+        <View style={{ flex: 1, backgroundColor: "white" }}>
+          <KeyboardAwareScrollView
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 24 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid
+            enableAutomaticScroll
+            extraScrollHeight={20}
+          >
+            <View style={{ maxWidth: 360, width: "100%", alignSelf: "center" }}>
+              {formContent}
+            </View>
+          </KeyboardAwareScrollView>
+        </View>
+      </View>
+    );
+  }
+
+  // ── PORTRAIT: stacked layout ─────────────────────────────────────────────────
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
       <KeyboardAwareScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingVertical: isLandscape ? 12 : 24 }}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingVertical: 24 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        enableOnAndroid={true}
-        enableAutomaticScroll={true}
+        enableOnAndroid
+        enableAutomaticScroll
         extraScrollHeight={20}
       >
-        <View className="w-full max-w-md flex-1 justify-center self-center">
-          <View style={{ alignItems: "center", marginBottom: isLandscape ? 8 : 24 }}>
-            {!isLandscape && (
-              <Image
-                source={AppLogo}
-                resizeMode="contain"
-                style={{ width: 120, height: 120 }}
-              />
-            )}
-            <Text style={{ fontSize: isLandscape ? 20 : 26, fontWeight: "700", color: "#ea580c", textAlign: "center", marginBottom: 4 }}>
-              Welcome to Kioscify
-            </Text>
-            <Text style={{ color: "#4b5563", fontSize: 13, textAlign: "center", marginBottom: isLandscape ? 0 : 4 }}>
-              Scan the QR code or enter your store details below
-            </Text>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <Image source={AppLogo} style={{ width: 120, height: 120 }} resizeMode="contain" />
+          <Text style={{ fontSize: 26, fontWeight: "800", color: ORANGE, textAlign: "center", marginBottom: 4, marginTop: 8 }}>
+            Welcome to Kioscify
+          </Text>
+          <Text style={{ color: "#6b7280", fontSize: 13, textAlign: "center", marginBottom: 28 }}>
+            Scan the QR code or enter your store details below
+          </Text>
+
+          <View style={{ width: "100%" }}>
+            {formContent}
           </View>
-
-          <TouchableOpacity
-            style={{ marginBottom: isLandscape ? 8 : 16 }}
-            className="w-full rounded-lg py-3 items-center border-2 border-orange-500"
-            onPress={handleScanPress}
-            disabled={loading}
-          >
-            <Text className="text-orange-500 text-base font-semibold">
-              Scan QR Code
-            </Text>
-          </TouchableOpacity>
-
-          {permission && !permission.granted && !permission.canAskAgain && (
-            <View className="mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
-              <Text className="text-sm text-orange-800 text-center">
-                Camera access is required to scan QR codes.{" "}
-                <Text
-                  className="font-semibold underline"
-                  onPress={() => Linking.openSettings()}
-                >
-                  Enable in Settings
-                </Text>
-                {" "}or use manual entry below.
-              </Text>
-            </View>
-          )}
-
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: isLandscape ? 8 : 16 }}>
-            <View style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
-            <Text style={{ marginHorizontal: 12, fontSize: 11, color: "#9ca3af" }}>or enter manually</Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
-          </View>
-
-          <View style={{ marginBottom: isLandscape ? 6 : 12 }}>
-            <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4 }}>
-              Company Slug
-            </Text>
-            <TextInput
-              style={{ backgroundColor: "#f3f4f6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: isLandscape ? 8 : 12, fontSize: 14, color: "#111827" }}
-              placeholder="e.g., your-company"
-              value={companySlug}
-              onChangeText={setCompanySlug}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-          </View>
-
-          <View style={{ marginBottom: isLandscape ? 6 : 12 }}>
-            <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4 }}>
-              Brand Slug
-            </Text>
-            <TextInput
-              style={{ backgroundColor: "#f3f4f6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: isLandscape ? 8 : 12, fontSize: 14, color: "#111827" }}
-              placeholder="e.g., your-brand"
-              value={brandSlug}
-              onChangeText={setBrandSlug}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-          </View>
-
-          <View style={{ marginBottom: isLandscape ? 8 : 16 }}>
-            <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4 }}>
-              Store ID
-            </Text>
-            <TextInput
-              style={{ backgroundColor: "#f3f4f6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: isLandscape ? 8 : 12, fontSize: 14, color: "#111827" }}
-              placeholder="e.g., my-store"
-              value={slug}
-              onChangeText={setSlug}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-            <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 3 }}>
-              These are provided by your Kioscify platform administrator.
-            </Text>
-          </View>
-
-          {(error || scanError) && (
-            <View className="bg-red-100 border border-red-400 rounded-lg p-3 mb-4">
-              <Text className="text-red-700 text-sm">{error || scanError}</Text>
-            </View>
-          )}
-
-          <TouchableOpacity
-            className={`w-full rounded-lg py-3 items-center ${
-              loading || !slug.trim() || !companySlug.trim() || !brandSlug.trim() ? "bg-gray-300" : "bg-orange-500"
-            }`}
-            onPress={handleContinue}
-            disabled={loading || !slug.trim() || !companySlug.trim() || !brandSlug.trim()}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text className="text-white text-base font-semibold">
-                Continue
-              </Text>
-            )}
-          </TouchableOpacity>
-
         </View>
       </KeyboardAwareScrollView>
     </SafeAreaView>
