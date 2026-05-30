@@ -60,7 +60,11 @@ export default function Index() {
       return;
     }
     try {
-      await login(username, password, tenant.slug);
+      const result = await login(username, password, tenant.slug);
+      if (result.mustChangePassword) {
+        router.replace("/change-password" as Href);
+        return;
+      }
       const storesRaw = await (
         await import("@react-native-async-storage/async-storage")
       ).default.getItem("@kioscify:accessible_stores");

@@ -17,6 +17,7 @@ export default function RootLayout() {
               <Stack.Screen name="tenant-setup" />
               <Stack.Screen name="store-picker" />
               <Stack.Screen name="home" />
+              <Stack.Screen name="change-password" />
               <Stack.Screen name="transactions" />
             </Stack>
           </SyncProvider>

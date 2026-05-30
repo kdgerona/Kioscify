@@ -94,14 +94,6 @@ export class AuthService {
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
 
-    // Store Portal is STORE_ADMIN only — CASHIER users must use the mobile app
-    const storePortalRoles = ['ADMIN', 'STORE_ADMIN'];
-    if (!storePortalRoles.includes(user.role)) {
-      throw new UnauthorizedException(
-        'Access denied. Store Admin access required.',
-      );
-    }
-
     // Fetch related data needed to build the stores list (kept separate from auth query)
     const storeSelect = {
       id: true,

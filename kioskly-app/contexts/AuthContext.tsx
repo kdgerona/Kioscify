@@ -26,7 +26,7 @@ interface AuthContextType {
   error: string | null;
   initializing: boolean;
   mustChangePassword: boolean;
-  login: (username: string, password: string, storeSlug: string) => Promise<void>;
+  login: (username: string, password: string, storeSlug: string) => Promise<{ mustChangePassword: boolean }>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   clearError: () => void;
@@ -122,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setToken(data.accessToken);
         setUser(data.user);
         setMustChangePassword(!!data.mustChangePassword);
+        return { mustChangePassword: !!data.mustChangePassword };
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "An unexpected error occurred";
