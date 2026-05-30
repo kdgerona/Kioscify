@@ -15,6 +15,7 @@ import { useRouter, Href } from "expo-router";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import LogoWithAppName from "../assets/images/logo-with-appname.png";
+import KioscifyLogo from "../assets/images/logo-only.png";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function Index() {
@@ -218,6 +219,13 @@ export default function Index() {
             Change Store
           </Text>
         </TouchableOpacity>
+
+        <View className="flex-row items-center gap-2 mt-8 bg-white rounded-full px-4 py-2" style={{ shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 2 }}>
+          <Image source={KioscifyLogo} style={{ width: 32, height: 32 }} resizeMode="contain" />
+          <Text className="text-xs text-gray-400">
+            Powered by <Text className="font-semibold text-gray-600">Kioscify</Text>
+          </Text>
+        </View>
       </View>
         </View>
       </ScrollView>

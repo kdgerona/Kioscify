@@ -495,9 +495,21 @@ export default function Home() {
               resizeMode="contain"
             />
           )}
-          <Text className="text-2xl font-bold" style={{ color: textColor }}>
-            {tenant.name}
-          </Text>
+          <View>
+            <Text className="text-2xl font-bold" style={{ color: textColor }}>
+              {tenant.name}
+            </Text>
+            <View className="flex-row items-center gap-1.5 mt-1 bg-white rounded-full px-2.5 py-1 self-start" style={{ shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2 }}>
+              <Image
+                source={require("../assets/images/logo-only.png")}
+                style={{ width: 18, height: 18 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 10, color: '#6b7280' }}>
+                Powered by <Text style={{ fontWeight: "600", color: '#374151' }}>Kioscify</Text>
+              </Text>
+            </View>
+          </View>
         </View>
         <View className="flex-row gap-6">
           <TouchableOpacity

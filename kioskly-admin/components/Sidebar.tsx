@@ -611,6 +611,25 @@ export default function Sidebar() {
             <LogOut className="w-5 h-5 flex-shrink-0" />
             {!isCollapsed && <span className="font-medium">Logout</span>}
           </button>
+
+          <div className={cn("flex justify-center mt-3 pt-3 border-t", isCollapsed && "lg:pt-2 lg:mt-2")} style={{ borderColor: `${primaryColor}20` }}>
+            {isCollapsed ? (
+              <div className="lg:flex hidden justify-center">
+                <div className="bg-white rounded-lg p-1 shadow-sm border border-gray-100" title="Powered by Kioscify">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/logo-full.png" alt="Kioscify" className="w-7 h-7 object-contain" />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-white rounded-full px-3 py-1.5 shadow-sm border border-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-full.png" alt="Kioscify" className="w-8 h-8 object-contain" />
+                <span className="text-[11px] text-gray-400 whitespace-nowrap">
+                  Powered by <span className="font-semibold text-gray-600">Kioscify</span>
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>

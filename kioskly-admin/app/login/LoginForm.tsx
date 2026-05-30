@@ -233,9 +233,13 @@ export default function LoginForm({
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
-          Powered by <span className="font-semibold">Kioscify</span>
-        </p>
+        <div className="flex items-center justify-center gap-2 mt-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-full.png" alt="Kioscify" className="w-8 h-8 object-contain" />
+          <p className="text-xs text-gray-400">
+            Powered by <span className="font-semibold text-gray-500">Kioscify</span>
+          </p>
+        </div>
       </div>
     </div>
   );
