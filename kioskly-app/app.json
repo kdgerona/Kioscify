@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kioskly.app"
+      "bundleIdentifier": "com.kioskly.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan store QR codes for device setup."
+      }
     },
     "android": {
       "package": "com.kioskly.app",
@@ -28,6 +31,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-camera",
       [
         "expo-splash-screen",
         {
