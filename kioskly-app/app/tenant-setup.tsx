@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  useWindowDimensions,
 } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
@@ -31,6 +32,8 @@ export default function TenantSetup() {
   const router = useRouter();
   const { fetchTenantBySlug, loading, error } = useTenant();
   const [permission, requestPermission] = useCameraPermissions();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   const handleContinue = async () => {
     if (!companySlug.trim() || !brandSlug.trim() || !slug.trim()) return;
@@ -107,7 +110,7 @@ export default function TenantSetup() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAwareScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingVertical: 24 }}
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingVertical: isLandscape ? 12 : 24 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         enableOnAndroid={true}
@@ -115,22 +118,25 @@ export default function TenantSetup() {
         extraScrollHeight={20}
       >
         <View className="w-full max-w-md flex-1 justify-center self-center">
-          <View className="flex-col items-center justify-center mb-6">
-            <Image
-              source={AppLogo}
-              resizeMode="contain"
-              className="w-64 h-64"
-            />
-            <Text className="text-3xl font-bold text-orange-600 mb-2 text-center mt-[-40] w-full">
+          <View style={{ alignItems: "center", marginBottom: isLandscape ? 8 : 24 }}>
+            {!isLandscape && (
+              <Image
+                source={AppLogo}
+                resizeMode="contain"
+                style={{ width: 120, height: 120 }}
+              />
+            )}
+            <Text style={{ fontSize: isLandscape ? 20 : 26, fontWeight: "700", color: "#ea580c", textAlign: "center", marginBottom: 4 }}>
               Welcome to Kioscify
             </Text>
-            <Text className="text-gray-600 mb-8 text-center">
-              Enter your store identifier to continue
+            <Text style={{ color: "#4b5563", fontSize: 13, textAlign: "center", marginBottom: isLandscape ? 0 : 4 }}>
+              Scan the QR code or enter your store details below
             </Text>
           </View>
 
           <TouchableOpacity
-            className="w-full rounded-lg py-3 items-center mb-4 border-2 border-orange-500"
+            style={{ marginBottom: isLandscape ? 8 : 16 }}
+            className="w-full rounded-lg py-3 items-center border-2 border-orange-500"
             onPress={handleScanPress}
             disabled={loading}
           >
@@ -154,18 +160,18 @@ export default function TenantSetup() {
             </View>
           )}
 
-          <View className="flex-row items-center mb-4">
-            <View className="flex-1 h-px bg-gray-200" />
-            <Text className="mx-3 text-xs text-gray-400">or enter manually</Text>
-            <View className="flex-1 h-px bg-gray-200" />
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: isLandscape ? 8 : 16 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
+            <Text style={{ marginHorizontal: 12, fontSize: 11, color: "#9ca3af" }}>or enter manually</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: "#e5e7eb" }} />
           </View>
 
-          <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">
+          <View style={{ marginBottom: isLandscape ? 6 : 12 }}>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4 }}>
               Company Slug
             </Text>
             <TextInput
-              className="w-full bg-gray-100 rounded-lg px-4 py-3 text-base"
+              style={{ backgroundColor: "#f3f4f6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: isLandscape ? 8 : 12, fontSize: 14, color: "#111827" }}
               placeholder="e.g., your-company"
               value={companySlug}
               onChangeText={setCompanySlug}
@@ -175,12 +181,12 @@ export default function TenantSetup() {
             />
           </View>
 
-          <View className="mb-4">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">
+          <View style={{ marginBottom: isLandscape ? 6 : 12 }}>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4 }}>
               Brand Slug
             </Text>
             <TextInput
-              className="w-full bg-gray-100 rounded-lg px-4 py-3 text-base"
+              style={{ backgroundColor: "#f3f4f6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: isLandscape ? 8 : 12, fontSize: 14, color: "#111827" }}
               placeholder="e.g., your-brand"
               value={brandSlug}
               onChangeText={setBrandSlug}
@@ -190,12 +196,12 @@ export default function TenantSetup() {
             />
           </View>
 
-          <View className="mb-6">
-            <Text className="text-sm font-semibold text-gray-700 mb-2">
+          <View style={{ marginBottom: isLandscape ? 8 : 16 }}>
+            <Text style={{ fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 4 }}>
               Store ID
             </Text>
             <TextInput
-              className="w-full bg-gray-100 rounded-lg px-4 py-3 text-base"
+              style={{ backgroundColor: "#f3f4f6", borderRadius: 10, paddingHorizontal: 14, paddingVertical: isLandscape ? 8 : 12, fontSize: 14, color: "#111827" }}
               placeholder="e.g., my-store"
               value={slug}
               onChangeText={setSlug}
@@ -203,7 +209,7 @@ export default function TenantSetup() {
               autoCorrect={false}
               editable={!loading}
             />
-            <Text className="text-xs text-gray-500 mt-1">
+            <Text style={{ fontSize: 11, color: "#6b7280", marginTop: 3 }}>
               These are provided by your Kioscify platform administrator.
             </Text>
           </View>
@@ -230,17 +236,6 @@ export default function TenantSetup() {
             )}
           </TouchableOpacity>
 
-          <View className="mt-8 p-4 bg-orange-50 rounded-lg">
-            <Text className="text-sm font-semibold text-orange-800 mb-2">
-              💡 What is a Store ID?
-            </Text>
-            <Text className="text-xs text-gray-600">
-              Your Store ID (slug) is a unique identifier for your business.
-              It&apos;s used to load your custom branding, theme, and settings.
-              Contact your system administrator if you don&apos;t have this
-              information.
-            </Text>
-          </View>
         </View>
       </KeyboardAwareScrollView>
     </SafeAreaView>
