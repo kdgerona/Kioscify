@@ -108,6 +108,13 @@ export default function TenantSetup() {
   // ── Form content (shared between portrait stacked and landscape right panel) ──
   const formContent = (
     <>
+      <Text style={{ fontSize: 22, fontWeight: "800", color: "#111827", marginBottom: 4 }}>
+        Get Started
+      </Text>
+      <Text style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
+        Scan the QR code or enter your store details below
+      </Text>
+
       <TouchableOpacity
         onPress={handleScanPress}
         disabled={loading}
@@ -263,11 +270,8 @@ export default function TenantSetup() {
       >
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <Image source={AppLogo} style={{ width: 120, height: 120 }} resizeMode="contain" />
-          <Text style={{ fontSize: 26, fontWeight: "800", color: ORANGE, textAlign: "center", marginBottom: 4, marginTop: 8 }}>
+          <Text style={{ fontSize: 26, fontWeight: "800", color: ORANGE, textAlign: "center", marginBottom: 20, marginTop: 8 }}>
             Welcome to Kioscify
-          </Text>
-          <Text style={{ color: "#6b7280", fontSize: 13, textAlign: "center", marginBottom: 28 }}>
-            Scan the QR code or enter your store details below
           </Text>
 
           <View style={{ width: "100%" }}>
