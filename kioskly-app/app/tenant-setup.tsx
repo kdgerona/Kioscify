@@ -23,6 +23,8 @@ interface QRPayload {
 }
 
 export default function TenantSetup() {
+  const [companySlug, setCompanySlug] = useState("");
+  const [brandSlug, setBrandSlug] = useState("");
   const [slug, setSlug] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState("");
@@ -31,9 +33,12 @@ export default function TenantSetup() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const handleContinue = async () => {
-    if (!slug.trim()) return;
+    if (!companySlug.trim() || !brandSlug.trim() || !slug.trim()) return;
     try {
-      await fetchTenantBySlug(slug.trim().toLowerCase());
+      await fetchTenantBySlug(slug.trim().toLowerCase(), {
+        companySlug: companySlug.trim().toLowerCase(),
+        brandSlug: brandSlug.trim().toLowerCase(),
+      });
       router.replace("/");
     } catch (err) {
       console.error("Failed to fetch tenant:", err);
@@ -155,9 +160,39 @@ export default function TenantSetup() {
             <View className="flex-1 h-px bg-gray-200" />
           </View>
 
+          <View className="mb-4">
+            <Text className="text-sm font-semibold text-gray-700 mb-2">
+              Company Slug
+            </Text>
+            <TextInput
+              className="w-full bg-gray-100 rounded-lg px-4 py-3 text-base"
+              placeholder="e.g., your-company"
+              value={companySlug}
+              onChangeText={setCompanySlug}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
+            />
+          </View>
+
+          <View className="mb-4">
+            <Text className="text-sm font-semibold text-gray-700 mb-2">
+              Brand Slug
+            </Text>
+            <TextInput
+              className="w-full bg-gray-100 rounded-lg px-4 py-3 text-base"
+              placeholder="e.g., your-brand"
+              value={brandSlug}
+              onChangeText={setBrandSlug}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
+            />
+          </View>
+
           <View className="mb-6">
             <Text className="text-sm font-semibold text-gray-700 mb-2">
-              Store ID / Slug
+              Store ID
             </Text>
             <TextInput
               className="w-full bg-gray-100 rounded-lg px-4 py-3 text-base"
@@ -169,7 +204,7 @@ export default function TenantSetup() {
               editable={!loading}
             />
             <Text className="text-xs text-gray-500 mt-1">
-              Ask your administrator for your store identifier
+              These are provided by your Kioscify platform administrator.
             </Text>
           </View>
 
@@ -181,10 +216,10 @@ export default function TenantSetup() {
 
           <TouchableOpacity
             className={`w-full rounded-lg py-3 items-center ${
-              loading || !slug.trim() ? "bg-gray-300" : "bg-orange-500"
+              loading || !slug.trim() || !companySlug.trim() || !brandSlug.trim() ? "bg-gray-300" : "bg-orange-500"
             }`}
             onPress={handleContinue}
-            disabled={loading || !slug.trim()}
+            disabled={loading || !slug.trim() || !companySlug.trim() || !brandSlug.trim()}
           >
             {loading ? (
               <ActivityIndicator color="white" />
