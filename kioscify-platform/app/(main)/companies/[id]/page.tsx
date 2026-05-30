@@ -15,7 +15,9 @@ import {
   Store as StoreIcon,
   Upload,
   Pencil,
+  QrCode,
 } from 'lucide-react';
+import StoreQRModal from '@/components/StoreQRModal';
 
 type Tab = 'settings' | 'brands' | 'stores';
 
@@ -172,6 +174,21 @@ export default function CompanyDetailPage() {
   // Password banners
   const [adminPassword, setAdminPassword] = useState<string | null>(null);
   const [storePassword, setStorePassword] = useState<{ storeName: string; password: string } | null>(null);
+
+  // QR state
+  const [qrStore, setQrStore] = useState<{
+    storeName: string;
+    companySlug: string;
+    brandSlug: string;
+    storeSlug: string;
+  } | null>(null);
+
+  const [newStoreQR, setNewStoreQR] = useState<{
+    storeName: string;
+    companySlug: string;
+    brandSlug: string;
+    storeSlug: string;
+  } | null>(null);
 
   // Modals
   const [showOnboardAdmin, setShowOnboardAdmin] = useState(false);
@@ -430,6 +447,12 @@ export default function CompanyDetailPage() {
           username: selectedExistingUser.username,
         });
         setStores(prev => [...prev, result.store]);
+        setNewStoreQR({
+          storeName: result.store.name,
+          companySlug: company!.slug,
+          brandSlug: brands.find(b => b.id === showOnboardStore.brandId)?.slug ?? '',
+          storeSlug: result.store.slug,
+        });
       } else {
         const result = await api.onboardStore({
           storeName: storeNameField,
@@ -445,6 +468,12 @@ export default function CompanyDetailPage() {
         });
         setStorePassword({ storeName: result.store.name, password: result.temporaryPassword });
         setStores(prev => [...prev, result.store]);
+        setNewStoreQR({
+          storeName: result.store.name,
+          companySlug: company!.slug,
+          brandSlug: brands.find(b => b.id === showOnboardStore.brandId)?.slug ?? '',
+          storeSlug: result.store.slug,
+        });
       }
       resetStoreForm();
       setShowOnboardStore(null);
@@ -510,6 +539,29 @@ export default function CompanyDetailPage() {
           password={storePassword.password}
           onClose={() => setStorePassword(null)}
         />
+      )}
+      {newStoreQR && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-blue-800 font-medium text-sm flex items-center gap-2">
+              <QrCode className="w-4 h-4" />
+              Device Setup QR Code — {newStoreQR.storeName}
+            </p>
+            <button onClick={() => setNewStoreQR(null)} className="text-blue-600 hover:text-blue-800">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <p className="text-xs text-blue-600 mb-3">
+            Scan this QR code on a tablet to configure it for this store instantly.
+          </p>
+          <button
+            onClick={() => setQrStore(newStoreQR)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+          >
+            <QrCode className="w-4 h-4" />
+            View / Download QR Code
+          </button>
+        </div>
       )}
 
       {/* Tabs */}
@@ -757,6 +809,18 @@ export default function CompanyDetailPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => setQrStore({
+                        storeName: store.name,
+                        companySlug: company!.slug,
+                        brandSlug: store.brand?.slug ?? '',
+                        storeSlug: store.slug,
+                      })}
+                      title="View QR Code"
+                      className="p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
+                    >
+                      <QrCode className="w-4 h-4" />
+                    </button>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       store.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
                     }`}>
@@ -1156,6 +1220,16 @@ export default function CompanyDetailPage() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {qrStore && (
+        <StoreQRModal
+          storeName={qrStore.storeName}
+          companySlug={qrStore.companySlug}
+          brandSlug={qrStore.brandSlug}
+          storeSlug={qrStore.storeSlug}
+          onClose={() => setQrStore(null)}
+        />
       )}
     </div>
   );
