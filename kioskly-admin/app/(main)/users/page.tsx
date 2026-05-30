@@ -4,11 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
 import type { User, StoreUserCreatePayload } from '@/types';
-import { UserPlus, Eye, EyeOff, UserCheck, UserX, Search, Link } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, UserCheck, UserX } from 'lucide-react';
 
 export default function UsersPage() {
   const { tenant } = useTenant();
-  const [activeTab, setActiveTab] = useState<'store' | 'assign'>('store');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -23,13 +22,6 @@ export default function UsersPage() {
   });
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Assign existing user state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [assignLoading, setAssignLoading] = useState<string | null>(null);
-  const [assignError, setAssignError] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     if (!tenant?.id) return;
@@ -76,34 +68,6 @@ export default function UsersPage() {
     }
   };
 
-  const handleSearch = useCallback(async () => {
-    if (!searchQuery.trim()) return;
-    setSearchLoading(true);
-    try {
-      const results = await api.searchUsersInCompany(searchQuery);
-      setSearchResults(results);
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setSearchLoading(false);
-    }
-  }, [searchQuery]);
-
-  const handleAssign = async (username: string) => {
-    if (!tenant?.id) return;
-    setAssignLoading(username);
-    setAssignError(null);
-    try {
-      await api.assignUserToStore(tenant.id, { username, role: 'STORE_ADMIN' });
-      setSearchResults((prev) => prev.filter((u) => u.username !== username));
-      await fetchUsers();
-    } catch (err: any) {
-      setAssignError(err?.response?.data?.message || 'Failed to assign user');
-    } finally {
-      setAssignLoading(null);
-    }
-  };
-
   const roleLabel = (role: string) => {
     switch (role) {
       case 'STORE_ADMIN': case 'ADMIN': return 'Store Admin';
@@ -114,35 +78,17 @@ export default function UsersPage() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Store Users</h1>
           <p className="text-sm text-gray-500 mt-1">Manage staff accounts for this store</p>
         </div>
-        {activeTab === 'store' && (
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
-          >
-            <UserPlus className="h-4 w-4" />
-            Add User
-          </button>
-        )}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6">
         <button
-          onClick={() => setActiveTab('store')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${activeTab === 'store' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          onClick={() => setShowCreateForm(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
         >
-          Store Users
-        </button>
-        <button
-          onClick={() => setActiveTab('assign')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition ${activeTab === 'assign' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          Assign Existing User
+          <UserPlus className="h-4 w-4" />
+          Add User
         </button>
       </div>
 
@@ -329,81 +275,6 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Assign Existing User Tab */}
-      {activeTab === 'assign' && (
-        <div>
-          <p className="text-sm text-gray-600 mb-4">
-            Search for an existing user within your company and grant them access to this store.
-            Only Platform Admins and Company Admins can use this feature.
-          </p>
-
-          {assignError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-              {assignError}
-            </div>
-          )}
-
-          <div className="flex gap-2 mb-4">
-            <input
-              type="text"
-              placeholder="Search by username, email, or name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <button
-              onClick={handleSearch}
-              disabled={searchLoading}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-50 flex items-center gap-2"
-            >
-              <Search className="h-4 w-4" />
-              {searchLoading ? 'Searching...' : 'Search'}
-            </button>
-          </div>
-
-          {searchResults.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Stores</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {searchResults.map((user) => (
-                    <tr key={user.id}>
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
-                        <p className="text-xs text-gray-500">@{user.username} · {user.email}</p>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {(user as any).storeAccess?.map((a: any) => a.tenant?.name).join(', ') || '—'}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleAssign(user.username)}
-                          disabled={assignLoading === user.username}
-                          className="flex items-center gap-1 ml-auto px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs disabled:opacity-50"
-                        >
-                          <Link className="h-3 w-3" />
-                          {assignLoading === user.username ? 'Assigning...' : 'Assign'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {searchResults.length === 0 && searchQuery && !searchLoading && (
-            <p className="text-center text-gray-500 py-8 text-sm">No users found matching "{searchQuery}"</p>
-          )}
-        </div>
-      )}
     </div>
   );
 }

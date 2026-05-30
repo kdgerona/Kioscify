@@ -44,14 +44,6 @@ export default function InventoryItemsPage() {
     }
   };
 
-  const categoryColors: Record<string, string> = {
-    MAINS: 'bg-blue-100 text-blue-700',
-    FLAVORED_JAMS: 'bg-pink-100 text-pink-700',
-    ADD_ONS: 'bg-purple-100 text-purple-700',
-    SYRUPS: 'bg-yellow-100 text-yellow-700',
-    HOT: 'bg-red-100 text-red-700',
-    PACKAGING: 'bg-gray-100 text-gray-700',
-  };
 
   return (
     <div className="p-6">
@@ -87,9 +79,13 @@ export default function InventoryItemsPage() {
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${categoryColors[item.category] ?? 'bg-gray-100 text-gray-700'}`}>
-                      {item.category.replace(/_/g, ' ')}
-                    </span>
+                    {item.category ? (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        {item.category}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">{item.unit}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">

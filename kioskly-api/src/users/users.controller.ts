@@ -148,7 +148,11 @@ export class UsersController {
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'Search users within a company (for store assignment)' })
-  searchUsers(@Query('q') query: string, @CompanyId() companyId: string) {
-    return this.usersService.searchUsersInCompany(companyId, query ?? '');
+  searchUsers(
+    @Query('q') query: string,
+    @Query('companyId') queryCompanyId: string,
+    @CompanyId() jwtCompanyId: string,
+  ) {
+    return this.usersService.searchUsersInCompany(queryCompanyId || jwtCompanyId, query ?? '');
   }
 }

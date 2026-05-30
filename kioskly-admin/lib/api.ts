@@ -681,7 +681,7 @@ class ApiClient {
   }
 
   async updateStoreInventoryItem(id: string, payload: Partial<{ minStockLevel: number; expirationWarningDays: number }>): Promise<InventoryItem> {
-    const { data } = await this.client.patch<InventoryItem>(`/inventory/items/${id}`, payload);
+    const { data } = await this.client.patch<InventoryItem>(`/inventory/items/${id}/store-config`, payload);
     return data;
   }
 }

@@ -22,14 +22,14 @@ export class CategoriesService {
 
   async findAll(brandId: string) {
     return this.prisma.category.findMany({
-      where: { brandId },
+      where: { brandId, tombstone: { not: 1 } },
       orderBy: { sequenceNo: 'asc' },
     });
   }
 
   async findOne(id: string, brandId: string) {
     const category = await this.prisma.category.findFirst({
-      where: { id, brandId },
+      where: { id, brandId, tombstone: { not: 1 } },
       include: { products: true },
     });
     if (!category) throw new NotFoundException(`Category ${id} not found`);
@@ -43,6 +43,6 @@ export class CategoriesService {
 
   async remove(id: string, brandId: string) {
     await this.findOne(id, brandId);
-    return this.prisma.category.delete({ where: { id } });
+    return this.prisma.category.update({ where: { id }, data: { tombstone: 1 } });
   }
 }

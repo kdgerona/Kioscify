@@ -184,7 +184,8 @@ class ApiClient {
   }
 
   async createCategory(payload: { name: string; brandId: string }): Promise<Category> {
-    const { data } = await this.client.post<Category>('/categories', payload);
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Category>('/categories', body, { params: { brandId } });
     return data;
   }
 
@@ -214,7 +215,8 @@ class ApiClient {
     sizeIds?: string[];
     addonIds?: string[];
   }): Promise<Product> {
-    const { data } = await this.client.post<Product>('/products', payload);
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Product>('/products', body, { params: { brandId } });
     return data;
   }
 
@@ -244,7 +246,8 @@ class ApiClient {
     priceModifier: number;
     brandId: string;
   }): Promise<Size> {
-    const { data } = await this.client.post<Size>('/sizes', payload);
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Size>('/sizes', body, { params: { brandId } });
     return data;
   }
 
@@ -271,7 +274,8 @@ class ApiClient {
     price: number;
     brandId: string;
   }): Promise<Addon> {
-    const { data } = await this.client.post<Addon>('/addons', payload);
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Addon>('/addons', body, { params: { brandId } });
     return data;
   }
 
@@ -302,9 +306,11 @@ class ApiClient {
     expirationWarningDays?: number;
     brandId: string;
   }): Promise<InventoryBrandTemplate> {
+    const { brandId, ...body } = payload;
     const { data } = await this.client.post<InventoryBrandTemplate>(
       '/inventory/brand-templates',
-      payload
+      body,
+      { params: { brandId } }
     );
     return data;
   }
@@ -361,6 +367,36 @@ class ApiClient {
       `/users/companies/${companyId}/${userId}`
     );
     return data;
+  }
+
+  // ─── Store user assignment (multi-store) ──────────────────────────────────
+
+  async getStores(brandId: string): Promise<any[]> {
+    const { data } = await this.client.get('/stores', { params: { brandId } });
+    return data;
+  }
+
+  async updateStore(storeId: string, payload: { name: string }): Promise<any> {
+    const { data } = await this.client.patch(`/stores/${storeId}`, payload);
+    return data;
+  }
+
+  async getStoreUsers(storeId: string): Promise<User[]> {
+    const { data } = await this.client.get<User[]>(`/users/stores/${storeId}`);
+    return data;
+  }
+
+  async searchUsersInCompany(query: string): Promise<User[]> {
+    const { data } = await this.client.get<User[]>('/users/search', { params: { q: query } });
+    return data;
+  }
+
+  async assignUserToStore(storeId: string, payload: { username: string; role: 'STORE_ADMIN' | 'CASHIER' }): Promise<void> {
+    await this.client.post(`/users/stores/${storeId}/assign`, payload);
+  }
+
+  async revokeStoreAccess(storeId: string, userId: string): Promise<void> {
+    await this.client.delete(`/users/stores/${storeId}/${userId}/access`);
   }
 }
 

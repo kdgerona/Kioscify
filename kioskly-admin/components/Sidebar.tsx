@@ -24,7 +24,6 @@ import {
   PanelRightOpen,
   Wallet,
   Users,
-  PackageSearch,
   ChevronsUpDown,
 } from "lucide-react";
 import Image from "next/image";
@@ -51,7 +50,6 @@ const navigation: NavigationItem[] = [
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Submitted Reports", href: "/submitted-reports", icon: FileText },
   { name: "Inventory", href: "/inventory", icon: Boxes },
-  { name: "Inventory Items", href: "/inventory-items", icon: PackageSearch },
   {
     name: "Inventory Reports",
     href: "#",

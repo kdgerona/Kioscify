@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import type { Brand, Category, Product, Size, Addon, InventoryBrandTemplate } from '@/types';
 import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save } from 'lucide-react';
 
-type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'inventory' | 'settings';
+type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'inventory' | 'stores' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -15,6 +15,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'sizes', label: 'Sizes' },
   { id: 'addons', label: 'Add-ons' },
   { id: 'inventory', label: 'Inventory Items' },
+  { id: 'stores', label: 'Stores' },
   { id: 'settings', label: 'Settings' },
 ];
 
@@ -100,7 +101,11 @@ export default function BrandDetailPage() {
   const [sizes, setSizes] = useState<Size[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [invItems, setInvItems] = useState<InventoryBrandTemplate[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
+  const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
+  const [editingStoreName, setEditingStoreName] = useState('');
   const [tabLoading, setTabLoading] = useState(false);
+
 
   // Modal state
   const [modal, setModal] = useState<{
@@ -178,6 +183,7 @@ export default function BrandDetailPage() {
         if (tab === 'sizes') setSizes(await api.getSizes(brandId));
         if (tab === 'addons') setAddons(await api.getAddons(brandId));
         if (tab === 'inventory') setInvItems(await api.getInventoryBrandTemplates(brandId));
+        if (tab === 'stores') setStores(await api.getStores(brandId));
       } catch {
         // silent — show empty list
       } finally {
@@ -190,6 +196,15 @@ export default function BrandDetailPage() {
   useEffect(() => {
     loadTab(activeTab);
   }, [activeTab, loadTab]);
+
+  const handleSaveStoreName = async (storeId: string) => {
+    if (!editingStoreName.trim()) return;
+    try {
+      const updated = await api.updateStore(storeId, { name: editingStoreName.trim() });
+      setStores(prev => prev.map(s => s.id === storeId ? { ...s, name: updated.name } : s));
+      setEditingStoreId(null);
+    } catch { /* silent */ }
+  };
 
   if (loading) {
     return (
@@ -361,6 +376,64 @@ export default function BrandDetailPage() {
           </TabSection>
         )}
 
+        {/* Stores */}
+        {activeTab === 'stores' && !tabLoading && (
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Store Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Store ID / Slug</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {stores.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-12 text-center text-sm text-gray-400">No stores under this brand yet.</td>
+                  </tr>
+                ) : stores.map(store => (
+                  <tr key={store.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      {editingStoreId === store.id ? (
+                        <input
+                          autoFocus
+                          type="text"
+                          value={editingStoreName}
+                          onChange={e => setEditingStoreName(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleSaveStoreName(store.id);
+                            if (e.key === 'Escape') setEditingStoreId(null);
+                          }}
+                          className="px-3 py-1.5 border border-indigo-400 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full max-w-xs"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium text-gray-900">{store.name}</p>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 font-mono">{store.slug}</td>
+                    <td className="px-6 py-4 text-right">
+                      {editingStoreId === store.id ? (
+                        <div className="flex gap-3 justify-end">
+                          <button onClick={() => handleSaveStoreName(store.id)} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Save</button>
+                          <button onClick={() => setEditingStoreId(null)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setEditingStoreId(store.id); setEditingStoreName(store.name); }}
+                          className="text-sm text-gray-400 hover:text-gray-600"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* Settings */}
         {activeTab === 'settings' && (
           <div className="space-y-6 max-w-xl">
@@ -373,7 +446,11 @@ export default function BrandDetailPage() {
               <div className="p-6 flex items-center gap-6">
                 <div className="w-20 h-20 rounded-xl border border-gray-200 flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
                   {brand.logoUrl ? (
-                    <img src={brand.logoUrl} alt="Brand logo" className="w-full h-full object-contain" />
+                    <img
+                      src={brand.logoUrl.startsWith('http') ? brand.logoUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'}${brand.logoUrl}`}
+                      alt="Brand logo"
+                      className="w-full h-full object-contain"
+                    />
                   ) : (
                     <span className="text-3xl font-bold text-gray-300">{brand.name[0]?.toUpperCase()}</span>
                   )}
@@ -484,6 +561,7 @@ export default function BrandDetailPage() {
             )}
           </TabSection>
         )}
+
       </div>
 
       {/* Modals */}
@@ -561,6 +639,7 @@ export default function BrandDetailPage() {
           mode={modal.mode}
           item={modal.item as InventoryBrandTemplate | undefined}
           brandId={brandId}
+          categories={categories}
           onClose={closeModal}
           onSave={item => {
             if (modal.mode === 'create') {
@@ -889,12 +968,14 @@ function InventoryModal({
   mode,
   item,
   brandId,
+  categories,
   onClose,
   onSave,
 }: {
   mode: 'create' | 'edit';
   item?: InventoryBrandTemplate;
   brandId: string;
+  categories: Category[];
   onClose: () => void;
   onSave: (item: InventoryBrandTemplate) => void;
 }) {
@@ -913,19 +994,18 @@ function InventoryModal({
     setError(null);
     setLoading(true);
     try {
-      const payload = {
+      const body = {
         name,
         unit,
         category: category || undefined,
         minStockLevel: minStockLevel ? parseInt(minStockLevel) : undefined,
         expirationWarningDays: expirationWarningDays ? parseInt(expirationWarningDays) : undefined,
-        brandId,
       };
       let result: InventoryBrandTemplate;
       if (mode === 'create') {
-        result = await api.createInventoryBrandTemplate(payload);
+        result = await api.createInventoryBrandTemplate({ ...body, brandId });
       } else {
-        result = await api.updateInventoryBrandTemplate(item!.id, payload);
+        result = await api.updateInventoryBrandTemplate(item!.id, body);
       }
       onSave(result);
     } catch (err: unknown) {
@@ -953,9 +1033,16 @@ function InventoryModal({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category (optional)</label>
-          <input type="text" value={category} onChange={e => setCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-            placeholder="e.g. Beverages, Dry Goods" />
+          <select
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white text-gray-900"
+          >
+            <option value="">— None —</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>

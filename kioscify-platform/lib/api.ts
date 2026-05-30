@@ -275,6 +275,34 @@ class ApiClient {
     const adminResult = await this.onboardStoreAdmin(newStore.id, payload.admin);
     return { store: newStore, ...adminResult };
   }
+
+  async onboardStoreWithExistingUser(payload: {
+    storeName: string;
+    storeSlug: string;
+    brandId: string;
+    companyId: string;
+    username: string;
+  }): Promise<{ store: Store }> {
+    const newStore = await this.createStore({
+      name: payload.storeName,
+      slug: payload.storeSlug,
+      brandId: payload.brandId,
+      companyId: payload.companyId,
+    });
+    await this.assignUserToStore(newStore.id, { username: payload.username, role: 'STORE_ADMIN' });
+    return { store: newStore };
+  }
+
+  async searchCompanyUsers(companyId: string, query: string): Promise<User[]> {
+    const { data } = await this.client.get<User[]>('/users/search', {
+      params: { q: query, companyId },
+    });
+    return data;
+  }
+
+  async assignUserToStore(storeId: string, payload: { username: string; role: 'STORE_ADMIN' | 'CASHIER' }): Promise<void> {
+    await this.client.post(`/users/stores/${storeId}/assign`, payload);
+  }
 }
 
 export const api = new ApiClient();

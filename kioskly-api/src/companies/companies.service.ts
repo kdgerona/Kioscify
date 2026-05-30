@@ -21,8 +21,8 @@ export class CompaniesService {
   ) {}
 
   async validateSubdomain(slug: string) {
-    const company = await this.prisma.company.findUnique({
-      where: { slug },
+    const company = await this.prisma.company.findFirst({
+      where: { slug, tombstone: { not: 1 } },
       select: { id: true, slug: true, name: true, logoUrl: true, isActive: true },
     });
     return {
@@ -36,6 +36,7 @@ export class CompaniesService {
 
   async findAll() {
     return this.prisma.company.findMany({
+      where: { tombstone: { not: 1 } },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: { select: { brands: true, stores: true, users: true } },
@@ -44,8 +45,8 @@ export class CompaniesService {
   }
 
   async findOne(id: string) {
-    const company = await this.prisma.company.findUnique({
-      where: { id },
+    const company = await this.prisma.company.findFirst({
+      where: { id, tombstone: { not: 1 } },
       include: {
         brands: {
           select: { id: true, name: true, slug: true, isActive: true, _count: { select: { stores: true } } },
@@ -58,8 +59,8 @@ export class CompaniesService {
   }
 
   async findBySlug(slug: string) {
-    const company = await this.prisma.company.findUnique({
-      where: { slug },
+    const company = await this.prisma.company.findFirst({
+      where: { slug, tombstone: { not: 1 } },
       select: {
         id: true,
         name: true,
@@ -97,7 +98,7 @@ export class CompaniesService {
 
   async remove(id: string) {
     await this.assertExists(id);
-    return this.prisma.company.delete({ where: { id } });
+    return this.prisma.company.update({ where: { id }, data: { tombstone: 1 } });
   }
 
   async onboardAdmin(companyId: string, dto: OnboardAdminDto) {
@@ -147,7 +148,7 @@ export class CompaniesService {
   }
 
   private async assertExists(id: string) {
-    const company = await this.prisma.company.findUnique({ where: { id } });
+    const company = await this.prisma.company.findFirst({ where: { id, tombstone: { not: 1 } } });
     if (!company) throw new NotFoundException(`Company ${id} not found`);
     return company;
   }

@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,11 +19,9 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
-import {
-  CreateInventoryItemDto,
-  InventoryCategory,
-} from './dto/create-inventory-item.dto';
+import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
+import { UpdateStoreConfigDto } from './dto/update-store-config.dto';
 import {
   CreateInventoryRecordDto,
   BulkCreateInventoryRecordDto,
@@ -45,21 +44,44 @@ export class InventoryController {
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'Create brand inventory template (fans out to all stores)' })
+  @ApiQuery({ name: 'brandId', required: true })
   createBrandTemplate(
     @Body() createDto: CreateInventoryItemDto,
-    @BrandId() brandId: string,
+    @Query('brandId') brandId: string,
   ) {
+    if (!brandId) throw new BadRequestException('brandId query param is required');
     return this.inventoryService.createBrandTemplate(createDto, brandId);
+  }
+
+  @Patch('brand-templates/:id')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Update a brand inventory template' })
+  updateBrandTemplate(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateInventoryItemDto,
+  ) {
+    return this.inventoryService.updateBrandTemplate(id, updateDto);
+  }
+
+  @Delete('brand-templates/:id')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Delete a brand inventory template (removes all store copies)' })
+  removeBrandTemplate(@Param('id') id: string) {
+    return this.inventoryService.removeBrandTemplate(id);
   }
 
   @Get('brand-templates')
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'Get all brand inventory templates' })
+  @ApiQuery({ name: 'brandId', required: true })
   findBrandTemplates(
-    @BrandId() brandId: string,
+    @Query('brandId') brandId: string,
     @Query('category') category?: string,
   ) {
+    if (!brandId) throw new BadRequestException('brandId query param is required');
     return this.inventoryService.findBrandTemplates(brandId, category);
   }
 
@@ -77,18 +99,13 @@ export class InventoryController {
 
   @Get('items')
   @ApiOperation({ summary: 'Get all inventory items' })
-  @ApiQuery({
-    name: 'category',
-    required: false,
-    enum: InventoryCategory,
-    description: 'Filter by inventory category',
-  })
+  @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
   @ApiResponse({
     status: 200,
     description: 'Inventory items retrieved successfully',
   })
   findAllItems(
-    @Query('category') category?: InventoryCategory,
+    @Query('category') category?: string,
     @TenantId() tenantId?: string,
   ) {
     return this.inventoryService.findAllItems(tenantId!, category);
@@ -103,6 +120,16 @@ export class InventoryController {
   @ApiResponse({ status: 404, description: 'Inventory item not found' })
   findOneItem(@Param('id') id: string, @TenantId() tenantId: string) {
     return this.inventoryService.findOneItem(id, tenantId);
+  }
+
+  @Patch('items/:id/store-config')
+  @ApiOperation({ summary: 'Update store-specific thresholds (minStockLevel, expirationWarningDays) — STORE_ADMIN only' })
+  updateStoreConfig(
+    @Param('id') id: string,
+    @Body() dto: UpdateStoreConfigDto,
+    @TenantId() tenantId: string,
+  ) {
+    return this.inventoryService.updateStoreConfig(id, tenantId, dto);
   }
 
   @Patch('items/:id')

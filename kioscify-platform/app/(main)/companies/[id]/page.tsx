@@ -263,10 +263,15 @@ export default function CompanyDetailPage() {
   // Onboard store form
   const [storeNameField, setStoreNameField] = useState('');
   const [storeSlugField, setStoreSlugField] = useState('');
+  const [storeAdminMode, setStoreAdminMode] = useState<'new' | 'existing'>('new');
   const [storeAdminFirst, setStoreAdminFirst] = useState('');
   const [storeAdminLast, setStoreAdminLast] = useState('');
   const [storeAdminEmail, setStoreAdminEmail] = useState('');
   const [storeAdminUsername, setStoreAdminUsername] = useState('');
+  const [existingUserSearch, setExistingUserSearch] = useState('');
+  const [existingUserResults, setExistingUserResults] = useState<any[]>([]);
+  const [existingUserSearching, setExistingUserSearching] = useState(false);
+  const [selectedExistingUser, setSelectedExistingUser] = useState<any | null>(null);
   const [storeLoading, setStoreLoading] = useState(false);
   const [storeError, setStoreError] = useState<string | null>(null);
 
@@ -384,32 +389,64 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const handleExistingUserSearch = async () => {
+    if (!existingUserSearch.trim() || !showOnboardStore || showOnboardStore === 'pick') return;
+    setExistingUserSearching(true);
+    try {
+      const results = await api.searchCompanyUsers(companyId, existingUserSearch);
+      setExistingUserResults(results);
+    } catch { /* silent */ } finally {
+      setExistingUserSearching(false);
+    }
+  };
+
+  const resetStoreForm = () => {
+    setStoreNameField('');
+    setStoreSlugField('');
+    setStoreAdminMode('new');
+    setStoreAdminFirst('');
+    setStoreAdminLast('');
+    setStoreAdminEmail('');
+    setStoreAdminUsername('');
+    setExistingUserSearch('');
+    setExistingUserResults([]);
+    setSelectedExistingUser(null);
+    setStoreError(null);
+  };
+
   const handleOnboardStore = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!showOnboardStore || showOnboardStore === 'pick') return;
     setStoreError(null);
     setStoreLoading(true);
     try {
-      const result = await api.onboardStore({
-        storeName: storeNameField,
-        storeSlug: storeSlugField,
-        brandId: showOnboardStore.brandId,
-        companyId,
-        admin: {
-          firstName: storeAdminFirst,
-          lastName: storeAdminLast,
-          email: storeAdminEmail,
-          username: storeAdminUsername,
-        },
-      });
-      setStorePassword({ storeName: result.store.name, password: result.temporaryPassword });
-      setStores(prev => [...prev, result.store]);
-      setStoreNameField('');
-      setStoreSlugField('');
-      setStoreAdminFirst('');
-      setStoreAdminLast('');
-      setStoreAdminEmail('');
-      setStoreAdminUsername('');
+      if (storeAdminMode === 'existing') {
+        if (!selectedExistingUser) { setStoreError('Please select an existing user.'); setStoreLoading(false); return; }
+        const result = await api.onboardStoreWithExistingUser({
+          storeName: storeNameField,
+          storeSlug: storeSlugField,
+          brandId: showOnboardStore.brandId,
+          companyId,
+          username: selectedExistingUser.username,
+        });
+        setStores(prev => [...prev, result.store]);
+      } else {
+        const result = await api.onboardStore({
+          storeName: storeNameField,
+          storeSlug: storeSlugField,
+          brandId: showOnboardStore.brandId,
+          companyId,
+          admin: {
+            firstName: storeAdminFirst,
+            lastName: storeAdminLast,
+            email: storeAdminEmail,
+            username: storeAdminUsername,
+          },
+        });
+        setStorePassword({ storeName: result.store.name, password: result.temporaryPassword });
+        setStores(prev => [...prev, result.store]);
+      }
+      resetStoreForm();
       setShowOnboardStore(null);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
@@ -575,7 +612,11 @@ export default function CompanyDetailPage() {
             <div className="p-6 flex items-center gap-6">
               <div className="w-20 h-20 rounded-xl border border-gray-200 flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
                 {company.logoUrl ? (
-                  <img src={company.logoUrl} alt="Company logo" className="w-full h-full object-contain" />
+                  <img
+                    src={company.logoUrl.startsWith('http') ? company.logoUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'}${company.logoUrl}`}
+                    alt="Company logo"
+                    className="w-full h-full object-contain"
+                  />
                 ) : (
                   <span className="text-3xl font-bold text-gray-300">{company.name[0]?.toUpperCase()}</span>
                 )}
@@ -783,7 +824,11 @@ export default function CompanyDetailPage() {
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
                 {editingBrand.logoUrl ? (
-                  <img src={editingBrand.logoUrl} alt="Brand logo" className="w-full h-full object-contain" />
+                  <img
+                    src={editingBrand.logoUrl.startsWith('http') ? editingBrand.logoUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'}${editingBrand.logoUrl}`}
+                    alt="Brand logo"
+                    className="w-full h-full object-contain"
+                  />
                 ) : (
                   <span className="text-2xl font-bold text-gray-300">{editingBrand.name[0]?.toUpperCase()}</span>
                 )}
@@ -957,10 +1002,11 @@ export default function CompanyDetailPage() {
       {showOnboardStore && showOnboardStore !== 'pick' && (
         <Modal
           title={`Onboard Store — ${showOnboardStore.brandName}`}
-          onClose={() => { setShowOnboardStore(null); setStoreError(null); }}
+          onClose={() => { resetStoreForm(); setShowOnboardStore(null); }}
         >
           <form onSubmit={handleOnboardStore} className="space-y-4">
             {storeError && <p className="text-red-600 text-sm">{storeError}</p>}
+
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Store Details</p>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
@@ -990,30 +1036,119 @@ export default function CompanyDetailPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
             </div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-4">
-              Store Admin Account
-            </p>
-            <AdminFields
-              firstName={storeAdminFirst}
-              lastName={storeAdminLast}
-              email={storeAdminEmail}
-              username={storeAdminUsername}
-              setFirstName={setStoreAdminFirst}
-              setLastName={setStoreAdminLast}
-              setEmail={setStoreAdminEmail}
-              setUsername={setStoreAdminUsername}
-            />
+
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-2">Store Admin</p>
+
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+              <button
+                type="button"
+                onClick={() => { setStoreAdminMode('new'); setSelectedExistingUser(null); }}
+                className={`flex-1 py-2 font-medium transition ${storeAdminMode === 'new' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                Create New Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => setStoreAdminMode('existing')}
+                className={`flex-1 py-2 font-medium transition ${storeAdminMode === 'existing' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                Assign Existing User
+              </button>
+            </div>
+
+            {storeAdminMode === 'new' && (
+              <AdminFields
+                firstName={storeAdminFirst}
+                lastName={storeAdminLast}
+                email={storeAdminEmail}
+                username={storeAdminUsername}
+                setFirstName={setStoreAdminFirst}
+                setLastName={setStoreAdminLast}
+                setEmail={setStoreAdminEmail}
+                setUsername={setStoreAdminUsername}
+              />
+            )}
+
+            {storeAdminMode === 'existing' && (
+              <div className="space-y-3">
+                {selectedExistingUser ? (
+                  <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{selectedExistingUser.firstName} {selectedExistingUser.lastName}</p>
+                      <p className="text-xs text-gray-500">@{selectedExistingUser.username} · {selectedExistingUser.email}</p>
+                      {(selectedExistingUser.allStores ?? []).length > 0 && (
+                        <p className="text-xs text-indigo-600 mt-0.5">
+                          Already manages: {selectedExistingUser.allStores.map((s: any) => s.name).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => setSelectedExistingUser(null)} className="text-xs text-gray-400 hover:text-gray-600 ml-3">
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Search by username, email, or name..."
+                        value={existingUserSearch}
+                        onChange={e => setExistingUserSearch(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleExistingUserSearch())}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleExistingUserSearch}
+                        disabled={existingUserSearching}
+                        className="px-3 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {existingUserSearching ? '...' : 'Search'}
+                      </button>
+                    </div>
+                    {existingUserResults.length > 0 && (
+                      <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                        {existingUserResults.map((u: any) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => { setSelectedExistingUser(u); setExistingUserResults([]); setExistingUserSearch(''); }}
+                            className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
+                              <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
+                              <p className="text-xs text-indigo-500 mt-0.5">
+                                {(u.allStores ?? []).length > 0
+                                  ? `Manages: ${u.allStores.map((s: any) => s.name).join(', ')}`
+                                  : 'No stores yet'}
+                              </p>
+                            </div>
+                            <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {existingUserResults.length === 0 && existingUserSearch && !existingUserSearching && (
+                      <p className="text-xs text-gray-400">No users found for "{existingUserSearch}"</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => { setShowOnboardStore(null); setStoreError(null); }}
+                onClick={() => { resetStoreForm(); setShowOnboardStore(null); }}
                 className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={storeLoading}
+                disabled={storeLoading || (storeAdminMode === 'existing' && !selectedExistingUser)}
                 className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
               >
                 {storeLoading ? 'Onboarding...' : 'Onboard Store'}

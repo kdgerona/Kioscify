@@ -49,14 +49,15 @@ export class TenantsService {
 
   async findAll() {
     const tenants = await this.prisma.tenant.findMany({
+      where: { tombstone: { not: 1 } },
       orderBy: { createdAt: 'desc' },
     });
     return tenants.map((tenant) => this.transformTenantLogoUrl(tenant));
   }
 
   async findOne(id: string) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id },
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id, tombstone: { not: 1 } },
       include: {
         _count: {
           select: {
@@ -77,8 +78,8 @@ export class TenantsService {
   }
 
   async findBySlug(slug: string) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug },
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { slug, tombstone: { not: 1 } },
     });
 
     if (!tenant) {
@@ -127,8 +128,9 @@ export class TenantsService {
   async remove(id: string) {
     await this.findOne(id);
 
-    return this.prisma.tenant.delete({
+    return this.prisma.tenant.update({
       where: { id },
+      data: { tombstone: 1 },
     });
   }
 }

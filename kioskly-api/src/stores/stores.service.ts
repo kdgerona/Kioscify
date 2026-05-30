@@ -35,7 +35,7 @@ export class StoresService {
   }
 
   async findAll(companyId?: string, brandId?: string) {
-    const where: Record<string, string> = {};
+    const where: Record<string, any> = { tombstone: { not: 1 } };
     if (companyId) where.companyId = companyId;
     if (brandId) where.brandId = brandId;
     const stores = await this.prisma.tenant.findMany({
@@ -50,8 +50,8 @@ export class StoresService {
   }
 
   async findOne(id: string) {
-    const store = await this.prisma.tenant.findUnique({
-      where: { id },
+    const store = await this.prisma.tenant.findFirst({
+      where: { id, tombstone: { not: 1 } },
       include: {
         brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true } },
         company: { select: { id: true, name: true, slug: true, logoUrl: true } },
@@ -64,8 +64,8 @@ export class StoresService {
 
   async findBySlug(slug: string, companySlug?: string) {
     const where = companySlug
-      ? { slug, company: { slug: companySlug } }
-      : { slug };
+      ? { slug, tombstone: { not: 1 }, company: { slug: companySlug } }
+      : { slug, tombstone: { not: 1 } };
 
     const store = await this.prisma.tenant.findFirst({
       where,
@@ -120,7 +120,7 @@ export class StoresService {
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.tenant.delete({ where: { id } });
+    return this.prisma.tenant.update({ where: { id }, data: { tombstone: 1 } });
   }
 
   async uploadLogo(id: string, logoUrl: string) {

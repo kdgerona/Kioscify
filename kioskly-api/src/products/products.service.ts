@@ -117,6 +117,7 @@ export class ProductsService {
         where: {
           id: slug,
           brandId,
+          tombstone: { not: 1 },
         },
       });
 
@@ -131,7 +132,7 @@ export class ProductsService {
   }
 
   async findAll(brandId: string, categoryId?: string) {
-    const where: Prisma.ProductWhereInput = { brandId };
+    const where: Prisma.ProductWhereInput = { brandId, tombstone: { not: 1 } };
     if (categoryId) {
       where.categoryId = categoryId;
     }
@@ -159,7 +160,7 @@ export class ProductsService {
 
   async findOne(id: string, brandId: string) {
     const product = await this.prisma.product.findFirst({
-      where: { id, brandId },
+      where: { id, brandId, tombstone: { not: 1 } },
       include: {
         category: true,
         productSizes: {
@@ -258,8 +259,9 @@ export class ProductsService {
   async remove(id: string, brandId: string) {
     await this.findOne(id, brandId); // Check if exists
 
-    return this.prisma.product.delete({
+    return this.prisma.product.update({
       where: { id },
+      data: { tombstone: 1 },
     });
   }
 

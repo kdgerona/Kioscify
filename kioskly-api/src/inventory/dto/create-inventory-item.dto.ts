@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
-  IsEnum,
   IsOptional,
   IsNumber,
   IsBoolean,
@@ -10,72 +9,38 @@ import {
   Min,
 } from 'class-validator';
 
-export enum InventoryCategory {
-  MAINS = 'MAINS',
-  FLAVORED_JAMS = 'FLAVORED_JAMS',
-  ADD_ONS = 'ADD_ONS',
-  SYRUPS = 'SYRUPS',
-  HOT = 'HOT',
-  PACKAGING = 'PACKAGING',
-}
-
 export class CreateInventoryItemDto {
-  @ApiProperty({
-    example: 'Fresh Lemons 138s|125s',
-    description: 'Name of the inventory item',
-  })
+  @ApiProperty({ example: 'Fresh Lemons 138s|125s' })
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({
-    enum: InventoryCategory,
-    example: InventoryCategory.MAINS,
-    description: 'Category of the inventory item',
-  })
-  @IsEnum(InventoryCategory)
-  category: InventoryCategory;
+  @ApiProperty({ example: 'Beverages', required: false })
+  @IsString()
+  @IsOptional()
+  category?: string;
 
-  @ApiProperty({
-    example: 'Box',
-    description: 'Unit of measurement (Box, Bot, Jar, Pack, Tub, Roll, Pc)',
-  })
+  @ApiProperty({ example: 'Box' })
   @IsString()
   @IsNotEmpty()
   unit: string;
 
-  @ApiProperty({
-    example: 'Fresh lemons for lemonade base',
-    required: false,
-    description: 'Description of the inventory item',
-  })
+  @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({
-    example: 5,
-    required: false,
-    description: 'Minimum stock level for alerts',
-  })
+  @ApiProperty({ example: 5, required: false })
   @IsNumber()
   @IsOptional()
   minStockLevel?: number;
 
-  @ApiProperty({
-    example: false,
-    required: false,
-    description: 'Whether this item requires expiration date tracking',
-  })
+  @ApiProperty({ example: false, required: false })
   @IsBoolean()
   @IsOptional()
   requiresExpirationDate?: boolean;
 
-  @ApiProperty({
-    example: 7,
-    required: false,
-    description: 'Number of days before expiration to trigger warning alerts',
-  })
+  @ApiProperty({ example: 7, required: false })
   @IsInt()
   @Min(1)
   @IsOptional()

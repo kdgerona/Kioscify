@@ -20,7 +20,7 @@ export class BrandsService {
       return { valid: false, companyId: null, brandId: null, company: null, brand: null };
     }
     const brand = await this.prisma.brand.findFirst({
-      where: { slug: brandSlug, companyId: company.id, isActive: true },
+      where: { slug: brandSlug, companyId: company.id, isActive: true, tombstone: { not: 1 } },
       select: { id: true, name: true, logoUrl: true, themeColors: true, isActive: true },
     });
     if (!brand) {
@@ -37,7 +37,7 @@ export class BrandsService {
 
   async findAllByCompany(companyId: string) {
     return this.prisma.brand.findMany({
-      where: companyId ? { companyId } : {},
+      where: companyId ? { companyId, tombstone: { not: 1 } } : { tombstone: { not: 1 } },
       include: {
         _count: { select: { stores: true, products: true, categories: true } },
       },
@@ -47,7 +47,7 @@ export class BrandsService {
 
   async findOne(id: string, companyId: string | undefined) {
     const brand = await this.prisma.brand.findFirst({
-      where: companyId ? { id, companyId } : { id },
+      where: companyId ? { id, companyId, tombstone: { not: 1 } } : { id, tombstone: { not: 1 } },
       include: {
         stores: {
           select: { id: true, name: true, slug: true, isActive: true },
@@ -88,7 +88,7 @@ export class BrandsService {
     if (requestingRole !== 'PLATFORM_ADMIN') {
       throw new ForbiddenException('Only platform admins can delete brands');
     }
-    return this.prisma.brand.delete({ where: { id } });
+    return this.prisma.brand.update({ where: { id }, data: { tombstone: 1 } });
   }
 
   async uploadLogo(id: string, companyId: string, logoUrl: string) {
@@ -99,12 +99,12 @@ export class BrandsService {
   // Called when a new store is created under a brand — copy all brand inventory templates to the store
   async fanOutInventoryToStore(brandId: string, storeId: string) {
     const templates = await this.prisma.inventoryItem.findMany({
-      where: { brandId, isTemplate: true },
+      where: { brandId, isTemplate: true, tombstone: { not: 1 } },
     });
 
     for (const template of templates) {
       const alreadyExists = await this.prisma.inventoryItem.findFirst({
-        where: { tenantId: storeId, brandId, name: template.name },
+        where: { tenantId: storeId, brandId, name: template.name, tombstone: { not: 1 } },
       });
       if (alreadyExists) continue;
 
@@ -126,7 +126,7 @@ export class BrandsService {
   }
 
   private async assertOwnership(id: string, companyId: string) {
-    const brand = await this.prisma.brand.findFirst({ where: { id, companyId } });
+    const brand = await this.prisma.brand.findFirst({ where: { id, companyId, tombstone: { not: 1 } } });
     if (!brand) throw new NotFoundException(`Brand ${id} not found`);
     return brand;
   }

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
+import { UpdateStoreConfigDto } from './dto/update-store-config.dto';
 import {
   CreateInventoryRecordDto,
   BulkCreateInventoryRecordDto,
@@ -48,8 +49,23 @@ export class InventoryService {
     return template;
   }
 
+  async updateBrandTemplate(id: string, dto: UpdateInventoryItemDto) {
+    const template = await this.prisma.inventoryItem.findFirst({ where: { id, isTemplate: true, tombstone: { not: 1 } } });
+    if (!template) throw new NotFoundException(`Inventory template ${id} not found`);
+    return this.prisma.inventoryItem.update({ where: { id }, data: dto });
+  }
+
+  async removeBrandTemplate(id: string) {
+    const template = await this.prisma.inventoryItem.findFirst({ where: { id, isTemplate: true, tombstone: { not: 1 } } });
+    if (!template) throw new NotFoundException(`Inventory template ${id} not found`);
+    // Soft-delete store copies first, then the template
+    await this.prisma.inventoryItem.updateMany({ where: { brandId: template.brandId, isTemplate: false, name: template.name }, data: { tombstone: 1 } });
+    await this.prisma.inventoryItem.update({ where: { id }, data: { tombstone: 1 } });
+    return { message: 'Inventory template deleted' };
+  }
+
   async findBrandTemplates(brandId: string, category?: string) {
-    const where: Prisma.InventoryItemWhereInput = { brandId, isTemplate: true };
+    const where: Prisma.InventoryItemWhereInput = { brandId, isTemplate: true, tombstone: { not: 1 } };
     if (category) where.category = category as any;
     return this.prisma.inventoryItem.findMany({
       where,
@@ -66,7 +82,7 @@ export class InventoryService {
   }
 
   async findAllItems(tenantId: string, category?: string) {
-    const where: Prisma.InventoryItemWhereInput = { tenantId, isTemplate: false };
+    const where: Prisma.InventoryItemWhereInput = { tenantId, isTemplate: false, tombstone: { not: 1 } };
     if (category) where.category = category as any;
     return this.prisma.inventoryItem.findMany({
       where,
@@ -75,7 +91,7 @@ export class InventoryService {
   }
 
   async findOneItem(id: string, tenantId: string) {
-    const item = await this.prisma.inventoryItem.findFirst({ where: { id, tenantId } });
+    const item = await this.prisma.inventoryItem.findFirst({ where: { id, tenantId, tombstone: { not: 1 } } });
     if (!item) throw new NotFoundException(`Inventory item ${id} not found`);
     return item;
   }
@@ -87,8 +103,19 @@ export class InventoryService {
 
   async removeItem(id: string, tenantId: string) {
     await this.findOneItem(id, tenantId);
-    await this.prisma.inventoryItem.delete({ where: { id } });
+    await this.prisma.inventoryItem.update({ where: { id }, data: { tombstone: 1 } });
     return { message: 'Inventory item deleted successfully' };
+  }
+
+  async updateStoreConfig(id: string, tenantId: string, dto: UpdateStoreConfigDto) {
+    const item = await this.findOneItem(id, tenantId);
+    return this.prisma.inventoryItem.update({
+      where: { id: item.id },
+      data: {
+        ...(dto.minStockLevel !== undefined && { minStockLevel: dto.minStockLevel }),
+        ...(dto.expirationWarningDays !== undefined && { expirationWarningDays: dto.expirationWarningDays }),
+      },
+    });
   }
 
   // ─── Inventory Records (store-level, offline-safe) ────────────────────────
@@ -128,7 +155,7 @@ export class InventoryService {
   async bulkCreateRecords(dto: BulkCreateInventoryRecordDto, userId: string, tenantId: string) {
     const itemIds = dto.records.map((r) => r.inventoryItemId);
     const items = await this.prisma.inventoryItem.findMany({
-      where: { id: { in: itemIds }, tenantId },
+      where: { id: { in: itemIds }, tenantId, tombstone: { not: 1 } },
     });
     if (items.length !== itemIds.length) {
       throw new NotFoundException('One or more inventory items not found');
@@ -179,7 +206,7 @@ export class InventoryService {
 
   async getLatestInventory(tenantId: string) {
     const items = await this.prisma.inventoryItem.findMany({
-      where: { tenantId, isTemplate: false },
+      where: { tenantId, isTemplate: false, tombstone: { not: 1 } },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
 
@@ -228,7 +255,7 @@ export class InventoryService {
 
   async getInventoryStats(tenantId: string) {
     const items = await this.prisma.inventoryItem.findMany({
-      where: { tenantId, isTemplate: false },
+      where: { tenantId, isTemplate: false, tombstone: { not: 1 } },
       include: {
         inventoryRecords: { orderBy: { date: 'desc' }, take: 1 },
       },

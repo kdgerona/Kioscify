@@ -70,7 +70,6 @@ export class AuthService {
       : { slug: dto.storeSlug, isActive: true };
 
     const store = await this.prisma.tenant.findFirst({ where: storeWhere });
-    console.log('[loginStore] storeSlug:', dto.storeSlug, '| store found:', store ? `id=${store.id}` : 'NULL');
     if (!store) throw new UnauthorizedException('Invalid credentials');
 
     // Simple lookup — no complex nested includes (Prisma MongoDB can silently return
@@ -90,12 +89,9 @@ export class AuthService {
       }
     }
 
-    console.log('[loginStore] user found:', user ? `id=${user.id}` : 'NULL');
+    if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    console.log('[loginStore] dto.password:', JSON.stringify(dto.password));
-    console.log('[loginStore] hash in db:', user.password?.substring(0, 30));
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
-    console.log('[loginStore] password match:', passwordMatch);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
 
     // Fetch related data needed to build the stores list (kept separate from auth query)

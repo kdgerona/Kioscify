@@ -24,13 +24,13 @@ export class SizesService {
 
   async findAll(brandId: string) {
     return this.prisma.size.findMany({
-      where: { brandId },
+      where: { brandId, tombstone: { not: 1 } },
       orderBy: { name: 'asc' },
     });
   }
 
   async findOne(id: string, brandId: string) {
-    const size = await this.prisma.size.findFirst({ where: { id, brandId } });
+    const size = await this.prisma.size.findFirst({ where: { id, brandId, tombstone: { not: 1 } } });
     if (!size) throw new NotFoundException(`Size with ID ${id} not found`);
     return size;
   }
@@ -42,6 +42,6 @@ export class SizesService {
 
   async remove(id: string, brandId: string) {
     await this.findOne(id, brandId);
-    return this.prisma.size.delete({ where: { id } });
+    return this.prisma.size.update({ where: { id }, data: { tombstone: 1 } });
   }
 }

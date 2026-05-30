@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
-import { useTenant } from '@/contexts/TenantContext';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
+import { api } from "@/lib/api";
+import { useTenant } from "@/contexts/TenantContext";
 
 interface BrandInfo {
   name: string;
@@ -26,17 +27,18 @@ export default function LoginForm({
 }) {
   const router = useRouter();
   const { fetchTenantBySlug } = useTenant();
-  const [storeSlug, setStoreSlug] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [storeSlug, setStoreSlug] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const primaryColor = brand?.themeColors?.primary || '#ea580c';
+  const primaryColor = brand?.themeColors?.primary || "#ea580c";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
@@ -50,42 +52,50 @@ export default function LoginForm({
         companySlug,
       });
 
-      const allowedRoles = ['STORE_ADMIN', 'ADMIN'];
+      const allowedRoles = ["STORE_ADMIN", "ADMIN"];
       if (!allowedRoles.includes(response.user.role)) {
-        setError('Access denied. Store Admin access required.');
+        setError("Access denied. Store Admin access required.");
         api.logout();
         setLoading(false);
         return;
       }
 
-      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem("user", JSON.stringify(response.user));
 
       if ((response as any).mustChangePassword || response.user.isFirstLogin) {
-        router.push('/change-password');
+        router.push("/change-password");
         return;
       }
 
       const stores = (response as any).stores ?? [];
       if (stores.length > 1) {
-        sessionStorage.setItem('accessible_stores', JSON.stringify(stores));
-        router.push('/store-picker');
+        sessionStorage.setItem("accessible_stores", JSON.stringify(stores));
+        router.push("/store-picker");
         return;
       }
 
-      router.push('/dashboard');
+      router.push("/dashboard");
     } catch (err: any) {
-      if (err.message?.includes('Store not found') || err.message?.includes('check the Store ID')) {
-        setError('Store not found. Please check the Store ID and try again.');
+      if (
+        err.message?.includes("Store not found") ||
+        err.message?.includes("check the Store ID")
+      ) {
+        setError("Store not found. Please check the Store ID and try again.");
       } else {
-        setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+        setError(
+          err.response?.data?.message ||
+            "Login failed. Please check your credentials.",
+        );
       }
       setLoading(false);
     }
   };
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000';
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ||
+    "http://localhost:3000";
   const logoSrc = brand?.logoUrl
-    ? brand.logoUrl.startsWith('http')
+    ? brand.logoUrl.startsWith("http")
       ? brand.logoUrl
       : `${apiBase}${brand.logoUrl}`
     : null;
@@ -93,7 +103,9 @@ export default function LoginForm({
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: `linear-gradient(to bottom right, ${primaryColor}15, ${primaryColor}30)` }}
+      style={{
+        background: `linear-gradient(to bottom right, ${primaryColor}15, ${primaryColor}30)`,
+      }}
     >
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex flex-col items-center mb-6">
@@ -112,12 +124,12 @@ export default function LoginForm({
               style={{ backgroundColor: primaryColor }}
             >
               <span className="text-white text-3xl font-bold">
-                {brand ? brand.name[0].toUpperCase() : 'K'}
+                {brand ? brand.name[0].toUpperCase() : "K"}
               </span>
             </div>
           )}
           <h1 className="text-2xl font-bold text-gray-900 text-center">
-            {brand ? brand.name : 'Store Portal'}
+            {brand ? brand.name : "Store Portal"}
           </h1>
           <p className="text-gray-500 text-sm mt-1">Store Management Portal</p>
         </div>
@@ -130,46 +142,64 @@ export default function LoginForm({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Store ID / Slug</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Store ID / Slug
+            </label>
             <input
               type="text"
               value={storeSlug}
-              onChange={e => setStoreSlug(e.target.value)}
+              onChange={(e) => setStoreSlug(e.target.value)}
               required
               autoCapitalize="none"
               autoCorrect="off"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none text-sm text-gray-900"
-              style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
+              style={{ "--tw-ring-color": primaryColor } as React.CSSProperties}
               placeholder="e.g. mr-lemon-branch-1"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Username
+            </label>
             <input
               type="text"
               value={username}
-              onChange={e => setUsername(e.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-sm text-gray-900"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none text-sm text-gray-900"
+              style={{ "--tw-ring-color": primaryColor } as React.CSSProperties}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-sm text-gray-900"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 pr-11 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none text-sm text-gray-900"
+                style={{ "--tw-ring-color": primaryColor } as React.CSSProperties}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:brightness-90"
+            className="w-full text-black font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:brightness-90"
             style={{ backgroundColor: primaryColor }}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
 

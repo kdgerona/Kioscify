@@ -7,13 +7,14 @@ import {
   Param,
   Delete,
   UseGuards,
-  Request,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { AddonsService } from './addons.service';
 import { CreateAddonDto } from './dto/create-addon.dto';
@@ -35,8 +36,13 @@ export class AddonsController {
   @ApiOperation({ summary: 'Create a new addon (admin only)' })
   @ApiResponse({ status: 201, description: 'Addon created successfully' })
   @ApiResponse({ status: 409, description: 'Addon already exists' })
-  create(@Body() createAddonDto: CreateAddonDto, @BrandId() brandId: string) {
-    return this.addonsService.create(createAddonDto, brandId);
+  @ApiQuery({ name: 'brandId', required: false })
+  create(
+    @Body() createAddonDto: CreateAddonDto,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.addonsService.create(createAddonDto, queryBrandId || jwtBrandId);
   }
 
   @Get()
@@ -44,8 +50,12 @@ export class AddonsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all addons' })
   @ApiResponse({ status: 200, description: 'Addons retrieved successfully' })
-  findAll(@BrandId() brandId: string) {
-    return this.addonsService.findAll(brandId);
+  @ApiQuery({ name: 'brandId', required: false })
+  findAll(
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.addonsService.findAll(queryBrandId || jwtBrandId);
   }
 
   @Get(':id')
@@ -54,8 +64,13 @@ export class AddonsController {
   @ApiOperation({ summary: 'Get a single addon by ID' })
   @ApiResponse({ status: 200, description: 'Addon retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Addon not found' })
-  findOne(@Param('id') id: string, @BrandId() brandId: string) {
-    return this.addonsService.findOne(id, brandId);
+  @ApiQuery({ name: 'brandId', required: false })
+  findOne(
+    @Param('id') id: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.addonsService.findOne(id, queryBrandId || jwtBrandId);
   }
 
   @Patch(':id')
@@ -65,12 +80,14 @@ export class AddonsController {
   @ApiOperation({ summary: 'Update an addon (admin only)' })
   @ApiResponse({ status: 200, description: 'Addon updated successfully' })
   @ApiResponse({ status: 404, description: 'Addon not found' })
+  @ApiQuery({ name: 'brandId', required: false })
   update(
     @Param('id') id: string,
     @Body() updateAddonDto: UpdateAddonDto,
-    @BrandId() brandId: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
   ) {
-    return this.addonsService.update(id, updateAddonDto, brandId);
+    return this.addonsService.update(id, updateAddonDto, queryBrandId || jwtBrandId);
   }
 
   @Delete(':id')
@@ -80,7 +97,12 @@ export class AddonsController {
   @ApiOperation({ summary: 'Delete an addon (admin only)' })
   @ApiResponse({ status: 200, description: 'Addon deleted successfully' })
   @ApiResponse({ status: 404, description: 'Addon not found' })
-  remove(@Param('id') id: string, @BrandId() brandId: string) {
-    return this.addonsService.remove(id, brandId);
+  @ApiQuery({ name: 'brandId', required: false })
+  remove(
+    @Param('id') id: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.addonsService.remove(id, queryBrandId || jwtBrandId);
   }
 }

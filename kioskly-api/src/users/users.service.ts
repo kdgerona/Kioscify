@@ -289,17 +289,19 @@ export class UsersService {
   }
 
   async searchUsersInCompany(companyId: string, query: string) {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: {
         companyId,
         isActive: true,
         role: { in: ['STORE_ADMIN', 'CASHIER', 'ADMIN'] },
-        OR: [
-          { username: { contains: query } },
-          { email: { contains: query } },
-          { firstName: { contains: query } },
-          { lastName: { contains: query } },
-        ],
+        OR: query
+          ? [
+              { username: { contains: query } },
+              { email: { contains: query } },
+              { firstName: { contains: query } },
+              { lastName: { contains: query } },
+            ]
+          : undefined,
       },
       select: {
         id: true,
@@ -309,12 +311,25 @@ export class UsersService {
         email: true,
         role: true,
         tenantId: true,
+        tenant: { select: { id: true, name: true, slug: true } },
         storeAccess: {
           where: { isActive: true },
-          select: { tenantId: true, tenant: { select: { name: true } } },
+          select: { tenantId: true, tenant: { select: { id: true, name: true, slug: true } } },
         },
       },
       take: 20,
+    });
+
+    // Build a unified "all stores" list per user: primary tenantId + storeAccess records
+    return users.map(u => {
+      const allStores: { id: string; name: string; slug: string }[] = [];
+      if (u.tenant) allStores.push(u.tenant);
+      for (const a of u.storeAccess) {
+        if (a.tenant && !allStores.find(s => s.id === a.tenantId)) {
+          allStores.push(a.tenant);
+        }
+      }
+      return { ...u, allStores };
     });
   }
 

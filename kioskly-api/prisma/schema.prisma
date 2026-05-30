@@ -26,6 +26,7 @@ model Company {
   isActive         Boolean  @default(true)
   canCreateBrands  Boolean  @default(false)  // platform toggle: allow company to create brands
   canOnboardStores Boolean  @default(false)  // platform toggle: allow company to create stores
+  tombstone        Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   brands           Brand[]
@@ -44,6 +45,7 @@ model Brand {
   logoUrl     String?
   themeColors ThemeColors?
   isActive    Boolean     @default(true)
+  tombstone   Int         @default(0)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -78,6 +80,7 @@ model Tenant {
   address       String?
   themeColors   ThemeColors?
   isActive      Boolean   @default(true)
+  tombstone     Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -190,6 +193,7 @@ model Category {
   name        String
   description String?
   sequenceNo  Int       @default(0)
+  tombstone   Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -208,6 +212,7 @@ model Size {
   name          String
   priceModifier Float
   volume        String?
+  tombstone     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -226,6 +231,7 @@ model Addon {
   brandId   String?  @db.ObjectId
   name      String
   price     Float
+  tombstone Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -246,6 +252,7 @@ model Product {
   price      Float
   categoryId String
   image      String?
+  tombstone  Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -404,12 +411,13 @@ model InventoryItem {
   brandId                String?           @db.ObjectId
   isTemplate             Boolean           @default(false)  // true = brand template
   name                   String
-  category               InventoryCategory
+  category               String?
   unit                   String
   description            String?
   minStockLevel          Float?
   requiresExpirationDate Boolean           @default(false)
   expirationWarningDays  Int?              @default(7)
+  tombstone              Int               @default(0)
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
@@ -591,11 +599,3 @@ enum ExpenseCategory {
   MISCELLANEOUS
 }
 
-enum InventoryCategory {
-  MAINS
-  FLAVORED_JAMS
-  ADD_ONS
-  SYRUPS
-  HOT
-  PACKAGING
-}

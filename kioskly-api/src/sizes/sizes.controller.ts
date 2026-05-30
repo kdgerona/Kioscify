@@ -7,12 +7,14 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { SizesService } from './sizes.service';
 import { CreateSizeDto } from './dto/create-size.dto';
@@ -34,23 +36,37 @@ export class SizesController {
   @ApiOperation({ summary: 'Create a new size (admin only)' })
   @ApiResponse({ status: 201, description: 'Size created successfully' })
   @ApiResponse({ status: 409, description: 'Size already exists' })
-  create(@Body() createSizeDto: CreateSizeDto, @BrandId() brandId: string) {
-    return this.sizesService.create(createSizeDto, brandId);
+  @ApiQuery({ name: 'brandId', required: false })
+  create(
+    @Body() createSizeDto: CreateSizeDto,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.sizesService.create(createSizeDto, queryBrandId || jwtBrandId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all sizes' })
   @ApiResponse({ status: 200, description: 'Sizes retrieved successfully' })
-  findAll(@BrandId() brandId: string) {
-    return this.sizesService.findAll(brandId);
+  @ApiQuery({ name: 'brandId', required: false })
+  findAll(
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.sizesService.findAll(queryBrandId || jwtBrandId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single size by ID' })
   @ApiResponse({ status: 200, description: 'Size retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Size not found' })
-  findOne(@Param('id') id: string, @BrandId() brandId: string) {
-    return this.sizesService.findOne(id, brandId);
+  @ApiQuery({ name: 'brandId', required: false })
+  findOne(
+    @Param('id') id: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.sizesService.findOne(id, queryBrandId || jwtBrandId);
   }
 
   @Patch(':id')
@@ -60,12 +76,14 @@ export class SizesController {
   @ApiOperation({ summary: 'Update a size (admin only)' })
   @ApiResponse({ status: 200, description: 'Size updated successfully' })
   @ApiResponse({ status: 404, description: 'Size not found' })
+  @ApiQuery({ name: 'brandId', required: false })
   update(
     @Param('id') id: string,
     @Body() updateSizeDto: UpdateSizeDto,
-    @BrandId() brandId: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
   ) {
-    return this.sizesService.update(id, updateSizeDto, brandId);
+    return this.sizesService.update(id, updateSizeDto, queryBrandId || jwtBrandId);
   }
 
   @Delete(':id')
@@ -75,7 +93,12 @@ export class SizesController {
   @ApiOperation({ summary: 'Delete a size (admin only)' })
   @ApiResponse({ status: 200, description: 'Size deleted successfully' })
   @ApiResponse({ status: 404, description: 'Size not found' })
-  remove(@Param('id') id: string, @BrandId() brandId: string) {
-    return this.sizesService.remove(id, brandId);
+  @ApiQuery({ name: 'brandId', required: false })
+  remove(
+    @Param('id') id: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.sizesService.remove(id, queryBrandId || jwtBrandId);
   }
 }

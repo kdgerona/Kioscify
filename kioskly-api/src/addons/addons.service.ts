@@ -24,13 +24,13 @@ export class AddonsService {
 
   async findAll(brandId: string) {
     return this.prisma.addon.findMany({
-      where: { brandId },
+      where: { brandId, tombstone: { not: 1 } },
       orderBy: { name: 'asc' },
     });
   }
 
   async findOne(id: string, brandId: string) {
-    const addon = await this.prisma.addon.findFirst({ where: { id, brandId } });
+    const addon = await this.prisma.addon.findFirst({ where: { id, brandId, tombstone: { not: 1 } } });
     if (!addon) throw new NotFoundException(`Addon with ID ${id} not found`);
     return addon;
   }
@@ -42,6 +42,6 @@ export class AddonsService {
 
   async remove(id: string, brandId: string) {
     await this.findOne(id, brandId);
-    return this.prisma.addon.delete({ where: { id } });
+    return this.prisma.addon.update({ where: { id }, data: { tombstone: 1 } });
   }
 }
