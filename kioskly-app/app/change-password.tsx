@@ -102,7 +102,7 @@ export default function ChangePasswordScreen() {
         style={{ backgroundColor }}
       >
         <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
-          <Ionicons name="arrow-back" size={24} color={textColor} />
+          <Ionicons name="arrow-back" size={24} color={primaryColor} />
         </TouchableOpacity>
         <Text className="text-2xl font-bold" style={{ color: textColor }}>
           Change Password

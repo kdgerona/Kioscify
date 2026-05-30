@@ -204,7 +204,7 @@ export default function DailyReport() {
       >
         <View className="flex-row items-center flex-1">
           <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
-            <Ionicons name="arrow-back" size={24} color={textColor} />
+            <Ionicons name="arrow-back" size={24} color={primaryColor} />
           </TouchableOpacity>
           <View className="flex-1">
             <Text className="text-2xl font-bold" style={{ color: textColor }}>
