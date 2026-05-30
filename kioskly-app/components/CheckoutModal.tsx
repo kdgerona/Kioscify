@@ -60,6 +60,7 @@ export default function CheckoutModal({
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+  const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
 
   // Reset form when modal is closed (visible changes to false)
   useEffect(() => {
@@ -183,7 +184,7 @@ export default function CheckoutModal({
             {/* Modal Header */}
             <View
               className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-              style={{ backgroundColor: primaryColor }}
+              style={{ backgroundColor: backgroundColor }}
             >
               <View className="flex flex-row items-center justify-center">
                 {paymentMethod && (

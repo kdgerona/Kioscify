@@ -579,7 +579,7 @@ export default function Transactions() {
               {/* Modal Header */}
               <View
                 className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: backgroundColor }}
               >
                 <Text
                   className="text-xl font-bold"
@@ -683,7 +683,7 @@ export default function Transactions() {
               {/* Modal Header */}
               <View
                 className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: backgroundColor }}
               >
                 <Text
                   className="text-xl font-bold"
