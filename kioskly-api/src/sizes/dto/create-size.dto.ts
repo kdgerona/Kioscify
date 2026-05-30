@@ -2,10 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateSizeDto {
-  @ApiProperty({ example: 'regular-16oz' })
+  @ApiProperty({ example: 'regular-16oz', required: false })
   @IsString()
-  @IsNotEmpty()
-  id: string;
+  @IsOptional()
+  id?: string;
 
   @ApiProperty({ example: 'Regular' })
   @IsString()

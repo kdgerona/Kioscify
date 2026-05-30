@@ -187,15 +187,16 @@ model User {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Category {
-  id          String    @id @map("_id")
-  tenantId    String?   @db.ObjectId
-  brandId     String?   @db.ObjectId
+  id          String        @id @map("_id")
+  tenantId    String?       @db.ObjectId
+  brandId     String?       @db.ObjectId
+  type        CategoryType? @default(PRODUCT)
   name        String
   description String?
-  sequenceNo  Int       @default(0)
-  tombstone   Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  sequenceNo  Int           @default(0)
+  tombstone   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -586,6 +587,11 @@ enum VoidStatus {
   PENDING   // Void request submitted, awaiting approval
   APPROVED  // Void approved - excluded from sales
   REJECTED  // Void rejected - still counts in sales
+}
+
+enum CategoryType {
+  PRODUCT
+  INVENTORY
 }
 
 enum ExpenseCategory {

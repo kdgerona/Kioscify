@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Brand, Category, Product, Size, Addon, InventoryBrandTemplate } from '@/types';
-import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown } from 'lucide-react';
 import StoreQRModal from '@/components/StoreQRModal';
 
 type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'inventory' | 'stores' | 'settings';
@@ -40,6 +40,111 @@ function CRUDRow({
         {sublabel && <p className="text-xs text-gray-400">{sublabel}</p>}
       </div>
       <div className="flex items-center gap-2">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded">
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Category row with sequence reorder controls ─────────────────────────
+
+function CategoryRow({
+  cat,
+  index,
+  total,
+  onMoveUp,
+  onMoveDown,
+  onEdit,
+  onDelete,
+}: {
+  cat: Category;
+  index: number;
+  total: number;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-2">
+      {/* Sequence controls */}
+      <div className="flex flex-col items-center gap-0.5 shrink-0">
+        <button
+          onClick={onMoveUp}
+          disabled={index === 0}
+          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+        >
+          <ChevronUp className="w-3.5 h-3.5" />
+        </button>
+        <span className="text-xs text-gray-400 font-mono w-5 text-center leading-none">{index + 1}</span>
+        <button
+          onClick={onMoveDown}
+          disabled={index === total - 1}
+          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Label */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">{cat.name}</p>
+        {cat.description && <p className="text-xs text-gray-400 truncate">{cat.description}</p>}
+      </div>
+
+      {/* Edit / Delete */}
+      <div className="flex items-center gap-2 shrink-0">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded">
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Product row with image thumbnail ────────────────────────────────────
+
+const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000';
+
+function resolveUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const path = raw.startsWith('http') ? new URL(raw).pathname : raw;
+    return `${apiBase}${path}`;
+  } catch { return raw; }
+}
+
+function ProductRow({ product, onEdit, onDelete }: { product: Product; onEdit: () => void; onDelete: () => void }) {
+  const imageSrc = resolveUrl(product.image);
+  return (
+    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+          {imageSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageSrc} alt={product.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-gray-300 text-xs">No img</span>
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+          <p className="text-xs text-gray-400">
+            ₱{product.price.toFixed(2)}{product.category?.name ? ` · ${product.category.name}` : ''}
+            {(product.sizes?.length ?? 0) > 0 && ` · ${product.sizes!.length} size${product.sizes!.length !== 1 ? 's' : ''}`}
+            {(product.addons?.length ?? 0) > 0 && ` · ${product.addons!.length} add-on${product.addons!.length !== 1 ? 's' : ''}`}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
         <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
@@ -97,7 +202,8 @@ export default function BrandDetailPage() {
   const [logoUploading, setLogoUploading] = useState(false);
 
   // Tab data
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [productCategories, setProductCategories] = useState<Category[]>([]);
+  const [invCategories, setInvCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [sizes, setSizes] = useState<Size[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
@@ -136,6 +242,27 @@ export default function BrandDetailPage() {
       .catch(() => setError('Failed to load brand'))
       .finally(() => setLoading(false));
   }, [brandId]);
+
+  const reorderCategory = async (
+    list: Category[],
+    setList: React.Dispatch<React.SetStateAction<Category[]>>,
+    index: number,
+    direction: 'up' | 'down',
+  ) => {
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= list.length) return;
+
+    // Swap positions in the array, then stamp sequenceNo = array index
+    const reordered = [...list];
+    [reordered[index], reordered[swapIndex]] = [reordered[swapIndex], reordered[index]];
+    const stamped = reordered.map((c, i) => ({ ...c, sequenceNo: i }));
+
+    setList(stamped);
+    await Promise.all([
+      api.updateCategory(stamped[index].id, { sequenceNo: index }),
+      api.updateCategory(stamped[swapIndex].id, { sequenceNo: swapIndex }),
+    ]);
+  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,18 +305,36 @@ export default function BrandDetailPage() {
       if (tab === 'overview') return;
       setTabLoading(true);
       try {
-        if (tab === 'categories') setCategories(await api.getCategories(brandId));
-        if (tab === 'products') {
-          const [cats, prods] = await Promise.all([
-            api.getCategories(brandId),
-            api.getProducts(brandId),
+        if (tab === 'categories') {
+          const [pc, ic] = await Promise.all([
+            api.getCategories(brandId, 'PRODUCT'),
+            api.getCategories(brandId, 'INVENTORY'),
           ]);
-          setCategories(cats);
+          setProductCategories(pc);
+          setInvCategories(ic);
+        }
+        if (tab === 'products') {
+          const [cats, prods, szs, ads] = await Promise.all([
+            api.getCategories(brandId, 'PRODUCT'),
+            api.getProducts(brandId),
+            api.getSizes(brandId),
+            api.getAddons(brandId),
+          ]);
+          setProductCategories(cats);
           setProducts(prods);
+          setSizes(szs);
+          setAddons(ads);
         }
         if (tab === 'sizes') setSizes(await api.getSizes(brandId));
         if (tab === 'addons') setAddons(await api.getAddons(brandId));
-        if (tab === 'inventory') setInvItems(await api.getInventoryBrandTemplates(brandId));
+        if (tab === 'inventory') {
+          const [items, ic] = await Promise.all([
+            api.getInventoryBrandTemplates(brandId),
+            api.getCategories(brandId, 'INVENTORY'),
+          ]);
+          setInvItems(items);
+          setInvCategories(ic);
+        }
         if (tab === 'stores') setStores(await api.getStores(brandId));
       } catch {
         // silent — show empty list
@@ -282,27 +427,61 @@ export default function BrandDetailPage() {
 
         {/* Categories */}
         {activeTab === 'categories' && !tabLoading && (
-          <TabSection
-            title="Categories"
-            onAdd={() => setModal({ type: 'categories', mode: 'create' })}
-          >
-            {categories.length === 0 ? (
-              <EmptyState message="No categories yet" />
-            ) : (
-              categories.map(cat => (
-                <CRUDRow
-                  key={cat.id}
-                  label={cat.name}
-                  onEdit={() => setModal({ type: 'categories', mode: 'edit', item: cat })}
-                  onDelete={async () => {
-                    if (!confirm(`Delete "${cat.name}"?`)) return;
-                    await api.deleteCategory(cat.id);
-                    setCategories(prev => prev.filter(c => c.id !== cat.id));
-                  }}
-                />
-              ))
-            )}
-          </TabSection>
+          <div className="space-y-6">
+            {/* Product Categories */}
+            <TabSection
+              title="Product Categories"
+              onAdd={() => setModal({ type: 'categories', mode: 'create', item: { _catType: 'PRODUCT' } })}
+            >
+              {productCategories.length === 0 ? (
+                <EmptyState message="No product categories yet" />
+              ) : (
+                productCategories.map((cat, i) => (
+                  <CategoryRow
+                    key={cat.id}
+                    cat={cat}
+                    index={i}
+                    total={productCategories.length}
+                    onMoveUp={() => reorderCategory(productCategories, setProductCategories, i, 'up')}
+                    onMoveDown={() => reorderCategory(productCategories, setProductCategories, i, 'down')}
+                    onEdit={() => setModal({ type: 'categories', mode: 'edit', item: cat })}
+                    onDelete={async () => {
+                      if (!confirm(`Delete "${cat.name}"?`)) return;
+                      await api.deleteCategory(cat.id);
+                      setProductCategories(prev => prev.filter(c => c.id !== cat.id));
+                    }}
+                  />
+                ))
+              )}
+            </TabSection>
+
+            {/* Inventory Categories */}
+            <TabSection
+              title="Inventory Categories"
+              onAdd={() => setModal({ type: 'categories', mode: 'create', item: { _catType: 'INVENTORY' } })}
+            >
+              {invCategories.length === 0 ? (
+                <EmptyState message="No inventory categories yet" />
+              ) : (
+                invCategories.map((cat, i) => (
+                  <CategoryRow
+                    key={cat.id}
+                    cat={cat}
+                    index={i}
+                    total={invCategories.length}
+                    onMoveUp={() => reorderCategory(invCategories, setInvCategories, i, 'up')}
+                    onMoveDown={() => reorderCategory(invCategories, setInvCategories, i, 'down')}
+                    onEdit={() => setModal({ type: 'categories', mode: 'edit', item: cat })}
+                    onDelete={async () => {
+                      if (!confirm(`Delete "${cat.name}"?`)) return;
+                      await api.deleteCategory(cat.id);
+                      setInvCategories(prev => prev.filter(c => c.id !== cat.id));
+                    }}
+                  />
+                ))
+              )}
+            </TabSection>
+          </div>
         )}
 
         {/* Products */}
@@ -315,10 +494,9 @@ export default function BrandDetailPage() {
               <EmptyState message="No products yet" />
             ) : (
               products.map(prod => (
-                <CRUDRow
+                <ProductRow
                   key={prod.id}
-                  label={prod.name}
-                  sublabel={`$${prod.price.toFixed(2)} · ${prod.category?.name || ''}`}
+                  product={prod}
                   onEdit={() => setModal({ type: 'products', mode: 'edit', item: prod })}
                   onDelete={async () => {
                     if (!confirm(`Delete "${prod.name}"?`)) return;
@@ -589,14 +767,20 @@ export default function BrandDetailPage() {
       {modal.type === 'categories' && (
         <CategoryModal
           mode={modal.mode}
-          item={modal.item as Category | undefined}
+          item={modal.mode === 'edit' ? modal.item as Category : undefined}
+          catType={(modal.item as any)?._catType ?? (modal.mode === 'edit' ? (modal.item as Category)?.type : 'PRODUCT')}
           brandId={brandId}
           onClose={closeModal}
           onSave={cat => {
             if (modal.mode === 'create') {
-              setCategories(prev => [...prev, cat]);
+              if (cat.type === 'INVENTORY') {
+                setInvCategories(prev => [...prev, cat]);
+              } else {
+                setProductCategories(prev => [...prev, cat]);
+              }
             } else {
-              setCategories(prev => prev.map(c => (c.id === cat.id ? cat : c)));
+              setProductCategories(prev => prev.map(c => (c.id === cat.id ? cat : c)));
+              setInvCategories(prev => prev.map(c => (c.id === cat.id ? cat : c)));
             }
             closeModal();
           }}
@@ -608,7 +792,9 @@ export default function BrandDetailPage() {
           mode={modal.mode}
           item={modal.item as Product | undefined}
           brandId={brandId}
-          categories={categories}
+          categories={productCategories}
+          sizes={sizes}
+          addons={addons}
           onClose={closeModal}
           onSave={prod => {
             if (modal.mode === 'create') {
@@ -660,7 +846,7 @@ export default function BrandDetailPage() {
           mode={modal.mode}
           item={modal.item as InventoryBrandTemplate | undefined}
           brandId={brandId}
-          categories={categories}
+          categories={invCategories}
           onClose={closeModal}
           onSave={item => {
             if (modal.mode === 'create') {
@@ -733,19 +919,24 @@ function EmptyState({ message }: { message: string }) {
 function CategoryModal({
   mode,
   item,
+  catType = 'PRODUCT',
   brandId,
   onClose,
   onSave,
 }: {
   mode: 'create' | 'edit';
   item?: Category;
+  catType?: 'PRODUCT' | 'INVENTORY';
   brandId: string;
   onClose: () => void;
   onSave: (cat: Category) => void;
 }) {
   const [name, setName] = useState(item?.name || '');
+  const [description, setDescription] = useState(item?.description || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const typeLabel = catType === 'INVENTORY' ? 'Inventory Category' : 'Product Category';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -754,9 +945,9 @@ function CategoryModal({
     try {
       let result: Category;
       if (mode === 'create') {
-        result = await api.createCategory({ name, brandId });
+        result = await api.createCategory({ name, description: description || undefined, brandId, type: catType });
       } else {
-        result = await api.updateCategory(item!.id, { name });
+        result = await api.updateCategory(item!.id, { name, description: description || undefined });
       }
       onSave(result);
     } catch (err: unknown) {
@@ -768,7 +959,7 @@ function CategoryModal({
   };
 
   return (
-    <Modal title={mode === 'create' ? 'New Category' : 'Edit Category'} onClose={onClose}>
+    <Modal title={mode === 'create' ? `New ${typeLabel}` : `Edit ${typeLabel}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <div>
@@ -778,6 +969,15 @@ function CategoryModal({
             value={name}
             onChange={e => setName(e.target.value)}
             required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
+          <input
+            type="text"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
           />
         </div>
@@ -797,6 +997,8 @@ function ProductModal({
   item,
   brandId,
   categories,
+  sizes,
+  addons,
   onClose,
   onSave,
 }: {
@@ -804,14 +1006,31 @@ function ProductModal({
   item?: Product;
   brandId: string;
   categories: Category[];
+  sizes: Size[];
+  addons: Addon[];
   onClose: () => void;
   onSave: (prod: Product) => void;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [price, setPrice] = useState(item?.price?.toString() || '');
-  const [categoryId, setCategoryId] = useState(item?.categoryId || categories[0]?.id || '');
+  const [categoryId, setCategoryId] = useState(item?.categoryId || '');
+  const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(item?.sizes?.map(s => s.id) ?? []);
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(item?.addons?.map(a => a.id) ?? []);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(resolveUrl(item?.image));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const toggleId = (set: string[], setFn: (v: string[]) => void, id: string) =>
+    setFn(set.includes(id) ? set.filter(x => x !== id) : [...set, id]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    e.target.value = '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -820,9 +1039,12 @@ function ProductModal({
     try {
       let result: Product;
       if (mode === 'create') {
-        result = await api.createProduct({ name, price: parseFloat(price), categoryId, brandId });
+        result = await api.createProduct({ name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, brandId });
       } else {
-        result = await api.updateProduct(item!.id, { name, price: parseFloat(price), categoryId });
+        result = await api.updateProduct(item!.id, { name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds });
+      }
+      if (imageFile) {
+        result = await api.uploadProductImage(result.id, brandId, imageFile);
       }
       onSave(result);
     } catch (err: unknown) {
@@ -837,25 +1059,107 @@ function ProductModal({
     <Modal title={mode === 'create' ? 'New Product' : 'Edit Product'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="text-red-600 text-sm">{error}</p>}
+
+        {/* Image upload */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Product Image <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+              {imagePreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+              ) : (
+                <Upload className="w-6 h-6 text-gray-300" />
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+                <Upload className="w-3.5 h-3.5" />
+                {imagePreview ? 'Change Image' : 'Upload Image'}
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" onChange={handleImageChange} />
+              </label>
+              {imagePreview && (
+                <button
+                  type="button"
+                  onClick={() => { setImageFile(null); setImagePreview(null); }}
+                  className="ml-2 text-xs text-gray-400 hover:text-red-500"
+                >
+                  Remove
+                </button>
+              )}
+              <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+            </div>
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
           <input type="text" value={name} onChange={e => setName(e.target.value)} required
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
           <input type="number" value={price} onChange={e => setPrice(e.target.value)} required min="0" step="0.01"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-          <select value={categoryId} onChange={e => setCategoryId(e.target.value)} required
+          <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+            <option value="">— None —</option>
             {categories.map(cat => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
         </div>
+        {/* Sizes */}
+        {sizes.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sizes</label>
+            <div className="border border-gray-200 rounded-lg divide-y max-h-40 overflow-y-auto">
+              {sizes.map(s => (
+                <label key={s.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedSizeIds.includes(s.id)}
+                    onChange={() => toggleId(selectedSizeIds, setSelectedSizeIds, s.id)}
+                    className="rounded border-gray-300 text-indigo-600"
+                  />
+                  <span className="text-sm text-gray-800 flex-1">{s.name}</span>
+                  {s.priceModifier !== 0 && (
+                    <span className="text-xs text-gray-400">
+                      {s.priceModifier > 0 ? '+' : ''}₱{s.priceModifier}
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Add-ons */}
+        {addons.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Add-ons</label>
+            <div className="border border-gray-200 rounded-lg divide-y max-h-40 overflow-y-auto">
+              {addons.map(a => (
+                <label key={a.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedAddonIds.includes(a.id)}
+                    onChange={() => toggleId(selectedAddonIds, setSelectedAddonIds, a.id)}
+                    className="rounded border-gray-300 text-indigo-600"
+                  />
+                  <span className="text-sm text-gray-800 flex-1">{a.name}</span>
+                  <span className="text-xs text-gray-400">+₱{a.price}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
           <button type="submit" disabled={loading} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">

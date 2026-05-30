@@ -158,9 +158,9 @@ export class ProductsService {
     return products.map((product) => this.formatProduct(product));
   }
 
-  async findOne(id: string, brandId: string) {
+  async findOne(id: string, brandId?: string) {
     const product = await this.prisma.product.findFirst({
-      where: { id, brandId, tombstone: { not: 1 } },
+      where: { id, ...(brandId ? { brandId } : {}), tombstone: { not: 1 } },
       include: {
         category: true,
         productSizes: {

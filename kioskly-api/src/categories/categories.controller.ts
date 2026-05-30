@@ -48,12 +48,14 @@ export class CategoriesController {
   @Get()
   @ApiOperation({ summary: 'Get all categories for the brand' })
   @ApiQuery({ name: 'brandId', required: false })
+  @ApiQuery({ name: 'type', required: false, enum: ['PRODUCT', 'INVENTORY'] })
   findAll(
     @Query('brandId') queryBrandId: string,
     @BrandId() jwtBrandId: string,
     @TenantId() tenantId: string,
+    @Query('type') type?: 'PRODUCT' | 'INVENTORY',
   ) {
-    return this.categoriesService.findAll(queryBrandId || jwtBrandId);
+    return this.categoriesService.findAll(queryBrandId || jwtBrandId, type);
   }
 
   @Get(':id')

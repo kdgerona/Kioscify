@@ -57,7 +57,13 @@ type OrderItem = {
   selectedAddons: Addon[];
 };
 
-type PaymentMethodType = "cash" | "card" | "gcash" | "paymaya" | "online" | "foodpanda";
+type PaymentMethodType =
+  | "cash"
+  | "card"
+  | "gcash"
+  | "paymaya"
+  | "online"
+  | "foodpanda";
 
 type TransactionData = {
   transactionId: string;
@@ -103,7 +109,7 @@ export default function Home() {
   useEffect(() => {
     const fetchData = async () => {
       if (!tenant) return;
-      
+
       setIsLoadingData(true);
       try {
         // Fetch categories
@@ -164,13 +170,20 @@ export default function Home() {
   }
 
   // Brand theme takes priority over store theme
-  const primaryColor = brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
-  const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
-  const backgroundColor = brand?.themeColors?.background ?? tenant.themeColors?.background ?? "#ffffff";
+  const primaryColor =
+    brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
+  const textColor =
+    brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
+  const backgroundColor =
+    brand?.themeColors?.background ??
+    tenant.themeColors?.background ??
+    "#ffffff";
 
   // Resolve logo URL using the app's apiBase — strips any mismatched host from
   // server-formatted URLs (BASE_URL may differ from the client's EXPO_PUBLIC_API_URL)
-  const apiBase = process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:3000";
+  const apiBase =
+    process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") ||
+    "http://localhost:3000";
   const resolveLogoUrl = (raw: string | null | undefined): string | null => {
     if (!raw) return null;
     try {
@@ -229,14 +242,14 @@ export default function Home() {
     } else {
       setOrders(
         orders.map((item) =>
-          item.id === orderId ? { ...item, quantity: newQuantity } : item
-        )
+          item.id === orderId ? { ...item, quantity: newQuantity } : item,
+        ),
       );
     }
   };
 
   const filteredProducts = products.filter(
-    (p) => p.categoryId === selectedCategory
+    (p) => p.categoryId === selectedCategory,
   );
 
   const calculateItemPrice = (item: OrderItem): number => {
@@ -252,7 +265,7 @@ export default function Home() {
 
   const totalAmount = orders.reduce(
     (sum, item) => sum + calculateItemPrice(item) * item.quantity,
-    0
+    0,
   );
 
   const getCurrentCustomizationPrice = (): number => {
@@ -286,7 +299,7 @@ export default function Home() {
 
     const renderRightActions = (
       progress: Animated.AnimatedInterpolation<number>,
-      dragX: Animated.AnimatedInterpolation<number>
+      dragX: Animated.AnimatedInterpolation<number>,
     ) => {
       const opacity = dragX.interpolate({
         inputRange: [-70, 0],
@@ -408,7 +421,7 @@ export default function Home() {
 
   const handleCheckoutComplete = async (
     paymentMethod: PaymentMethodType | null,
-    details: any
+    details: any,
   ) => {
     if (!paymentMethod) return;
 
@@ -434,7 +447,13 @@ export default function Home() {
         transactionId,
         subtotal: totalAmount,
         total: totalAmount,
-        paymentMethod: paymentMethod.toUpperCase() as "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA",
+        paymentMethod: paymentMethod.toUpperCase() as
+          | "CASH"
+          | "CARD"
+          | "GCASH"
+          | "PAYMAYA"
+          | "ONLINE"
+          | "FOODPANDA",
         ...(paymentMethod === "cash" && {
           cashReceived: details.cashReceived,
           change: details.change,
@@ -479,7 +498,7 @@ export default function Home() {
       setTransactionError(
         error instanceof Error
           ? error.message
-          : "Failed to create transaction. Please try again."
+          : "Failed to create transaction. Please try again.",
       );
       // Keep checkout modal open so user can retry
     } finally {
@@ -515,17 +534,29 @@ export default function Home() {
           </View>
         </View>
         <View className="flex-row gap-6">
-          <TouchableOpacity className="p-2" onPress={() => router.push("/transactions" as Href)}>
+          <TouchableOpacity
+            className="p-2"
+            onPress={() => router.push("/transactions" as Href)}
+          >
             <Ionicons name="receipt-outline" size={24} color={textColor} />
           </TouchableOpacity>
-          <TouchableOpacity className="p-2" onPress={() => router.push("/expenses" as Href)}>
+          <TouchableOpacity
+            className="p-2"
+            onPress={() => router.push("/expenses" as Href)}
+          >
             <Ionicons name="wallet-outline" size={24} color={textColor} />
           </TouchableOpacity>
-          <TouchableOpacity className="p-2" onPress={() => router.push("/inventory" as Href)}>
+          <TouchableOpacity
+            className="p-2"
+            onPress={() => router.push("/inventory" as Href)}
+          >
             <Ionicons name="cube-outline" size={24} color={textColor} />
           </TouchableOpacity>
           <View className="w-px bg-black self-stretch mx-2" />
-          <TouchableOpacity className="p-2" onPress={() => router.push("/settings" as Href)}>
+          <TouchableOpacity
+            className="p-2"
+            onPress={() => router.push("/settings" as Href)}
+          >
             <Ionicons name="settings-outline" size={24} color={textColor} />
           </TouchableOpacity>
           <View className="w-px bg-black self-stretch mx-2" />
@@ -565,14 +596,28 @@ export default function Home() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-          <View style={{ paddingTop: 12, marginTop: 8, borderTopWidth: 1, borderTopColor: "#f3f4f6", alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 6 }}>
+          <View
+            style={{
+              paddingTop: 12,
+              marginTop: 8,
+              borderTopWidth: 1,
+              borderTopColor: "#f3f4f6",
+              alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 6,
+            }}
+          >
             <Image
               source={require("../assets/images/logo-with-appname.png")}
               style={{ width: 20, height: 20 }}
               resizeMode="contain"
             />
             <Text style={{ fontSize: 11, color: "#9ca3af" }}>
-              Powered by <Text style={{ fontWeight: "600", color: "#4b5563" }}>Kioscify</Text>
+              Powered by{" "}
+              <Text style={{ fontWeight: "600", color: "#4b5563" }}>
+                Kioscify
+              </Text>
             </Text>
           </View>
         </View>
@@ -588,56 +633,70 @@ export default function Home() {
               <Text className="mt-2 text-gray-500">Loading products...</Text>
             </View>
           ) : (
-          <ScrollView>
-            <View className="flex-row flex-wrap">
-              {filteredProducts.map((product) => {
-                // Use image URL directly from API (already transformed to absolute URL)
-                const imageUri = product.image || null;
-                return (
-                  <TouchableOpacity
-                    key={product.id}
-                    className={orders.length > 0 ? "w-1/2 p-2" : "w-1/3 p-2"}
-                    onPress={() => openCustomizeModal(product)}
-                  >
-                    <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-64">
-                      <View className="h-40 mb-3 justify-center items-center bg-gray-100 rounded-lg overflow-hidden">
-                        {imageUri ? (
-                          <Image
-                            source={{ uri: imageUri }}
-                            className="w-full h-full"
-                            resizeMode="contain"
-                          />
-                        ) : (
-                          <Text className="text-gray-500 text-xs">No Image</Text>
-                        )}
-                      </View>
-                      <View className="flex-1">
-                        <View className="flex flex-row justify-between">
+            <ScrollView>
+              <View className="flex-row flex-wrap">
+                {filteredProducts.map((product) => {
+                  const imageUri = (() => {
+                    if (!product.image) return null;
+                    try {
+                      const path = product.image.startsWith("http")
+                        ? new URL(product.image).pathname
+                        : product.image;
+                      return `${apiBase}${path}`;
+                    } catch {
+                      return product.image;
+                    }
+                  })();
+                  return (
+                    <TouchableOpacity
+                      key={product.id}
+                      className={orders.length > 0 ? "w-1/2 p-2" : "w-1/3 p-2"}
+                      onPress={() => openCustomizeModal(product)}
+                    >
+                      <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-64">
+                        <View className="h-40 mb-3 justify-center items-center bg-gray-100 rounded-lg overflow-hidden">
+                          {imageUri ? (
+                            <Image
+                              source={{ uri: imageUri }}
+                              className="w-full h-full"
+                              resizeMode="contain"
+                            />
+                          ) : (
+                            <Text className="text-gray-500 text-xs">
+                              No Image
+                            </Text>
+                          )}
+                        </View>
+                        <View className="flex-1">
+                          <View className="flex flex-row justify-between">
+                            <Text
+                              className="font-semibold text-base flex-1 mr-2"
+                              style={{ color: textColor }}
+                              numberOfLines={1}
+                            >
+                              {product.name}
+                            </Text>
+                            <Text
+                              className="font-bold"
+                              style={{ color: textColor }}
+                            >
+                              ₱{product.price.toFixed(2)}
+                            </Text>
+                          </View>
                           <Text
-                            className="font-semibold text-base flex-1 mr-2"
+                            className="text-xs font-medium"
                             style={{ color: textColor }}
                             numberOfLines={1}
                           >
-                            {product.name}
-                          </Text>
-                          <Text className="font-bold" style={{ color: textColor }}>
-                            ₱{product.price.toFixed(2)}
+                            {getCategoryName(product.categoryId)}
                           </Text>
                         </View>
-                        <Text
-                          className="text-xs font-medium"
-                          style={{ color: textColor }}
-                          numberOfLines={1}
-                        >
-                          {getCategoryName(product.categoryId)}
-                        </Text>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </ScrollView>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
           )}
         </View>
 
@@ -809,7 +868,7 @@ export default function Home() {
                   </Text>
                   {selectedProduct.addons.map((addon) => {
                     const isSelected = selectedAddons.find(
-                      (a) => a.id === addon.id
+                      (a) => a.id === addon.id,
                     );
                     return (
                       <TouchableOpacity

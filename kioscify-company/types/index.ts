@@ -68,6 +68,9 @@ export interface Store {
 export interface Category {
   id: string;
   name: string;
+  type: 'PRODUCT' | 'INVENTORY';
+  description?: string;
+  sequenceNo?: number;
   brandId?: string;
   tenantId?: string;
   createdAt: string;
@@ -80,7 +83,9 @@ export interface Product {
   price: number;
   categoryId: string;
   category?: Category;
-  imageUrl?: string;
+  image?: string;
+  sizes?: Size[];
+  addons?: Addon[];
   brandId?: string;
   tenantId?: string;
   isAvailable: boolean;

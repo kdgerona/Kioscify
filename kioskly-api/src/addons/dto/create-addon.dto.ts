@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateAddonDto {
-  @ApiProperty({ example: 'nata-de-coco' })
+  @ApiProperty({ example: 'nata-de-coco', required: false })
   @IsString()
-  @IsNotEmpty()
-  id: string;
+  @IsOptional()
+  id?: string;
 
   @ApiProperty({ example: 'Nata De Coco' })
   @IsString()

@@ -176,20 +176,20 @@ class ApiClient {
 
   // ─── Categories ───────────────────────────────────────────────────────────
 
-  async getCategories(brandId: string): Promise<Category[]> {
+  async getCategories(brandId: string, type?: 'PRODUCT' | 'INVENTORY'): Promise<Category[]> {
     const { data } = await this.client.get<Category[]>('/categories', {
-      params: { brandId },
+      params: { brandId, ...(type ? { type } : {}) },
     });
     return data;
   }
 
-  async createCategory(payload: { name: string; brandId: string }): Promise<Category> {
+  async createCategory(payload: { name: string; description?: string; brandId: string; type?: 'PRODUCT' | 'INVENTORY' }): Promise<Category> {
     const { brandId, ...body } = payload;
     const { data } = await this.client.post<Category>('/categories', body, { params: { brandId } });
     return data;
   }
 
-  async updateCategory(id: string, payload: { name: string }): Promise<Category> {
+  async updateCategory(id: string, payload: { name?: string; description?: string; sequenceNo?: number }): Promise<Category> {
     const { data } = await this.client.patch<Category>(`/categories/${id}`, payload);
     return data;
   }
@@ -210,7 +210,7 @@ class ApiClient {
   async createProduct(payload: {
     name: string;
     price: number;
-    categoryId: string;
+    categoryId?: string;
     brandId: string;
     sizeIds?: string[];
     addonIds?: string[];
@@ -225,6 +225,16 @@ class ApiClient {
     payload: Partial<{ name: string; price: number; categoryId: string; sizeIds: string[]; addonIds: string[] }>
   ): Promise<Product> {
     const { data } = await this.client.patch<Product>(`/products/${id}`, payload);
+    return data;
+  }
+
+  async uploadProductImage(id: string, brandId: string, file: File): Promise<Product> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await this.client.post<Product>(`/products/${id}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      params: { brandId },
+    });
     return data;
   }
 
