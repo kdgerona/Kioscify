@@ -35,6 +35,10 @@ export interface Brand {
   description?: string;
   logoUrl?: string;
   companyId: string;
+  company?: {
+    slug: string;
+    canOnboardStores: boolean;
+  };
   themeColors?: {
     primary?: string;
     secondary?: string;
