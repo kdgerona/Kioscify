@@ -156,9 +156,15 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const loadStoredTenant = useCallback(async () => {
     try {
-      const storedSlug = await AsyncStorage.getItem(TENANT_SLUG_KEY);
+      const [[, storedSlug], [, storedBrand], [, storedCompany]] =
+        await AsyncStorage.multiGet([TENANT_SLUG_KEY, BRAND_DATA_KEY, COMPANY_DATA_KEY]);
       if (storedSlug) {
-        await fetchTenantBySlug(storedSlug);
+        const brandData = storedBrand ? JSON.parse(storedBrand) : null;
+        const companyData = storedCompany ? JSON.parse(storedCompany) : null;
+        await fetchTenantBySlug(storedSlug, {
+          companySlug: companyData?.slug,
+          brandSlug: brandData?.slug,
+        });
       }
     } catch (err) {
       console.error("Failed to load stored tenant:", err);
