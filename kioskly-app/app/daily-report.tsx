@@ -30,7 +30,7 @@ import LastSubmissionBanner from "../components/LastSubmissionBanner";
 
 export default function DailyReport() {
   const router = useRouter();
-  const { tenant } = useTenant();
+  const { tenant, brand } = useTenant();
   const { user } = useAuth();
   const [reportData, setReportData] = useState<DailyReportResponse | null>(
     null
@@ -115,9 +115,9 @@ export default function DailyReport() {
     return null;
   }
 
-  const primaryColor = tenant.themeColors?.primary || "#ea580c";
-  const textColor = tenant.themeColors?.text || "#1f2937";
-  const backgroundColor = tenant.themeColors?.background || "#ffffff";
+  const primaryColor = brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
+  const backgroundColor = brand?.themeColors?.background ?? tenant.themeColors?.background ?? "#ffffff";
 
   const formatCurrency = (amount: number) => {
     return `₱${amount.toFixed(2)}`;
@@ -224,7 +224,7 @@ export default function DailyReport() {
             disabled={isSubmitting}
             className="ml-2 px-4 py-2 rounded-lg"
             style={{
-              backgroundColor: isSubmitting ? "#9ca3af" : "#000000",
+              backgroundColor: isSubmitting ? "#9ca3af" : primaryColor,
               opacity: isSubmitting ? 0.7 : 1,
             }}
           >
