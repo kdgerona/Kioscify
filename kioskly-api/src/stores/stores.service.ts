@@ -62,10 +62,10 @@ export class StoresService {
     return this.formatLogoUrl(store);
   }
 
-  async findBySlug(slug: string, companySlug?: string) {
-    const where = companySlug
-      ? { slug, tombstone: { not: 1 }, company: { slug: companySlug } }
-      : { slug, tombstone: { not: 1 } };
+  async findBySlug(slug: string, companySlug?: string, brandSlug?: string) {
+    const where: Record<string, any> = { slug, tombstone: { not: 1 } };
+    if (companySlug) where.company = { slug: companySlug };
+    if (brandSlug) where.brand = { slug: brandSlug };
 
     const store = await this.prisma.tenant.findFirst({
       where,

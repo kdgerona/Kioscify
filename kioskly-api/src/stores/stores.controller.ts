@@ -71,11 +71,13 @@ export class StoresController {
     summary: 'Get store by slug — public, used for login branding before auth',
   })
   @ApiQuery({ name: 'companySlug', required: false })
+  @ApiQuery({ name: 'brandSlug', required: false })
   findBySlug(
     @Param('slug') slug: string,
     @Query('companySlug') companySlug?: string,
+    @Query('brandSlug') brandSlug?: string,
   ) {
-    return this.storesService.findBySlug(slug, companySlug);
+    return this.storesService.findBySlug(slug, companySlug, brandSlug);
   }
 
   @Get(':id')
