@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Brand, Category, Product, Size, Addon, InventoryBrandTemplate } from '@/types';
-import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode } from 'lucide-react';
+import StoreQRModal from '@/components/StoreQRModal';
 
 type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'inventory' | 'stores' | 'settings';
 
@@ -104,6 +105,12 @@ export default function BrandDetailPage() {
   const [stores, setStores] = useState<any[]>([]);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [editingStoreName, setEditingStoreName] = useState('');
+  const [qrStore, setQrStore] = useState<{
+    storeName: string;
+    companySlug: string;
+    brandSlug: string;
+    storeSlug: string;
+  } | null>(null);
   const [tabLoading, setTabLoading] = useState(false);
 
 
@@ -413,19 +420,33 @@ export default function BrandDetailPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 font-mono">{store.slug}</td>
                     <td className="px-6 py-4 text-right">
-                      {editingStoreId === store.id ? (
-                        <div className="flex gap-3 justify-end">
-                          <button onClick={() => handleSaveStoreName(store.id)} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Save</button>
-                          <button onClick={() => setEditingStoreId(null)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
-                        </div>
-                      ) : (
+                      <div className="flex items-center justify-end gap-3">
                         <button
-                          onClick={() => { setEditingStoreId(store.id); setEditingStoreName(store.name); }}
-                          className="text-sm text-gray-400 hover:text-gray-600"
+                          onClick={() => setQrStore({
+                            storeName: store.name,
+                            companySlug: brand?.company?.slug ?? '',
+                            brandSlug: brand?.slug ?? '',
+                            storeSlug: store.slug,
+                          })}
+                          title="View QR Code"
+                          className="text-gray-400 hover:text-indigo-600 transition-colors"
                         >
-                          Edit
+                          <QrCode className="w-4 h-4" />
                         </button>
-                      )}
+                        {editingStoreId === store.id ? (
+                          <div className="flex gap-3">
+                            <button onClick={() => handleSaveStoreName(store.id)} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Save</button>
+                            <button onClick={() => setEditingStoreId(null)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingStoreId(store.id); setEditingStoreName(store.name); }}
+                            className="text-sm text-gray-400 hover:text-gray-600"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -649,6 +670,16 @@ export default function BrandDetailPage() {
             }
             closeModal();
           }}
+        />
+      )}
+
+      {qrStore && (
+        <StoreQRModal
+          storeName={qrStore.storeName}
+          companySlug={qrStore.companySlug}
+          brandSlug={qrStore.brandSlug}
+          storeSlug={qrStore.storeSlug}
+          onClose={() => setQrStore(null)}
         />
       )}
     </div>
