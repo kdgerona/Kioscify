@@ -54,6 +54,7 @@ export default function UsersPage() {
     try {
       const result = await api.createStoreUser(tenant.id, form);
       setCreatedPassword(result.temporaryPassword);
+      setShowPassword(true);
       setShowCreateForm(false);
       setForm({ firstName: '', lastName: '', email: '', username: '', role: 'CASHIER' });
       await fetchUsers();
@@ -109,7 +110,7 @@ export default function UsersPage() {
             Share this temporary password via a secure channel. The user must change it on first login.
           </p>
           <div className="flex items-center gap-2">
-            <code className="bg-white border border-green-300 px-3 py-1 rounded text-sm font-mono">
+            <code className="bg-white border border-green-300 px-3 py-1 rounded text-sm font-mono text-gray-900 select-all">
               {showPassword ? createdPassword : '•'.repeat(createdPassword.length)}
             </code>
             <button onClick={() => setShowPassword((v) => !v)} className="text-green-700">
