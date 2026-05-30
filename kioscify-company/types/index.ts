@@ -118,7 +118,9 @@ export interface InventoryBrandTemplate {
   name: string;
   unit: string;
   category?: string;
+  description?: string;
   minStockLevel?: number;
+  requiresExpirationDate?: boolean;
   expirationWarningDays?: number;
   brandId: string;
   createdAt: string;

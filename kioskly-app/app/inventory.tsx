@@ -173,6 +173,21 @@ export default function InventoryScreen() {
     );
   };
 
+  const clearBatchExpirationDate = (itemId: string, batchId: string) => {
+    setInventoryInputs((prev) =>
+      prev.map((input) =>
+        input.id === itemId
+          ? {
+              ...input,
+              batches: input.batches.map((b) =>
+                b.id === batchId ? { ...b, expirationDate: null } : b
+              ),
+            }
+          : input
+      )
+    );
+  };
+
   // Open date picker for a batch
   const openDatePicker = (itemId: string, batchId: string) => {
     setActiveDatePicker({ itemId, batchId });
@@ -200,7 +215,7 @@ export default function InventoryScreen() {
 
   // Format date for display
   const formatDate = (date: Date | null) => {
-    if (!date) return "Set date";
+    if (!date) return "No expiry";
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
@@ -664,18 +679,28 @@ export default function InventoryScreen() {
                                       style={{ color: textColor }}
                                     />
                                   </View>
-                                  <TouchableOpacity
-                                    onPress={() => openDatePicker(item.id, batch.id)}
-                                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white"
-                                  >
-                                    <Text
-                                      className={`text-center ${
-                                        batch.expirationDate ? "text-gray-900" : "text-gray-400"
-                                      }`}
+                                  <View className="flex-1 flex-row items-center border border-gray-300 rounded-lg bg-white">
+                                    <TouchableOpacity
+                                      onPress={() => openDatePicker(item.id, batch.id)}
+                                      className="flex-1 px-3 py-2"
                                     >
-                                      {formatDate(batch.expirationDate)}
-                                    </Text>
-                                  </TouchableOpacity>
+                                      <Text
+                                        className={`text-center ${
+                                          batch.expirationDate ? "text-gray-900" : "text-gray-400"
+                                        }`}
+                                      >
+                                        {formatDate(batch.expirationDate)}
+                                      </Text>
+                                    </TouchableOpacity>
+                                    {batch.expirationDate && (
+                                      <TouchableOpacity
+                                        onPress={() => clearBatchExpirationDate(item.id, batch.id)}
+                                        className="pr-2"
+                                      >
+                                        <Ionicons name="close-circle" size={16} color="#9ca3af" />
+                                      </TouchableOpacity>
+                                    )}
+                                  </View>
                                 </View>
                               </View>
                             );

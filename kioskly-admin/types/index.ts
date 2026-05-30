@@ -175,13 +175,16 @@ export interface ApiError {
 export interface InventoryItem {
   id: string;
   tenantId: string;
+  templateId?: string;
   name: string;
   category: string;
   unit: string;
   description?: string;
   minStockLevel?: number;
+  minStockLevelCustomized?: boolean;
   requiresExpirationDate?: boolean;
   expirationWarningDays?: number;
+  expirationWarningDaysCustomized?: boolean;
   createdAt: string;
   updatedAt: string;
 }

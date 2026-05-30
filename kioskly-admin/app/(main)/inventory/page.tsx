@@ -612,6 +612,7 @@ export default function InventoryPage() {
             <h2 className="text-lg sm:text-xl font-bold text-gray-900">Inventory Items</h2>
             <p className="text-sm text-gray-500 mt-1">
               Items are defined by your brand. Adjust the alert thresholds for your store below.
+              Values marked with <span className="text-indigo-500 font-medium">*</span> are store-level overrides and will not be changed when your brand updates the defaults.
             </p>
           </div>
 
@@ -649,11 +650,16 @@ export default function InventoryPage() {
                             <input
                               type="number" min={0} step={0.1}
                               value={thresholdValues.minStockLevel ?? ''}
-                              onChange={(e) => setThresholdValues({ ...thresholdValues, minStockLevel: parseFloat(e.target.value) })}
+                              onChange={(e) => setThresholdValues({ ...thresholdValues, minStockLevel: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
                               className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
                             />
                           ) : (
-                            <span className="text-gray-600">{item.minStockLevel ?? "—"}</span>
+                            <span className="text-gray-600">
+                              {item.minStockLevel ?? "—"}
+                              {item.minStockLevelCustomized && (
+                                <span className="ml-1 text-xs text-indigo-500" title="Store override">*</span>
+                              )}
+                            </span>
                           )}
                         </td>
                         <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm">
@@ -661,12 +667,19 @@ export default function InventoryPage() {
                             <input
                               type="number" min={1}
                               value={thresholdValues.expirationWarningDays ?? ''}
-                              onChange={(e) => setThresholdValues({ ...thresholdValues, expirationWarningDays: parseInt(e.target.value) })}
+                              onChange={(e) => setThresholdValues({ ...thresholdValues, expirationWarningDays: e.target.value === '' ? undefined : parseInt(e.target.value) })}
                               className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
                             />
                           ) : (
                             <span className="text-gray-600">
-                              {item.requiresExpirationDate ? (item.expirationWarningDays ?? 7) : "—"}
+                              {item.requiresExpirationDate && item.expirationWarningDays != null
+                                ? <>
+                                    {item.expirationWarningDays}
+                                    {item.expirationWarningDaysCustomized && (
+                                      <span className="ml-1 text-xs text-indigo-500" title="Store override">*</span>
+                                    )}
+                                  </>
+                                : "—"}
                             </span>
                           )}
                         </td>

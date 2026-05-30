@@ -27,13 +27,14 @@ export class InventoryService {
       data: { ...dto, brandId, isTemplate: true },
     });
 
-    // Fan out to all stores under this brand
+    // Fan out to all stores under this brand, linking via templateId
     const stores = await this.prisma.tenant.findMany({ where: { brandId }, select: { id: true } });
     for (const store of stores) {
       await this.prisma.inventoryItem.create({
         data: {
           tenantId: store.id,
           brandId,
+          templateId: template.id,
           isTemplate: false,
           name: dto.name,
           category: dto.category,
@@ -52,14 +53,41 @@ export class InventoryService {
   async updateBrandTemplate(id: string, dto: UpdateInventoryItemDto) {
     const template = await this.prisma.inventoryItem.findFirst({ where: { id, isTemplate: true, tombstone: { not: 1 } } });
     if (!template) throw new NotFoundException(`Inventory template ${id} not found`);
-    return this.prisma.inventoryItem.update({ where: { id }, data: dto });
+
+    const updated = await this.prisma.inventoryItem.update({ where: { id }, data: dto });
+
+    // Propagate to all store copies linked via templateId
+    const storeCopies = await this.prisma.inventoryItem.findMany({
+      where: { templateId: id, isTemplate: false, tombstone: { not: 1 } },
+    });
+
+    for (const copy of storeCopies) {
+      const propagated: Record<string, any> = {};
+      if (dto.name !== undefined) propagated.name = dto.name;
+      if (dto.category !== undefined) propagated.category = dto.category;
+      if (dto.unit !== undefined) propagated.unit = dto.unit;
+      if (dto.description !== undefined) propagated.description = dto.description;
+      if (dto.requiresExpirationDate !== undefined) propagated.requiresExpirationDate = dto.requiresExpirationDate;
+      // Only propagate threshold fields if the store hasn't customized them
+      if (dto.minStockLevel !== undefined && !copy.minStockLevelCustomized) {
+        propagated.minStockLevel = dto.minStockLevel;
+      }
+      if (dto.expirationWarningDays !== undefined && !copy.expirationWarningDaysCustomized) {
+        propagated.expirationWarningDays = dto.expirationWarningDays;
+      }
+      if (Object.keys(propagated).length > 0) {
+        await this.prisma.inventoryItem.update({ where: { id: copy.id }, data: propagated });
+      }
+    }
+
+    return updated;
   }
 
   async removeBrandTemplate(id: string) {
     const template = await this.prisma.inventoryItem.findFirst({ where: { id, isTemplate: true, tombstone: { not: 1 } } });
     if (!template) throw new NotFoundException(`Inventory template ${id} not found`);
-    // Soft-delete store copies first, then the template
-    await this.prisma.inventoryItem.updateMany({ where: { brandId: template.brandId, isTemplate: false, name: template.name }, data: { tombstone: 1 } });
+    // Soft-delete all store copies linked via templateId
+    await this.prisma.inventoryItem.updateMany({ where: { templateId: id, isTemplate: false }, data: { tombstone: 1 } });
     await this.prisma.inventoryItem.update({ where: { id }, data: { tombstone: 1 } });
     return { message: 'Inventory template deleted' };
   }
@@ -112,8 +140,14 @@ export class InventoryService {
     return this.prisma.inventoryItem.update({
       where: { id: item.id },
       data: {
-        ...(dto.minStockLevel !== undefined && { minStockLevel: dto.minStockLevel }),
-        ...(dto.expirationWarningDays !== undefined && { expirationWarningDays: dto.expirationWarningDays }),
+        ...(dto.minStockLevel !== undefined && {
+          minStockLevel: dto.minStockLevel,
+          minStockLevelCustomized: true,
+        }),
+        ...(dto.expirationWarningDays !== undefined && {
+          expirationWarningDays: dto.expirationWarningDays,
+          expirationWarningDaysCustomized: true,
+        }),
       },
     });
   }
