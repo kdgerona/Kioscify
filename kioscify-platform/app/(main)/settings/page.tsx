@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatRole } from '@/lib/utils';
 
 export default function PlatformSettingsPage() {
   const [user, setUser] = useState<{
@@ -38,7 +39,7 @@ export default function PlatformSettingsPage() {
             <DetailRow label="Name" value={`${user.firstName} ${user.lastName}`} />
             <DetailRow label="Username" value={user.username} />
             <DetailRow label="Email" value={user.email} />
-            <DetailRow label="Role" value={user.role} />
+            <DetailRow label="Role" value={formatRole(user.role)} />
           </div>
         ) : (
           <div className="px-6 py-4 text-sm text-gray-400">Loading account details...</div>

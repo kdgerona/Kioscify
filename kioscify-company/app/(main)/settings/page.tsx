@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { Company } from '@/types';
-import { Save, Lock } from 'lucide-react';
+import { formatRole } from '@/lib/utils';
+import type { Company, User } from '@/types';
+import { Save, KeyRound } from 'lucide-react';
 
 export default function SettingsPage() {
   const [company, setCompany] = useState<Company | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +19,17 @@ export default function SettingsPage() {
   const [contactEmail, setContactEmail] = useState('');
   const [description, setDescription] = useState('');
 
+  // Change password
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
+
   useEffect(() => {
+    setCurrentUser(api.getCurrentUser());
     api
       .getMyCompany()
       .then(data => {
@@ -29,6 +41,34 @@ export default function SettingsPage() {
       .catch(() => setError('Failed to load company settings'))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    if (newPassword !== confirmPassword) {
+      setPwError('New passwords do not match');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPwError('New password must be at least 8 characters');
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      setPwSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowChangePassword(false);
+      setTimeout(() => setPwSuccess(false), 3000);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setPwError(axiosErr?.response?.data?.message || 'Failed to change password');
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +119,87 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* My Account */}
+      <div className="bg-white rounded-lg border">
+        <div className="px-6 py-4 border-b">
+          <h2 className="font-semibold text-gray-900">My Account</h2>
+        </div>
+        <div className="px-6 py-4 space-y-3">
+          <DetailRow label="Name" value={currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '—'} />
+          <DetailRow label="Username" value={currentUser?.username || '—'} />
+          <DetailRow label="Email" value={currentUser?.email || '—'} />
+          <DetailRow label="Role" value={formatRole(currentUser?.role)} />
+        </div>
+        <div className="px-6 pb-4">
+          {pwSuccess && (
+            <div className="mb-3 bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm">
+              Password changed successfully
+            </div>
+          )}
+          {!showChangePassword ? (
+            <button
+              onClick={() => setShowChangePassword(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+            >
+              <KeyRound className="w-4 h-4" />
+              Change Password
+            </button>
+          ) : (
+            <form onSubmit={handleChangePassword} className="space-y-3 pt-2 border-t">
+              {pwError && (
+                <p className="text-red-600 text-sm">{pwError}</p>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={e => setCurrentPassword(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setShowChangePassword(false); setPwError(null); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); }}
+                  className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pwSaving}
+                  className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {pwSaving ? 'Saving...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+
       {/* Editable section */}
       <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b">
@@ -124,29 +245,6 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {/* Read-only section */}
-      <div className="bg-white rounded-lg border">
-        <div className="px-6 py-4 border-b flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Platform Permissions</h2>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <Lock className="w-3.5 h-3.5" />
-            Managed by Kioscify
-          </div>
-        </div>
-        <div className="divide-y">
-          <PermissionRow
-            label="Can Create Brands"
-            description="Allows this company to create and manage their own brands"
-            enabled={company?.canCreateBrands ?? false}
-          />
-          <PermissionRow
-            label="Can Onboard Stores"
-            description="Allows this company to onboard new store locations"
-            enabled={company?.canOnboardStores ?? false}
-          />
-        </div>
-      </div>
-
       {/* Read-only company info */}
       <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b">
@@ -154,7 +252,6 @@ export default function SettingsPage() {
         </div>
         <div className="px-6 py-4 space-y-3">
           <DetailRow label="Slug" value={company?.slug || '—'} />
-          <DetailRow label="Company ID" value={company?.id || '—'} mono />
           <DetailRow label="Status" value={company?.isActive ? 'Active' : 'Inactive'} />
         </div>
       </div>
@@ -162,35 +259,6 @@ export default function SettingsPage() {
   );
 }
 
-function PermissionRow({
-  label,
-  description,
-  enabled,
-}: {
-  label: string;
-  description: string;
-  enabled: boolean;
-}) {
-  return (
-    <div className="px-6 py-4 flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-900">{label}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{description}</p>
-      </div>
-      <div
-        className={`w-10 h-6 rounded-full flex items-center px-1 transition-colors ${
-          enabled ? 'bg-indigo-600' : 'bg-gray-200'
-        }`}
-      >
-        <div
-          className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${
-            enabled ? 'translate-x-4' : 'translate-x-0'
-          }`}
-        />
-      </div>
-    </div>
-  );
-}
 
 function DetailRow({
   label,

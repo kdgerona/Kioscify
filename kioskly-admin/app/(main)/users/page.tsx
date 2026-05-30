@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
+import { formatRole } from '@/lib/utils';
 import type { User, StoreUserCreatePayload } from '@/types';
 import { UserPlus, Eye, EyeOff, UserCheck, UserX } from 'lucide-react';
 
@@ -75,13 +76,6 @@ export default function UsersPage() {
     }
   };
 
-  const roleLabel = (role: string) => {
-    switch (role) {
-      case 'STORE_ADMIN': case 'ADMIN': return 'Store Admin';
-      case 'CASHIER': return 'Cashier';
-      default: return role;
-    }
-  };
 
   return (
     <div className="p-6">
@@ -244,7 +238,7 @@ export default function UsersPage() {
                         ? 'bg-indigo-100 text-indigo-700'
                         : 'bg-gray-100 text-gray-700'
                     }`}>
-                      {roleLabel(user.role)}
+                      {formatRole(user.role)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">

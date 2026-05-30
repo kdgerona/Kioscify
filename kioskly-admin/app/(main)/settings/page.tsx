@@ -5,6 +5,7 @@ import { Store, User, KeyRound, Eye, EyeOff } from 'lucide-react';
 import type { User as UserType } from '@/types';
 import { useTenant } from '@/contexts/TenantContext';
 import { api } from '@/lib/api';
+import { formatRole } from '@/lib/utils';
 
 export default function SettingsPage() {
   const { tenant, brand } = useTenant();
@@ -112,7 +113,7 @@ export default function SettingsPage() {
                 className="inline-block px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold"
                 style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
               >
-                {user?.role || 'N/A'}
+                {formatRole(user?.role) || 'N/A'}
               </span>
             </div>
 

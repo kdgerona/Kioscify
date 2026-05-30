@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import {
   formatCurrency,
   formatDateTime,
+  formatUserName,
   getPaymentMethodLabel,
   getPaymentStatusLabel,
   getPaymentStatusColor,
@@ -253,7 +254,7 @@ export default function TransactionsPage() {
     const rows = transactions.map((t) => [
       t.transactionId,
       formatDateTime(t.timestamp),
-      t.user?.email || t.user?.username || "N/A",
+      formatUserName(t.user),
       t.total,
       t.paymentMethod,
       t.paymentStatus || "COMPLETED",
@@ -516,9 +517,7 @@ export default function TransactionsPage() {
                         {formatDateTime(transaction.timestamp)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {transaction.user?.email ||
-                          transaction.user?.username ||
-                          "N/A"}
+                        {formatUserName(transaction.user)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-bold text-gray-900">
@@ -659,7 +658,7 @@ export default function TransactionsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-gray-900">
-                            {request.voidRequester?.email || "N/A"}
+                            {formatUserName(request.voidRequester)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -818,9 +817,7 @@ export default function TransactionsPage() {
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">Cashier</p>
                     <p className="text-xs sm:text-sm text-gray-900 truncate">
-                      {selectedTransaction.user?.email ||
-                        selectedTransaction.user?.username ||
-                        "N/A"}
+                      {formatUserName(selectedTransaction.user)}
                     </p>
                   </div>
                   <div>
@@ -1055,8 +1052,7 @@ export default function TransactionsPage() {
                               Requested By
                             </p>
                             <p className="text-xs sm:text-sm text-gray-900 truncate">
-                              {selectedTransaction.voidRequester.email ||
-                                selectedTransaction.voidRequester.username}
+                              {formatUserName(selectedTransaction.voidRequester)}
                             </p>
                           </div>
                           {selectedTransaction.voidRequestedAt && (
@@ -1081,8 +1077,7 @@ export default function TransactionsPage() {
                               Reviewed By
                             </p>
                             <p className="text-xs sm:text-sm text-gray-900 truncate">
-                              {selectedTransaction.voidReviewer.email ||
-                                selectedTransaction.voidReviewer.username}
+                              {formatUserName(selectedTransaction.voidReviewer)}
                             </p>
                           </div>
                           {selectedTransaction.voidReviewedAt && (

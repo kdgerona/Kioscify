@@ -31,6 +31,8 @@ export class SubmittedReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -67,6 +69,8 @@ export class SubmittedReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -86,6 +90,8 @@ export class SubmittedReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },

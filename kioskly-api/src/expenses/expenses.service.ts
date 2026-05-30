@@ -15,6 +15,8 @@ type ExpenseWithUser = Prisma.ExpenseGetPayload<{
       select: {
         id: true;
         username: true;
+        firstName: true;
+        lastName: true;
         email: true;
         role: true;
       };
@@ -43,6 +45,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -51,6 +55,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -59,6 +65,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -110,6 +118,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -118,6 +128,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -126,6 +138,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -145,6 +159,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -153,6 +169,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -161,6 +179,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -199,6 +219,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -207,6 +229,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -215,6 +239,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -338,6 +364,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -346,6 +374,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -354,6 +384,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -399,6 +431,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -407,6 +441,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -415,6 +451,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -453,6 +491,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -461,6 +501,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -469,6 +511,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -510,6 +554,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -518,6 +564,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -526,6 +574,8 @@ export class ExpensesService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },

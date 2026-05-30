@@ -12,7 +12,7 @@ import { Prisma } from '@prisma/client';
 type InventoryRecordWithRelations = Prisma.InventoryRecordGetPayload<{
   include: {
     inventoryItem: true;
-    user: { select: { id: true; username: true; email: true; role: true } };
+    user: { select: { id: true; username: true; firstName: true; lastName: true; email: true; role: true } };
   };
 }>;
 
@@ -179,7 +179,7 @@ export class InventoryService {
       },
       include: {
         inventoryItem: true,
-        user: { select: { id: true, username: true, email: true, role: true } },
+        user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
       },
     });
 
@@ -209,7 +209,7 @@ export class InventoryService {
           },
           include: {
             inventoryItem: true,
-            user: { select: { id: true, username: true, email: true, role: true } },
+            user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
           },
         }),
       ),
@@ -231,7 +231,7 @@ export class InventoryService {
       where,
       include: {
         inventoryItem: true,
-        user: { select: { id: true, username: true, email: true, role: true } },
+        user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
       },
       orderBy: { date: 'desc' },
     });

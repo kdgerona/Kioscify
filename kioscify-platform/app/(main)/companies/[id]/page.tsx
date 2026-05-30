@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
+import { formatRole } from '@/lib/utils';
 import type { Company, Brand, ThemeColors, Store, OnboardAdminPayload, User } from '@/types';
 import {
   ChevronLeft,
@@ -1454,12 +1455,6 @@ function UserRow({
   onReset: (user: User) => void;
   resetting: boolean;
 }) {
-  const roleLabel: Record<string, string> = {
-    COMPANY_ADMIN: 'Company Admin',
-    STORE_ADMIN: 'Store Admin',
-    ADMIN: 'Store Admin',
-    CASHIER: 'Cashier',
-  };
   const roleBadge: Record<string, string> = {
     COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
     STORE_ADMIN: 'bg-blue-100 text-blue-700',
@@ -1474,7 +1469,7 @@ function UserRow({
           <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
           <span className="text-xs text-gray-400">@{user.username}</span>
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleBadge[user.role] ?? 'bg-gray-100 text-gray-700'}`}>
-            {roleLabel[user.role] ?? user.role}
+            {formatRole(user.role)}
           </span>
         </div>
         <p className="text-xs text-gray-400 mt-0.5">{user.email}</p>

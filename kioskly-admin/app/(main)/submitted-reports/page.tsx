@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDateTime, formatRole, formatUserName } from "@/lib/utils";
 import {
   FileText,
   Search,
@@ -195,7 +195,7 @@ export default function SubmittedReportsPage() {
                       {formatDateTime(report.submittedAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {report.user?.email || report.user?.username || "N/A"}
+                      {formatUserName(report.user)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-bold text-gray-900">
@@ -285,9 +285,8 @@ export default function SubmittedReportsPage() {
                       Submitted By
                     </p>
                     <p className="text-xs sm:text-sm text-gray-900 break-words">
-                      {selectedReport.user?.email ||
-                        selectedReport.user?.username}{" "}
-                      ({selectedReport.user?.role})
+                      {formatUserName(selectedReport.user)}{" "}
+                      ({formatRole(selectedReport.user?.role)})
                     </p>
                   </div>
                   <div>
@@ -642,8 +641,7 @@ export default function SubmittedReportsPage() {
                                 {expense.user && (
                                   <span className="text-xs text-gray-500 truncate">
                                     by{" "}
-                                    {expense.user.username ||
-                                      expense.user.email}
+                                    {formatUserName(expense.user)}
                                   </span>
                                 )}
                               </div>

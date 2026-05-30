@@ -408,10 +408,10 @@ export class TransactionsService {
       } as any,
       include: {
         user: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         },
         voidRequester: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         } as any,
         items: {
           include: {
@@ -460,13 +460,13 @@ export class TransactionsService {
       where,
       include: {
         user: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         },
         voidRequester: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         } as any,
         voidReviewer: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         } as any,
         items: {
           include: {
@@ -520,13 +520,13 @@ export class TransactionsService {
       } as any,
       include: {
         user: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         },
         voidRequester: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         } as any,
         voidReviewer: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         } as any,
         items: {
           include: {
@@ -581,13 +581,13 @@ export class TransactionsService {
       } as any,
       include: {
         user: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         },
         voidRequester: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         } as any,
         voidReviewer: {
-          select: { id: true, username: true, email: true, role: true },
+          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
         } as any,
         items: {
           include: {

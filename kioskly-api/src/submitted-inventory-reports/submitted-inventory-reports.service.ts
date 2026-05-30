@@ -136,6 +136,8 @@ export class SubmittedInventoryReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -172,6 +174,8 @@ export class SubmittedInventoryReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -191,6 +195,8 @@ export class SubmittedInventoryReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },

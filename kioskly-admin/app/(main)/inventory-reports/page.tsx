@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { formatUserName } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
 import { FileText, Calendar, User, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
@@ -183,7 +184,7 @@ export default function InventoryReportsPage() {
                           {formatDateTime(report.submittedAt)}
                         </td>
                         <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
-                          {report.user.username}
+                          {formatUserName(report.user)}
                         </td>
                         <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
                           {report.inventorySnapshot.totalItems} items

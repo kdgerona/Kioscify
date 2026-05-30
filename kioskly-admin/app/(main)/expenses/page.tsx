@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDateTime, formatUserName } from "@/lib/utils";
 import {
   Receipt,
   Search,
@@ -268,7 +268,7 @@ export default function ExpensesPage() {
     const rows = expenses.map((e) => [
       e.description,
       formatDateTime(e.date),
-      e.user?.email || e.user?.username || "N/A",
+      formatUserName(e.user),
       e.amount,
       e.category,
       e.notes || "",
@@ -499,9 +499,7 @@ export default function ExpensesPage() {
                         {formatDateTime(expense.date)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {expense.user?.email ||
-                          expense.user?.username ||
-                          "N/A"}
+                        {formatUserName(expense.user)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-bold text-gray-900">
@@ -658,7 +656,7 @@ export default function ExpensesPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-gray-900">
-                            {request.voidRequester?.email || "N/A"}
+                            {formatUserName(request.voidRequester)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -823,9 +821,7 @@ export default function ExpensesPage() {
                       Added By
                     </p>
                     <p className="text-xs sm:text-sm text-gray-900 truncate">
-                      {selectedExpense.user?.email ||
-                        selectedExpense.user?.username ||
-                        "N/A"}
+                      {formatUserName(selectedExpense.user)}
                     </p>
                   </div>
                   <div>
@@ -904,8 +900,7 @@ export default function ExpensesPage() {
                               Requested By
                             </p>
                             <p className="text-xs sm:text-sm text-gray-900 truncate">
-                              {selectedExpense.voidRequester.email ||
-                                selectedExpense.voidRequester.username}
+                              {formatUserName(selectedExpense.voidRequester)}
                             </p>
                           </div>
                           {selectedExpense.voidRequestedAt && (
@@ -928,8 +923,7 @@ export default function ExpensesPage() {
                               Reviewed By
                             </p>
                             <p className="text-xs sm:text-sm text-gray-900 truncate">
-                              {selectedExpense.voidReviewer.email ||
-                                selectedExpense.voidReviewer.username}
+                              {formatUserName(selectedExpense.voidReviewer)}
                             </p>
                           </div>
                           {selectedExpense.voidReviewedAt && (

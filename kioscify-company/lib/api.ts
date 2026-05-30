@@ -116,6 +116,16 @@ class ApiClient {
     return data;
   }
 
+  getCurrentUser(): import('@/types').User | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
   // ─── Company ──────────────────────────────────────────────────────────────
 
   async getMyCompany(): Promise<Company> {
