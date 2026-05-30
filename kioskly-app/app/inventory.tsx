@@ -69,11 +69,11 @@ export default function InventoryScreen() {
     batchId: string;
   } | null>(null);
 
-  const { tenant, brand } = useTenant();
+  const { tenant } = useTenant();
   const { user } = useAuth();
-  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
-  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
-  const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
+  const primaryColor = tenant?.themeColors?.primary || "#ea580c";
+  const textColor = tenant?.themeColors?.text || "#1f2937";
+  const backgroundColor = tenant?.themeColors?.background || "#ffffff";
 
   // Generate unique batch ID
   const generateBatchId = () => `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -451,7 +451,7 @@ export default function InventoryScreen() {
   const categories = Object.keys(groupedItems) as InventoryCategory[];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor }}>
+    <SafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"

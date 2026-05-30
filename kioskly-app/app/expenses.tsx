@@ -56,11 +56,11 @@ export default function ExpensesScreen() {
     };
   }, []);
 
-  const { tenant, brand } = useTenant();
+  const { tenant } = useTenant();
   const { user } = useAuth();
-  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
-  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
-  const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
+  const primaryColor = tenant?.themeColors?.primary || "#ea580c";
+  const textColor = tenant?.themeColors?.text || "#1f2937";
+  const backgroundColor = tenant?.themeColors?.background || "#ffffff";
 
   useEffect(() => {
     if (!tenant || !user) {
@@ -213,7 +213,7 @@ export default function ExpensesScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor }}>
+    <SafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"

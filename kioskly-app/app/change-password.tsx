@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,9 +19,10 @@ export default function ChangePasswordScreen() {
   const { changePassword } = useAuth();
   const { tenant, brand } = useTenant();
 
-  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
-  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
-  const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
+  const primaryColor =
+    brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const textColor =
+    brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -95,28 +95,24 @@ export default function ChangePasswordScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor }}>
-      {/* Header */}
-      <View
-        className="px-6 py-4 flex-row items-center"
-        style={{ backgroundColor }}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, padding: 24 }}
+        keyboardShouldPersistTaps="handled"
+        className="bg-white"
       >
-        <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
-          <Ionicons name="arrow-back" size={24} color={textColor} />
-        </TouchableOpacity>
-        <Text className="text-2xl font-bold" style={{ color: textColor }}>
-          Change Password
-        </Text>
-      </View>
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1, padding: 24 }}
-          keyboardShouldPersistTaps="handled"
-        >
+        {/* Header */}
+        <View className="flex-row items-center mb-8 mt-4">
+          <TouchableOpacity onPress={() => router.back()} className="mr-4 p-1">
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <Text className="text-2xl font-bold" style={{ color: textColor }}>
+            Change Password
+          </Text>
+        </View>
 
         {success ? (
           <View className="flex-1 items-center justify-center">
@@ -175,8 +171,7 @@ export default function ChangePasswordScreen() {
             </TouchableOpacity>
           </>
         )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
