@@ -505,14 +505,14 @@ export default function Home() {
             <Text className="text-2xl font-bold" style={{ color: textColor }}>
               {tenant.name}
             </Text>
-            <View className="flex-row items-center gap-1.5 mt-1 bg-white rounded-full px-2.5 py-1 self-start" style={{ shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 2 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, backgroundColor: "white", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignSelf: "flex-start", borderWidth: 1, borderColor: "#f3f4f6", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 }}>
               <Image
                 source={require("../assets/images/logo-only.png")}
-                style={{ width: 18, height: 18 }}
+                style={{ width: 20, height: 20 }}
                 resizeMode="contain"
               />
-              <Text style={{ fontSize: 10, color: '#6b7280' }}>
-                Powered by <Text style={{ fontWeight: "600", color: '#374151' }}>Kioscify</Text>
+              <Text style={{ fontSize: 11, color: "#9ca3af" }}>
+                Powered by <Text style={{ fontWeight: "600", color: "#4b5563" }}>Kioscify</Text>
               </Text>
             </View>
           </View>

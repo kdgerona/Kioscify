@@ -425,17 +425,18 @@ export default function Index() {
             style={{
               flexDirection: "row", alignItems: "center", gap: 8,
               marginTop: 32, backgroundColor: "rgba(255,255,255,0.15)",
-              borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8,
+              borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+              borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
             }}
           >
             <Image
               source={KioscifyLogo}
-              style={{ width: 24, height: 24 }}
+              style={{ width: 20, height: 20 }}
               resizeMode="contain"
             />
-            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}>
+            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11 }}>
               Powered by{" "}
-              <Text style={{ fontWeight: "700" }}>Kioscify</Text>
+              <Text style={{ fontWeight: "600" }}>Kioscify</Text>
             </Text>
           </View>
         </ScrollView>
