@@ -168,12 +168,19 @@ export default function Home() {
   const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
   const backgroundColor = brand?.themeColors?.background ?? tenant.themeColors?.background ?? "#ffffff";
 
-  // Resolve logo URL — brand.logoUrl may be a relative path (service only formats store logoUrl)
+  // Resolve logo URL using the app's apiBase — strips any mismatched host from
+  // server-formatted URLs (BASE_URL may differ from the client's EXPO_PUBLIC_API_URL)
   const apiBase = process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:3000";
-  const rawLogoUri = brand?.logoUrl ?? tenant?.logoUrl ?? null;
-  const logoUri = rawLogoUri
-    ? rawLogoUri.startsWith("http") ? rawLogoUri : `${apiBase}${rawLogoUri}`
-    : null;
+  const resolveLogoUrl = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    try {
+      const path = raw.startsWith("http") ? new URL(raw).pathname : raw;
+      return `${apiBase}${path}`;
+    } catch {
+      return raw;
+    }
+  };
+  const logoUri = resolveLogoUrl(brand?.logoUrl ?? tenant?.logoUrl ?? null);
 
   const openCustomizeModal = (product: Product) => {
     setSelectedProduct(product);

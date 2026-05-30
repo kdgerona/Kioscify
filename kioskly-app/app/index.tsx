@@ -114,12 +114,18 @@ export default function Index() {
   const apiBase =
     process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") ||
     "http://localhost:3000";
-  const rawLogoUri = company?.logoUrl ?? brand?.logoUrl ?? tenant?.logoUrl ?? null;
-  const resolvedLogoUri = rawLogoUri
-    ? rawLogoUri.startsWith("http")
-      ? rawLogoUri
-      : `${apiBase}${rawLogoUri}`
-    : null;
+  const resolveLogoUrl = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    try {
+      const path = raw.startsWith("http") ? new URL(raw).pathname : raw;
+      return `${apiBase}${path}`;
+    } catch {
+      return raw;
+    }
+  };
+  const resolvedLogoUri = resolveLogoUrl(
+    company?.logoUrl ?? brand?.logoUrl ?? tenant?.logoUrl ?? null
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: primaryColor }}>
