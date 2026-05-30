@@ -141,6 +141,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch tenant");
       setTenant(null);
+      throw err;
     } finally {
       setLoading(false);
     }

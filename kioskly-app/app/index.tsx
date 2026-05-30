@@ -141,7 +141,7 @@ export default function Index() {
       />
       <View
         style={{
-          position: "absolute", top: "45%", right: -64,
+          position: "absolute", top: "50%", right: -64,
           width: 256, height: 256, borderRadius: 128,
           borderWidth: 30, borderColor: "white", opacity: 0.07,
         }}
