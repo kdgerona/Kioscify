@@ -37,13 +37,13 @@ export class UsersController {
   @UseGuards(RolesGuard)
   @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'List users in a store' })
-  getStoreUsers(@Param('storeId') storeId: string, @TenantId() tenantId: string) {
-    return this.usersService.getStoreUsers(storeId, tenantId);
+  getStoreUsers(@Param('storeId') storeId: string, @TenantId() tenantId: string, @Request() req) {
+    return this.usersService.getStoreUsers(storeId, tenantId, req.user.role);
   }
 
   @Post('stores/:storeId')
   @UseGuards(RolesGuard)
-  @Roles('STORE_ADMIN')
+  @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'Create a store user (returns temporary password)' })
   createStoreUser(
     @Param('storeId') storeId: string,
@@ -51,7 +51,7 @@ export class UsersController {
     @TenantId() tenantId: string,
     @Request() req,
   ) {
-    return this.usersService.createStoreUser(storeId, tenantId, dto, req.user.id);
+    return this.usersService.createStoreUser(storeId, tenantId, dto, req.user.id, req.user.role);
   }
 
   @Patch('stores/:storeId/:userId')
@@ -91,8 +91,27 @@ export class UsersController {
   getCompanyUsers(
     @Param('companyId') companyId: string,
     @CompanyId() requestingCompanyId: string,
+    @Request() req,
   ) {
-    return this.usersService.getCompanyUsers(companyId, requestingCompanyId);
+    return this.usersService.getCompanyUsers(companyId, requestingCompanyId, req.user.role);
+  }
+
+  // ─── Platform: all users for a company ────────────────────────────────────
+
+  @Get('company/:companyId/all')
+  @UseGuards(RolesGuard)
+  @Roles('PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Get all users (company admins + store staff) for a company' })
+  getCompanyAllUsers(@Param('companyId') companyId: string) {
+    return this.usersService.getCompanyAllUsers(companyId);
+  }
+
+  @Post(':userId/reset-password')
+  @UseGuards(RolesGuard)
+  @Roles('PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Reset a user\'s password (generates new temporary password)' })
+  resetPassword(@Param('userId') userId: string) {
+    return this.usersService.resetPassword(userId);
   }
 
   @Post('companies/:companyId')

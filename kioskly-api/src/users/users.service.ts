@@ -19,8 +19,8 @@ export class UsersService {
 
   // ─── Store users ──────────────────────────────────────────────────────────
 
-  async getStoreUsers(storeId: string, requestingTenantId: string) {
-    if (storeId !== requestingTenantId) {
+  async getStoreUsers(storeId: string, requestingTenantId: string, requestingRole?: string) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && storeId !== requestingTenantId) {
       throw new ForbiddenException('Access denied');
     }
     return this.prisma.user.findMany({
@@ -45,8 +45,9 @@ export class UsersService {
     requestingTenantId: string,
     dto: CreateStoreUserDto,
     requestingUserId: string,
+    requestingRole?: string,
   ) {
-    if (storeId !== requestingTenantId) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && storeId !== requestingTenantId) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -143,8 +144,8 @@ export class UsersService {
 
   // ─── Company users ────────────────────────────────────────────────────────
 
-  async getCompanyUsers(companyId: string, requestingCompanyId: string) {
-    if (companyId !== requestingCompanyId) throw new ForbiddenException('Access denied');
+  async getCompanyUsers(companyId: string, requestingCompanyId: string, requestingRole?: string) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) throw new ForbiddenException('Access denied');
     return this.prisma.user.findMany({
       where: { companyId, role: 'COMPANY_ADMIN', tenantId: null },
       select: {
@@ -331,6 +332,67 @@ export class UsersService {
       }
       return { ...u, allStores };
     });
+  }
+
+  // ─── Platform: all users for a company ───────────────────────────────────
+
+  async getCompanyAllUsers(companyId: string) {
+    const select = {
+      id: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      role: true,
+      isActive: true,
+      isFirstLogin: true,
+      createdAt: true,
+    };
+
+    const [companyAdmins, storeUsers] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { companyId, role: 'COMPANY_ADMIN', tenantId: null },
+        select,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.findMany({
+        where: {
+          companyId,
+          role: { in: ['STORE_ADMIN', 'ADMIN', 'CASHIER'] },
+        },
+        select: {
+          ...select,
+          tenant: { select: { id: true, name: true, slug: true } },
+        },
+        orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
+      }),
+    ]);
+
+    return { companyAdmins, storeUsers };
+  }
+
+  // ─── Platform: reset a user's password ────────────────────────────────────
+
+  async resetPassword(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const password = this.authService.generateSecurePassword();
+    const hashed = await bcrypt.hash(password, 12);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed, isFirstLogin: true },
+    });
+
+    return {
+      user,
+      temporaryPassword: password,
+      note: 'User will be required to change this password on next login.',
+    };
   }
 
   private async assertStoreUserExists(userId: string, storeId: string) {

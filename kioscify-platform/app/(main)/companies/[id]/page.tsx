@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import type { Company, Brand, ThemeColors, Store, OnboardAdminPayload } from '@/types';
+import type { Company, Brand, ThemeColors, Store, OnboardAdminPayload, User } from '@/types';
 import {
   ChevronLeft,
   Plus,
@@ -16,10 +16,18 @@ import {
   Upload,
   Pencil,
   QrCode,
+  KeyRound,
+  Users,
+  ShieldCheck,
+  BadgeCheck,
 } from 'lucide-react';
 import StoreQRModal from '@/components/StoreQRModal';
 
-type Tab = 'settings' | 'brands' | 'stores';
+type Tab = 'settings' | 'brands' | 'stores' | 'users';
+
+interface StoreUser extends User {
+  tenant: { id: string; name: string; slug: string } | null;
+}
 
 // ─── Modal wrapper ────────────────────────────────────────────────────────
 
@@ -208,6 +216,22 @@ export default function CompanyDetailPage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoSuccess, setLogoSuccess] = useState(false);
 
+  // Users tab
+  const [companyAdmins, setCompanyAdmins] = useState<User[]>([]);
+  const [storeUsers, setStoreUsers] = useState<StoreUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [resetPasswordResult, setResetPasswordResult] = useState<{ userName: string; password: string } | null>(null);
+  const [resetingUserId, setResetingUserId] = useState<string | null>(null);
+  const [showAddCashier, setShowAddCashier] = useState(false);
+  const [cashierStoreId, setCashierStoreId] = useState('');
+  const [cashierStoreName, setCashierStoreName] = useState('');
+  const [cashierFirstName, setCashierFirstName] = useState('');
+  const [cashierLastName, setCashierLastName] = useState('');
+  const [cashierEmail, setCashierEmail] = useState('');
+  const [cashierUsername, setCashierUsername] = useState('');
+  const [cashierLoading, setCashierLoading] = useState(false);
+  const [cashierError, setCashierError] = useState<string | null>(null);
+
   // Onboard admin form
   const [adminFirstName, setAdminFirstName] = useState('');
   const [adminLastName, setAdminLastName] = useState('');
@@ -314,9 +338,26 @@ export default function CompanyDetailPage() {
     }
   }, [companyId]);
 
+  const loadUsers = useCallback(async () => {
+    setUsersLoading(true);
+    try {
+      const { companyAdmins: ca, storeUsers: su } = await api.getCompanyAllUsers(companyId);
+      setCompanyAdmins(ca);
+      setStoreUsers(su);
+    } catch {
+      // silent — users tab shows empty state
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [companyId]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (activeTab === 'users') loadUsers();
+  }, [activeTab, loadUsers]);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -485,6 +526,51 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const handleResetPassword = async (user: User) => {
+    setResetingUserId(user.id);
+    try {
+      const result = await api.resetUserPassword(user.id);
+      setResetPasswordResult({
+        userName: `${user.firstName} ${user.lastName} (@${user.username})`,
+        password: result.temporaryPassword,
+      });
+      // Refresh users list to update status badge
+      await loadUsers();
+    } catch {
+      // no-op — leave banner closed
+    } finally {
+      setResetingUserId(null);
+    }
+  };
+
+  const handleAddCashier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCashierError(null);
+    if (!cashierStoreId) { setCashierError('Please select a store.'); return; }
+    setCashierLoading(true);
+    try {
+      const result = await api.createStoreUser(cashierStoreId, {
+        firstName: cashierFirstName,
+        lastName: cashierLastName,
+        email: cashierEmail,
+        username: cashierUsername,
+        role: 'CASHIER',
+      });
+      setResetPasswordResult({
+        userName: `${result.user.firstName} ${result.user.lastName} (@${result.user.username})`,
+        password: result.temporaryPassword,
+      });
+      setCashierFirstName(''); setCashierLastName(''); setCashierEmail(''); setCashierUsername(''); setCashierStoreId('');
+      setShowAddCashier(false);
+      await loadUsers();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setCashierError(axiosErr?.response?.data?.message || 'Failed to create cashier');
+    } finally {
+      setCashierLoading(false);
+    }
+  };
+
   const handleToggleStoreActive = async (store: Store) => {
     try {
       const updated = await api.updateStore(store.id, { isActive: !store.isActive });
@@ -533,6 +619,13 @@ export default function CompanyDetailPage() {
           onClose={() => setAdminPassword(null)}
         />
       )}
+      {resetPasswordResult && (
+        <PasswordBanner
+          title={`Password reset for ${resetPasswordResult.userName}`}
+          password={resetPasswordResult.password}
+          onClose={() => setResetPasswordResult(null)}
+        />
+      )}
       {storePassword && (
         <PasswordBanner
           title={`Store "${storePassword.storeName}" onboarded successfully`}
@@ -567,7 +660,7 @@ export default function CompanyDetailPage() {
       {/* Tabs */}
       <div className="border-b">
         <nav className="flex gap-1">
-          {(['settings', 'brands', 'stores'] as Tab[]).map(tab => (
+          {(['settings', 'brands', 'stores', 'users'] as Tab[]).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -581,6 +674,11 @@ export default function CompanyDetailPage() {
               {tab === 'stores' && stores.length > 0 && (
                 <span className="ml-1.5 text-xs bg-gray-100 text-gray-600 rounded-full px-1.5 py-0.5">
                   {stores.length}
+                </span>
+              )}
+              {tab === 'users' && (companyAdmins.length + storeUsers.length) > 0 && (
+                <span className="ml-1.5 text-xs bg-gray-100 text-gray-600 rounded-full px-1.5 py-0.5">
+                  {companyAdmins.length + storeUsers.length}
                 </span>
               )}
             </button>
@@ -841,6 +939,81 @@ export default function CompanyDetailPage() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Users tab */}
+      {activeTab === 'users' && (
+        <div className="space-y-6">
+          {usersLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600" />
+            </div>
+          ) : (
+            <>
+              {/* Company Admins */}
+              <div className="bg-white rounded-lg border">
+                <div className="px-5 py-4 border-b flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-indigo-500" />
+                  <h3 className="font-semibold text-gray-900 text-sm">Company Admins</h3>
+                  <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{companyAdmins.length}</span>
+                </div>
+                {companyAdmins.length === 0 ? (
+                  <div className="px-5 py-8 text-center text-sm text-gray-400">No company admin users yet</div>
+                ) : (
+                  <div className="divide-y">
+                    {companyAdmins.map(user => (
+                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Per-store staff sections */}
+              {stores.length === 0 ? (
+                <div className="bg-white rounded-lg border py-12 text-center text-sm text-gray-400">
+                  No stores yet — onboard a store first to manage its staff
+                </div>
+              ) : (
+                stores.map(store => {
+                  const staff = storeUsers.filter(u => u.tenant?.id === store.id);
+                  return (
+                    <div key={store.id} className="bg-white rounded-lg border">
+                      <div className="px-5 py-4 border-b flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <StoreIcon className="w-4 h-4 text-indigo-500" />
+                          <h3 className="font-semibold text-gray-900 text-sm">{store.name}</h3>
+                          <span className="text-xs text-gray-400">{store.slug}</span>
+                          <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{staff.length} staff</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setCashierStoreId(store.id);
+                            setCashierStoreName(store.name);
+                            setCashierError(null);
+                            setShowAddCashier(true);
+                          }}
+                          className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 rounded px-2.5 py-1.5"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          Add Cashier
+                        </button>
+                      </div>
+                      {staff.length === 0 ? (
+                        <div className="px-5 py-6 text-center text-sm text-gray-400">No staff in this store yet</div>
+                      ) : (
+                        <div className="divide-y">
+                          {staff.map(user => (
+                            <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </>
           )}
         </div>
       )}
@@ -1222,6 +1395,41 @@ export default function CompanyDetailPage() {
         </Modal>
       )}
 
+      {/* Add Cashier modal */}
+      {showAddCashier && (
+        <Modal title={`Add Cashier — ${cashierStoreName}`} onClose={() => { setShowAddCashier(false); setCashierError(null); }}>
+          <form onSubmit={handleAddCashier} className="space-y-4">
+            {cashierError && <p className="text-red-600 text-sm">{cashierError}</p>}
+            <AdminFields
+              firstName={cashierFirstName}
+              lastName={cashierLastName}
+              email={cashierEmail}
+              username={cashierUsername}
+              setFirstName={setCashierFirstName}
+              setLastName={setCashierLastName}
+              setEmail={setCashierEmail}
+              setUsername={setCashierUsername}
+            />
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => { setShowAddCashier(false); setCashierError(null); }}
+                className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={cashierLoading}
+                className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {cashierLoading ? 'Creating...' : 'Create Cashier'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
       {qrStore && (
         <StoreQRModal
           storeName={qrStore.storeName}
@@ -1231,6 +1439,68 @@ export default function CompanyDetailPage() {
           onClose={() => setQrStore(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ─── User row ─────────────────────────────────────────────────────────────
+
+function UserRow({
+  user,
+  onReset,
+  resetting,
+}: {
+  user: User;
+  onReset: (user: User) => void;
+  resetting: boolean;
+}) {
+  const roleLabel: Record<string, string> = {
+    COMPANY_ADMIN: 'Company Admin',
+    STORE_ADMIN: 'Store Admin',
+    ADMIN: 'Store Admin',
+    CASHIER: 'Cashier',
+  };
+  const roleBadge: Record<string, string> = {
+    COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
+    STORE_ADMIN: 'bg-blue-100 text-blue-700',
+    ADMIN: 'bg-blue-100 text-blue-700',
+    CASHIER: 'bg-gray-100 text-gray-700',
+  };
+
+  return (
+    <div className="px-5 py-4 flex items-center gap-4">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
+          <span className="text-xs text-gray-400">@{user.username}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleBadge[user.role] ?? 'bg-gray-100 text-gray-700'}`}>
+            {roleLabel[user.role] ?? user.role}
+          </span>
+        </div>
+        <p className="text-xs text-gray-400 mt-0.5">{user.email}</p>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        {user.isFirstLogin ? (
+          <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+            Pending setup
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">
+            <BadgeCheck className="w-3 h-3" />
+            Active
+          </span>
+        )}
+        <button
+          onClick={() => onReset(user)}
+          disabled={resetting}
+          title="Reset password"
+          className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 border border-gray-200 hover:border-indigo-300 rounded px-2.5 py-1.5 transition-colors disabled:opacity-50"
+        >
+          <KeyRound className="w-3.5 h-3.5" />
+          {resetting ? 'Resetting...' : 'Reset Password'}
+        </button>
+      </div>
     </div>
   );
 }

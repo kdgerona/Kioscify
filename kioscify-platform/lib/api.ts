@@ -303,6 +303,29 @@ class ApiClient {
   async assignUserToStore(storeId: string, payload: { username: string; role: 'STORE_ADMIN' | 'CASHIER' }): Promise<void> {
     await this.client.post(`/users/stores/${storeId}/assign`, payload);
   }
+
+  // ─── Platform user management ─────────────────────────────────────────────
+
+  async getCompanyAllUsers(companyId: string): Promise<{
+    companyAdmins: User[];
+    storeUsers: (User & { tenant: { id: string; name: string; slug: string } | null })[];
+  }> {
+    const { data } = await this.client.get(`/users/company/${companyId}/all`);
+    return data;
+  }
+
+  async resetUserPassword(userId: string): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/users/${userId}/reset-password`);
+    return data;
+  }
+
+  async createStoreUser(
+    storeId: string,
+    payload: { firstName: string; lastName: string; email: string; username: string; role: 'STORE_ADMIN' | 'CASHIER' }
+  ): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/users/stores/${storeId}`, payload);
+    return data;
+  }
 }
 
 export const api = new ApiClient();
