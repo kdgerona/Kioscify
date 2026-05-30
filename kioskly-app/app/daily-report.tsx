@@ -289,7 +289,8 @@ export default function DailyReport() {
             <Ionicons name="alert-circle" size={48} color="#ef4444" />
             <Text className="mt-4 text-red-600 text-center">{error}</Text>
             <TouchableOpacity
-              className="mt-4 bg-gray-800 rounded-lg px-6 py-3"
+              className="mt-4 rounded-lg px-6 py-3"
+              style={{ backgroundColor: primaryColor }}
               onPress={() => router.back()}
             >
               <Text className="text-white font-semibold">Go Back</Text>
