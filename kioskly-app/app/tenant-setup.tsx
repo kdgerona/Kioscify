@@ -229,11 +229,19 @@ export default function TenantSetup() {
             <View style={{ width: 80, height: 80, backgroundColor: "white", borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 }}>
               <Image source={AppLogo} style={{ width: 60, height: 60 }} resizeMode="contain" />
             </View>
-            <Text style={{ color: "white", fontSize: 20, fontWeight: "800", textAlign: "center", marginBottom: 6 }}>
-              Welcome to{"\n"}Kioscify
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              style={{ color: "white", fontSize: 20, fontWeight: "800", textAlign: "center", marginBottom: 6 }}
+            >
+              Welcome to Kioscify
             </Text>
-            <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, textAlign: "center", lineHeight: 18 }}>
-              Smart Store Management{"\n"}& Monitoring Platform
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              style={{ color: "rgba(255,255,255,0.75)", fontSize: 12, textAlign: "center" }}
+            >
+              Smart Store Management & Monitoring Platform
             </Text>
           </SafeAreaView>
         </View>
