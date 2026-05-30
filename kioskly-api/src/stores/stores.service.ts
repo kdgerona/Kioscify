@@ -27,11 +27,18 @@ export class StoresService {
     this.baseUrl = this.configService.get<string>(appConstants.base_url) || '';
   }
 
-  private formatLogoUrl(store: Tenant): Tenant {
-    if (store.logoUrl && !store.logoUrl.startsWith('http')) {
-      return { ...store, logoUrl: `${this.baseUrl}${store.logoUrl}` };
+  private formatLogoUrl(store: any): any {
+    const result = { ...store };
+    if (result.logoUrl && !result.logoUrl.startsWith('http')) {
+      result.logoUrl = `${this.baseUrl}${result.logoUrl}`;
     }
-    return store;
+    if (result.brand?.logoUrl && !result.brand.logoUrl.startsWith('http')) {
+      result.brand = { ...result.brand, logoUrl: `${this.baseUrl}${result.brand.logoUrl}` };
+    }
+    if (result.company?.logoUrl && !result.company.logoUrl.startsWith('http')) {
+      result.company = { ...result.company, logoUrl: `${this.baseUrl}${result.company.logoUrl}` };
+    }
+    return result;
   }
 
   async findAll(companyId?: string, brandId?: string) {

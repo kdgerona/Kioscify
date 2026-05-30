@@ -167,7 +167,13 @@ export default function Home() {
   const primaryColor = brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
   const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
   const backgroundColor = brand?.themeColors?.background ?? tenant.themeColors?.background ?? "#ffffff";
-  const logoUri = brand?.logoUrl ?? tenant.logoUrl ?? null;
+
+  // Resolve logo URL — brand.logoUrl may be a relative path (service only formats store logoUrl)
+  const apiBase = process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") || "http://localhost:3000";
+  const rawLogoUri = brand?.logoUrl ?? tenant?.logoUrl ?? null;
+  const logoUri = rawLogoUri
+    ? rawLogoUri.startsWith("http") ? rawLogoUri : `${apiBase}${rawLogoUri}`
+    : null;
 
   const openCustomizeModal = (product: Product) => {
     setSelectedProduct(product);
