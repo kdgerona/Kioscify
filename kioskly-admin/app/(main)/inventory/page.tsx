@@ -664,12 +664,16 @@ export default function InventoryPage() {
                         </td>
                         <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm">
                           {editingThresholdId === item.id ? (
-                            <input
-                              type="number" min={1}
-                              value={thresholdValues.expirationWarningDays ?? ''}
-                              onChange={(e) => setThresholdValues({ ...thresholdValues, expirationWarningDays: e.target.value === '' ? undefined : parseInt(e.target.value) })}
-                              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
-                            />
+                            item.requiresExpirationDate ? (
+                              <input
+                                type="number" min={1}
+                                value={thresholdValues.expirationWarningDays ?? ''}
+                                onChange={(e) => setThresholdValues({ ...thresholdValues, expirationWarningDays: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
+                              />
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )
                           ) : (
                             <span className="text-gray-600">
                               {item.requiresExpirationDate && item.expirationWarningDays != null
