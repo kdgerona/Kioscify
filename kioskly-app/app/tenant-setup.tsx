@@ -134,7 +134,7 @@ export default function TenantSetup() {
             </Text>
           </TouchableOpacity>
 
-          {permission && !permission.granted && (
+          {permission && !permission.granted && !permission.canAskAgain && (
             <View className="mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
               <Text className="text-sm text-orange-800 text-center">
                 Camera access is required to scan QR codes.{" "}
