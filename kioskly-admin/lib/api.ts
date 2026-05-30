@@ -60,10 +60,12 @@ class ApiClient {
       (error: AxiosError<ApiError>) => {
         const isAuthEndpoint = error.config?.url?.includes('/auth/');
         if (error.response?.status === 401 && !isAuthEndpoint) {
-          // Unauthorized - clear token and redirect to login
           this.clearToken();
           if (typeof window !== "undefined") {
-            window.location.href = "/login";
+            const companySlug = localStorage.getItem("kioscify_portal_company_slug");
+            const brandSlug = localStorage.getItem("kioscify_portal_brand_slug");
+            window.location.href =
+              companySlug && brandSlug ? `/${companySlug}/${brandSlug}` : "/login";
           }
         }
         return Promise.reject(error);
@@ -131,7 +133,10 @@ class ApiClient {
     if (typeof window !== "undefined") {
       localStorage.removeItem("user");
       localStorage.removeItem("kioscify_accessible_stores");
-      window.location.href = "/login";
+      const companySlug = localStorage.getItem("kioscify_portal_company_slug");
+      const brandSlug = localStorage.getItem("kioscify_portal_brand_slug");
+      window.location.href =
+        companySlug && brandSlug ? `/${companySlug}/${brandSlug}` : "/login";
     }
   }
 

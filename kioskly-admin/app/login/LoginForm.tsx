@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
+
+const PORTAL_COMPANY_KEY = "kioscify_portal_company_slug";
+const PORTAL_BRAND_KEY = "kioscify_portal_brand_slug";
+const STORE_SLUG_KEY = "kioscify_store_slug";
 
 interface BrandInfo {
   name: string;
@@ -28,11 +32,18 @@ export default function LoginForm({
   const router = useRouter();
   const { fetchTenantBySlug } = useTenant();
   const [storeSlug, setStoreSlug] = useState("");
+  const [rememberedSlug, setRememberedSlug] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Pre-fill store slug from previous login
+  useEffect(() => {
+    const saved = localStorage.getItem(STORE_SLUG_KEY);
+    if (saved) { setStoreSlug(saved); setRememberedSlug(true); }
+  }, []);
 
   const primaryColor = brand?.themeColors?.primary || "#ea580c";
 
@@ -61,6 +72,9 @@ export default function LoginForm({
       }
 
       localStorage.setItem("user", JSON.stringify(response.user));
+      // Persist portal slugs for post-logout redirect
+      if (companySlug) localStorage.setItem(PORTAL_COMPANY_KEY, companySlug);
+      if (brandSlug) localStorage.setItem(PORTAL_BRAND_KEY, brandSlug);
 
       if ((response as any).mustChangePassword || response.user.isFirstLogin) {
         router.push("/change-password");
@@ -142,17 +156,33 @@ export default function LoginForm({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Store ID / Slug
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Store ID / Slug
+              </label>
+              {rememberedSlug && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStoreSlug("");
+                    setRememberedSlug(false);
+                    localStorage.removeItem(STORE_SLUG_KEY);
+                  }}
+                  className="text-xs text-gray-400 hover:text-gray-600 underline"
+                >
+                  Change Store
+                </button>
+              )}
+            </div>
             <input
               type="text"
               value={storeSlug}
               onChange={(e) => setStoreSlug(e.target.value)}
               required
+              readOnly={rememberedSlug}
               autoCapitalize="none"
               autoCorrect="off"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none text-sm text-gray-900"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:border-transparent outline-none text-sm text-gray-900 ${rememberedSlug ? 'bg-gray-50 border-gray-200 cursor-default' : 'border-gray-300'}`}
               style={{ "--tw-ring-color": primaryColor } as React.CSSProperties}
               placeholder="e.g. mr-lemon-branch-1"
             />

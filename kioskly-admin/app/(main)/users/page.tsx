@@ -273,7 +273,7 @@ export default function UsersPage() {
                       </button>
                     )}
                     {currentUser?.id === user.id && (
-                      <span className="text-xs text-gray-300">You</span>
+                      <span className="text-xs text-gray-400">No action</span>
                     )}
                   </td>
                 </tr>

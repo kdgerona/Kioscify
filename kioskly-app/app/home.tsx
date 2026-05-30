@@ -524,6 +524,13 @@ export default function Home() {
           <View className="w-px bg-black self-stretch mx-2" />
           <TouchableOpacity
             className="rounded-lg p-2"
+            onPress={() => router.push("/change-password" as Href)}
+          >
+            <Ionicons name="key-outline" size={24} color={textColor} />
+          </TouchableOpacity>
+          <View className="w-px bg-black self-stretch mx-2" />
+          <TouchableOpacity
+            className="rounded-lg p-2"
             onPress={handleLogout}
           >
             <Ionicons name="log-out-outline" size={24} color={textColor} />

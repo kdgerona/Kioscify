@@ -30,6 +30,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   clearError: () => void;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -168,6 +169,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
   }, []);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+    if (!apiUrl) throw new Error('API URL not configured');
+    const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
+    const response = await fetch(`${apiUrl}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${storedToken}` },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data?.message || 'Failed to change password');
+    }
+    // Update stored user — clear first-login flag
+    if (user) {
+      const updated = { ...user, isFirstLogin: false, mustChangePassword: false };
+      setUser(updated);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+    }
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -181,6 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logout,
         loadStoredAuth,
         clearError,
+        changePassword,
       }}
     >
       {children}
