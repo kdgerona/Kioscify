@@ -94,10 +94,30 @@ export class AuthService {
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
     if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
 
+    // Store Portal is STORE_ADMIN only — CASHIER users must use the mobile app
+    const storePortalRoles = ['ADMIN', 'STORE_ADMIN'];
+    if (!storePortalRoles.includes(user.role)) {
+      throw new UnauthorizedException(
+        'Access denied. Store Admin access required.',
+      );
+    }
+
     // Fetch related data needed to build the stores list (kept separate from auth query)
     const storeSelect = {
-      id: true, name: true, slug: true, brandId: true, companyId: true,
-      brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true } },
+      id: true,
+      name: true,
+      slug: true,
+      brandId: true,
+      companyId: true,
+      brand: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logoUrl: true,
+          themeColors: true,
+        },
+      },
       company: { select: { id: true, name: true, slug: true, logoUrl: true } },
     };
     const userWithRelations = await this.prisma.user.findUnique({
@@ -113,7 +133,10 @@ export class AuthService {
     const enrichedUser = { ...user, ...userWithRelations };
 
     // Build full list of accessible stores
-    const accessibleStores = this.buildAccessibleStoresList(enrichedUser, store.id);
+    const accessibleStores = this.buildAccessibleStoresList(
+      enrichedUser,
+      store.id,
+    );
 
     const activeStore =
       accessibleStores.find((s) => s.id === store.id) ?? accessibleStores[0];

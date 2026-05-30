@@ -17,8 +17,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import type { SubmittedReport } from "@/types";
 
 export default function SubmittedReportsPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const [reports, setReports] = useState<SubmittedReport[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);

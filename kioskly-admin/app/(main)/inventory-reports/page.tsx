@@ -7,8 +7,8 @@ import { FileText, Calendar, User, TrendingUp, AlertTriangle, RefreshCw } from '
 import Link from 'next/link';
 
 export default function InventoryReportsPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || '#4f46e5';
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? '#ea580c';
 
   const [reports, setReports] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);

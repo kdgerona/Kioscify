@@ -18,8 +18,8 @@ import {
 import { ExpirationBatch } from "@/types";
 
 export default function InventoryPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
 
   // State management
   const [stats, setStats] = useState<InventoryStats | null>(null);

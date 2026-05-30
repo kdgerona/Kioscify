@@ -17,8 +17,8 @@ import Link from "next/link";
 type ViewMode = "day_over_day" | "weekly_trend";
 
 export default function InventoryProgressionPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
 
   const [viewMode, setViewMode] = useState<ViewMode>("day_over_day");
   const [progression, setProgression] = useState<any>(null);

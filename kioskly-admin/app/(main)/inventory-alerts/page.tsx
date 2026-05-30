@@ -59,8 +59,8 @@ interface AlertsData {
 }
 
 export default function InventoryAlertsPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
 
   const [alertsData, setAlertsData] = useState<AlertsData | null>(null);
   const [loading, setLoading] = useState(true);

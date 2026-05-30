@@ -51,8 +51,8 @@ interface AnalyticsData {
 }
 
 export default function DashboardPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [dailyAnalytics, setDailyAnalytics] = useState<AnalyticsData | null>(
     null

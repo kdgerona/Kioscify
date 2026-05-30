@@ -118,7 +118,7 @@ export class ExpensesController {
 
   @Get('void-requests')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STORE_ADMIN')
   @ApiOperation({ summary: 'Get all void requests for expenses' })
   @ApiQuery({
     name: 'status',
@@ -215,7 +215,7 @@ export class ExpensesController {
 
   @Patch('void-requests/:id/approve')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STORE_ADMIN')
   @ApiOperation({ summary: 'Approve a void request' })
   @ApiResponse({
     status: 200,
@@ -229,7 +229,7 @@ export class ExpensesController {
 
   @Patch('void-requests/:id/reject')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STORE_ADMIN')
   @ApiOperation({ summary: 'Reject a void request' })
   @ApiResponse({
     status: 200,

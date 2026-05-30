@@ -124,7 +124,7 @@ export class TransactionsController {
   @ApiQuery({ name: 'endDate', required: false })
   @ApiResponse({ status: 200, description: 'Void requests retrieved successfully' })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STORE_ADMIN')
   getVoidRequests(
     @Query() filters: VoidFiltersDto,
     @TenantId() tenantId: string,
@@ -168,7 +168,7 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   @ApiResponse({ status: 400, description: 'Invalid void request' })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'CASHIER')
+  @Roles('ADMIN', 'STORE_ADMIN', 'CASHIER')
   requestVoid(
     @Param('id') id: string,
     @Body() requestVoidDto: RequestVoidDto,
@@ -188,7 +188,7 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   @ApiResponse({ status: 400, description: 'Invalid void request status' })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STORE_ADMIN')
   approveVoid(@Param('id') id: string, @Request() req) {
     return this.transactionsService.approveVoid(
       id,
@@ -203,7 +203,7 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   @ApiResponse({ status: 400, description: 'Invalid void request status' })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STORE_ADMIN')
   rejectVoid(
     @Param('id') id: string,
     @Body() reviewVoidDto: ReviewVoidDto,

@@ -55,7 +55,7 @@ export default function LoginForm({
       const allowedRoles = ["STORE_ADMIN", "ADMIN"];
       if (!allowedRoles.includes(response.user.role)) {
         setError("Access denied. Store Admin access required.");
-        api.logout();
+        api.clearToken(); // clear token without redirecting — stay on login page to show error
         setLoading(false);
         return;
       }

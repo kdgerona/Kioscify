@@ -7,9 +7,15 @@ import type { User, StoreUserCreatePayload } from '@/types';
 import { UserPlus, Eye, EyeOff, UserCheck, UserX } from 'lucide-react';
 
 export default function UsersPage() {
-  const { tenant } = useTenant();
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? '#ea580c';
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const currentUser = typeof window !== 'undefined'
+    ? (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })()
+    : null;
+  const isStoreAdmin = currentUser?.role === 'STORE_ADMIN' || currentUser?.role === 'ADMIN';
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -83,13 +89,16 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Store Users</h1>
           <p className="text-sm text-gray-500 mt-1">Manage staff accounts for this store</p>
         </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
-        >
-          <UserPlus className="h-4 w-4" />
-          Add User
-        </button>
+        {isStoreAdmin && (
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <UserPlus className="h-4 w-4" />
+            Add User
+          </button>
+        )}
       </div>
 
       {/* New password display */}
@@ -122,8 +131,8 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Create form */}
-      {showCreateForm && (
+      {/* Create form — STORE_ADMIN only */}
+      {showCreateForm && isStoreAdmin && (
         <div className="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-4">Add New User</h2>
           {error && (
@@ -194,7 +203,8 @@ export default function UsersPage() {
               <button
                 type="submit"
                 disabled={formLoading}
-                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm text-white rounded-lg hover:opacity-90 transition disabled:opacity-50"
+                style={{ backgroundColor: primaryColor }}
               >
                 {formLoading ? 'Creating...' : 'Create User'}
               </button>
@@ -249,17 +259,22 @@ export default function UsersPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleToggleActive(user)}
-                      title={user.isActive ? 'Deactivate' : 'Activate'}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      {user.isActive ? (
-                        <UserX className="h-4 w-4" />
-                      ) : (
-                        <UserCheck className="h-4 w-4" />
-                      )}
-                    </button>
+                    {isStoreAdmin && currentUser?.id !== user.id && (
+                      <button
+                        onClick={() => handleToggleActive(user)}
+                        title={user.isActive ? 'Deactivate' : 'Activate'}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        {user.isActive ? (
+                          <UserX className="h-4 w-4" />
+                        ) : (
+                          <UserCheck className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                    {currentUser?.id === user.id && (
+                      <span className="text-xs text-gray-300">You</span>
+                    )}
                   </td>
                 </tr>
               ))}
