@@ -518,8 +518,8 @@ export default function Home() {
             <Ionicons name="cube-outline" size={24} color={textColor} />
           </TouchableOpacity>
           <View className="w-px bg-black self-stretch mx-2" />
-          <TouchableOpacity className="p-2" onPress={() => router.push("/change-password" as Href)}>
-            <Ionicons name="key-outline" size={24} color={textColor} />
+          <TouchableOpacity className="p-2" onPress={() => router.push("/settings" as Href)}>
+            <Ionicons name="settings-outline" size={24} color={textColor} />
           </TouchableOpacity>
           <View className="w-px bg-black self-stretch mx-2" />
           <TouchableOpacity className="p-2" onPress={handleLogout}>
