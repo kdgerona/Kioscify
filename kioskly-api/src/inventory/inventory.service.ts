@@ -195,27 +195,37 @@ export class InventoryService {
       throw new NotFoundException('One or more inventory items not found');
     }
 
-    const records = await this.prisma.$transaction(
-      dto.records.map((r) =>
-        this.prisma.inventoryRecord.create({
-          data: {
-            inventoryItemId: r.inventoryItemId,
-            quantity: r.quantity,
-            date: r.date ? new Date(r.date) : new Date(),
-            notes: r.notes,
-            userId,
-            tenantId,
-            clientId: r.clientId,
-          },
-          include: {
-            inventoryItem: true,
-            user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
-          },
-        }),
-      ),
-    );
+    // Pre-flight deduplication: skip records with clientIds already in DB
+    const clientIds = dto.records.map((r) => r.clientId).filter((id): id is string => !!id);
+    const existingRecords = clientIds.length
+      ? await this.prisma.inventoryRecord.findMany({ where: { tenantId, clientId: { in: clientIds } } })
+      : [];
+    const syncedClientIds = new Set(existingRecords.map((r) => r.clientId));
+    const toCreate = dto.records.filter((r) => !r.clientId || !syncedClientIds.has(r.clientId));
 
-    return records.map((r) => this.formatRecord(r));
+    const newRecords = toCreate.length
+      ? await this.prisma.$transaction(
+          toCreate.map((r) =>
+            this.prisma.inventoryRecord.create({
+              data: {
+                inventoryItemId: r.inventoryItemId,
+                quantity: r.quantity,
+                date: r.date ? new Date(r.date) : new Date(),
+                notes: r.notes,
+                userId,
+                tenantId,
+                clientId: r.clientId,
+              },
+              include: {
+                inventoryItem: true,
+                user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
+              },
+            }),
+          ),
+        )
+      : [];
+
+    return newRecords.map((r) => this.formatRecord(r));
   }
 
   async findAllRecords(tenantId: string, filters?: { startDate?: Date; endDate?: Date; inventoryItemId?: string }) {

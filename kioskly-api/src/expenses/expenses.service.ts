@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
@@ -33,10 +34,18 @@ export class ExpensesService {
     userId: string,
     tenantId: string,
   ) {
+    const { clientId, ...expenseData } = createExpenseDto;
+
+    if (clientId) {
+      const existing = await this.prisma.expense.findFirst({ where: { tenantId, clientId } });
+      if (existing) throw new ConflictException({ message: 'Expense already synced', id: existing.id });
+    }
+
     const expense = await this.prisma.expense.create({
       data: {
-        ...createExpenseDto,
-        date: createExpenseDto.date ? new Date(createExpenseDto.date) : new Date(),
+        ...expenseData,
+        ...(clientId && { clientId }),
+        date: expenseData.date ? new Date(expenseData.date) : new Date(),
         userId,
         tenantId,
       },

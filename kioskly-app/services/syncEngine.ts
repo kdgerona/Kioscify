@@ -1,9 +1,9 @@
 /**
  * Offline Sync Engine
  *
- * Queues write operations locally when offline and syncs them when connectivity
- * is restored. Uses AsyncStorage as the local queue (SQLite alternative that
- * doesn't require native modules).
+ * Queues write operations in SQLite when offline and syncs them when connectivity
+ * is restored. SQLite provides ACID guarantees — no data loss from crashes or
+ * extended offline periods.
  *
  * Deduplication: every queued item carries a clientId (UUID). The server returns
  * 409 Conflict when a clientId already exists — the engine marks those as synced.
@@ -12,25 +12,61 @@
  *   pending → syncing → synced | failed (retried up to MAX_RETRIES times)
  */
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getDb } from "../lib/db";
 
-const QUEUE_KEY = "@kioscify:sync_queue";
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 5;
 
-export type SyncItemType = "transaction" | "expense" | "inventory_record" | "submitted_report" | "submitted_inventory_report";
+export type SyncItemType =
+  | "transaction"
+  | "expense"
+  | "inventory_record"
+  | "submitted_report"
+  | "submitted_inventory_report";
 
 export interface SyncQueueItem {
   clientId: string;
   type: SyncItemType;
-  endpoint: string;            // e.g., "/transactions"
-  method: "POST";
+  endpoint: string;
+  method: "POST" | "PATCH" | "DELETE";
   payload: Record<string, unknown>;
   createdAt: string;
   syncedAt?: string;
-  serverId?: string;           // set after successful sync
+  serverId?: string;
   retries: number;
   status: "pending" | "syncing" | "synced" | "failed";
   errorMessage?: string;
+}
+
+// ─── Row ↔ SyncQueueItem mapping ─────────────────────────────────────────────
+
+interface SyncQueueRow {
+  client_id: string;
+  type: string;
+  endpoint: string;
+  method: string;
+  payload: string;
+  created_at: string;
+  synced_at: string | null;
+  server_id: string | null;
+  retries: number;
+  status: string;
+  error_message: string | null;
+}
+
+function rowToItem(row: SyncQueueRow): SyncQueueItem {
+  return {
+    clientId: row.client_id,
+    type: row.type as SyncItemType,
+    endpoint: row.endpoint,
+    method: row.method as SyncQueueItem["method"],
+    payload: JSON.parse(row.payload),
+    createdAt: row.created_at,
+    syncedAt: row.synced_at ?? undefined,
+    serverId: row.server_id ?? undefined,
+    retries: row.retries,
+    status: row.status as SyncQueueItem["status"],
+    errorMessage: row.error_message ?? undefined,
+  };
 }
 
 // ─── Listeners ────────────────────────────────────────────────────────────────
@@ -40,31 +76,18 @@ const listeners: Set<QueueChangeListener> = new Set();
 
 export function onQueueChange(listener: QueueChangeListener): () => void {
   listeners.add(listener);
-  return () => { listeners.delete(listener); };
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
-function notifyListeners(items: SyncQueueItem[]) {
-  const pending = items.filter((i) => i.status === "pending" || i.status === "syncing").length;
-  listeners.forEach((l) => l(pending));
+async function notifyListeners(): Promise<void> {
+  const count = await getPendingCount();
+  listeners.forEach((l) => l(count));
 }
 
-// ─── Queue operations ─────────────────────────────────────────────────────────
+// ─── UUID ────────────────────────────────────────────────────────────────────
 
-async function loadQueue(): Promise<SyncQueueItem[]> {
-  try {
-    const raw = await AsyncStorage.getItem(QUEUE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function saveQueue(items: SyncQueueItem[]): Promise<void> {
-  await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(items));
-  notifyListeners(items);
-}
-
-// Pure JS UUID v4 — no native dependencies required
 function uuidv4(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -76,44 +99,52 @@ export async function generateClientId(): Promise<string> {
   return uuidv4();
 }
 
+// ─── Queue operations ─────────────────────────────────────────────────────────
+
 export async function enqueue(
   type: SyncItemType,
   endpoint: string,
   payload: Record<string, unknown>,
   clientId?: string,
 ): Promise<string> {
-  const id = clientId ?? (await generateClientId());
-  const item: SyncQueueItem = {
-    clientId: id,
+  const id = clientId ?? uuidv4();
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT OR IGNORE INTO sync_queue
+       (client_id, type, endpoint, method, payload, created_at, retries, status)
+     VALUES (?, ?, ?, 'POST', ?, ?, 0, 'pending')`,
+    id,
     type,
     endpoint,
-    method: "POST",
-    payload: { ...payload, clientId: id },
-    createdAt: new Date().toISOString(),
-    retries: 0,
-    status: "pending",
-  };
-
-  const queue = await loadQueue();
-  queue.push(item);
-  await saveQueue(queue);
+    JSON.stringify({ ...payload, clientId: id }),
+    new Date().toISOString(),
+  );
+  await notifyListeners();
   return id;
 }
 
 export async function getPendingCount(): Promise<number> {
-  const queue = await loadQueue();
-  return queue.filter((i) => i.status === "pending" || i.status === "syncing").length;
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM sync_queue WHERE status IN ('pending', 'syncing')`,
+  );
+  return row?.count ?? 0;
 }
 
 export async function getQueue(): Promise<SyncQueueItem[]> {
-  return loadQueue();
+  const db = await getDb();
+  const rows = await db.getAllAsync<SyncQueueRow>(`SELECT * FROM sync_queue ORDER BY created_at ASC`);
+  return rows.map(rowToItem);
 }
 
 // ─── Sync ─────────────────────────────────────────────────────────────────────
 
 let isSyncing = false;
 
-export async function syncAll(token: string, apiUrl: string): Promise<{ synced: number; failed: number }> {
+export async function syncAll(
+  token: string,
+  apiUrl: string,
+): Promise<{ synced: number; failed: number }> {
   if (isSyncing) return { synced: 0, failed: 0 };
   isSyncing = true;
 
@@ -121,54 +152,85 @@ export async function syncAll(token: string, apiUrl: string): Promise<{ synced: 
   let failed = 0;
 
   try {
-    const queue = await loadQueue();
-    const pending = queue.filter((i) => i.status === "pending" && i.retries < MAX_RETRIES);
+    const db = await getDb();
+    const rows = await db.getAllAsync<SyncQueueRow>(
+      `SELECT * FROM sync_queue WHERE status = 'pending' AND retries < ? ORDER BY created_at ASC`,
+      MAX_RETRIES,
+    );
 
-    for (const item of pending) {
-      item.status = "syncing";
-      await saveQueue(queue);
+    for (const row of rows) {
+      // Mark as syncing
+      await db.runAsync(
+        `UPDATE sync_queue SET status = 'syncing' WHERE client_id = ?`,
+        row.client_id,
+      );
+      await notifyListeners();
 
       try {
-        const response = await fetch(`${apiUrl}${item.endpoint}`, {
-          method: item.method,
+        const response = await fetch(`${apiUrl}${row.endpoint}`, {
+          method: row.method,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(item.payload),
+          body: row.method !== "DELETE" ? row.payload : undefined,
         });
 
         if (response.ok) {
-          const data = await response.json();
-          item.status = "synced";
-          item.syncedAt = new Date().toISOString();
-          item.serverId = data?.id;
+          const data = await response.json().catch(() => ({}));
+          await db.runAsync(
+            `UPDATE sync_queue
+             SET status = 'synced', synced_at = ?, server_id = ?
+             WHERE client_id = ?`,
+            new Date().toISOString(),
+            (data as any)?.id ?? null,
+            row.client_id,
+          );
           synced++;
         } else if (response.status === 409) {
-          // Already synced — mark as done
+          // Already synced on server — mark done
           const data = await response.json().catch(() => ({}));
-          item.status = "synced";
-          item.syncedAt = new Date().toISOString();
-          item.serverId = data?.id;
+          await db.runAsync(
+            `UPDATE sync_queue
+             SET status = 'synced', synced_at = ?, server_id = ?
+             WHERE client_id = ?`,
+            new Date().toISOString(),
+            (data as any)?.id ?? null,
+            row.client_id,
+          );
           synced++;
         } else if (response.status === 429 || response.status >= 500) {
-          // Rate limited or server error — back to pending for retry
-          item.status = "pending";
-          item.retries += 1;
+          // Retriable error — back to pending
+          await db.runAsync(
+            `UPDATE sync_queue
+             SET status = 'pending', retries = retries + 1, error_message = ?
+             WHERE client_id = ?`,
+            `HTTP ${response.status}`,
+            row.client_id,
+          );
           failed++;
         } else {
-          // Client error (4xx except 409) — mark as failed, won't retry
-          item.status = "failed";
-          item.errorMessage = `HTTP ${response.status}`;
+          // Client error (4xx except 409) — permanent failure
+          await db.runAsync(
+            `UPDATE sync_queue
+             SET status = 'failed', error_message = ?
+             WHERE client_id = ?`,
+            `HTTP ${response.status}`,
+            row.client_id,
+          );
           failed++;
         }
-      } catch (networkError) {
-        // Network error — retry later
-        item.status = "pending";
-        item.retries += 1;
+      } catch {
+        // Network error — retry later with backoff via retries counter
+        await db.runAsync(
+          `UPDATE sync_queue
+           SET status = 'pending', retries = retries + 1
+           WHERE client_id = ?`,
+          row.client_id,
+        );
       }
 
-      await saveQueue(queue);
+      await notifyListeners();
     }
   } finally {
     isSyncing = false;
@@ -177,14 +239,11 @@ export async function syncAll(token: string, apiUrl: string): Promise<{ synced: 
   return { synced, failed };
 }
 
-// Clean up old synced items (keep last 7 days for reference)
 export async function pruneQueue(): Promise<void> {
-  const queue = await loadQueue();
+  const db = await getDb();
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const pruned = queue.filter(
-    (i) => i.status !== "synced" || (i.syncedAt ?? "") > sevenDaysAgo,
+  await db.runAsync(
+    `DELETE FROM sync_queue WHERE status = 'synced' AND synced_at < ?`,
+    sevenDaysAgo,
   );
-  if (pruned.length < queue.length) {
-    await saveQueue(pruned);
-  }
 }

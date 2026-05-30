@@ -1,12 +1,17 @@
 import "../ReactotronConfig";
-import React from "react";
+import React, { useEffect } from "react";
 import { Stack } from "expo-router";
 import { TenantProvider } from "../contexts/TenantContext";
 import { AuthProvider } from "../contexts/AuthContext";
 import { SyncProvider } from "../contexts/SyncContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { initDb } from "../lib/db";
 
 export default function RootLayout() {
+  useEffect(() => {
+    initDb();
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <TenantProvider>

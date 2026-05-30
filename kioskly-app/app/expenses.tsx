@@ -28,7 +28,7 @@ import {
 import ExpenseModal from "@/components/ExpenseModal";
 
 export default function ExpensesScreen() {
-  const [expenses, setExpenses] = useState<ExpenseResponse[]>([]);
+  const [expenses, setExpenses] = useState<(ExpenseResponse & { pendingSync?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -110,9 +110,9 @@ export default function ExpensesScreen() {
       setIsSubmitting(true);
       await createExpense(expenseData);
       setIsModalVisible(false);
-      await loadExpenses(); // Reload the list
+      await loadExpenses(); // Reload to include newly queued/created expense
     } catch (err) {
-      throw err; // Let the modal handle the error display
+      throw err;
     } finally {
       setIsSubmitting(false);
     }
@@ -308,6 +308,11 @@ export default function ExpensesScreen() {
                         </Text>
                       </View>
                       {getVoidStatusBadge(expense.voidStatus)}
+                      {(expense as any).pendingSync && (
+                        <View className="px-2 py-1 rounded-full bg-yellow-100 border border-yellow-300 ml-1">
+                          <Text className="text-xs text-yellow-700 font-medium">Pending sync</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>

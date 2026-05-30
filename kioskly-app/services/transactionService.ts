@@ -1,6 +1,47 @@
 import { apiPost, apiGet, apiPatch } from "../utils/api";
 import { safeReactotron } from "../utils/reactotron";
 import { enqueue, generateClientId } from "./syncEngine";
+import { cacheTransactions, getCachedTransactions, getPendingByType } from "../lib/localCache";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+function isNetworkError(err: unknown): boolean {
+  if (err instanceof TypeError && (err.message.includes("Network") || err.message.includes("fetch"))) return true;
+  if (err instanceof Error && err.message.includes("Network request failed")) return true;
+  return false;
+}
+
+async function getStoredUser(): Promise<{ id: string; username: string; email: string; role: string } | null> {
+  try {
+    const raw = await AsyncStorage.getItem("@kioscify:user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildLocalTransaction(clientId: string, payload: Record<string, unknown>, user: { id: string; username: string; email: string; role: string } | null): TransactionResponse & { pendingSync: true } {
+  const now = new Date().toISOString();
+  return {
+    id: clientId,
+    transactionId: (payload.transactionId as string) ?? clientId,
+    tenantId: "",
+    userId: user?.id ?? "",
+    user: user ?? { id: "", username: "Offline", email: "", role: "" },
+    subtotal: (payload.subtotal as number) ?? 0,
+    total: (payload.total as number) ?? 0,
+    paymentMethod: (payload.paymentMethod as string) ?? "CASH",
+    cashReceived: payload.cashReceived as number | undefined,
+    change: payload.change as number | undefined,
+    referenceNumber: payload.referenceNumber as string | undefined,
+    remarks: payload.remarks as string | undefined,
+    timestamp: now,
+    createdAt: now,
+    updatedAt: now,
+    items: [],
+    voidStatus: "NONE",
+    pendingSync: true,
+  } as TransactionResponse & { pendingSync: true };
+}
 
 interface TransactionItemAddon {
   addonId: string;
@@ -193,53 +234,38 @@ export const getTransactions = async (
     endDate?: string;
     paymentMethod?: PaymentMethodType;
   }
-): Promise<TransactionResponse[]> => {
+): Promise<(TransactionResponse & { pendingSync?: boolean })[]> => {
+  const params = new URLSearchParams();
+  if (filters?.startDate) params.append("startDate", filters.startDate);
+  if (filters?.endDate) params.append("endDate", filters.endDate);
+  if (filters?.paymentMethod) params.append("paymentMethod", filters.paymentMethod);
+  const queryString = params.toString();
+  const endpoint = `/transactions${queryString ? `?${queryString}` : ""}`;
+
+  const getPending = async () => {
+    const pending = await getPendingByType("transaction");
+    const user = await getStoredUser();
+    return pending.map((item) => buildLocalTransaction(item.clientId, item.payload, user));
+  };
+
   try {
-    const params = new URLSearchParams();
-    if (filters?.startDate) params.append("startDate", filters.startDate);
-    if (filters?.endDate) params.append("endDate", filters.endDate);
-    if (filters?.paymentMethod) params.append("paymentMethod", filters.paymentMethod);
-
-    const queryString = params.toString();
-    const endpoint = `/transactions${queryString ? `?${queryString}` : ""}`;
-
-    console.log("🔵 FETCHING TRANSACTIONS:", endpoint);
-
-    safeReactotron.display({
-      name: "FETCH TRANSACTIONS",
-      value: { endpoint, filters },
-      preview: "Fetching transactions from API",
-    });
-
     const response = await apiGet(endpoint);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH TRANSACTIONS ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH TRANSACTIONS ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch transactions",
-        important: true,
-      });
-
-      throw new Error(`Failed to fetch transactions: ${errorText}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data: TransactionResponse[] = await response.json();
+    await cacheTransactions(data);
+    const pending = await getPending();
+    const serverIds = new Set(data.map((t) => t.id));
+    const newPending = pending.filter((p) => !serverIds.has(p.id));
+    return [...newPending, ...data];
+  } catch (err) {
+    if (isNetworkError(err) || (err instanceof Error && err.message.startsWith("HTTP"))) {
+      const cached = (await getCachedTransactions()) ?? [];
+      const pending = await getPending();
+      const cachedIds = new Set(cached.map((t: TransactionResponse) => t.id));
+      const newPending = pending.filter((p) => !cachedIds.has(p.id));
+      return [...newPending, ...cached];
     }
-
-    const data = await response.json();
-    console.log("🟢 TRANSACTIONS FETCHED:", data.length, "transactions");
-
-    safeReactotron.display({
-      name: "TRANSACTIONS FETCHED",
-      value: { count: data.length },
-      preview: `Fetched ${data.length} transactions`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch transactions:", error);
-    throw error;
+    throw err;
   }
 };
 

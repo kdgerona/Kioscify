@@ -28,7 +28,7 @@ export default function Transactions() {
   const router = useRouter();
   const { tenant, brand } = useTenant();
   const { user } = useAuth();
-  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [transactions, setTransactions] = useState<(TransactionResponse & { pendingSync?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -332,7 +332,7 @@ export default function Transactions() {
                       >
                         {formatCurrency(transaction.total)}
                       </Text>
-                      <View className="flex-row items-center mt-1">
+                      <View className="flex-row items-center mt-1 flex-wrap gap-1">
                         <View
                           className="px-3 py-1 rounded-full"
                           style={{
@@ -347,6 +347,11 @@ export default function Transactions() {
                           </Text>
                         </View>
                         {getVoidStatusBadge(transaction.voidStatus)}
+                        {(transaction as any).pendingSync && (
+                          <View className="px-2 py-1 rounded-full bg-yellow-100 border border-yellow-300">
+                            <Text className="text-xs text-yellow-700 font-medium">Pending sync</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
                   </View>

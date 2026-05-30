@@ -66,4 +66,13 @@ export class CreateExpenseDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiProperty({
+    example: 'uuid-v4-here',
+    required: false,
+    description: 'Device-generated UUID for offline deduplication',
+  })
+  @IsString()
+  @IsOptional()
+  clientId?: string;
 }

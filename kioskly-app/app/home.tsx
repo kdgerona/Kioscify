@@ -16,7 +16,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { apiGet } from "../utils/api";
 import CheckoutModal from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
-import { createTransaction } from "../services/transactionService";
+import { createTransactionOffline } from "../services/transactionService";
+import { cacheCategories, getCachedCategories, cacheProducts, getCachedProducts } from "../lib/localCache";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -104,39 +105,49 @@ export default function Home() {
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [showQueuedConfirm, setShowQueuedConfirm] = useState(false);
 
-  // Fetch categories and products from API
+  // Fetch categories and products from API, fall back to local cache when offline
   useEffect(() => {
     const fetchData = async () => {
       if (!tenant) return;
-
       setIsLoadingData(true);
       try {
-        // Fetch categories
-        const categoriesResponse = await apiGet("/categories");
-        if (categoriesResponse.ok) {
-          const categoriesData: Category[] = await categoriesResponse.json();
+        const [categoriesResponse, productsResponse] = await Promise.all([
+          apiGet("/categories"),
+          apiGet("/products"),
+        ]);
+        const categoriesData: Category[] = categoriesResponse.ok ? await categoriesResponse.json() : [];
+        const productsData: Product[] = productsResponse.ok ? await productsResponse.json() : [];
+        if (categoriesData.length > 0) {
+          await cacheCategories(categoriesData);
           setCategories(categoriesData);
-          if (categoriesData.length > 0 && !selectedCategory) {
-            setSelectedCategory(categoriesData[0].id);
-          }
+          if (!selectedCategory) setSelectedCategory(categoriesData[0].id);
         }
-
-        // Fetch products
-        const productsResponse = await apiGet("/products");
-        if (productsResponse.ok) {
-          const productsData = await productsResponse.json();
+        if (productsData.length > 0) {
+          await cacheProducts(productsData);
           setProducts(productsData);
         }
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
+        setIsOfflineMode(false);
+      } catch {
+        // Network failure — load from local cache
+        const [cachedCats, cachedProds] = await Promise.all([
+          getCachedCategories(),
+          getCachedProducts(),
+        ]);
+        if (cachedCats && cachedProds) {
+          setCategories(cachedCats);
+          if (!selectedCategory && cachedCats.length > 0) setSelectedCategory(cachedCats[0].id);
+          setProducts(cachedProds);
+          setIsOfflineMode(true);
+        }
       } finally {
         setIsLoadingData(false);
       }
     };
-
     fetchData();
-  }, [tenant]);
+  }, [tenant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // If no tenant is set, redirect to tenant setup
@@ -467,32 +478,36 @@ export default function Home() {
         items: backendItems,
       };
 
-      // Save transaction to backend
-      const savedTransaction = await createTransaction(transactionPayload);
+      // Save transaction — offline-first (queues if network unavailable)
+      const result = await createTransactionOffline(transactionPayload);
 
-      console.log("🟢 Transaction saved to backend:", savedTransaction);
-
-      // Create transaction data for local display
-      const transaction: TransactionData = {
-        transactionId,
-        timestamp: new Date(),
-        items: [...orders],
-        subtotal: totalAmount,
-        total: totalAmount,
-        paymentMethod,
-        ...(paymentMethod === "cash" && {
-          cashReceived: details.cashReceived,
-          change: details.change,
-        }),
-        ...(paymentMethod !== "cash" && {
-          referenceNumber: details.referenceNumber,
-        }),
-      };
-
-      setCurrentTransaction(transaction);
       setShowCheckoutModal(false);
-      setShowTransactionSummary(true);
-      setTransactionError(null); // Clear any previous errors
+      setTransactionError(null);
+
+      if (result.queued) {
+        // Offline: show confirmation instead of receipt, then clear order
+        setShowQueuedConfirm(true);
+        setOrders([]);
+      } else {
+        // Online: show receipt as normal
+        const transaction: TransactionData = {
+          transactionId,
+          timestamp: new Date(),
+          items: [...orders],
+          subtotal: totalAmount,
+          total: totalAmount,
+          paymentMethod,
+          ...(paymentMethod === "cash" && {
+            cashReceived: details.cashReceived,
+            change: details.change,
+          }),
+          ...(paymentMethod !== "cash" && {
+            referenceNumber: details.referenceNumber,
+          }),
+        };
+        setCurrentTransaction(transaction);
+        setShowTransactionSummary(true);
+      }
     } catch (error) {
       console.error("Failed to create transaction:", error);
       setTransactionError(
@@ -514,6 +529,34 @@ export default function Home() {
 
   return (
     <SafeAreaView className="w-full h-full bg-gray-50">
+      {/* Offline mode banner */}
+      {isOfflineMode && (
+        <View className="bg-yellow-500 px-4 py-2 flex-row items-center justify-center">
+          <Ionicons name="cloud-offline-outline" size={14} color="#fff" />
+          <Text className="text-white text-xs font-medium ml-1">Offline — using cached data</Text>
+        </View>
+      )}
+
+      {/* Transaction queued confirmation modal */}
+      <Modal visible={showQueuedConfirm} transparent animationType="fade">
+        <View className="flex-1 justify-center items-center bg-black/50 px-6">
+          <View className="bg-white rounded-2xl p-6 w-full max-w-sm items-center">
+            <Ionicons name="checkmark-circle" size={48} color="#16a34a" />
+            <Text className="text-gray-900 font-bold text-lg mt-3 text-center">Transaction Saved</Text>
+            <Text className="text-gray-500 text-sm mt-2 text-center">
+              {"You're offline. The transaction has been saved locally and will sync automatically when you reconnect."}
+            </Text>
+            <TouchableOpacity
+              className="mt-5 w-full py-3 rounded-xl items-center"
+              style={{ backgroundColor: primaryColor }}
+              onPress={() => setShowQueuedConfirm(false)}
+            >
+              <Text className="text-white font-semibold">OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"
@@ -957,7 +1000,7 @@ export default function Home() {
       {/* Transaction Summary Modal */}
       <TransactionSummary
         visible={showTransactionSummary}
-        transaction={currentTransaction}
+        transaction={currentTransaction as any}
         onNewOrder={handleNewOrder}
       />
     </SafeAreaView>

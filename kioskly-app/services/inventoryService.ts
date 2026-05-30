@@ -1,5 +1,13 @@
 import { apiPost, apiGet, apiPatch, apiDelete } from "../utils/api";
 import { safeReactotron } from "../utils/reactotron";
+import { enqueue, generateClientId } from "./syncEngine";
+import { cacheInventoryItems, getCachedInventoryItems, cacheLatestInventory, getCachedLatestInventory } from "../lib/localCache";
+
+function isNetworkError(err: unknown): boolean {
+  if (err instanceof TypeError && (err.message.includes("Network") || err.message.includes("fetch"))) return true;
+  if (err instanceof Error && err.message.includes("Network request failed")) return true;
+  return false;
+}
 
 export enum InventoryCategory {
   MAINS = "MAINS",
@@ -64,6 +72,7 @@ export interface CreateInventoryRecordPayload {
   quantity: number;
   date?: string;
   notes?: string;
+  clientId?: string;
 }
 
 export interface BulkCreateInventoryRecordsPayload {
@@ -78,50 +87,23 @@ export interface BulkCreateInventoryRecordsPayload {
 export const getInventoryItems = async (
   category?: InventoryCategory
 ): Promise<InventoryItem[]> => {
+  const params = new URLSearchParams();
+  if (category) params.append("category", category);
+  const queryString = params.toString();
+  const endpoint = `/inventory/items${queryString ? `?${queryString}` : ""}`;
+
   try {
-    const params = new URLSearchParams();
-    if (category) params.append("category", category);
-
-    const queryString = params.toString();
-    const endpoint = `/inventory/items${queryString ? `?${queryString}` : ""}`;
-
-    console.log("🔵 FETCHING INVENTORY ITEMS:", endpoint);
-
-    safeReactotron.display({
-      name: "FETCH INVENTORY ITEMS",
-      value: { endpoint, category },
-      preview: "Fetching inventory items from API",
-    });
-
     const response = await apiGet(endpoint);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH INVENTORY ITEMS ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH INVENTORY ITEMS ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch inventory items",
-        important: true,
-      });
-
-      throw new Error(`Failed to fetch inventory items: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 INVENTORY ITEMS FETCHED:", data.length, "items");
-
-    safeReactotron.display({
-      name: "INVENTORY ITEMS FETCHED",
-      value: { count: data.length },
-      preview: `Fetched ${data.length} inventory items`,
-    });
-
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data: InventoryItem[] = await response.json();
+    await cacheInventoryItems(data);
     return data;
-  } catch (error) {
-    console.error("Failed to fetch inventory items:", error);
-    throw error;
+  } catch (err) {
+    if (isNetworkError(err) || (err instanceof Error && err.message.startsWith("HTTP"))) {
+      const cached = await getCachedInventoryItems();
+      if (cached) return cached;
+    }
+    throw err;
   }
 };
 
@@ -133,50 +115,23 @@ export const getInventoryItems = async (
 export const getLatestInventory = async (
   date?: Date
 ): Promise<LatestInventoryItem[]> => {
+  const params = new URLSearchParams();
+  if (date) params.append("date", date.toISOString());
+  const queryString = params.toString();
+  const endpoint = `/inventory/latest${queryString ? `?${queryString}` : ""}`;
+
   try {
-    const params = new URLSearchParams();
-    if (date) params.append("date", date.toISOString());
-
-    const queryString = params.toString();
-    const endpoint = `/inventory/latest${queryString ? `?${queryString}` : ""}`;
-
-    console.log("🔵 FETCHING LATEST INVENTORY:", endpoint);
-
-    safeReactotron.display({
-      name: "FETCH LATEST INVENTORY",
-      value: { endpoint, date },
-      preview: "Fetching latest inventory from API",
-    });
-
     const response = await apiGet(endpoint);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH LATEST INVENTORY ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH LATEST INVENTORY ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch latest inventory",
-        important: true,
-      });
-
-      throw new Error(`Failed to fetch latest inventory: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 LATEST INVENTORY FETCHED:", data.length, "items");
-
-    safeReactotron.display({
-      name: "LATEST INVENTORY FETCHED",
-      value: { count: data.length },
-      preview: `Fetched ${data.length} inventory items`,
-    });
-
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data: LatestInventoryItem[] = await response.json();
+    await cacheLatestInventory(data);
     return data;
-  } catch (error) {
-    console.error("Failed to fetch latest inventory:", error);
-    throw error;
+  } catch (err) {
+    if (isNetworkError(err) || (err instanceof Error && err.message.startsWith("HTTP"))) {
+      const cached = await getCachedLatestInventory();
+      if (cached) return cached;
+    }
+    throw err;
   }
 };
 
@@ -239,45 +194,48 @@ export const createInventoryRecord = async (
 export const bulkCreateInventoryRecords = async (
   payload: BulkCreateInventoryRecordsPayload
 ): Promise<InventoryRecord[]> => {
+  // Assign a clientId to each record if not already set
+  const recordsWithIds: CreateInventoryRecordPayload[] = await Promise.all(
+    payload.records.map(async (r) => ({
+      ...r,
+      clientId: r.clientId ?? (await generateClientId()),
+    })),
+  );
+  const payloadWithIds: BulkCreateInventoryRecordsPayload = { records: recordsWithIds };
+
+  safeReactotron.display({
+    name: "CREATE BULK INVENTORY RECORDS",
+    value: payloadWithIds,
+    preview: `Creating ${recordsWithIds.length} inventory records`,
+  });
+
   try {
-    console.log("🔵 CREATING BULK INVENTORY RECORDS:");
-    console.log("  Count:", payload.records.length);
-
-    safeReactotron.display({
-      name: "CREATE BULK INVENTORY RECORDS",
-      value: payload,
-      preview: `Creating ${payload.records.length} inventory records`,
-    });
-
-    const response = await apiPost("/inventory/records/bulk", payload);
-
+    const response = await apiPost("/inventory/records/bulk", payloadWithIds);
     if (!response.ok) {
       const errorText = await response.text();
-      console.log("🔴 BULK INVENTORY RECORDS ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "BULK INVENTORY RECORDS ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Bulk inventory records creation failed",
-        important: true,
-      });
-
       throw new Error(`Failed to create bulk inventory records: ${errorText}`);
     }
-
     const data = await response.json();
-    console.log("🟢 BULK INVENTORY RECORDS CREATED:", data.length, "records");
-
-    safeReactotron.display({
-      name: "BULK INVENTORY RECORDS SUCCESS",
-      value: { count: data.length },
-      preview: `${data.length} inventory records created successfully`,
-    });
-
     return data;
-  } catch (error) {
-    console.error("Failed to create bulk inventory records:", error);
-    throw error;
+  } catch (err) {
+    if (isNetworkError(err)) {
+      // Queue each record individually so per-record idempotency keys survive retry
+      for (const r of recordsWithIds) {
+        await enqueue(
+          "inventory_record",
+          "/inventory/records",
+          r as unknown as Record<string, unknown>,
+          r.clientId,
+        );
+      }
+      safeReactotron.display({
+        name: "BULK INVENTORY QUEUED",
+        value: { count: recordsWithIds.length },
+        preview: `${recordsWithIds.length} records queued for sync`,
+      });
+      return [];
+    }
+    throw err;
   }
 };
 
