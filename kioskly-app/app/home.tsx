@@ -549,7 +549,7 @@ export default function Home() {
       {/* Main Content */}
       <View className="flex-1 flex-row">
         {/* Category Panel */}
-        <View className="w-1/5 bg-white border-r border-gray-200 p-4" style={{ flex: 1 }}>
+        <View className="w-1/5 bg-white border-r border-gray-200 p-4">
           <Text className="text-lg font-bold mb-4" style={{ color: textColor }}>
             Categories
           </Text>
