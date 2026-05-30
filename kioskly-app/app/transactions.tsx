@@ -264,7 +264,7 @@ export default function Transactions() {
         </View>
         <TouchableOpacity
           className="flex-row items-center rounded-lg px-3 py-2"
-          style={{ backgroundColor: "#000000" }}
+          style={{ backgroundColor: primaryColor }}
           onPress={handleGenerateReport}
         >
           <Ionicons name="document-text" size={18} color="#ffffff" />
@@ -283,7 +283,8 @@ export default function Transactions() {
           <View className="flex-1 justify-center items-center">
             <Text className="text-red-600 text-center mb-4">{error}</Text>
             <TouchableOpacity
-              className="bg-gray-800 rounded-lg px-6 py-3"
+              className="rounded-lg px-6 py-3"
+              style={{ backgroundColor: primaryColor }}
               onPress={fetchTransactionsCallback}
             >
               <Text className="text-white font-semibold">Retry</Text>

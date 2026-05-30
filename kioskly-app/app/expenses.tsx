@@ -232,7 +232,8 @@ export default function ExpensesScreen() {
         </View>
         <TouchableOpacity
           onPress={() => setIsModalVisible(true)}
-          className="bg-gray-800 px-3 py-2 rounded-lg flex-row items-center"
+          className="px-3 py-2 rounded-lg flex-row items-center"
+          style={{ backgroundColor: primaryColor }}
         >
           <Ionicons name="add-circle-outline" size={18} color="white" />
           <Text className="text-white font-semibold ml-1.5">Add</Text>
@@ -250,7 +251,8 @@ export default function ExpensesScreen() {
           <View className="flex-1 justify-center items-center">
             <Text className="text-red-600 text-center mb-4">{error}</Text>
             <TouchableOpacity
-              className="bg-gray-800 rounded-lg px-6 py-3"
+              className="rounded-lg px-6 py-3"
+              style={{ backgroundColor: primaryColor }}
               onPress={loadExpenses}
             >
               <Text className="text-white font-semibold">Retry</Text>

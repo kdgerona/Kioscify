@@ -493,7 +493,8 @@ export default function InventoryScreen() {
           <View className="flex-1 justify-center items-center">
             <Text className="text-red-600 text-center mb-4">{error}</Text>
             <TouchableOpacity
-              className="bg-gray-800 rounded-lg px-6 py-3"
+              className="rounded-lg px-6 py-3"
+              style={{ backgroundColor: primaryColor }}
               onPress={loadInventory}
             >
               <Text className="text-white font-semibold">Retry</Text>
@@ -710,7 +711,8 @@ export default function InventoryScreen() {
             {/* Submit Report Button */}
             <View className="p-4 border-t border-gray-200 bg-white">
               <TouchableOpacity
-                className="bg-gray-800 rounded-lg py-4 flex-row items-center justify-center"
+                className="rounded-lg py-4 flex-row items-center justify-center"
+                style={{ backgroundColor: primaryColor }}
                 onPress={handleSubmitReport}
                 disabled={saving}
               >
