@@ -391,33 +391,31 @@ export default function Index() {
                 >
                   <Text style={{ color: "#6b7280", fontSize: 14 }}>Cancel</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{ alignItems: "center", paddingVertical: 6, marginTop: 4 }}
+                  onPress={handleChangeCompanyBrand}
+                  disabled={changeStoreLoading}
+                >
+                  <Text style={{ color: "#9ca3af", fontSize: 12 }}>
+                    Change Company / Brand
+                  </Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
 
           {/* Below-card actions — only visible in login mode */}
           {mode === "login" && (
-            <>
-              <TouchableOpacity
-                style={{ marginTop: 20, paddingVertical: 8 }}
-                onPress={() => { setMode("change-store"); setChangeStoreError(""); }}
-                disabled={loading}
-              >
-                <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 14 }}>
-                  Change Store
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={{ marginTop: 8, paddingVertical: 4 }}
-                onPress={handleChangeCompanyBrand}
-                disabled={loading}
-              >
-                <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
-                  Change Company / Brand
-                </Text>
-              </TouchableOpacity>
-            </>
+            <TouchableOpacity
+              style={{ marginTop: 20, paddingVertical: 8 }}
+              onPress={() => { setMode("change-store"); setChangeStoreError(""); }}
+              disabled={loading}
+            >
+              <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 14 }}>
+                Change Store
+              </Text>
+            </TouchableOpacity>
           )}
 
           {/* Powered by Kioscify */}
