@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "../contexts/TenantContext";
@@ -11,33 +12,40 @@ export default function SettingsScreen() {
     brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const textColor =
     brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+  const backgroundColor =
+    brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
 
   const items: { label: string; icon: React.ComponentProps<typeof Ionicons>["name"]; route: Href }[] = [
     { label: "Change Password", icon: "key-outline", route: "/change-password" },
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: "white" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f9fafb" }}>
       {/* Header */}
-      <View style={{ flexDirection: "row", alignItems: "center", padding: 24, paddingTop: 32, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 16, padding: 4 }}>
-          <Ionicons name="arrow-back" size={24} color={textColor} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 22, fontWeight: "700", color: textColor }}>Settings</Text>
+      <View
+        className="px-6 py-4 flex-row justify-between items-center"
+        style={{ backgroundColor }}
+      >
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <Text className="text-2xl font-bold" style={{ color: textColor }}>
+            Settings
+          </Text>
+        </View>
       </View>
 
       {/* Items */}
-      <View style={{ paddingHorizontal: 24, paddingTop: 16 }}>
+      <View className="px-6 pt-4">
         {items.map((item) => (
           <TouchableOpacity
             key={item.route as string}
             onPress={() => router.push(item.route)}
-            style={{
-              flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-              paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#f3f4f6",
-            }}
+            className="flex-row items-center justify-between py-4"
+            style={{ borderBottomWidth: 1, borderBottomColor: "#f3f4f6" }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+            <View className="flex-row items-center" style={{ gap: 14 }}>
               <Ionicons name={item.icon} size={22} color={primaryColor} />
               <Text style={{ fontSize: 15, color: textColor }}>{item.label}</Text>
             </View>
@@ -45,6 +53,6 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         ))}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
