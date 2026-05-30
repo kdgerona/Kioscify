@@ -147,7 +147,7 @@ export default function Sidebar() {
   const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3000';
   const rawLogoUrl = brand?.logoUrl ?? tenant?.logoUrl ?? null;
   const logoSrc = rawLogoUrl
-    ? rawLogoUrl.startsWith('http') ? rawLogoUrl : `${apiBase}${rawLogoUrl}`
+    ? (() => { try { const path = rawLogoUrl.startsWith('http') ? new URL(rawLogoUrl).pathname : rawLogoUrl; return `${apiBase}${path}`; } catch { return rawLogoUrl; } })()
     : null;
 
   return (

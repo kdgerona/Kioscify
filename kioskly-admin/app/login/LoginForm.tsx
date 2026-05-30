@@ -106,9 +106,7 @@ export default function LoginForm({
     process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ||
     "http://localhost:3000";
   const logoSrc = brand?.logoUrl
-    ? brand.logoUrl.startsWith("http")
-      ? brand.logoUrl
-      : `${apiBase}${brand.logoUrl}`
+    ? (() => { try { const path = brand.logoUrl!.startsWith('http') ? new URL(brand.logoUrl!).pathname : brand.logoUrl!; return `${apiBase}${path}`; } catch { return brand.logoUrl; } })()
     : null;
 
   return (
