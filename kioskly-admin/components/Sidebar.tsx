@@ -29,7 +29,7 @@ import {
 import Image from "next/image";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
-import { cn } from "@/lib/utils";
+import { cn, getContrastColor } from "@/lib/utils";
 import * as Popover from "@radix-ui/react-popover";
 
 interface NavigationItem {
@@ -158,16 +158,8 @@ export default function Sidebar() {
   const textColor =
     brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
 
-  // Derive border color from background luminance so it always has contrast
-  const bgIsLight = (() => {
-    const c = backgroundColor.replace("#", "");
-    if (c.length !== 6) return true;
-    const r = parseInt(c.slice(0, 2), 16) / 255;
-    const g = parseInt(c.slice(2, 4), 16) / 255;
-    const b = parseInt(c.slice(4, 6), 16) / 255;
-    return 0.299 * r + 0.587 * g + 0.114 * b > 0.5;
-  })();
-  const borderColor = bgIsLight ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)";
+  const adaptiveNavText = getContrastColor(backgroundColor);
+  const borderColor = adaptiveNavText === "#ffffff" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)";
 
   const apiBase =
     process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ??
@@ -383,7 +375,7 @@ export default function Sidebar() {
                                     borderLeft: `3px solid ${secondaryColor}`,
                                   }
                                 : {
-                                    color: "#000000",
+                                    color: adaptiveNavText,
                                     opacity: 0.7,
                                   }
                             }
@@ -458,7 +450,7 @@ export default function Sidebar() {
                                   borderLeft: `3px solid ${secondaryColor}`,
                                 }
                               : {
-                                  color: "#000000",
+                                  color: adaptiveNavText,
                                   opacity: 0.7,
                                 }
                           }
@@ -507,7 +499,7 @@ export default function Sidebar() {
                                           borderLeft: `3px solid ${secondaryColor}`,
                                         }
                                       : {
-                                          color: "#000000",
+                                          color: adaptiveNavText,
                                           opacity: 0.6,
                                         }
                                   }
@@ -555,7 +547,7 @@ export default function Sidebar() {
                             borderLeft: `3px solid ${secondaryColor}`,
                           }
                         : {
-                            color: "#000000",
+                            color: adaptiveNavText,
                             opacity: 0.7,
                           }
                     }
@@ -714,7 +706,7 @@ export default function Sidebar() {
                 ? "lg:justify-center lg:px-2 lg:py-3"
                 : "space-x-3 px-4 py-3",
             )}
-            style={{ color: "#000000", opacity: 0.7 }}
+            style={{ color: adaptiveNavText, opacity: 0.7 }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = `${primaryColor}10`;
               e.currentTarget.style.opacity = "1";

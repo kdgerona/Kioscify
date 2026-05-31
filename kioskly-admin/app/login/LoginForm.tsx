@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Store } from "lucide-react";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
+import { getContrastColor } from "@/lib/utils";
 
 const PORTAL_COMPANY_KEY = "kioscify_portal_company_slug";
 const PORTAL_BRAND_KEY = "kioscify_portal_brand_slug";
@@ -44,7 +45,13 @@ export default function LoginForm({
     if (saved) { setStoreSlug(saved); setRememberedSlug(true); }
   }, []);
 
-  const primaryColor = brand?.themeColors?.primary || "#ea580c";
+  const primaryColor    = brand?.themeColors?.primary || "#ea580c";
+  // On the white right panel, only use primaryColor as a text/link color if it's dark enough to read on white.
+  const rightPanelAccent = getContrastColor(primaryColor) === "#111827" ? "#374151" : primaryColor;
+  const panelText   = getContrastColor(primaryColor);
+  const panelMuted  = panelText === "#ffffff" ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.55)";
+  const panelPillBg = panelText === "#ffffff" ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.08)";
+  const ringColor   = panelText === "#ffffff" ? "white" : "#111827";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,19 +126,19 @@ export default function LoginForm({
         {/* Decorative rings */}
         <div
           className="absolute -top-24 -left-24 w-96 h-96 rounded-full border-[40px] opacity-10"
-          style={{ borderColor: "white" }}
+          style={{ borderColor: ringColor }}
         />
         <div
           className="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] rounded-full border-[50px] opacity-10"
-          style={{ borderColor: "white" }}
+          style={{ borderColor: ringColor }}
         />
         <div
           className="absolute top-1/2 -right-16 w-64 h-64 rounded-full border-[30px] opacity-[0.07]"
-          style={{ borderColor: "white" }}
+          style={{ borderColor: ringColor }}
         />
         <div
           className="absolute bottom-24 left-8 w-32 h-32 rounded-full opacity-10"
-          style={{ backgroundColor: "white" }}
+          style={{ backgroundColor: ringColor }}
         />
 
         {/* Content */}
@@ -149,10 +156,10 @@ export default function LoginForm({
             </div>
           )}
 
-          <h1 className="text-3xl font-bold text-white mb-2 drop-shadow">
+          <h1 className="text-3xl font-bold mb-2 drop-shadow" style={{ color: panelText }}>
             {brand?.name ?? "Store Portal"}
           </h1>
-          <p className="text-white/70 text-sm max-w-xs leading-relaxed">
+          <p className="text-sm max-w-xs leading-relaxed" style={{ color: panelMuted }}>
             Manage your store, track sales, and monitor your business — all in one place.
           </p>
 
@@ -162,7 +169,7 @@ export default function LoginForm({
               <span
                 key={f}
                 className="text-xs font-medium px-3 py-1 rounded-full"
-                style={{ background: "rgba(255,255,255,0.18)", color: "white" }}
+                style={{ background: panelPillBg, color: panelText }}
               >
                 {f}
               </span>
@@ -222,7 +229,7 @@ export default function LoginForm({
                       localStorage.removeItem(STORE_SLUG_KEY);
                     }}
                     className="text-xs font-medium hover:underline"
-                    style={{ color: primaryColor }}
+                    style={{ color: rightPanelAccent }}
                   >
                     Change Store
                   </button>
@@ -289,8 +296,8 @@ export default function LoginForm({
             <button
               type="submit"
               disabled={loading}
-              className="w-full text-white font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:brightness-90 mt-2"
-              style={{ backgroundColor: primaryColor }}
+              className="w-full font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:brightness-90 mt-2"
+              style={{ backgroundColor: primaryColor, color: getContrastColor(primaryColor) }}
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>

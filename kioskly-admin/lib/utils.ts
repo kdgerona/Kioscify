@@ -79,3 +79,12 @@ export function formatRole(role: string | undefined | null): string {
     default:               return role ?? '—';
   }
 }
+
+export function getContrastColor(hex: string): string {
+  const c = hex.replace("#", "");
+  if (c.length !== 6) return "#111827";
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 0.5 ? "#111827" : "#ffffff";
+}
