@@ -3,12 +3,6 @@ import { safeReactotron } from "../utils/reactotron";
 import { enqueue, generateClientId } from "./syncEngine";
 import { cacheInventoryItems, getCachedInventoryItems, cacheLatestInventory, getCachedLatestInventory } from "../lib/localCache";
 
-function isNetworkError(err: unknown): boolean {
-  if (err instanceof TypeError && (err.message.includes("Network") || err.message.includes("fetch"))) return true;
-  if (err instanceof Error && err.message.includes("Network request failed")) return true;
-  return false;
-}
-
 export enum InventoryCategory {
   MAINS = "MAINS",
   FLAVORED_JAMS = "FLAVORED_JAMS",
@@ -99,10 +93,8 @@ export const getInventoryItems = async (
     await cacheInventoryItems(data);
     return data;
   } catch (err) {
-    if (isNetworkError(err) || (err instanceof Error && err.message.startsWith("HTTP"))) {
-      const cached = await getCachedInventoryItems();
-      if (cached) return cached;
-    }
+    const cached = await getCachedInventoryItems();
+    if (cached) return cached;
     throw err;
   }
 };
@@ -127,10 +119,10 @@ export const getLatestInventory = async (
     await cacheLatestInventory(data);
     return data;
   } catch (err) {
-    if (isNetworkError(err) || (err instanceof Error && err.message.startsWith("HTTP"))) {
-      const cached = await getCachedLatestInventory();
-      if (cached) return cached;
-    }
+    // Always try the cache on any failure (network down, server error, timeout).
+    // Only re-throw if there is genuinely nothing to show.
+    const cached = await getCachedLatestInventory();
+    if (cached) return cached;
     throw err;
   }
 };
@@ -218,24 +210,23 @@ export const bulkCreateInventoryRecords = async (
     const data = await response.json();
     return data;
   } catch (err) {
-    if (isNetworkError(err)) {
-      // Queue each record individually so per-record idempotency keys survive retry
-      for (const r of recordsWithIds) {
-        await enqueue(
-          "inventory_record",
-          "/inventory/records",
-          r as unknown as Record<string, unknown>,
-          r.clientId,
-        );
-      }
-      safeReactotron.display({
-        name: "BULK INVENTORY QUEUED",
-        value: { count: recordsWithIds.length },
-        preview: `${recordsWithIds.length} records queued for sync`,
-      });
-      return [];
+    // Queue on any non-4xx failure so offline submissions aren't lost
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.startsWith("Failed to create bulk")) throw err; // 4xx — surface to user
+    for (const r of recordsWithIds) {
+      await enqueue(
+        "inventory_record",
+        "/inventory/records",
+        r as unknown as Record<string, unknown>,
+        r.clientId,
+      );
     }
-    throw err;
+    safeReactotron.display({
+      name: "BULK INVENTORY QUEUED",
+      value: { count: recordsWithIds.length },
+      preview: `${recordsWithIds.length} records queued for sync`,
+    });
+    return [];
   }
 };
 

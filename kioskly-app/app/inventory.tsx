@@ -31,6 +31,7 @@ import {
   InventoryItemSnapshot,
   ExpirationBatch,
 } from "@/services/submittedInventoryReportService";
+import { enqueue } from "@/services/syncEngine";
 import LastSubmissionBanner from "@/components/LastSubmissionBanner";
 
 interface ExpirationBatchInput {
@@ -362,46 +363,50 @@ export default function InventoryScreen() {
         submittedBy: user?.email || user?.username || "Unknown",
       };
 
-      await submitInventoryReport({
-        reportDate: today,
-        inventorySnapshot,
-        replaceExisting,
-      });
+      try {
+        await submitInventoryReport({
+          reportDate: today,
+          inventorySnapshot,
+          replaceExisting,
+        });
 
-      Alert.alert(
-        "Success",
-        replaceExisting
-          ? "Inventory report updated successfully!"
-          : "Inventory report submitted successfully!"
-      );
-
-      // Reload inventory to show updated data
-      await loadInventory();
-    } catch (err) {
-      // Check if it's a duplicate error
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      const isDuplicate = errorMessage.includes("already exists");
-
-      if (isDuplicate && !replaceExisting) {
-        // Ask user if they want to replace the existing report
         Alert.alert(
-          "Report Already Exists",
-          "An inventory report for today has already been submitted. Do you want to replace it with the new data?",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Replace",
-              style: "destructive",
-              onPress: () => submitReport(true),
-            },
-          ]
+          "Success",
+          replaceExisting
+            ? "Inventory report updated successfully!"
+            : "Inventory report submitted successfully!"
         );
-      } else {
+
+        // Reload inventory to show updated data
+        await loadInventory();
+      } catch (err) {
+        // Check if it's a duplicate error first
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const isDuplicate = errorMessage.includes("already exists");
+
+        if (isDuplicate && !replaceExisting) {
+          Alert.alert(
+            "Report Already Exists",
+            "An inventory report for today has already been submitted. Do you want to replace it with the new data?",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Replace", style: "destructive", onPress: () => submitReport(true) },
+            ]
+          );
+          return;
+        }
+
+        // For any other error (network failure, server down), queue for later
+        await enqueue("submitted_inventory_report", "/submitted-inventory-reports", {
+          reportDate: today,
+          inventorySnapshot: inventorySnapshot as unknown as Record<string, unknown>,
+          replaceExisting: true, // always replace on retry to handle any ordering
+        } as Record<string, unknown>);
+
         Alert.alert(
-          "Error",
-          errorMessage
+          "Saved Offline",
+          "You're offline. The inventory report has been saved and will sync automatically when you reconnect."
         );
-        console.error("Error submitting inventory report:", err);
       }
     } finally {
       setSaving(false);

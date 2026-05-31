@@ -88,12 +88,6 @@ export interface ExpenseStatsResponse {
   >;
 }
 
-function isNetworkError(err: unknown): boolean {
-  if (err instanceof TypeError && (err.message.includes("Network") || err.message.includes("fetch"))) return true;
-  if (err instanceof Error && err.message.includes("Network request failed")) return true;
-  return false;
-}
-
 async function getStoredUser(): Promise<{ id: string; username: string; email: string; role: string } | null> {
   try {
     const raw = await AsyncStorage.getItem("@kioscify:user");
@@ -155,7 +149,11 @@ export const createExpense = async (
     safeReactotron.display({ name: "EXPENSE SUCCESS", value: data, preview: `Expense ${data.id} created` });
     return data;
   } catch (err) {
-    if (isNetworkError(err)) {
+    // Queue on any non-4xx failure (network down, timeout, server error).
+    // 4xx errors surface immediately so the user knows what went wrong.
+    const status = (err as any)?.status;
+    const is4xx = typeof status === "number" && status >= 400 && status < 500;
+    if (!is4xx) {
       await enqueue("expense", "/expenses", payload as unknown as Record<string, unknown>, clientId);
       const user = await getStoredUser();
       const local = buildLocalExpense(clientId, expenseData, user);
@@ -205,15 +203,12 @@ export const getExpenses = async (filters?: {
     const serverIds = new Set(data.map((e) => e.id));
     const newPending = pending.filter((p) => !serverIds.has(p.id));
     return [...newPending, ...data];
-  } catch (err) {
-    if (isNetworkError(err) || (err instanceof Error && err.message.startsWith("HTTP"))) {
-      const cached = (await getCachedExpenses()) ?? [];
-      const pending = await getPending();
-      const cachedIds = new Set(cached.map((e: ExpenseResponse) => e.id));
-      const newPending = pending.filter((p) => !cachedIds.has(p.id));
-      return [...newPending, ...cached];
-    }
-    throw err;
+  } catch {
+    const cached = (await getCachedExpenses()) ?? [];
+    const pending = await getPending();
+    const cachedIds = new Set(cached.map((e: ExpenseResponse) => e.id));
+    const newPending = pending.filter((p) => !cachedIds.has(p.id));
+    return [...newPending, ...cached];
   }
 };
 

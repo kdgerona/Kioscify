@@ -4,12 +4,6 @@ import { enqueue, generateClientId } from "./syncEngine";
 import { cacheTransactions, getCachedTransactions, getPendingByType } from "../lib/localCache";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-function isNetworkError(err: unknown): boolean {
-  if (err instanceof TypeError && (err.message.includes("Network") || err.message.includes("fetch"))) return true;
-  if (err instanceof Error && err.message.includes("Network request failed")) return true;
-  return false;
-}
-
 async function getStoredUser(): Promise<{ id: string; username: string; email: string; role: string } | null> {
   try {
     const raw = await AsyncStorage.getItem("@kioscify:user");
@@ -257,15 +251,12 @@ export const getTransactions = async (
     const serverIds = new Set(data.map((t) => t.id));
     const newPending = pending.filter((p) => !serverIds.has(p.id));
     return [...newPending, ...data];
-  } catch (err) {
-    if (isNetworkError(err) || (err instanceof Error && err.message.startsWith("HTTP"))) {
-      const cached = (await getCachedTransactions()) ?? [];
-      const pending = await getPending();
-      const cachedIds = new Set(cached.map((t: TransactionResponse) => t.id));
-      const newPending = pending.filter((p) => !cachedIds.has(p.id));
-      return [...newPending, ...cached];
-    }
-    throw err;
+  } catch {
+    const cached = (await getCachedTransactions()) ?? [];
+    const pending = await getPending();
+    const cachedIds = new Set(cached.map((t: TransactionResponse) => t.id));
+    const newPending = pending.filter((p) => !cachedIds.has(p.id));
+    return [...newPending, ...cached];
   }
 };
 
