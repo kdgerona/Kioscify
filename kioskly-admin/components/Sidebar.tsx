@@ -130,8 +130,7 @@ export default function Sidebar() {
       }
       await fetchTenantBySlug(store.slug);
       setShowStoreSwitcher(false);
-      router.refresh();
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch (err) {
       console.error("Failed to switch store:", err);
     } finally {
@@ -290,47 +289,6 @@ export default function Sidebar() {
             )}
           </div>
         </div>
-
-        {/* Store Switcher — shown only if user has 2+ stores and sidebar is not collapsed */}
-        {accessibleStores.length > 1 && !isCollapsed && (
-          <div className="relative px-4 py-2 border-b" style={{ borderColor: `${primaryColor}20` }}>
-            <button
-              onClick={() => setShowStoreSwitcher((v) => !v)}
-              disabled={switching}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-gray-100 transition disabled:opacity-50"
-              style={{ color: textColor }}
-            >
-              <span className="truncate font-medium">{tenant?.name ?? "Select store"}</span>
-              <ChevronsUpDown className="w-4 h-4 flex-shrink-0 opacity-50" />
-            </button>
-
-            {showStoreSwitcher && (
-              <div className="absolute left-4 right-4 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
-                {accessibleStores.map((store) => (
-                  <button
-                    key={store.id}
-                    onClick={() => handleSwitchStore(store)}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-gray-50 transition",
-                      store.id === tenant?.id && "bg-indigo-50 text-indigo-700 font-medium"
-                    )}
-                  >
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: store.brand?.themeColors?.primary ?? primaryColor }}
-                    >
-                      {store.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="truncate">{store.name}</span>
-                    {store.id === tenant?.id && (
-                      <span className="ml-auto text-xs text-indigo-500">Active</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         <nav
           className={cn(
@@ -589,6 +547,50 @@ export default function Sidebar() {
           className={cn("p-4 border-t", isCollapsed && "lg:p-2")}
           style={{ borderColor: `${primaryColor}20` }}
         >
+          {/* Store Switcher — shown only if user has 2+ stores and sidebar is not collapsed */}
+          {accessibleStores.length > 1 && !isCollapsed && (
+            <div className="relative mb-2">
+              <button
+                onClick={() => setShowStoreSwitcher((v) => !v)}
+                disabled={switching}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+                style={{ color: textColor }}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Store className="w-5 h-5 flex-shrink-0" />
+                  <span className="truncate font-medium">{tenant?.name ?? "Select store"}</span>
+                </div>
+                <ChevronsUpDown className="w-4 h-4 flex-shrink-0 opacity-50" />
+              </button>
+
+              {showStoreSwitcher && (
+                <div className="absolute left-0 right-0 bottom-full mb-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+                  {accessibleStores.map((store) => (
+                    <button
+                      key={store.id}
+                      onClick={() => handleSwitchStore(store)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-gray-50 transition",
+                        store.id === tenant?.id && "bg-indigo-50 text-indigo-700 font-medium"
+                      )}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                        style={{ backgroundColor: store.brand?.themeColors?.primary ?? primaryColor }}
+                      >
+                        {store.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="truncate">{store.name}</span>
+                      {store.id === tenant?.id && (
+                        <span className="ml-auto text-xs text-indigo-500">Active</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             onClick={handleLogout}
             className={cn(

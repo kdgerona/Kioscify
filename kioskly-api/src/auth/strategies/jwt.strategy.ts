@@ -59,12 +59,32 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: true,
         isFirstLogin: true,
         isActive: true,
+        storeAccess: {
+          where: { isActive: true },
+          select: { tenantId: true },
+        },
       },
     });
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException();
     }
+
+    // Build the complete set of stores this user can access — unbounded,
+    // covers primary store plus every active UserStoreAccess row.
+    const jwtTenantId = payload.tenantId;
+    const accessibleTenantIds = new Set([
+      user.tenantId,
+      ...user.storeAccess.map((a) => a.tenantId),
+    ]);
+    const effectiveTenantId =
+      jwtTenantId && accessibleTenantIds.has(jwtTenantId)
+        ? jwtTenantId
+        : user.tenantId;
+
+    // When the JWT's tenantId is accepted, also honour its brandId/companyId
+    // since they are stamped together by the server in loginStore/switchStore.
+    const usingJwtStore = effectiveTenantId === jwtTenantId;
 
     return {
       id: user.id,
@@ -73,9 +93,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
-      tenantId: user.tenantId,
-      brandId: user.brandId,
-      companyId: user.companyId,
+      tenantId: effectiveTenantId,
+      brandId: usingJwtStore && payload.brandId ? payload.brandId : user.brandId,
+      companyId: usingJwtStore && payload.companyId ? payload.companyId : user.companyId,
       isFirstLogin: user.isFirstLogin,
       mustChangePassword: user.isFirstLogin,
     };
