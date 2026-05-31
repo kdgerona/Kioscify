@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import {
   formatCurrency,
@@ -22,6 +22,13 @@ import {
 import type { Transaction } from "@/types";
 import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -43,6 +50,7 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function TransactionsPage() {
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const activeTabColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
@@ -69,6 +77,7 @@ export default function TransactionsPage() {
 
   // Debounce search term to avoid too many API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const isFirstTransactionLoad = useRef(true);
 
   const clearDates = () => {
     setStartDate(undefined);
@@ -85,7 +94,7 @@ export default function TransactionsPage() {
         }
 
         const params: {
-          transactionId?: string;
+          search?: string;
           paymentStatus?: string;
           paymentMethod?: string;
           startDate?: string;
@@ -93,7 +102,7 @@ export default function TransactionsPage() {
         } = {};
 
         if (debouncedSearchTerm) {
-          params.transactionId = debouncedSearchTerm;
+          params.search = debouncedSearchTerm;
         }
         if (filterStatus !== "ALL") {
           params.paymentStatus = filterStatus;
@@ -126,25 +135,12 @@ export default function TransactionsPage() {
     [debouncedSearchTerm, filterStatus, filterMethod, startDate, endDate]
   );
 
-  // Initial load
+  // First call shows full skeleton; subsequent filter/search changes use the subtle indicator
   useEffect(() => {
-    loadTransactions(true);
+    const isInitial = isFirstTransactionLoad.current;
+    isFirstTransactionLoad.current = false;
+    loadTransactions(isInitial);
   }, [loadTransactions]);
-
-  // Filter changes - don't show full skeleton
-  useEffect(() => {
-    if (!initialLoading) {
-      loadTransactions(false);
-    }
-  }, [
-    debouncedSearchTerm,
-    filterStatus,
-    filterMethod,
-    startDate,
-    endDate,
-    initialLoading,
-    loadTransactions,
-  ]);
 
   // Load void requests
   const loadVoidRequests = useCallback(async () => {
@@ -302,9 +298,10 @@ export default function TransactionsPage() {
             onClick={() => setShowVoidRequests(false)}
             className={`pb-4 px-2 border-b-2 font-medium transition-colors ${
               !showVoidRequests
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-current"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
+            style={!showVoidRequests ? { color: activeTabColor, borderColor: primaryColor } : undefined}
           >
             All Transactions
           </button>
@@ -312,9 +309,10 @@ export default function TransactionsPage() {
             onClick={() => setShowVoidRequests(true)}
             className={`pb-4 px-2 border-b-2 font-medium transition-colors relative ${
               showVoidRequests
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-current"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
+            style={showVoidRequests ? { color: activeTabColor, borderColor: primaryColor } : undefined}
           >
             Void Requests
             {voidRequests.filter((r) => r.voidStatus === "PENDING").length >
@@ -378,67 +376,33 @@ export default function TransactionsPage() {
             {/* Filters row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Status Filter */}
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
-                >
-                  <option value="ALL">All Status</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="FAILED">Failed</option>
-                </select>
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger style={{ color: activeTabColor }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': activeTabColor } as React.CSSProperties}>
+                  <SelectItem value="ALL">All Status</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="FAILED">Failed</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Payment Method Filter */}
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                <select
-                  value={filterMethod}
-                  onChange={(e) => setFilterMethod(e.target.value)}
-                  className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
-                >
-                  <option value="ALL">All Methods</option>
-                  <option value="CASH">Cash</option>
-                  <option value="GCASH">GCash</option>
-                  <option value="PAYMAYA">Maya</option>
-                  <option value="ONLINE">Online</option>
-                  <option value="FOODPANDA">FoodPanda</option>
-                  <option value="GRAB">Grab</option>
-                </select>
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
+              <Select value={filterMethod} onValueChange={setFilterMethod}>
+                <SelectTrigger style={{ color: activeTabColor }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': activeTabColor } as React.CSSProperties}>
+                  <SelectItem value="ALL">All Methods</SelectItem>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="GCASH">GCash</SelectItem>
+                  <SelectItem value="PAYMAYA">Maya</SelectItem>
+                  <SelectItem value="ONLINE">Online</SelectItem>
+                  <SelectItem value="FOODPANDA">FoodPanda</SelectItem>
+                  <SelectItem value="GRAB">Grab</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Action Buttons */}
@@ -468,7 +432,7 @@ export default function TransactionsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
           {isFiltering && (
             <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
             </div>
           )}
           {transactions.length > 0 ? (
@@ -566,33 +530,21 @@ export default function TransactionsPage() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 flex-1">
                 <label className="font-medium text-gray-700">Status:</label>
-                <div className="relative flex-1 max-w-xs">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                  <select
+                <div className="flex-1 max-w-xs">
+                  <Select
                     value={voidStatusFilter}
-                    onChange={(e) => setVoidStatusFilter(e.target.value as "PENDING" | "APPROVED" | "REJECTED" | "ALL")}
-                    className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
+                    onValueChange={(v) => setVoidStatusFilter(v as "PENDING" | "APPROVED" | "REJECTED" | "ALL")}
                   >
-                    <option value="PENDING">Pending</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="REJECTED">Rejected</option>
-                    <option value="ALL">All</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <svg
-                      className="w-4 h-4 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </div>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': activeTabColor } as React.CSSProperties}>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="APPROVED">Approved</SelectItem>
+                      <SelectItem value="REJECTED">Rejected</SelectItem>
+                      <SelectItem value="ALL">All</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <button
@@ -612,7 +564,7 @@ export default function TransactionsPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
             {loadingVoidRequests && (
               <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
               </div>
             )}
             {voidRequests.length > 0 ? (
@@ -700,7 +652,7 @@ export default function TransactionsPage() {
                           {request.voidStatus !== "PENDING" && (
                             <button
                               onClick={() => setSelectedTransaction(request)}
-                              className="text-indigo-600 hover:text-indigo-900"
+                              className="text-gray-700 hover:text-gray-900"
                               title="View details"
                             >
                               <Eye className="w-5 h-5" />

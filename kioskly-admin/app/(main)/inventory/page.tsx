@@ -16,10 +16,18 @@ import {
   CalendarX,
 } from "lucide-react";
 import { ExpirationBatch } from "@/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function InventoryPage() {
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
 
   // State management
   const [stats, setStats] = useState<InventoryStats | null>(null);
@@ -396,36 +404,19 @@ export default function InventoryPage() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
                 />
               </div>
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
-                >
-                  <option value="">All Categories</option>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger style={{ color: textColor }}>
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': textColor } as React.CSSProperties}>
+                  <SelectItem value="">All Categories</SelectItem>
                   {categories.map((cat) => (
-                    <option key={cat} value={cat}>
+                    <SelectItem key={cat} value={cat}>
                       {formatCategoryName(cat)}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Inventory List - Grouped by Category */}

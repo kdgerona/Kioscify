@@ -146,7 +146,7 @@ class ApiClient {
     endDate?: string;
     paymentMethod?: string;
     paymentStatus?: string;
-    transactionId?: string;
+    search?: string;
   }): Promise<Transaction[]> {
     const { data } = await this.client.get<Transaction[]>("/transactions", {
       params,

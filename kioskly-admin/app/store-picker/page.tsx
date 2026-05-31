@@ -65,7 +65,7 @@ export default function StorePickerPage() {
   if (stores.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
       </div>
     );
   }
@@ -113,7 +113,7 @@ export default function StorePickerPage() {
 
                   <div className="flex-shrink-0">
                     {isLoading ? (
-                      <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: primaryColor, borderTopColor: 'transparent' }} />
                     ) : (
                       <ChevronRight className="w-5 h-5 text-gray-400" />
                     )}

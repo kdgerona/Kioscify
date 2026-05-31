@@ -253,6 +253,7 @@ export default function CompanyDetailPage() {
   const [editBrandName, setEditBrandName] = useState('');
   const [editBrandDescription, setEditBrandDescription] = useState('');
   const [editBrandTheme, setEditBrandTheme] = useState<ThemeColors>({});
+  const [editBrandThemeHex, setEditBrandThemeHex] = useState<Record<string, string>>({});
   const [editBrandLoading, setEditBrandLoading] = useState(false);
   const [editBrandError, setEditBrandError] = useState<string | null>(null);
   const [editBrandLogoUploading, setEditBrandLogoUploading] = useState(false);
@@ -262,6 +263,7 @@ export default function CompanyDetailPage() {
     setEditBrandName(brand.name);
     setEditBrandDescription(brand.description || '');
     setEditBrandTheme(brand.themeColors || {});
+    setEditBrandThemeHex({ ...(brand.themeColors || {}) });
     setEditBrandError(null);
   };
 
@@ -1114,18 +1116,41 @@ export default function CompanyDetailPage() {
               {/* Theme colors */}
               <div>
                 <p className="text-sm font-medium text-gray-700 mb-2">Theme Colors</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => (
-                    <div key={key} className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={editBrandTheme[key] || (key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : '#ea580c')}
-                        onChange={e => setEditBrandTheme(prev => ({ ...prev, [key]: e.target.value }))}
-                        className="w-8 h-8 rounded cursor-pointer border-0 p-0"
-                      />
-                      <label className="text-xs text-gray-600 capitalize">{key}</label>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 gap-2">
+                  {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => {
+                    const defaultColor = key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : '#ea580c';
+                    const colorValue = editBrandTheme[key] || defaultColor;
+                    const hexValue = editBrandThemeHex[key] ?? colorValue;
+                    return (
+                      <div key={key} className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={colorValue}
+                          onChange={e => {
+                            setEditBrandTheme(prev => ({ ...prev, [key]: e.target.value }));
+                            setEditBrandThemeHex(prev => ({ ...prev, [key]: e.target.value }));
+                          }}
+                          className="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={hexValue}
+                          onChange={e => {
+                            const v = e.target.value;
+                            setEditBrandThemeHex(prev => ({ ...prev, [key]: v }));
+                            if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                              setEditBrandTheme(prev => ({ ...prev, [key]: v }));
+                            }
+                          }}
+                          maxLength={7}
+                          placeholder={defaultColor}
+                          spellCheck={false}
+                          className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <label className="text-xs text-gray-600 capitalize">{key}</label>
+                      </div>
+                    );
+                  })}
                 </div>
                 <p className="text-xs text-gray-400 mt-1">These colors are used as branding in the Store Portal and App</p>
               </div>

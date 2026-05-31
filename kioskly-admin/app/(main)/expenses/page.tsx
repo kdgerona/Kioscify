@@ -6,7 +6,6 @@ import { formatCurrency, formatDateTime, formatUserName } from "@/lib/utils";
 import {
   Receipt,
   Search,
-  Filter,
   Download,
   Eye,
   X,
@@ -15,6 +14,13 @@ import {
 import type { Expense } from "@/types";
 import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -57,6 +63,7 @@ const getCategoryColor = (category: string) => {
 export default function ExpensesPage() {
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const activeTabColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
@@ -316,9 +323,10 @@ export default function ExpensesPage() {
             onClick={() => setShowVoidRequests(false)}
             className={`pb-4 px-2 border-b-2 font-medium transition-colors ${
               !showVoidRequests
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-current"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
+            style={!showVoidRequests ? { color: activeTabColor, borderColor: primaryColor } : undefined}
           >
             All Expenses
           </button>
@@ -326,9 +334,10 @@ export default function ExpensesPage() {
             onClick={() => setShowVoidRequests(true)}
             className={`pb-4 px-2 border-b-2 font-medium transition-colors relative ${
               showVoidRequests
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-current"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
+            style={showVoidRequests ? { color: activeTabColor, borderColor: primaryColor } : undefined}
           >
             Void Requests
             {voidRequests.filter((r) => r.voidStatus === "PENDING").length >
@@ -388,39 +397,22 @@ export default function ExpensesPage() {
 
             {/* Category Filter */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
-                >
-                  <option value="ALL">All Categories</option>
-                  <option value="SUPPLIES">Supplies</option>
-                  <option value="UTILITIES">Utilities</option>
-                  <option value="RENT">Rent</option>
-                  <option value="SALARIES">Salaries</option>
-                  <option value="MARKETING">Marketing</option>
-                  <option value="MAINTENANCE">Maintenance</option>
-                  <option value="TRANSPORTATION">Transportation</option>
-                  <option value="MISCELLANEOUS">Miscellaneous</option>
-                </select>
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger style={{ color: activeTabColor }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': activeTabColor } as React.CSSProperties}>
+                  <SelectItem value="ALL">All Categories</SelectItem>
+                  <SelectItem value="SUPPLIES">Supplies</SelectItem>
+                  <SelectItem value="UTILITIES">Utilities</SelectItem>
+                  <SelectItem value="RENT">Rent</SelectItem>
+                  <SelectItem value="SALARIES">Salaries</SelectItem>
+                  <SelectItem value="MARKETING">Marketing</SelectItem>
+                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                  <SelectItem value="TRANSPORTATION">Transportation</SelectItem>
+                  <SelectItem value="MISCELLANEOUS">Miscellaneous</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -450,7 +442,7 @@ export default function ExpensesPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
           {isFiltering && (
             <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
             </div>
           )}
           {expenses.length > 0 ? (
@@ -556,41 +548,21 @@ export default function ExpensesPage() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 flex-1">
                 <label className="font-medium text-gray-700">Status:</label>
-                <div className="relative flex-1 max-w-xs">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                  <select
+                <div className="flex-1 max-w-xs">
+                  <Select
                     value={voidStatusFilter}
-                    onChange={(e) =>
-                      setVoidStatusFilter(
-                        e.target.value as
-                          | "PENDING"
-                          | "APPROVED"
-                          | "REJECTED"
-                          | "ALL"
-                      )
-                    }
-                    className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
+                    onValueChange={(v) => setVoidStatusFilter(v as "PENDING" | "APPROVED" | "REJECTED" | "ALL")}
                   >
-                    <option value="PENDING">Pending</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="REJECTED">Rejected</option>
-                    <option value="ALL">All</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <svg
-                      className="w-4 h-4 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </div>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': activeTabColor } as React.CSSProperties}>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="APPROVED">Approved</SelectItem>
+                      <SelectItem value="REJECTED">Rejected</SelectItem>
+                      <SelectItem value="ALL">All</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <button
@@ -610,7 +582,7 @@ export default function ExpensesPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
             {loadingVoidRequests && (
               <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
               </div>
             )}
             {voidRequests.length > 0 ? (

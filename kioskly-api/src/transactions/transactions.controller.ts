@@ -71,9 +71,9 @@ export class TransactionsController {
     description: 'Filter by payment status',
   })
   @ApiQuery({
-    name: 'transactionId',
+    name: 'search',
     required: false,
-    description: 'Search by transaction ID (partial match)',
+    description: 'Search by transaction ID or cashier name (partial match)',
   })
   @ApiResponse({
     status: 200,
@@ -85,7 +85,7 @@ export class TransactionsController {
     @Query('paymentMethod')
     paymentMethod?: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE',
     @Query('paymentStatus') paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED',
-    @Query('transactionId') transactionId?: string,
+    @Query('search') search?: string,
     @Request() req?,
   ) {
     const filters: any = {};
@@ -93,7 +93,7 @@ export class TransactionsController {
     if (endDate) filters.endDate = new Date(endDate);
     if (paymentMethod) filters.paymentMethod = paymentMethod;
     if (paymentStatus) filters.paymentStatus = paymentStatus;
-    if (transactionId) filters.transactionId = transactionId;
+    if (search) filters.search = search;
 
     return this.transactionsService.findAll(req.user.tenantId, filters);
   }

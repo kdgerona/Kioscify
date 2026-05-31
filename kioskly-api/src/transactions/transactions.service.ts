@@ -15,6 +15,8 @@ type TransactionWithIncludes = Prisma.TransactionGetPayload<{
       select: {
         id: true;
         username: true;
+        firstName: true;
+        lastName: true;
         email: true;
         role: true;
       };
@@ -49,7 +51,8 @@ export class TransactionsService {
     userId: string,
     tenantId: string,
   ) {
-    const { items, clientId, timestamp, ...transactionData } = createTransactionDto;
+    const { items, clientId, timestamp, ...transactionData } =
+      createTransactionDto;
 
     // Offline deduplication: if clientId already exists, return 409
     if (clientId) {
@@ -58,7 +61,10 @@ export class TransactionsService {
       });
       if (existing) {
         const { ConflictException } = await import('@nestjs/common');
-        throw new ConflictException({ message: 'Transaction already synced', id: existing.id });
+        throw new ConflictException({
+          message: 'Transaction already synced',
+          id: existing.id,
+        });
       }
     }
 
@@ -92,6 +98,8 @@ export class TransactionsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -120,7 +128,7 @@ export class TransactionsService {
       endDate?: Date;
       paymentMethod?: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE';
       paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED';
-      transactionId?: string;
+      search?: string;
       includeVoided?: boolean;
     },
   ) {
@@ -140,11 +148,31 @@ export class TransactionsService {
       (where as any).paymentStatus = filters.paymentStatus;
     }
 
-    if (filters?.transactionId) {
-      where.transactionId = {
-        contains: filters.transactionId,
-        mode: 'insensitive',
-      } as any;
+    if (filters?.search) {
+      // Find users whose name or username matches the search term
+      const matchingUsers = await this.prisma.user.findMany({
+        where: {
+          tenantId,
+          OR: [
+            {
+              firstName: { contains: filters.search, mode: 'insensitive' },
+            } as any,
+            {
+              lastName: { contains: filters.search, mode: 'insensitive' },
+            } as any,
+            {
+              username: { contains: filters.search, mode: 'insensitive' },
+            } as any,
+          ],
+        },
+        select: { id: true },
+      });
+      const userIds = matchingUsers.map((u) => u.id);
+
+      (where as any).OR = [
+        { transactionId: { contains: filters.search, mode: 'insensitive' } },
+        ...(userIds.length ? [{ userId: { in: userIds } }] : []),
+      ];
     }
 
     // Exclude APPROVED void transactions by default (includes NONE, PENDING, REJECTED)
@@ -161,6 +189,8 @@ export class TransactionsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -191,6 +221,8 @@ export class TransactionsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -233,6 +265,8 @@ export class TransactionsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -412,10 +446,24 @@ export class TransactionsService {
       } as any,
       include: {
         user: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         },
         voidRequester: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         } as any,
         items: {
           include: {
@@ -464,13 +512,34 @@ export class TransactionsService {
       where,
       include: {
         user: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         },
         voidRequester: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         } as any,
         voidReviewer: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         } as any,
         items: {
           include: {
@@ -524,13 +593,34 @@ export class TransactionsService {
       } as any,
       include: {
         user: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         },
         voidRequester: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         } as any,
         voidReviewer: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         } as any,
         items: {
           include: {
@@ -585,13 +675,34 @@ export class TransactionsService {
       } as any,
       include: {
         user: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         },
         voidRequester: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         } as any,
         voidReviewer: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
         } as any,
         items: {
           include: {

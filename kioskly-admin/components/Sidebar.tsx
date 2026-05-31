@@ -78,14 +78,17 @@ export default function Sidebar() {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [accessibleStores, setAccessibleStores] = useState<AccessibleStore[]>([]);
+  const [accessibleStores, setAccessibleStores] = useState<AccessibleStore[]>(
+    [],
+  );
   const [showStoreSwitcher, setShowStoreSwitcher] = useState(false);
   const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
-    const raw = typeof window !== "undefined"
-      ? localStorage.getItem("kioscify_accessible_stores")
-      : null;
+    const raw =
+      typeof window !== "undefined"
+        ? localStorage.getItem("kioscify_accessible_stores")
+        : null;
     if (raw) setAccessibleStores(JSON.parse(raw));
   }, []);
 
@@ -96,7 +99,7 @@ export default function Sidebar() {
         const hasActiveSubItem = item.subItems.some(
           (subItem) =>
             pathname === subItem.href ||
-            pathname?.startsWith(subItem.href + "/")
+            pathname?.startsWith(subItem.href + "/"),
         );
         if (hasActiveSubItem && !expandedItems.includes(item.name)) {
           setExpandedItems((prev) => [...prev, item.name]);
@@ -117,7 +120,10 @@ export default function Sidebar() {
   };
 
   const handleSwitchStore = async (store: AccessibleStore) => {
-    if (store.id === tenant?.id) { setShowStoreSwitcher(false); return; }
+    if (store.id === tenant?.id) {
+      setShowStoreSwitcher(false);
+      return;
+    }
     setSwitching(true);
     try {
       const result = await api.switchStore(store.id);
@@ -139,14 +145,45 @@ export default function Sidebar() {
   };
 
   // Brand theme takes priority over store theme
-  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
-  const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
-  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+  const primaryColor =
+    brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const secondaryColor =
+    brand?.themeColors?.secondary ??
+    tenant?.themeColors?.secondary ??
+    "#fb923c";
+  const backgroundColor =
+    brand?.themeColors?.background ??
+    tenant?.themeColors?.background ??
+    "#ffffff";
+  const textColor =
+    brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3000';
+  // Derive border color from background luminance so it always has contrast
+  const bgIsLight = (() => {
+    const c = backgroundColor.replace("#", "");
+    if (c.length !== 6) return true;
+    const r = parseInt(c.slice(0, 2), 16) / 255;
+    const g = parseInt(c.slice(2, 4), 16) / 255;
+    const b = parseInt(c.slice(4, 6), 16) / 255;
+    return 0.299 * r + 0.587 * g + 0.114 * b > 0.5;
+  })();
+  const borderColor = bgIsLight ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)";
+
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ??
+    "http://localhost:3000";
   const rawLogoUrl = brand?.logoUrl ?? tenant?.logoUrl ?? null;
   const logoSrc = rawLogoUrl
-    ? (() => { try { const path = rawLogoUrl.startsWith('http') ? new URL(rawLogoUrl).pathname : rawLogoUrl; return `${apiBase}${path}`; } catch { return rawLogoUrl; } })()
+    ? (() => {
+        try {
+          const path = rawLogoUrl.startsWith("http")
+            ? new URL(rawLogoUrl).pathname
+            : rawLogoUrl;
+          return `${apiBase}${path}`;
+        } catch {
+          return rawLogoUrl;
+        }
+      })()
     : null;
 
   return (
@@ -177,7 +214,7 @@ export default function Sidebar() {
       {/* Sidebar */}
       <div
         className={cn(
-          "flex flex-col h-full border-r shadow-sm transition-all duration-300 ease-in-out",
+          "flex flex-col h-full shadow-sm transition-all duration-300 ease-in-out",
           // Mobile: fixed with slide animation
           "fixed lg:relative inset-y-0 left-0 z-40",
           "lg:transform-none",
@@ -188,11 +225,12 @@ export default function Sidebar() {
           // Desktop width behavior
           isCollapsed ? "lg:w-20" : "lg:w-64",
           // Mobile always full width when open
-          "w-64"
+          "w-64",
         )}
         style={{
           backgroundColor: backgroundColor,
           color: textColor,
+          borderRight: `1px solid ${borderColor}`,
         }}
       >
         {/* Mobile Close Button */}
@@ -213,9 +251,9 @@ export default function Sidebar() {
         <div
           className={cn(
             "hidden lg:flex items-center border-b",
-            isCollapsed ? "justify-center p-2" : "justify-end px-4 py-2"
+            isCollapsed ? "justify-center p-2" : "justify-end px-4 py-2",
           )}
-          style={{ borderColor: `${primaryColor}20` }}
+          style={{ borderColor }}
         >
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
@@ -239,28 +277,28 @@ export default function Sidebar() {
             isCollapsed && "lg:p-3",
             {
               "pt-14": isMobileMenuOpen,
-            }
+            },
           )}
-          style={{ borderColor: `${primaryColor}20` }}
+          style={{ borderColor }}
         >
           <div
             className={cn(
               "flex items-center",
               isCollapsed
                 ? "lg:justify-center lg:flex-col lg:space-x-0"
-                : "space-x-3"
+                : "space-x-3",
             )}
           >
             {logoSrc ? (
               <div
                 className={cn(
                   "relative flex-shrink-0",
-                  isCollapsed ? "lg:w-8 lg:h-8" : "w-10 h-10"
+                  isCollapsed ? "lg:w-8 lg:h-8" : "w-10 h-10",
                 )}
               >
                 <Image
                   src={logoSrc}
-                  alt={brand?.name ?? tenant?.name ?? ''}
+                  alt={brand?.name ?? tenant?.name ?? ""}
                   fill
                   className="object-contain rounded-lg"
                   unoptimized
@@ -279,7 +317,10 @@ export default function Sidebar() {
             )}
             {!isCollapsed && (
               <div className="lg:block flex-1 min-w-0">
-                <h2 className="text-xl font-bold truncate" style={{ color: textColor }}>
+                <h2
+                  className="text-xl font-bold truncate"
+                  style={{ color: textColor }}
+                >
                   {tenant?.name ?? "Store Portal"}
                 </h2>
                 {brand?.name && (
@@ -293,7 +334,7 @@ export default function Sidebar() {
         <nav
           className={cn(
             "flex-1 p-4 space-y-2 overflow-y-auto",
-            isCollapsed && "lg:p-2"
+            isCollapsed && "lg:p-2",
           )}
         >
           {navigation.map((item) => {
@@ -306,7 +347,7 @@ export default function Sidebar() {
               item.subItems?.some(
                 (subItem) =>
                   pathname === subItem.href ||
-                  pathname?.startsWith(subItem.href + "/")
+                  pathname?.startsWith(subItem.href + "/"),
               );
 
             const toggleExpanded = (e: React.MouseEvent) => {
@@ -315,7 +356,7 @@ export default function Sidebar() {
                 setExpandedItems((prev) =>
                   prev.includes(item.name)
                     ? prev.filter((name) => name !== item.name)
-                    : [...prev, item.name]
+                    : [...prev, item.name],
                 );
               }
             };
@@ -332,14 +373,14 @@ export default function Sidebar() {
                             className={cn(
                               "flex items-center w-full rounded-lg transition-all duration-200",
                               "lg:justify-center lg:px-2 lg:py-3",
-                              isSubItemActive ? "shadow-md" : ""
+                              isSubItemActive ? "shadow-md" : "",
                             )}
                             style={
                               isSubItemActive
                                 ? {
                                     backgroundColor: "#ffffff",
                                     color: "#000000",
-                                    borderLeft: `3px solid ${primaryColor}`,
+                                    borderLeft: `3px solid ${secondaryColor}`,
                                   }
                                 : {
                                     color: "#000000",
@@ -384,7 +425,7 @@ export default function Sidebar() {
                                       "flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-200 text-sm",
                                       isSubActive
                                         ? "bg-gray-100 font-semibold"
-                                        : "hover:bg-gray-50"
+                                        : "hover:bg-gray-50",
                                     )}
                                     style={{
                                       color: "#000000",
@@ -407,14 +448,14 @@ export default function Sidebar() {
                           className={cn(
                             "flex items-center w-full rounded-lg transition-all duration-200",
                             "justify-between px-4 py-3",
-                            isSubItemActive ? "shadow-md" : ""
+                            isSubItemActive ? "shadow-md" : "",
                           )}
                           style={
                             isSubItemActive
                               ? {
                                   backgroundColor: "#ffffff",
                                   color: "#000000",
-                                  borderLeft: `3px solid ${primaryColor}`,
+                                  borderLeft: `3px solid ${secondaryColor}`,
                                 }
                               : {
                                   color: "#000000",
@@ -455,7 +496,7 @@ export default function Sidebar() {
                                   href={subItem.href}
                                   className={cn(
                                     "flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200",
-                                    isSubActive ? "shadow-sm" : ""
+                                    isSubActive ? "shadow-sm" : "",
                                   )}
                                   style={
                                     isSubActive
@@ -463,7 +504,7 @@ export default function Sidebar() {
                                           backgroundColor: "#ffffff",
                                           color: "#000000",
                                           fontWeight: "600",
-                                          borderLeft: `3px solid ${primaryColor}`,
+                                          borderLeft: `3px solid ${secondaryColor}`,
                                         }
                                       : {
                                           color: "#000000",
@@ -504,14 +545,14 @@ export default function Sidebar() {
                       isCollapsed
                         ? "lg:justify-center lg:px-2 lg:py-3"
                         : "space-x-3 px-4 py-3",
-                      isActive ? "shadow-md" : ""
+                      isActive ? "shadow-md" : "",
                     )}
                     style={
                       isActive
                         ? {
                             backgroundColor: "#ffffff",
                             color: "#000000",
-                            borderLeft: `3px solid ${primaryColor}`,
+                            borderLeft: `3px solid ${secondaryColor}`,
                           }
                         : {
                             color: "#000000",
@@ -545,7 +586,7 @@ export default function Sidebar() {
 
         <div
           className={cn("p-4 border-t", isCollapsed && "lg:p-2")}
-          style={{ borderColor: `${primaryColor}20` }}
+          style={{ borderColor }}
         >
           {/* Store Switcher — shown only if user has 2+ stores and sidebar is not collapsed */}
           {accessibleStores.length > 1 && !isCollapsed && (
@@ -558,7 +599,9 @@ export default function Sidebar() {
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <Store className="w-5 h-5 flex-shrink-0" />
-                  <span className="truncate font-medium">{tenant?.name ?? "Select store"}</span>
+                  <span className="truncate font-medium">
+                    {tenant?.name ?? "Select store"}
+                  </span>
                 </div>
                 <ChevronsUpDown className="w-4 h-4 flex-shrink-0 opacity-50" />
               </button>
@@ -571,18 +614,24 @@ export default function Sidebar() {
                       onClick={() => handleSwitchStore(store)}
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-gray-50 transition",
-                        store.id === tenant?.id && "bg-indigo-50 text-indigo-700 font-medium"
+                        store.id === tenant?.id &&
+                          "bg-indigo-50 text-indigo-700 font-medium",
                       )}
                     >
                       <div
                         className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                        style={{ backgroundColor: store.brand?.themeColors?.primary ?? primaryColor }}
+                        style={{
+                          backgroundColor:
+                            store.brand?.themeColors?.primary ?? primaryColor,
+                        }}
                       >
                         {store.name.charAt(0).toUpperCase()}
                       </div>
                       <span className="truncate">{store.name}</span>
                       {store.id === tenant?.id && (
-                        <span className="ml-auto text-xs text-indigo-500">Active</span>
+                        <span className="ml-auto text-xs text-indigo-500">
+                          Active
+                        </span>
                       )}
                     </button>
                   ))}
@@ -597,7 +646,7 @@ export default function Sidebar() {
               "flex items-center rounded-lg w-full transition-all duration-200",
               isCollapsed
                 ? "lg:justify-center lg:px-2 lg:py-3"
-                : "space-x-3 px-4 py-3"
+                : "space-x-3 px-4 py-3",
             )}
             style={{ color: "#000000", opacity: 0.7 }}
             onMouseEnter={(e) => {
@@ -614,20 +663,38 @@ export default function Sidebar() {
             {!isCollapsed && <span className="font-medium">Logout</span>}
           </button>
 
-          <div className={cn("flex justify-center mt-3 pt-3 border-t", isCollapsed && "lg:pt-2 lg:mt-2")} style={{ borderColor: `${primaryColor}20` }}>
+          <div
+            className={cn(
+              "flex justify-center mt-3 pt-3 border-t",
+              isCollapsed && "lg:pt-2 lg:mt-2",
+            )}
+            style={{ borderColor }}
+          >
             {isCollapsed ? (
               <div className="lg:flex hidden justify-center">
-                <div className="bg-white rounded-lg p-1 shadow-sm border border-gray-100" title="Powered by Kioscify">
+                <div
+                  className="bg-white rounded-lg p-1 shadow-sm border border-gray-100"
+                  title="Powered by Kioscify"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo-full.png" alt="Kioscify" className="w-7 h-7 object-contain" />
+                  <img
+                    src="/logo-full.png"
+                    alt="Kioscify"
+                    className="w-7 h-7 object-contain"
+                  />
                 </div>
               </div>
             ) : (
               <div className="flex items-center gap-2 bg-white rounded-full px-3 py-1.5 shadow-sm border border-gray-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-full.png" alt="Kioscify" className="w-8 h-8 object-contain" />
+                <img
+                  src="/logo-full.png"
+                  alt="Kioscify"
+                  className="w-8 h-8 object-contain"
+                />
                 <span className="text-[11px] text-gray-400 whitespace-nowrap">
-                  Powered by <span className="font-semibold text-gray-600">Kioscify</span>
+                  Powered by{" "}
+                  <span className="font-semibold text-gray-600">Kioscify</span>
                 </span>
               </div>
             )}

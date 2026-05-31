@@ -152,7 +152,7 @@ export default function SubmittedReportsPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
         {isFiltering && (
           <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
           </div>
         )}
         {reports.length > 0 ? (

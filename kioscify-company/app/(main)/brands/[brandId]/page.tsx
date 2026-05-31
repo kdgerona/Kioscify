@@ -6,6 +6,13 @@ import { api } from '@/lib/api';
 import type { Brand, Category, Product, Size, Addon, InventoryBrandTemplate } from '@/types';
 import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown } from 'lucide-react';
 import StoreQRModal from '@/components/StoreQRModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'inventory' | 'stores' | 'settings';
 
@@ -197,6 +204,7 @@ export default function BrandDetailPage() {
   const [settingsName, setSettingsName] = useState('');
   const [settingsDescription, setSettingsDescription] = useState('');
   const [settingsTheme, setSettingsTheme] = useState<Brand['themeColors']>({});
+  const [settingsThemeHex, setSettingsThemeHex] = useState<Record<string, string>>({});
   const [enableFoodPanda, setEnableFoodPanda] = useState(
     brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ?? false
   );
@@ -244,6 +252,7 @@ export default function BrandDetailPage() {
         setSettingsName(b.name);
         setSettingsDescription(b.description || '');
         setSettingsTheme(b.themeColors || {});
+        setSettingsThemeHex(b.themeColors || {});
         setEnableFoodPanda(b.enabledDeliveryPlatforms?.includes('FOODPANDA') ?? false);
         setEnableGrab(b.enabledDeliveryPlatforms?.includes('GRAB') ?? false);
       })
@@ -719,18 +728,41 @@ export default function BrandDetailPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Theme Colors</p>
                   <p className="text-xs text-gray-400 mb-3">These colors are used as branding in the Store Portal and App</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => (
-                      <div key={key} className="flex items-center gap-3">
-                        <input
-                          type="color"
-                          value={settingsTheme?.[key] || (key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : '#ea580c')}
-                          onChange={e => setSettingsTheme(prev => ({ ...prev, [key]: e.target.value }))}
-                          className="w-9 h-9 rounded cursor-pointer border border-gray-200 p-0.5"
-                        />
-                        <span className="text-sm text-gray-600 capitalize">{key}</span>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 gap-2">
+                    {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => {
+                      const defaultColor = key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : '#ea580c';
+                      const colorValue = settingsTheme?.[key] || defaultColor;
+                      const hexValue = settingsThemeHex[key] ?? colorValue;
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={colorValue}
+                            onChange={e => {
+                              setSettingsTheme(prev => ({ ...prev, [key]: e.target.value }));
+                              setSettingsThemeHex(prev => ({ ...prev, [key]: e.target.value }));
+                            }}
+                            className="w-9 h-9 rounded cursor-pointer border border-gray-200 p-0.5 shrink-0"
+                          />
+                          <input
+                            type="text"
+                            value={hexValue}
+                            onChange={e => {
+                              const v = e.target.value;
+                              setSettingsThemeHex(prev => ({ ...prev, [key]: v }));
+                              if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                                setSettingsTheme(prev => ({ ...prev, [key]: v }));
+                              }
+                            }}
+                            maxLength={7}
+                            placeholder={defaultColor}
+                            spellCheck={false}
+                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-gray-600 capitalize">{key}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1195,13 +1227,17 @@ function ProductModal({
         )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-          <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
-            <option value="">— None —</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
+          <Select value={categoryId} onValueChange={setCategoryId}>
+            <SelectTrigger>
+              <SelectValue placeholder="— None —" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">— None —</SelectItem>
+              {categories.map(cat => (
+                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         {/* Sizes */}
         {sizes.length > 0 && (
@@ -1558,16 +1594,17 @@ function InventoryModal({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category (optional)</label>
-          <select
-            value={category}
-            onChange={e => setCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white text-gray-900"
-          >
-            <option value="">— None —</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.name}>{c.name}</option>
-            ))}
-          </select>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger>
+              <SelectValue placeholder="— None —" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">— None —</SelectItem>
+              {categories.map(c => (
+                <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Min Stock Level</label>
