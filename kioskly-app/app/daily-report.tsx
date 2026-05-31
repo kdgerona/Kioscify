@@ -255,35 +255,45 @@ export default function DailyReport() {
     setSubmitError(null);
     setSubmitSuccess(false);
 
-    // Only include IDs of already-synced items so the server can look them up.
-    const syncedTransactionIds = transactions
-      .filter((t) => !(t as any).pendingSync)
-      .map((t) => t.id);
-    const syncedExpenseIds = expenses
-      .filter((e) => !(e as any).pendingSync)
-      .map((e) => e.id);
+    // Only include IDs of already-synced items — pending items don't have server IDs yet.
+    const syncedTransactions = transactions.filter((t) => !(t as any).pendingSync);
+    const syncedExpenses = expenses.filter((e) => !(e as any).pendingSync);
+    const syncedTransactionIds = syncedTransactions.map((t) => t.id);
+    const syncedExpenseIds = syncedExpenses.map((e) => e.id);
+
+    // If there are pending items, recompute the snapshot from synced-only data so
+    // the counts in the snapshot exactly match the linked transaction/expense IDs.
+    // When fully online, reportData already comes from the server and is accurate.
+    const hasPending =
+      syncedTransactions.length !== transactions.length ||
+      syncedExpenses.length !== expenses.length;
+    const { startDate, endDate } = getTodayDateRange();
+    const today = new Date().toISOString().split("T")[0];
+    const snapshot = hasPending
+      ? computeLocalReport(syncedTransactions, syncedExpenses, today, startDate, endDate)
+      : reportData;
 
     const submitData = {
-      reportDate: reportData.date,
-      periodStart: reportData.period.start,
-      periodEnd: reportData.period.end,
+      reportDate: snapshot.date,
+      periodStart: snapshot.period.start,
+      periodEnd: snapshot.period.end,
       salesSnapshot: {
-        totalAmount: reportData.sales.totalAmount,
-        transactionCount: reportData.sales.transactionCount,
-        averageTransaction: reportData.sales.averageTransaction,
-        totalItemsSold: reportData.sales.totalItemsSold,
-        paymentMethodBreakdown: reportData.sales.paymentMethodBreakdown,
+        totalAmount: snapshot.sales.totalAmount,
+        transactionCount: snapshot.sales.transactionCount,
+        averageTransaction: snapshot.sales.averageTransaction,
+        totalItemsSold: snapshot.sales.totalItemsSold,
+        paymentMethodBreakdown: snapshot.sales.paymentMethodBreakdown,
       },
       expensesSnapshot: {
-        totalAmount: reportData.expenses.totalAmount,
-        expenseCount: reportData.expenses.expenseCount,
-        averageExpense: reportData.expenses.averageExpense,
-        categoryBreakdown: reportData.expenses.categoryBreakdown,
+        totalAmount: snapshot.expenses.totalAmount,
+        expenseCount: snapshot.expenses.expenseCount,
+        averageExpense: snapshot.expenses.averageExpense,
+        categoryBreakdown: snapshot.expenses.categoryBreakdown,
       },
       summarySnapshot: {
-        grossProfit: reportData.summary.grossProfit,
-        profitMargin: reportData.summary.profitMargin,
-        netRevenue: reportData.summary.netRevenue,
+        grossProfit: snapshot.summary.grossProfit,
+        profitMargin: snapshot.summary.profitMargin,
+        netRevenue: snapshot.summary.netRevenue,
       },
       transactionIds: syncedTransactionIds,
       expenseIds: syncedExpenseIds,
