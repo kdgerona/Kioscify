@@ -200,43 +200,13 @@ export const getSubmittedInventoryReports = async (filters?: {
     const queryString = params.toString();
     const endpoint = `/submitted-inventory-reports${queryString ? `?${queryString}` : ""}`;
 
-    console.log("🔵 FETCHING SUBMITTED INVENTORY REPORTS:", endpoint);
-
-    safeReactotron.display({
-      name: "FETCH SUBMITTED REPORTS",
-      value: { endpoint, filters },
-      preview: "Fetching submitted inventory reports from API",
-    });
-
     const response = await apiGet(endpoint);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH REPORTS ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH REPORTS ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch submitted inventory reports",
-        important: true,
-      });
-
-      throw new Error(`Failed to fetch submitted inventory reports: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 SUBMITTED REPORTS FETCHED:", data.length, "reports");
-
-    safeReactotron.display({
-      name: "SUBMITTED REPORTS FETCHED",
-      value: { count: data.length },
-      preview: `Fetched ${data.length} submitted inventory reports`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch submitted inventory reports:", error);
-    throw error;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } catch {
+    // Supplementary data — silently return empty when offline or on any error.
+    // The inventory screen remains fully functional without previous report data.
+    return [];
   }
 };
 
@@ -400,44 +370,13 @@ export const getInventoryAlerts = async (): Promise<InventoryAlerts> => {
  * Get inventory report statistics
  * @returns Inventory report statistics
  */
-export const getInventoryReportStats = async (): Promise<InventoryReportStats> => {
+export const getInventoryReportStats = async (): Promise<InventoryReportStats | null> => {
   try {
-    console.log("🔵 FETCHING INVENTORY REPORT STATS");
-
-    safeReactotron.display({
-      name: "FETCH INVENTORY REPORT STATS",
-      value: {},
-      preview: "Fetching inventory report stats from API",
-    });
-
     const response = await apiGet("/submitted-inventory-reports/stats");
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH STATS ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH STATS ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch inventory report stats",
-        important: true,
-      });
-
-      throw new Error(`Failed to fetch inventory report stats: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 INVENTORY REPORT STATS FETCHED:", data);
-
-    safeReactotron.display({
-      name: "INVENTORY REPORT STATS FETCHED",
-      value: data,
-      preview: `Fetched inventory report stats`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch inventory report stats:", error);
-    throw error;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } catch {
+    // Supplementary data — silently return null when offline or on any error.
+    return null;
   }
 };

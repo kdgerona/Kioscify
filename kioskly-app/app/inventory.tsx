@@ -232,17 +232,12 @@ export default function InventoryScreen() {
     try {
       setError(null);
 
-      // Fetch inventory, stats, and latest report in parallel
+      // Fetch inventory, stats, and latest report in parallel.
+      // Stats and reports return null/[] silently when offline.
       const [data, stats, reports] = await Promise.all([
         getLatestInventory(),
-        getInventoryReportStats().catch((err) => {
-          console.warn("Failed to fetch stats:", err);
-          return null; // Non-blocking
-        }),
-        getSubmittedInventoryReports().catch((err) => {
-          console.warn("Failed to fetch latest report:", err);
-          return []; // Non-blocking
-        }),
+        getInventoryReportStats(),
+        getSubmittedInventoryReports(),
       ]);
 
       setInventoryItems(data);
