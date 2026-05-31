@@ -27,6 +27,7 @@ import {
   ExpenseResponse,
 } from "../services/expenseService";
 import { enqueue } from "../services/syncEngine";
+import { useSync } from "../contexts/SyncContext";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
 
 // Build a DailyReportResponse from locally cached transactions and expenses.
@@ -92,6 +93,7 @@ function computeLocalReport(
 export default function DailyReport() {
   const router = useRouter();
   const { tenant, brand } = useTenant();
+  const { isOnline } = useSync();
   const { user } = useAuth();
   const [reportData, setReportData] = useState<DailyReportResponse | null>(
     null
@@ -155,12 +157,17 @@ export default function DailyReport() {
         setExpenses(exps);
         setReportStats(stats);
 
-        // Try the API report; fall back to computing locally from cached data.
+        // Online: always use the backend — it is the source of truth.
+        // Offline: fall back to computing locally from cached data.
         let report: DailyReportResponse;
         try {
           report = await getDailyReport(today);
-        } catch {
-          report = computeLocalReport(txns, exps, today, startDate, endDate);
+        } catch (err) {
+          if (!isOnline) {
+            report = computeLocalReport(txns, exps, today, startDate, endDate);
+          } else {
+            throw err; // Online but server failed — surface the error normally
+          }
         }
         setReportData(report);
       } catch (err) {
