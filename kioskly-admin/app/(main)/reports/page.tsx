@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getPaymentMethodLabel } from "@/lib/utils";
 import {
   Bar,
   LineChart,
@@ -127,7 +127,7 @@ export default function ReportsPage() {
 
     return Object.entries(analytics.sales.paymentMethodBreakdown).map(
       ([method, data]) => ({
-        name: method,
+        name: getPaymentMethodLabel(method),
         value: data.count,
         color: colors[method as keyof typeof colors] || "#6b7280",
       })
@@ -661,7 +661,7 @@ export default function ReportsPage() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span className={`text-sm font-semibold ${color.text}`}>
-                      {method}{" "}
+                      {getPaymentMethodLabel(method)}{" "}
                       {loadingTransactions && selectedPaymentMethod === method
                         ? "(Loading...)"
                         : "(Click to view)"}

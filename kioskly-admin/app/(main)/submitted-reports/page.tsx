@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import { formatCurrency, formatDateTime, formatRole, formatUserName } from "@/lib/utils";
+import { formatCurrency, formatDateTime, formatRole, formatUserName, getPaymentMethodLabel } from "@/lib/utils";
 import {
   FileText,
   Search,
@@ -516,7 +516,7 @@ export default function SubmittedReportsPage() {
                                 </p>
                               )}
                               <p className="text-xs text-gray-600">
-                                {transaction.paymentMethod}
+                                {getPaymentMethodLabel(transaction.paymentMethod)}
                               </p>
                             </div>
                           </div>

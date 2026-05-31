@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { Transaction } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getPaymentMethodLabel } from "@/lib/utils";
 
 interface TransactionListModalProps {
   isOpen: boolean;
@@ -103,7 +103,7 @@ export default function TransactionListModal({
                           transaction.paymentMethod
                         )}`}
                       >
-                        {transaction.paymentMethod}
+                        {getPaymentMethodLabel(transaction.paymentMethod)}
                       </span>
                     </div>
                   </div>
