@@ -417,11 +417,11 @@ export default function TransactionsPage() {
                 >
                   <option value="ALL">All Methods</option>
                   <option value="CASH">Cash</option>
-                  <option value="CARD">Card</option>
                   <option value="GCASH">GCash</option>
-                  <option value="PAYMAYA">PayMaya</option>
+                  <option value="PAYMAYA">Maya</option>
                   <option value="ONLINE">Online</option>
                   <option value="FOODPANDA">FoodPanda</option>
+                  <option value="GRAB">Grab</option>
                 </select>
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                   <svg

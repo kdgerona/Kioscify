@@ -36,11 +36,11 @@ export function formatDateTime(date: string | Date): string {
 export function getPaymentMethodLabel(method: string): string {
   const labels: Record<string, string> = {
     CASH: 'Cash',
-    CARD: 'Card',
     GCASH: 'GCash',
-    PAYMAYA: 'PayMaya',
+    PAYMAYA: 'Maya',
     ONLINE: 'Online',
     FOODPANDA: 'FoodPanda',
+    GRAB: 'Grab',
   };
   return labels[method] || method;
 }

@@ -117,7 +117,7 @@ export interface Transaction {
   subtotal: number;
   discountAmount?: number | null;
   total: number;
-  paymentMethod: "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA";
+  paymentMethod: "CASH" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA" | "GRAB";
   cashReceived?: number | null;
   change?: number | null;
   referenceNumber?: string | null;

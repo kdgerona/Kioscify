@@ -73,7 +73,7 @@ interface TransactionItem {
   addons?: TransactionItemAddon[];
 }
 
-export type PaymentMethodType = "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE";
+export type PaymentMethodType = "CASH" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA" | "GRAB";
 
 interface CreateTransactionPayload {
   transactionId: string;

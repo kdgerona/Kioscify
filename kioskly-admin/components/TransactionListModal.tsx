@@ -35,11 +35,11 @@ export default function TransactionListModal({
   const getPaymentMethodColor = (method: string) => {
     const colors = {
       CASH: "bg-green-100 text-green-800",
-      CARD: "bg-purple-100 text-purple-800",
       GCASH: "bg-blue-100 text-blue-800",
       PAYMAYA: "bg-amber-100 text-amber-800",
       ONLINE: "bg-gray-100 text-gray-800",
       FOODPANDA: "bg-pink-100 text-pink-800",
+      GRAB: "bg-green-100 text-green-900",
     };
     return colors[method as keyof typeof colors] || "bg-gray-100 text-gray-800";
   };

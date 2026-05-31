@@ -118,11 +118,11 @@ export default function ReportsPage() {
 
     const colors = {
       CASH: "#10b981",
-      CARD: "#3b82f6",
       GCASH: "#8b5cf6",
       PAYMAYA: "#f59e0b",
       FOODPANDA: "#ec4899",
       ONLINE: "#6b7280",
+      GRAB: "#16a34a",
     };
 
     return Object.entries(analytics.sales.paymentMethodBreakdown).map(
@@ -610,12 +610,6 @@ export default function ReportsPage() {
                   text: "text-green-700",
                   badge: "bg-green-100",
                 },
-                CARD: {
-                  bg: "bg-blue-50",
-                  border: "border-blue-200",
-                  text: "text-blue-700",
-                  badge: "bg-blue-100",
-                },
                 GCASH: {
                   bg: "bg-purple-50",
                   border: "border-purple-200",
@@ -639,6 +633,12 @@ export default function ReportsPage() {
                   border: "border-pink-200",
                   text: "text-pink-700",
                   badge: "bg-pink-100",
+                },
+                GRAB: {
+                  bg: "bg-green-50",
+                  border: "border-green-300",
+                  text: "text-green-800",
+                  badge: "bg-green-100",
                 },
               };
               const color = colors[method as keyof typeof colors] || {

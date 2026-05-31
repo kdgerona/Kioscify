@@ -60,11 +60,11 @@ type OrderItem = {
 
 type PaymentMethodType =
   | "cash"
-  | "card"
   | "gcash"
   | "paymaya"
   | "online"
-  | "foodpanda";
+  | "foodpanda"
+  | "grab";
 
 type TransactionData = {
   transactionId: string;
@@ -466,11 +466,11 @@ export default function Home() {
         total: totalAmount - (details.discountAmount ?? 0),
         paymentMethod: paymentMethod.toUpperCase() as
           | "CASH"
-          | "CARD"
           | "GCASH"
           | "PAYMAYA"
           | "ONLINE"
-          | "FOODPANDA",
+          | "FOODPANDA"
+          | "GRAB",
         ...(paymentMethod === "cash" && {
           cashReceived: details.cashReceived,
           change: details.change,

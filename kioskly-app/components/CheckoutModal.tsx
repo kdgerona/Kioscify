@@ -15,11 +15,11 @@ import { useTenant } from "@/contexts/TenantContext";
 
 export type PaymentMethod =
   | "cash"
-  | "card"
   | "gcash"
   | "paymaya"
   | "online"
   | "foodpanda"
+  | "grab"
   | null;
 
 type CheckoutModalProps = {
@@ -198,7 +198,7 @@ export default function CheckoutModal({
         ...(discount > 0 && { discountAmount: discount }),
       });
     } else {
-      // card, gcash, paymaya, online - all require reference number
+      // gcash, paymaya, online, foodpanda, grab - all require reference number
       if (!referenceNumber.trim()) {
         setValidationError("Please enter the transaction reference number");
         return;
@@ -444,53 +444,8 @@ export default function CheckoutModal({
                         className="bg-green-500 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("cash")}
                       >
-                        <Text className="text-white text-xl font-bold mb-1">
+                        <Text className="text-white text-xl font-bold">
                           Cash
-                        </Text>
-                        <Text className="text-green-50 text-xs text-center">
-                          Receive cash
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <View className="w-1/2 px-1.5 mb-2.5">
-                      <TouchableOpacity
-                        className="bg-purple-500 rounded-lg py-4 px-3 items-center shadow-sm"
-                        onPress={() => handlePaymentMethodSelect("card")}
-                      >
-                        <Text className="text-white text-xl font-bold mb-1">
-                          Card
-                        </Text>
-                        <Text className="text-purple-50 text-xs text-center">
-                          Credit/Debit
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <View className="w-1/2 px-1.5 mb-2.5">
-                      <TouchableOpacity
-                        className="bg-blue-600 rounded-lg py-4 px-3 items-center shadow-sm"
-                        onPress={() => handlePaymentMethodSelect("gcash")}
-                      >
-                        <Text className="text-white text-xl font-bold mb-1">
-                          GCash
-                        </Text>
-                        <Text className="text-blue-50 text-xs text-center">
-                          Mobile wallet
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <View className="w-1/2 px-1.5 mb-2.5">
-                      <TouchableOpacity
-                        className="bg-green-600 rounded-lg py-4 px-3 items-center shadow-sm"
-                        onPress={() => handlePaymentMethodSelect("paymaya")}
-                      >
-                        <Text className="text-white text-xl font-bold mb-1">
-                          PayMaya
-                        </Text>
-                        <Text className="text-green-50 text-xs text-center">
-                          Maya wallet
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -500,11 +455,30 @@ export default function CheckoutModal({
                         className="bg-gray-600 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("online")}
                       >
-                        <Text className="text-white text-xl font-bold mb-1">
+                        <Text className="text-white text-xl font-bold">
                           Online
                         </Text>
-                        <Text className="text-gray-50 text-xs text-center">
-                          Bank/E-wallet
+                      </TouchableOpacity>
+                    </View>
+
+                    <View className="w-1/2 px-1.5 mb-2.5">
+                      <TouchableOpacity
+                        className="bg-blue-600 rounded-lg py-4 px-3 items-center shadow-sm"
+                        onPress={() => handlePaymentMethodSelect("gcash")}
+                      >
+                        <Text className="text-white text-xl font-bold">
+                          GCash
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View className="w-1/2 px-1.5 mb-2.5">
+                      <TouchableOpacity
+                        className="bg-green-600 rounded-lg py-4 px-3 items-center shadow-sm"
+                        onPress={() => handlePaymentMethodSelect("paymaya")}
+                      >
+                        <Text className="text-white text-xl font-bold">
+                          Maya
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -514,11 +488,19 @@ export default function CheckoutModal({
                         className="bg-pink-500 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("foodpanda")}
                       >
-                        <Text className="text-white text-xl font-bold mb-1">
+                        <Text className="text-white text-xl font-bold">
                           FoodPanda
                         </Text>
-                        <Text className="text-pink-50 text-xs text-center">
-                          Delivery order
+                      </TouchableOpacity>
+                    </View>
+
+                    <View className="w-1/2 px-1.5 mb-2.5">
+                      <TouchableOpacity
+                        className="bg-green-700 rounded-lg py-4 px-3 items-center shadow-sm"
+                        onPress={() => handlePaymentMethodSelect("grab")}
+                      >
+                        <Text className="text-white text-xl font-bold">
+                          Grab
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -629,32 +611,32 @@ export default function CheckoutModal({
                 </View>
               )}
 
-              {/* Non-Cash Payment Form (Card, GCash, PayMaya, Online, FoodPanda) */}
+              {/* Non-Cash Payment Form */}
               {paymentMethod && paymentMethod !== "cash" && (
                 <View>
                   <Text className="text-lg font-bold mb-4 text-gray-800">
-                    {paymentMethod === "card" && "Card Payment"}
                     {paymentMethod === "gcash" && "GCash Payment"}
-                    {paymentMethod === "paymaya" && "PayMaya Payment"}
+                    {paymentMethod === "paymaya" && "Maya Payment"}
                     {paymentMethod === "online" && "Online Transaction"}
                     {paymentMethod === "foodpanda" && "FoodPanda Delivery"}
+                    {paymentMethod === "grab" && "Grab Delivery"}
                   </Text>
 
                   <View className="mb-4">
                     <Text className="text-sm font-semibold text-gray-700 mb-2">
-                      Reference / Authorization Number
+                      Reference / Order Number
                     </Text>
                     <TextInput
                       className="bg-gray-100 rounded-lg px-4 py-4 text-lg border-2 border-gray-200"
                       placeholder={
-                        paymentMethod === "card"
-                          ? "Enter card authorization number"
-                          : paymentMethod === "gcash"
-                            ? "Enter GCash reference number"
-                            : paymentMethod === "paymaya"
-                              ? "Enter PayMaya reference number"
-                              : paymentMethod === "foodpanda"
-                                ? "Enter FoodPanda order number"
+                        paymentMethod === "gcash"
+                          ? "Enter GCash reference number"
+                          : paymentMethod === "paymaya"
+                            ? "Enter Maya reference number"
+                            : paymentMethod === "foodpanda"
+                              ? "Enter FoodPanda order number"
+                              : paymentMethod === "grab"
+                                ? "Enter Grab order number"
                                 : "Enter transaction reference number"
                       }
                       value={referenceNumber}
@@ -672,11 +654,6 @@ export default function CheckoutModal({
                       Please ensure you have received the payment confirmation
                       before proceeding.
                     </Text>
-                    {paymentMethod === "card" && (
-                      <Text className="text-xs text-gray-600">
-                        Enter the authorization code from the card terminal.
-                      </Text>
-                    )}
                     {paymentMethod === "gcash" && (
                       <Text className="text-xs text-gray-600">
                         Enter the GCash reference number from the payment
@@ -685,13 +662,18 @@ export default function CheckoutModal({
                     )}
                     {paymentMethod === "paymaya" && (
                       <Text className="text-xs text-gray-600">
-                        Enter the PayMaya/Maya reference number from the payment
+                        Enter the Maya reference number from the payment
                         confirmation.
                       </Text>
                     )}
                     {paymentMethod === "foodpanda" && (
                       <Text className="text-xs text-gray-600">
                         Enter the FoodPanda order number for delivery tracking.
+                      </Text>
+                    )}
+                    {paymentMethod === "grab" && (
+                      <Text className="text-xs text-gray-600">
+                        Enter the Grab order number for delivery tracking.
                       </Text>
                     )}
                     {paymentMethod === "online" && (
