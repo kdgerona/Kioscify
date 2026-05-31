@@ -94,6 +94,11 @@ export class CreateTransactionDto {
   @IsOptional()
   remarks?: string;
 
+  @ApiProperty({ example: 10, required: false, description: 'Discount amount applied to the transaction' })
+  @IsNumber()
+  @IsOptional()
+  discountAmount?: number;
+
   @ApiProperty({ type: [TransactionItemDto] })
   @IsArray()
   @ValidateNested({ each: true })

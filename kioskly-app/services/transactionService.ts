@@ -84,6 +84,7 @@ interface CreateTransactionPayload {
   change?: number;
   referenceNumber?: string;
   remarks?: string;
+  discountAmount?: number;
   items: TransactionItem[];
 }
 

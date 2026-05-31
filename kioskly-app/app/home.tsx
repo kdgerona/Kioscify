@@ -463,7 +463,7 @@ export default function Home() {
         transactionId,
         timestamp: saleTimestamp,
         subtotal: totalAmount,
-        total: totalAmount,
+        total: totalAmount - (details.discountAmount ?? 0),
         paymentMethod: paymentMethod.toUpperCase() as
           | "CASH"
           | "CARD"
@@ -480,6 +480,9 @@ export default function Home() {
         }),
         ...(details.remarks && {
           remarks: details.remarks,
+        }),
+        ...(details.discountAmount && details.discountAmount > 0 && {
+          discountAmount: details.discountAmount,
         }),
         items: backendItems,
       };

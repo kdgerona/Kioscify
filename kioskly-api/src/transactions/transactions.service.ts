@@ -345,6 +345,7 @@ export class TransactionsService {
       change: transaction.change,
       referenceNumber: transaction.referenceNumber,
       remarks: transaction.remarks,
+      discountAmount: (transaction as any).discountAmount ?? null,
       timestamp: transaction.timestamp,
       voidStatus: (transaction as any).voidStatus || 'NONE',
       voidReason: (transaction as any).voidReason,

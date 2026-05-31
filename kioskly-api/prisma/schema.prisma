@@ -310,6 +310,7 @@ model Transaction {
   change          Float?
   referenceNumber String?
   remarks         String?
+  discountAmount  Float?
   timestamp       DateTime      @default(now())
 
   voidStatus          VoidStatus @default(NONE)
