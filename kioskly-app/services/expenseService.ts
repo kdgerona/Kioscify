@@ -171,6 +171,19 @@ export const createExpense = async (
  * Fetch expenses — returns API data cached locally; falls back to cache + pending
  * queue items when offline.
  */
+/**
+ * Returns all pending (unsynced) expenses from the local queue,
+ * shaped as ExpenseResponse so they can be used in report computations.
+ */
+export async function getPendingExpenses(): Promise<(ExpenseResponse & { pendingSync: true })[]> {
+  const pending = await getPendingByType("expense");
+  const user = await getStoredUser();
+  return pending.map((item) => {
+    const p = item.payload as any;
+    return { ...buildLocalExpense(item.clientId, p, user), pendingSync: true as const };
+  });
+}
+
 export const getExpenses = async (filters?: {
   startDate?: string;
   endDate?: string;

@@ -226,6 +226,16 @@ export const createTransaction = async (
  * @param filters - Optional filters (startDate, endDate, paymentMethod)
  * @returns List of transactions
  */
+/**
+ * Returns all pending (unsynced) transactions from the local queue,
+ * shaped as TransactionResponse so they can be used in report computations.
+ */
+export async function getPendingTransactions(): Promise<(TransactionResponse & { pendingSync: true })[]> {
+  const pending = await getPendingByType("transaction");
+  const user = await getStoredUser();
+  return pending.map((item) => buildLocalTransaction(item.clientId, item.payload, user));
+}
+
 export const getTransactions = async (
   filters?: {
     startDate?: string;

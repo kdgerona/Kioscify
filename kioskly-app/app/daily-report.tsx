@@ -21,10 +21,12 @@ import {
 } from "../services/reportService";
 import {
   getTransactions,
+  getPendingTransactions,
   TransactionResponse,
 } from "../services/transactionService";
 import {
   getExpenses,
+  getPendingExpenses,
   ExpenseResponse,
 } from "../services/expenseService";
 import { enqueue } from "../services/syncEngine";
@@ -164,7 +166,24 @@ export default function DailyReport() {
           report = await getDailyReport(today);
         } catch (err) {
           if (!isOnline) {
-            report = computeLocalReport(txns, exps, today, startDate, endDate);
+            // Explicitly fetch pending queue items so they are always included
+            // in the computation, even if getTransactions()/getExpenses() didn't
+            // return them (e.g. cache was empty, filter mismatch, timing issue).
+            const [pendingTxns, pendingExps] = await Promise.all([
+              getPendingTransactions(),
+              getPendingExpenses(),
+            ]);
+            const txnIds = new Set(txns.map((t) => t.id));
+            const expIds = new Set(exps.map((e) => e.id));
+            const allTxns = [
+              ...pendingTxns.filter((t) => !txnIds.has(t.id)),
+              ...txns,
+            ];
+            const allExps = [
+              ...pendingExps.filter((e) => !expIds.has(e.id)),
+              ...exps,
+            ];
+            report = computeLocalReport(allTxns, allExps, today, startDate, endDate);
           } else {
             throw err; // Online but server failed — surface the error normally
           }
