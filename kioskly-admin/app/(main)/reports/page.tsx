@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { formatCurrency, getPaymentMethodLabel } from "@/lib/utils";
 import {
@@ -118,11 +118,11 @@ export default function ReportsPage() {
 
     const colors = {
       CASH: "#10b981",
-      GCASH: "#8b5cf6",
-      PAYMAYA: "#f59e0b",
+      GCASH: "#2563eb",
+      PAYMAYA: "#50B16B",
       FOODPANDA: "#ec4899",
       ONLINE: "#6b7280",
-      GRAB: "#16a34a",
+      GRAB: "#00B14F",
     };
 
     return Object.entries(analytics.sales.paymentMethodBreakdown).map(
@@ -603,49 +603,32 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Object.entries(analytics.sales.paymentMethodBreakdown).map(
             ([method, data]) => {
-              const colors = {
-                CASH: {
-                  bg: "bg-green-50",
-                  border: "border-green-200",
-                  text: "text-green-700",
-                  badge: "bg-green-100",
-                },
-                GCASH: {
-                  bg: "bg-purple-50",
-                  border: "border-purple-200",
-                  text: "text-purple-700",
-                  badge: "bg-purple-100",
-                },
+              type CardColors = {
+                bg: string; border: string; text: string; badge: string;
+                cardStyle?: React.CSSProperties;
+                textStyle?: React.CSSProperties;
+                badgeStyle?: React.CSSProperties;
+              };
+              const colors: Record<string, CardColors> = {
+                CASH: { bg: "bg-green-50", border: "border-green-200", text: "text-green-700", badge: "bg-green-100" },
+                GCASH: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100" },
                 PAYMAYA: {
-                  bg: "bg-amber-50",
-                  border: "border-amber-200",
-                  text: "text-amber-700",
-                  badge: "bg-amber-100",
+                  bg: "", border: "", text: "", badge: "",
+                  cardStyle: { backgroundColor: "#202122", borderColor: "#3a3b3c" },
+                  textStyle: { color: "#50B16B" },
+                  badgeStyle: { backgroundColor: "#2d2f30", color: "#50B16B" },
                 },
-                ONLINE: {
-                  bg: "bg-indigo-50",
-                  border: "border-indigo-200",
-                  text: "text-indigo-700",
-                  badge: "bg-indigo-100",
-                },
-                FOODPANDA: {
-                  bg: "bg-pink-50",
-                  border: "border-pink-200",
-                  text: "text-pink-700",
-                  badge: "bg-pink-100",
-                },
+                ONLINE: { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", badge: "bg-indigo-100" },
+                FOODPANDA: { bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700", badge: "bg-pink-100" },
                 GRAB: {
-                  bg: "bg-green-50",
-                  border: "border-green-300",
-                  text: "text-green-800",
-                  badge: "bg-green-100",
+                  bg: "", border: "", text: "", badge: "",
+                  cardStyle: { backgroundColor: "rgba(0,177,79,0.08)", borderColor: "#00B14F" },
+                  textStyle: { color: "#007835" },
+                  badgeStyle: { backgroundColor: "rgba(0,177,79,0.18)", color: "#007835" },
                 },
               };
-              const color = colors[method as keyof typeof colors] || {
-                bg: "bg-gray-50",
-                border: "border-gray-200",
-                text: "text-gray-700",
-                badge: "bg-gray-100",
+              const color: CardColors = colors[method] ?? {
+                bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", badge: "bg-gray-100",
               };
               const percentage =
                 analytics.sales.totalAmount > 0
@@ -658,9 +641,10 @@ export default function ReportsPage() {
                   onClick={() => loadTransactionsByPaymentMethod(method)}
                   disabled={loadingTransactions}
                   className={`${color.bg} border ${color.border} p-4 rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer`}
+                  style={color.cardStyle}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`text-sm font-semibold ${color.text}`}>
+                    <span className={`text-sm font-semibold ${color.text}`} style={color.textStyle}>
                       {getPaymentMethodLabel(method)}{" "}
                       {loadingTransactions && selectedPaymentMethod === method
                         ? "(Loading...)"
@@ -668,6 +652,7 @@ export default function ReportsPage() {
                     </span>
                     <span
                       className={`${color.badge} ${color.text} text-xs px-2 py-1 rounded-full font-medium`}
+                      style={color.badgeStyle}
                     >
                       {percentage.toFixed(1)}%
                     </span>
@@ -675,19 +660,19 @@ export default function ReportsPage() {
                   <div className="space-y-2">
                     <div>
                       <p className="text-xs text-gray-600 mb-1">Total Amount</p>
-                      <p className={`text-2xl font-bold ${color.text}`}>
+                      <p className={`text-2xl font-bold ${color.text}`} style={color.textStyle}>
                         {formatCurrency(data.total)}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-600">Transactions</p>
-                      <p className={`text-lg font-semibold ${color.text}`}>
+                      <p className={`text-lg font-semibold ${color.text}`} style={color.textStyle}>
                         {data.count}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-600">Average</p>
-                      <p className={`text-sm font-medium ${color.text}`}>
+                      <p className={`text-sm font-medium ${color.text}`} style={color.textStyle}>
                         {formatCurrency(
                           data.count > 0 ? data.total / data.count : 0
                         )}

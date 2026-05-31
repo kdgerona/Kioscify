@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { X } from "lucide-react";
 import { Transaction } from "@/types";
 import { formatCurrency, getPaymentMethodLabel } from "@/lib/utils";
@@ -33,15 +34,19 @@ export default function TransactionListModal({
   };
 
   const getPaymentMethodColor = (method: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       CASH: "bg-green-100 text-green-800",
       GCASH: "bg-blue-100 text-blue-800",
-      PAYMAYA: "bg-amber-100 text-amber-800",
       ONLINE: "bg-gray-100 text-gray-800",
       FOODPANDA: "bg-pink-100 text-pink-800",
-      GRAB: "bg-green-100 text-green-900",
     };
-    return colors[method as keyof typeof colors] || "bg-gray-100 text-gray-800";
+    return colors[method] ?? "bg-gray-100 text-gray-800";
+  };
+
+  const getPaymentMethodBadgeStyle = (method: string): React.CSSProperties | undefined => {
+    if (method === "PAYMAYA") return { backgroundColor: "#202122", color: "#50B16B" };
+    if (method === "GRAB") return { backgroundColor: "rgba(0,177,79,0.12)", color: "#007835" };
+    return undefined;
   };
 
   return (
@@ -99,9 +104,8 @@ export default function TransactionListModal({
                         {formatCurrency(transaction.total)}
                       </p>
                       <span
-                        className={`inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-bold mt-2 ${getPaymentMethodColor(
-                          transaction.paymentMethod
-                        )}`}
+                        className={`inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-bold mt-2 ${getPaymentMethodColor(transaction.paymentMethod)}`}
+                        style={getPaymentMethodBadgeStyle(transaction.paymentMethod)}
                       >
                         {getPaymentMethodLabel(transaction.paymentMethod)}
                       </span>
