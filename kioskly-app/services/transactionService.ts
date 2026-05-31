@@ -144,6 +144,10 @@ export const createTransactionOffline = async (
 
     if (response.ok) {
       const data: TransactionResponse = await response.json();
+      // Append to local cache so the transaction is visible offline
+      // even if the user never visits the transactions/daily-report screen.
+      const cached = (await getCachedTransactions()) ?? [];
+      await cacheTransactions([data, ...cached.filter((t: TransactionResponse) => t.id !== data.id)]);
       return { transaction: data, queued: false, clientId };
     }
 
@@ -252,7 +256,16 @@ export const getTransactions = async (
     const newPending = pending.filter((p) => !serverIds.has(p.id));
     return [...newPending, ...data];
   } catch {
-    const cached = (await getCachedTransactions()) ?? [];
+    let cached = (await getCachedTransactions()) ?? [];
+    // Apply date filter offline so yesterday's cache doesn't bleed into today's report
+    if (filters?.startDate || filters?.endDate) {
+      const start = filters.startDate ? new Date(filters.startDate).getTime() : -Infinity;
+      const end = filters.endDate ? new Date(filters.endDate).getTime() : Infinity;
+      cached = cached.filter((t: TransactionResponse) => {
+        const ts = new Date(t.timestamp).getTime();
+        return ts >= start && ts <= end;
+      });
+    }
     const pending = await getPending();
     const cachedIds = new Set(cached.map((t: TransactionResponse) => t.id));
     const newPending = pending.filter((p) => !cachedIds.has(p.id));

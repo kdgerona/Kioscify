@@ -147,6 +147,9 @@ export const createExpense = async (
 
     const data = await response.json();
     safeReactotron.display({ name: "EXPENSE SUCCESS", value: data, preview: `Expense ${data.id} created` });
+    // Append to local cache so the expense is visible offline
+    const cached = (await getCachedExpenses()) ?? [];
+    await cacheExpenses([data, ...cached.filter((e: ExpenseResponse) => e.id !== data.id)]);
     return data;
   } catch (err) {
     // Queue on any non-4xx failure (network down, timeout, server error).
@@ -204,7 +207,16 @@ export const getExpenses = async (filters?: {
     const newPending = pending.filter((p) => !serverIds.has(p.id));
     return [...newPending, ...data];
   } catch {
-    const cached = (await getCachedExpenses()) ?? [];
+    let cached = (await getCachedExpenses()) ?? [];
+    // Apply date filter offline so yesterday's cache doesn't bleed into today's report
+    if (filters?.startDate || filters?.endDate) {
+      const start = filters.startDate ? new Date(filters.startDate).getTime() : -Infinity;
+      const end = filters.endDate ? new Date(filters.endDate).getTime() : Infinity;
+      cached = cached.filter((e: ExpenseResponse) => {
+        const ts = new Date(e.date).getTime();
+        return ts >= start && ts <= end;
+      });
+    }
     const pending = await getPending();
     const cachedIds = new Set(cached.map((e: ExpenseResponse) => e.id));
     const newPending = pending.filter((p) => !cachedIds.has(p.id));
