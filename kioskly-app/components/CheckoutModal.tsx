@@ -490,7 +490,7 @@ export default function CheckoutModal({
                         <Text className="text-xl font-bold mb-1" style={{ color: "#50B16B" }}>
                           Maya
                         </Text>
-                        <Text className="text-xs text-center" style={{ color: "#50B16B", opacity: 0.8 }}>
+                        <Text className="text-white text-xs text-center opacity-80">
                           Maya wallet
                         </Text>
                       </TouchableOpacity>
