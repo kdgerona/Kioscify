@@ -53,6 +53,7 @@ export type PaymentMethodType = "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE"
 
 interface CreateTransactionPayload {
   transactionId: string;
+  timestamp?: string; // ISO string captured at sale time; preserved through offline queue
   subtotal: number;
   total: number;
   paymentMethod: PaymentMethodType;

@@ -49,7 +49,7 @@ export class TransactionsService {
     userId: string,
     tenantId: string,
   ) {
-    const { items, clientId, ...transactionData } = createTransactionDto;
+    const { items, clientId, timestamp, ...transactionData } = createTransactionDto;
 
     // Offline deduplication: if clientId already exists, return 409
     if (clientId) {
@@ -65,6 +65,9 @@ export class TransactionsService {
     const transaction = await this.prisma.transaction.create({
       data: {
         ...transactionData,
+        // Preserve the on-device creation time so offline transactions are
+        // recorded at the moment of sale, not at sync time.
+        ...(timestamp && { timestamp: new Date(timestamp) }),
         userId,
         tenantId,
         clientId,

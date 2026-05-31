@@ -450,9 +450,15 @@ export default function Home() {
         })),
       }));
 
+      // Capture the actual sale time now — if the transaction ends up in the
+      // offline queue, this timestamp is sent to the server on sync so the
+      // record reflects when the sale happened, not when it was uploaded.
+      const saleTimestamp = new Date().toISOString();
+
       // Create transaction payload for backend
       const transactionPayload = {
         transactionId,
+        timestamp: saleTimestamp,
         subtotal: totalAmount,
         total: totalAmount,
         paymentMethod: paymentMethod.toUpperCase() as

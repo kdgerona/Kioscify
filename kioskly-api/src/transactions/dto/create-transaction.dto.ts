@@ -8,6 +8,7 @@ import {
   IsArray,
   ValidateNested,
   IsInt,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -103,4 +104,13 @@ export class CreateTransactionDto {
   @IsString()
   @IsOptional()
   clientId?: string;
+
+  @ApiProperty({
+    example: '2024-01-15T10:30:00.000Z',
+    required: false,
+    description: 'Actual transaction time captured on-device (preserves creation time for offline sync)',
+  })
+  @IsDateString()
+  @IsOptional()
+  timestamp?: string;
 }
