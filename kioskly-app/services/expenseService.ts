@@ -97,21 +97,28 @@ async function getStoredUser(): Promise<{ id: string; username: string; email: s
   }
 }
 
-function buildLocalExpense(clientId: string, data: CreateExpensePayload, user: { id: string; username: string; email: string; role: string } | null): ExpenseResponse {
-  const now = new Date().toISOString();
+function buildLocalExpense(
+  clientId: string,
+  data: CreateExpensePayload,
+  user: { id: string; username: string; email: string; role: string } | null,
+  queuedAt?: string,
+): ExpenseResponse {
+  // Prefer the tap-time date captured in the payload; fall back to the SQLite
+  // enqueue timestamp (stable across refreshes); last resort is now().
+  const stableTime = data.date ?? queuedAt ?? new Date().toISOString();
   return {
     id: clientId,
     description: data.description,
     amount: data.amount,
     category: data.category,
-    date: data.date ?? now,
+    date: stableTime,
     receipt: data.receipt,
     notes: data.notes,
     userId: user?.id ?? "",
     user: user ?? { id: "", username: "Offline", email: "", role: "" },
     voidStatus: "NONE",
-    createdAt: now,
-    updatedAt: now,
+    createdAt: stableTime,
+    updatedAt: stableTime,
     pendingSync: true,
   };
 }
@@ -180,7 +187,7 @@ export async function getPendingExpenses(): Promise<(ExpenseResponse & { pending
   const user = await getStoredUser();
   return pending.map((item) => {
     const p = item.payload as any;
-    return { ...buildLocalExpense(item.clientId, p, user), pendingSync: true as const };
+    return { ...buildLocalExpense(item.clientId, p, user, item.createdAt), pendingSync: true as const };
   });
 }
 
@@ -205,7 +212,7 @@ export const getExpenses = async (filters?: {
     const user = await getStoredUser();
     return pending.map((item) => {
       const p = item.payload as any;
-      return buildLocalExpense(item.clientId, p, user);
+      return buildLocalExpense(item.clientId, p, user, item.createdAt);
     });
   };
 
