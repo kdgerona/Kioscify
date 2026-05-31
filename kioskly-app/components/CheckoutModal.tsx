@@ -444,8 +444,11 @@ export default function CheckoutModal({
                         className="bg-green-500 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("cash")}
                       >
-                        <Text className="text-white text-xl font-bold">
+                        <Text className="text-white text-xl font-bold mb-1">
                           Cash
+                        </Text>
+                        <Text className="text-green-50 text-xs text-center">
+                          Receive cash
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -455,8 +458,11 @@ export default function CheckoutModal({
                         className="bg-gray-600 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("online")}
                       >
-                        <Text className="text-white text-xl font-bold">
+                        <Text className="text-white text-xl font-bold mb-1">
                           Online
+                        </Text>
+                        <Text className="text-gray-200 text-xs text-center">
+                          Bank/E-wallet
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -466,19 +472,26 @@ export default function CheckoutModal({
                         className="bg-blue-600 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("gcash")}
                       >
-                        <Text className="text-white text-xl font-bold">
+                        <Text className="text-white text-xl font-bold mb-1">
                           GCash
+                        </Text>
+                        <Text className="text-blue-100 text-xs text-center">
+                          Mobile wallet
                         </Text>
                       </TouchableOpacity>
                     </View>
 
                     <View className="w-1/2 px-1.5 mb-2.5">
                       <TouchableOpacity
-                        className="bg-green-600 rounded-lg py-4 px-3 items-center shadow-sm"
+                        className="rounded-lg py-4 px-3 items-center shadow-sm"
+                        style={{ backgroundColor: "#00D17B" }}
                         onPress={() => handlePaymentMethodSelect("paymaya")}
                       >
-                        <Text className="text-white text-xl font-bold">
+                        <Text className="text-white text-xl font-bold mb-1">
                           Maya
+                        </Text>
+                        <Text className="text-white text-xs text-center opacity-80">
+                          Maya wallet
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -488,19 +501,26 @@ export default function CheckoutModal({
                         className="bg-pink-500 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("foodpanda")}
                       >
-                        <Text className="text-white text-xl font-bold">
+                        <Text className="text-white text-xl font-bold mb-1">
                           FoodPanda
+                        </Text>
+                        <Text className="text-pink-100 text-xs text-center">
+                          Delivery order
                         </Text>
                       </TouchableOpacity>
                     </View>
 
                     <View className="w-1/2 px-1.5 mb-2.5">
                       <TouchableOpacity
-                        className="bg-green-700 rounded-lg py-4 px-3 items-center shadow-sm"
+                        className="rounded-lg py-4 px-3 items-center shadow-sm"
+                        style={{ backgroundColor: "#00B14F" }}
                         onPress={() => handlePaymentMethodSelect("grab")}
                       >
-                        <Text className="text-white text-xl font-bold">
+                        <Text className="text-white text-xl font-bold mb-1">
                           Grab
+                        </Text>
+                        <Text className="text-white text-xs text-center opacity-80">
+                          Delivery order
                         </Text>
                       </TouchableOpacity>
                     </View>
