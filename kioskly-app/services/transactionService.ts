@@ -14,7 +14,9 @@ async function getStoredUser(): Promise<{ id: string; username: string; email: s
 }
 
 function buildLocalTransaction(clientId: string, payload: Record<string, unknown>, user: { id: string; username: string; email: string; role: string } | null): TransactionResponse & { pendingSync: true } {
-  const now = new Date().toISOString();
+  // Use the timestamp captured at sale time so pending transactions always
+  // display when the sale happened, not when this function is called.
+  const saleTime = (payload.timestamp as string | undefined) ?? new Date().toISOString();
   return {
     id: clientId,
     transactionId: (payload.transactionId as string) ?? clientId,
@@ -28,9 +30,9 @@ function buildLocalTransaction(clientId: string, payload: Record<string, unknown
     change: payload.change as number | undefined,
     referenceNumber: payload.referenceNumber as string | undefined,
     remarks: payload.remarks as string | undefined,
-    timestamp: now,
-    createdAt: now,
-    updatedAt: now,
+    timestamp: saleTime,
+    createdAt: saleTime,
+    updatedAt: saleTime,
     items: [],
     voidStatus: "NONE",
     pendingSync: true,
