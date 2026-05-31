@@ -356,8 +356,8 @@ export default function CheckoutModal({
                     Discount
                   </Text>
 
-                  {/* Percentage chips */}
-                  <View className="flex-row flex-wrap mb-3">
+                  {/* Percentage chips + inline amount input in one wrapping row */}
+                  <View className="flex-row flex-wrap items-center">
                     {DISCOUNT_PERCENTAGES.map((pct) => {
                       const isActive = discountMode === "percentage" && discountPercentage === pct;
                       return (
@@ -379,34 +379,46 @@ export default function CheckoutModal({
                         </TouchableOpacity>
                       );
                     })}
-                  </View>
 
-                  {/* Divider with "or enter amount" label */}
-                  <View className="flex-row items-center mb-3">
-                    <View className="flex-1 border-t border-gray-200" />
-                    <Text className="text-xs text-gray-400 mx-2">
-                      or enter amount
-                    </Text>
-                    <View className="flex-1 border-t border-gray-200" />
-                  </View>
-
-                  {/* Manual peso amount input */}
-                  <TextInput
-                    className="bg-gray-100 rounded-lg px-4 py-3 text-base border-2 border-gray-200 mb-2"
-                    placeholder="₱ 0.00"
-                    value={customDiscountAmount}
-                    onChangeText={handleAmountInput}
-                    keyboardType="decimal-pad"
-                  />
-
-                  {/* Clear button — only when discount is active */}
-                  {isDiscountActive && (
-                    <TouchableOpacity onPress={handleClearDiscount}>
-                      <Text className="text-sm text-red-500 font-medium">
-                        Clear
+                    {/* Inline manual amount — styled like a chip */}
+                    <View
+                      className="mr-2 mb-2 px-3 rounded-full border flex-row items-center"
+                      style={{
+                        backgroundColor: discountMode === "amount" ? `${primaryColor}15` : "#f3f4f6",
+                        borderColor: discountMode === "amount" ? primaryColor : "#e5e7eb",
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text
+                        className="text-sm font-semibold"
+                        style={{ color: discountMode === "amount" ? primaryColor : "#9ca3af" }}
+                      >
+                        ₱
                       </Text>
-                    </TouchableOpacity>
-                  )}
+                      <TextInput
+                        style={{
+                          width: 64,
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: discountMode === "amount" ? textColor : "#6b7280",
+                          padding: 0,
+                          marginLeft: 2,
+                        }}
+                        placeholder="0.00"
+                        placeholderTextColor="#9ca3af"
+                        value={customDiscountAmount}
+                        onChangeText={handleAmountInput}
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+
+                    {/* Clear — only when discount is active */}
+                    {isDiscountActive && (
+                      <TouchableOpacity className="mb-2" onPress={handleClearDiscount}>
+                        <Text className="text-sm text-red-500 font-medium">Clear</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               )}
 
