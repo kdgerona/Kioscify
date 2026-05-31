@@ -153,6 +153,16 @@ export async function syncAll(
 
   try {
     const db = await getDb();
+
+    // Reset previously-failed items that haven't hit the retry ceiling so they
+    // get another chance (e.g., items that failed due to a server-side bug that
+    // has since been fixed).
+    await db.runAsync(
+      `UPDATE sync_queue SET status = 'pending', error_message = NULL
+       WHERE status = 'failed' AND retries < ?`,
+      MAX_RETRIES,
+    );
+
     const rows = await db.getAllAsync<SyncQueueRow>(
       `SELECT * FROM sync_queue WHERE status = 'pending' AND retries < ? ORDER BY created_at ASC`,
       MAX_RETRIES,
@@ -210,11 +220,16 @@ export async function syncAll(
           );
           failed++;
         } else {
-          // Client error (4xx except 409) — permanent failure
+          // Other 4xx — retry up to MAX_RETRIES, then permanently fail.
+          // Treating as retriable handles server-side bugs that may be fixed
+          // before the next sync attempt (e.g., missing DTO field).
+          const newRetries = row.retries + 1;
           await db.runAsync(
             `UPDATE sync_queue
-             SET status = 'failed', error_message = ?
+             SET status = ?, retries = ?, error_message = ?
              WHERE client_id = ?`,
+            newRetries >= MAX_RETRIES ? "failed" : "pending",
+            newRetries,
             `HTTP ${response.status}`,
             row.client_id,
           );

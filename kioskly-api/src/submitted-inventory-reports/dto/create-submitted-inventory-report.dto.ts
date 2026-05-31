@@ -124,4 +124,9 @@ export class CreateSubmittedInventoryReportDto {
   @IsOptional()
   @IsBoolean()
   replaceExisting?: boolean;
+
+  @ApiProperty({ required: false, description: 'Device-generated UUID for offline deduplication' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
 }

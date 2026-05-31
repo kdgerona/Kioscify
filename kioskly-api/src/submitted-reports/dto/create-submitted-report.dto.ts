@@ -135,4 +135,9 @@ export class CreateSubmittedReportDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Device-generated UUID for offline deduplication' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
 }
