@@ -618,7 +618,7 @@ export default function ReportsPage() {
                   textStyle: { color: "#50B16B" },
                   badgeStyle: { backgroundColor: "#2d2f30", color: "#50B16B" },
                 },
-                ONLINE: { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", badge: "bg-indigo-100" },
+                ONLINE: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", badge: "bg-gray-100" },
                 FOODPANDA: { bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700", badge: "bg-pink-100" },
                 GRAB: {
                   bg: "", border: "", text: "", badge: "",
