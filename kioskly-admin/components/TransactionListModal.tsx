@@ -197,7 +197,7 @@ export default function TransactionListModal({
                           </div>
                         ))}
                       </div>
-                      <div className="border-t border-gray-300 mt-2 sm:mt-3 pt-2 sm:pt-3">
+                      <div className="border-t border-gray-300 mt-2 sm:mt-3 pt-2 sm:pt-3 space-y-1">
                         <div className="flex justify-between items-center gap-2">
                           <span className="text-xs sm:text-sm font-semibold text-gray-700">
                             Subtotal:
@@ -206,6 +206,26 @@ export default function TransactionListModal({
                             {formatCurrency(transaction.subtotal)}
                           </span>
                         </div>
+                        {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                          <div className="flex justify-between items-center gap-2">
+                            <span className="text-xs sm:text-sm text-red-600">
+                              Discount:
+                            </span>
+                            <span className="text-xs sm:text-sm font-medium text-red-600">
+                              -{formatCurrency(transaction.discountAmount)}
+                            </span>
+                          </div>
+                        )}
+                        {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                          <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-200">
+                            <span className="text-xs sm:text-sm font-bold text-gray-900">
+                              Total:
+                            </span>
+                            <span className="text-xs sm:text-sm font-bold text-gray-900">
+                              {formatCurrency(transaction.total)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

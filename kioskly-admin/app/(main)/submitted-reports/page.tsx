@@ -502,9 +502,19 @@ export default function SubmittedReportsPage() {
                               </p>
                             </div>
                             <div className="text-right flex-shrink-0">
+                              {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                                <p className="text-xs text-gray-400 line-through">
+                                  {formatCurrency(transaction.subtotal)}
+                                </p>
+                              )}
                               <p className="text-base sm:text-lg font-bold text-gray-900">
                                 {formatCurrency(transaction.total)}
                               </p>
+                              {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                                <p className="text-xs text-red-500">
+                                  -{formatCurrency(transaction.discountAmount)} off
+                                </p>
+                              )}
                               <p className="text-xs text-gray-600">
                                 {transaction.paymentMethod}
                               </p>

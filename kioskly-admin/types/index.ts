@@ -115,8 +115,9 @@ export interface Transaction {
   tenantId: string;
   userId: string;
   subtotal: number;
+  discountAmount?: number | null;
   total: number;
-  paymentMethod: "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE";
+  paymentMethod: "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA";
   cashReceived?: number | null;
   change?: number | null;
   referenceNumber?: string | null;

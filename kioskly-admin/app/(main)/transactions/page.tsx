@@ -936,6 +936,14 @@ export default function TransactionsPage() {
                       {formatCurrency(selectedTransaction.subtotal)}
                     </span>
                   </div>
+                  {selectedTransaction.discountAmount != null && selectedTransaction.discountAmount > 0 && (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-xs sm:text-sm text-red-600">Discount</span>
+                      <span className="text-xs sm:text-sm font-medium text-red-600">
+                        -{formatCurrency(selectedTransaction.discountAmount)}
+                      </span>
+                    </div>
+                  )}
                   <div className="border-t border-gray-200 pt-2 flex justify-between items-center gap-2">
                     <span className="text-sm sm:text-base font-bold text-gray-900">
                       Total
