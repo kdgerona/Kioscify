@@ -31,6 +31,7 @@ export interface CreateSubmittedInventoryReportPayload {
   inventorySnapshot: InventorySnapshot;
   notes?: string;
   replaceExisting?: boolean;
+  submittedAt?: string;
 }
 
 export interface SubmittedInventoryReport {

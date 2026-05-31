@@ -129,4 +129,9 @@ export class CreateSubmittedInventoryReportDto {
   @IsOptional()
   @IsString()
   clientId?: string;
+
+  @ApiProperty({ required: false, description: 'Actual submission time captured on-device (preserves time for offline sync)' })
+  @IsOptional()
+  @IsDateString()
+  submittedAt?: string;
 }

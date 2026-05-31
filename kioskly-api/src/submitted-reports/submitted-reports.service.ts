@@ -25,6 +25,7 @@ export class SubmittedReportsService {
         transactionIds: createDto.transactionIds,
         expenseIds: createDto.expenseIds,
         notes: createDto.notes,
+        ...(createDto.submittedAt && { submittedAt: new Date(createDto.submittedAt) }),
       },
       include: {
         user: {

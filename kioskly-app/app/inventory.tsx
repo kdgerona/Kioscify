@@ -325,6 +325,8 @@ export default function InventoryScreen() {
 
   const submitReport = async (replaceExisting: boolean = false) => {
     setSaving(true);
+    // Capture exact submission time so it's preserved even when queued offline.
+    const submittedAt = new Date().toISOString();
     try {
       // Filter out items with no quantity entered
       const itemsWithQuantity = inventoryInputs.filter(
@@ -363,6 +365,7 @@ export default function InventoryScreen() {
           reportDate: today,
           inventorySnapshot,
           replaceExisting,
+          submittedAt,
         });
 
         Alert.alert(
@@ -396,6 +399,7 @@ export default function InventoryScreen() {
           reportDate: today,
           inventorySnapshot: inventorySnapshot as unknown as Record<string, unknown>,
           replaceExisting: true, // always replace on retry to handle any ordering
+          submittedAt,
         } as Record<string, unknown>);
 
         Alert.alert(

@@ -84,6 +84,7 @@ export interface SubmitReportData {
   transactionIds: string[];
   expenseIds: string[];
   notes?: string;
+  submittedAt?: string;
 }
 
 /**

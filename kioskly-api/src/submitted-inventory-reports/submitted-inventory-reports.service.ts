@@ -130,6 +130,7 @@ export class SubmittedInventoryReportsService {
         reportDate: createDto.reportDate,
         inventorySnapshot: createDto.inventorySnapshot as any,
         notes: createDto.notes,
+        ...(createDto.submittedAt && { submittedAt: new Date(createDto.submittedAt) }),
       },
       include: {
         user: {

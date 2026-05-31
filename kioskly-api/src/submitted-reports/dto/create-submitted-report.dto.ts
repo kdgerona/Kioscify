@@ -140,4 +140,9 @@ export class CreateSubmittedReportDto {
   @IsOptional()
   @IsString()
   clientId?: string;
+
+  @ApiPropertyOptional({ description: 'Actual submission time captured on-device (preserves time for offline sync)' })
+  @IsOptional()
+  @IsDateString()
+  submittedAt?: string;
 }

@@ -251,6 +251,10 @@ export default function DailyReport() {
   const handleSubmitReport = async () => {
     if (!reportData || !user) return;
 
+    // Capture the exact moment the staff pressed Submit so this time is preserved
+    // even when the report is queued offline and syncs hours/days later.
+    const submittedAt = new Date().toISOString();
+
     setIsSubmitting(true);
     setSubmitError(null);
     setSubmitSuccess(false);
@@ -297,6 +301,7 @@ export default function DailyReport() {
       },
       transactionIds: syncedTransactionIds,
       expenseIds: syncedExpenseIds,
+      submittedAt,
     };
 
     try {
