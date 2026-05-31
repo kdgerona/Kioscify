@@ -26,7 +26,68 @@ import {
   getExpenses,
   ExpenseResponse,
 } from "../services/expenseService";
+import { enqueue } from "../services/syncEngine";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
+
+// Build a DailyReportResponse from locally cached transactions and expenses.
+// Used when the API is unreachable so staff can still view and submit the report.
+function computeLocalReport(
+  txns: (TransactionResponse & { pendingSync?: boolean })[],
+  exps: (ExpenseResponse & { pendingSync?: boolean })[],
+  date: string,
+  startDate: string,
+  endDate: string,
+): DailyReportResponse {
+  const activeTxns = txns.filter((t) => t.voidStatus !== "APPROVED");
+  const totalSales = activeTxns.reduce((s, t) => s + t.total, 0);
+  const txnCount = activeTxns.length;
+  const totalItemsSold = activeTxns.reduce(
+    (s, t) => s + (t.items ?? []).reduce((si, i) => si + i.quantity, 0),
+    0,
+  );
+  const paymentBreakdown: Record<string, { total: number; count: number }> = {};
+  activeTxns.forEach((t) => {
+    const m = t.paymentMethod;
+    if (!paymentBreakdown[m]) paymentBreakdown[m] = { total: 0, count: 0 };
+    paymentBreakdown[m].total += t.total;
+    paymentBreakdown[m].count += 1;
+  });
+
+  const activeExps = exps.filter((e) => e.voidStatus !== "APPROVED");
+  const totalExpenses = activeExps.reduce((s, e) => s + e.amount, 0);
+  const expCount = activeExps.length;
+  const categoryBreakdown: Record<string, { total: number; count: number }> = {};
+  activeExps.forEach((e) => {
+    const c = e.category as string;
+    if (!categoryBreakdown[c]) categoryBreakdown[c] = { total: 0, count: 0 };
+    categoryBreakdown[c].total += e.amount;
+    categoryBreakdown[c].count += 1;
+  });
+
+  const grossProfit = totalSales - totalExpenses;
+  return {
+    date,
+    period: { start: startDate, end: endDate },
+    sales: {
+      totalAmount: totalSales,
+      transactionCount: txnCount,
+      averageTransaction: txnCount > 0 ? totalSales / txnCount : 0,
+      totalItemsSold,
+      paymentMethodBreakdown: paymentBreakdown,
+    },
+    expenses: {
+      totalAmount: totalExpenses,
+      expenseCount: expCount,
+      averageExpense: expCount > 0 ? totalExpenses / expCount : 0,
+      categoryBreakdown,
+    },
+    summary: {
+      grossProfit,
+      profitMargin: totalSales > 0 ? (grossProfit / totalSales) * 100 : 0,
+      netRevenue: totalSales,
+    },
+  };
+}
 
 export default function DailyReport() {
   const router = useRouter();
@@ -41,6 +102,7 @@ export default function DailyReport() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitQueued, setSubmitQueued] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reportStats, setReportStats] = useState<DailyReportStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -82,26 +144,27 @@ export default function DailyReport() {
         const today = new Date().toISOString().split("T")[0];
         const { startDate, endDate } = getTodayDateRange();
 
-        // Fetch report data, transactions, expenses, and stats in parallel
-        const [report, txns, exps, stats] = await Promise.all([
-          getDailyReport(today),
+        // Transactions, expenses, and stats all handle offline gracefully.
+        const [txns, exps, stats] = await Promise.all([
           getTransactions({ startDate, endDate }),
           getExpenses({ startDate, endDate }),
-          getDailyReportStats().catch((err) => {
-            console.warn("Failed to fetch stats:", err);
-            return null; // Non-blocking
-          }),
+          getDailyReportStats(),
         ]);
 
-        setReportData(report);
         setTransactions(txns);
         setExpenses(exps);
         setReportStats(stats);
+
+        // Try the API report; fall back to computing locally from cached data.
+        let report: DailyReportResponse;
+        try {
+          report = await getDailyReport(today);
+        } catch {
+          report = computeLocalReport(txns, exps, today, startDate, endDate);
+        }
+        setReportData(report);
       } catch (err) {
-        console.error("Failed to fetch report data:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load report"
-        );
+        setError(err instanceof Error ? err.message : "Failed to load report");
       } finally {
         setIsLoading(false);
         setStatsLoading(false);
@@ -147,49 +210,57 @@ export default function DailyReport() {
     setIsSubmitting(true);
     setSubmitError(null);
     setSubmitSuccess(false);
+    setSubmitQueued(false);
+
+    // Only include IDs of already-synced items so the server can look them up.
+    const syncedTransactionIds = transactions
+      .filter((t) => !(t as any).pendingSync)
+      .map((t) => t.id);
+    const syncedExpenseIds = expenses
+      .filter((e) => !(e as any).pendingSync)
+      .map((e) => e.id);
+
+    const submitData = {
+      reportDate: reportData.date,
+      periodStart: reportData.period.start,
+      periodEnd: reportData.period.end,
+      salesSnapshot: {
+        totalAmount: reportData.sales.totalAmount,
+        transactionCount: reportData.sales.transactionCount,
+        averageTransaction: reportData.sales.averageTransaction,
+        totalItemsSold: reportData.sales.totalItemsSold,
+        paymentMethodBreakdown: reportData.sales.paymentMethodBreakdown,
+      },
+      expensesSnapshot: {
+        totalAmount: reportData.expenses.totalAmount,
+        expenseCount: reportData.expenses.expenseCount,
+        averageExpense: reportData.expenses.averageExpense,
+        categoryBreakdown: reportData.expenses.categoryBreakdown,
+      },
+      summarySnapshot: {
+        grossProfit: reportData.summary.grossProfit,
+        profitMargin: reportData.summary.profitMargin,
+        netRevenue: reportData.summary.netRevenue,
+      },
+      transactionIds: syncedTransactionIds,
+      expenseIds: syncedExpenseIds,
+    };
 
     try {
-      const submitData = {
-        reportDate: reportData.date,
-        periodStart: reportData.period.start,
-        periodEnd: reportData.period.end,
-        salesSnapshot: {
-          totalAmount: reportData.sales.totalAmount,
-          transactionCount: reportData.sales.transactionCount,
-          averageTransaction: reportData.sales.averageTransaction,
-          totalItemsSold: reportData.sales.totalItemsSold,
-          paymentMethodBreakdown: reportData.sales.paymentMethodBreakdown,
-        },
-        expensesSnapshot: {
-          totalAmount: reportData.expenses.totalAmount,
-          expenseCount: reportData.expenses.expenseCount,
-          averageExpense: reportData.expenses.averageExpense,
-          categoryBreakdown: reportData.expenses.categoryBreakdown,
-        },
-        summarySnapshot: {
-          grossProfit: reportData.summary.grossProfit,
-          profitMargin: reportData.summary.profitMargin,
-          netRevenue: reportData.summary.netRevenue,
-        },
-        transactionIds: transactions.map((t) => t.id),
-        expenseIds: expenses.map((e) => e.id),
-      };
-
       await submitReport(submitData);
-
-      // Refresh stats to show updated last submission
-      const updatedStats = await getDailyReportStats().catch(() => null);
-      if (updatedStats) {
-        setReportStats(updatedStats);
-      }
-
+      const updatedStats = await getDailyReportStats();
+      if (updatedStats) setReportStats(updatedStats);
       setSubmitSuccess(true);
       setTimeout(() => setSubmitSuccess(false), 3000);
-    } catch (err) {
-      console.error("Failed to submit report:", err);
-      setSubmitError(
-        err instanceof Error ? err.message : "Failed to submit report"
+    } catch {
+      // Network failure — queue for later
+      await enqueue(
+        "submitted_report",
+        "/submitted-reports",
+        submitData as unknown as Record<string, unknown>,
       );
+      setSubmitQueued(true);
+      setTimeout(() => setSubmitQueued(false), 4000);
     } finally {
       setIsSubmitting(false);
     }
@@ -218,7 +289,7 @@ export default function DailyReport() {
           </View>
         </View>
         {/* Submit Button */}
-        {!isLoading && !error && reportData && (
+        {!isLoading && reportData && (
           <TouchableOpacity
             onPress={handleSubmitReport}
             disabled={isSubmitting}
@@ -250,12 +321,20 @@ export default function DailyReport() {
           textColor={textColor}
         />
 
-        {/* Success/Error Toast */}
+        {/* Success/Queued/Error Toast */}
         {submitSuccess && (
           <View className="mb-4 bg-green-100 border-2 border-green-500 rounded-lg p-4 flex-row items-center">
             <Ionicons name="checkmark-circle" size={24} color="#10b981" />
             <Text className="ml-3 text-green-800 font-semibold flex-1">
               Report submitted successfully!
+            </Text>
+          </View>
+        )}
+        {submitQueued && (
+          <View className="mb-4 bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4 flex-row items-center">
+            <Ionicons name="cloud-upload-outline" size={24} color="#d97706" />
+            <Text className="ml-3 text-yellow-800 font-semibold flex-1">
+              {"You're offline. Report saved and will sync when you reconnect."}
             </Text>
           </View>
         )}
