@@ -105,7 +105,6 @@ export default function Home() {
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
-  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const [showQueuedConfirm, setShowQueuedConfirm] = useState(false);
 
   // Fetch categories and products from API, fall back to local cache when offline
@@ -129,7 +128,6 @@ export default function Home() {
           await cacheProducts(productsData);
           setProducts(productsData);
         }
-        setIsOfflineMode(false);
       } catch {
         // Network failure — load from local cache
         const [cachedCats, cachedProds] = await Promise.all([
@@ -140,7 +138,6 @@ export default function Home() {
           setCategories(cachedCats);
           if (!selectedCategory && cachedCats.length > 0) setSelectedCategory(cachedCats[0].id);
           setProducts(cachedProds);
-          setIsOfflineMode(true);
         }
       } finally {
         setIsLoadingData(false);
@@ -529,14 +526,6 @@ export default function Home() {
 
   return (
     <SafeAreaView className="w-full h-full bg-gray-50">
-      {/* Offline mode banner */}
-      {isOfflineMode && (
-        <View className="bg-yellow-500 px-4 py-2 flex-row items-center justify-center">
-          <Ionicons name="cloud-offline-outline" size={14} color="#fff" />
-          <Text className="text-white text-xs font-medium ml-1">Offline — using cached data</Text>
-        </View>
-      )}
-
       {/* Transaction queued confirmation modal */}
       <Modal visible={showQueuedConfirm} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/50 px-6">
