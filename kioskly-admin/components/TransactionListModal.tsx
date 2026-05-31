@@ -145,14 +145,10 @@ export default function TransactionListModal({
 
                             {/* Price breakdown */}
                             <div className="ml-2 sm:ml-4 space-y-0.5">
-                              {/* Base product price */}
+                              {/* Unit price */}
                               <div className="flex justify-between items-center gap-2 text-xs text-gray-600">
-                                <span className="truncate">Base price × {item.quantity}</span>
-                                <span className="flex-shrink-0">
-                                  {formatCurrency(
-                                    (item.product?.price || 0) * item.quantity
-                                  )}
-                                </span>
+                                <span className="truncate">Unit price × {item.quantity}</span>
+                                <span className="flex-shrink-0">{formatCurrency(item.subtotal)}</span>
                               </div>
 
                               {/* Size modifier */}

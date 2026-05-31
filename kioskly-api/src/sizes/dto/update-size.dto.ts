@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNumber, IsOptional } from 'class-validator';
 
 export class UpdateSizeDto {
@@ -11,6 +11,16 @@ export class UpdateSizeDto {
   @IsNumber()
   @IsOptional()
   priceModifier?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsNumber()
+  @IsOptional()
+  foodpandaPrice?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsNumber()
+  @IsOptional()
+  grabPrice?: number;
 
   @ApiProperty({ example: '16oz', required: false })
   @IsString()

@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, Matches, ValidateNested } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsArray, IsEnum, Matches, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { DeliveryPlatform } from '@prisma/client';
 
 export class ThemeColorsDto {
   @ApiPropertyOptional({ default: '#ea580c' }) @IsString() @IsOptional() primary?: string;
@@ -45,4 +46,10 @@ export class UpdateBrandDto extends PartialType(CreateBrandDto) {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ enum: DeliveryPlatform, isArray: true, example: ['FOODPANDA', 'GRAB'] })
+  @IsArray()
+  @IsEnum(DeliveryPlatform, { each: true })
+  @IsOptional()
+  enabledDeliveryPlatforms?: DeliveryPlatform[];
 }

@@ -169,6 +169,7 @@ class ApiClient {
       description: string;
       themeColors: Brand['themeColors'];
       isActive: boolean;
+      enabledDeliveryPlatforms: string[];
     }>
   ): Promise<Brand> {
     const { data } = await this.client.patch<Brand>(`/brands/${id}`, payload);
@@ -220,6 +221,8 @@ class ApiClient {
   async createProduct(payload: {
     name: string;
     price: number;
+    foodpandaPrice?: number | null;
+    grabPrice?: number | null;
     categoryId?: string;
     brandId: string;
     sizeIds?: string[];
@@ -232,7 +235,7 @@ class ApiClient {
 
   async updateProduct(
     id: string,
-    payload: Partial<{ name: string; price: number; categoryId: string; sizeIds: string[]; addonIds: string[] }>
+    payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; categoryId: string; sizeIds: string[]; addonIds: string[] }>
   ): Promise<Product> {
     const { data } = await this.client.patch<Product>(`/products/${id}`, payload);
     return data;
@@ -264,6 +267,8 @@ class ApiClient {
   async createSize(payload: {
     name: string;
     priceModifier: number;
+    foodpandaPrice?: number | null;
+    grabPrice?: number | null;
     brandId: string;
   }): Promise<Size> {
     const { brandId, ...body } = payload;
@@ -271,7 +276,7 @@ class ApiClient {
     return data;
   }
 
-  async updateSize(id: string, payload: Partial<{ name: string; priceModifier: number }>): Promise<Size> {
+  async updateSize(id: string, payload: Partial<{ name: string; priceModifier: number; foodpandaPrice: number | null; grabPrice: number | null }>): Promise<Size> {
     const { data } = await this.client.patch<Size>(`/sizes/${id}`, payload);
     return data;
   }
@@ -292,6 +297,8 @@ class ApiClient {
   async createAddon(payload: {
     name: string;
     price: number;
+    foodpandaPrice?: number | null;
+    grabPrice?: number | null;
     brandId: string;
   }): Promise<Addon> {
     const { brandId, ...body } = payload;
@@ -299,7 +306,7 @@ class ApiClient {
     return data;
   }
 
-  async updateAddon(id: string, payload: Partial<{ name: string; price: number }>): Promise<Addon> {
+  async updateAddon(id: string, payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null }>): Promise<Addon> {
     const { data } = await this.client.patch<Addon>(`/addons/${id}`, payload);
     return data;
   }

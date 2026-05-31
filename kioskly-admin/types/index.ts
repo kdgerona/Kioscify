@@ -69,6 +69,8 @@ export interface Size {
   tenantId: string;
   name: string;
   priceModifier: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   volume?: string;
   createdAt: string;
   updatedAt: string;
@@ -79,6 +81,8 @@ export interface Addon {
   tenantId: string;
   name: string;
   price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -89,6 +93,8 @@ export interface Product {
   categoryId: string;
   name: string;
   price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   image?: string;
   category?: Category;
   sizes?: Size[];

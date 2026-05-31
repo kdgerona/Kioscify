@@ -7,6 +7,7 @@ import {
   Image,
   Animated,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter, Href } from "expo-router";
@@ -25,6 +26,8 @@ type Size = {
   id: string;
   name: string;
   priceModifier: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   volume?: string;
 };
 
@@ -32,17 +35,23 @@ type Addon = {
   id: string;
   name: string;
   price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
 };
 
 type Product = {
   id: string;
   name: string;
   price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   categoryId: string;
   image?: string;
   sizes?: Size[];
   addons?: Addon[];
 };
+
+type OrderType = 'regular' | 'foodpanda' | 'grab';
 
 type Category = {
   id: string;
@@ -106,6 +115,7 @@ export default function Home() {
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [showQueuedConfirm, setShowQueuedConfirm] = useState(false);
+  const [orderType, setOrderType] = useState<OrderType>('regular');
 
   // Fetch categories and products from API, fall back to local cache when offline
   useEffect(() => {
@@ -187,6 +197,11 @@ export default function Home() {
     tenant.themeColors?.background ??
     "#ffffff";
 
+  const enabledPlatforms = brand?.enabledDeliveryPlatforms ?? [];
+  const hasFoodPanda = enabledPlatforms.includes('FOODPANDA');
+  const hasGrab = enabledPlatforms.includes('GRAB');
+  const showOrderTypeSelector = hasFoodPanda || hasGrab;
+
   // Resolve logo URL using the app's apiBase — strips any mismatched host from
   // server-formatted URLs (BASE_URL may differ from the client's EXPO_PUBLIC_API_URL)
   const apiBase =
@@ -260,13 +275,31 @@ export default function Home() {
     (p) => p.categoryId === selectedCategory,
   );
 
+  const getEffectiveProductPrice = (product: Product): number => {
+    if (orderType === 'foodpanda' && product.foodpandaPrice != null) return product.foodpandaPrice;
+    if (orderType === 'grab' && product.grabPrice != null) return product.grabPrice;
+    return product.price;
+  };
+
+  const getEffectiveAddonPrice = (addon: Addon): number => {
+    if (orderType === 'foodpanda' && addon.foodpandaPrice != null) return addon.foodpandaPrice;
+    if (orderType === 'grab' && addon.grabPrice != null) return addon.grabPrice;
+    return addon.price;
+  };
+
+  const getEffectiveSizeModifier = (size: Size): number => {
+    if (orderType === 'foodpanda' && size.foodpandaPrice != null) return size.foodpandaPrice;
+    if (orderType === 'grab' && size.grabPrice != null) return size.grabPrice;
+    return size.priceModifier;
+  };
+
   const calculateItemPrice = (item: OrderItem): number => {
-    let price = item.product.price;
+    let price = getEffectiveProductPrice(item.product);
     if (item.selectedSize) {
-      price += item.selectedSize.priceModifier;
+      price += getEffectiveSizeModifier(item.selectedSize);
     }
     item.selectedAddons.forEach((addon) => {
-      price += addon.price;
+      price += getEffectiveAddonPrice(addon);
     });
     return price;
   };
@@ -278,12 +311,12 @@ export default function Home() {
 
   const getCurrentCustomizationPrice = (): number => {
     if (!selectedProduct) return 0;
-    let price = selectedProduct.price;
+    let price = getEffectiveProductPrice(selectedProduct);
     if (selectedSize) {
-      price += selectedSize.priceModifier;
+      price += getEffectiveSizeModifier(selectedSize);
     }
     selectedAddons.forEach((addon) => {
-      price += addon.price;
+      price += getEffectiveAddonPrice(addon);
     });
     return price;
   };
@@ -614,7 +647,48 @@ export default function Home() {
       <View className="flex-1 flex-row">
         {/* Category Panel */}
         <View className="w-1/5 bg-white border-r border-gray-200 p-4">
-          <Text className="text-lg font-bold mb-4" style={{ color: textColor }}>
+          {/* Order Type Selector */}
+          {showOrderTypeSelector && (
+            <>
+              <Text className="text-base font-bold mb-4" style={{ color: textColor }}>
+                Order Type
+              </Text>
+              {([
+                { value: 'regular' as OrderType, label: 'In-store', color: primaryColor },
+                ...(hasFoodPanda ? [{ value: 'foodpanda' as OrderType, label: 'FoodPanda', color: '#ec4899' }] : []),
+                ...(hasGrab ? [{ value: 'grab' as OrderType, label: 'Grab', color: '#00B14F' }] : []),
+              ]).map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  className="p-3 rounded-lg mb-2"
+                  style={{ backgroundColor: orderType === opt.value ? opt.color : '#f3f4f6' }}
+                  onPress={() => {
+                    if (orders.length > 0) {
+                      Alert.alert(
+                        'Switch Order Type',
+                        'Switching order type will clear the current cart. Continue?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Switch', style: 'destructive', onPress: () => { setOrders([]); setOrderType(opt.value); } },
+                        ]
+                      );
+                    } else {
+                      setOrderType(opt.value);
+                    }
+                  }}
+                >
+                  <Text
+                    className="font-semibold"
+                    style={{ color: orderType === opt.value ? '#ffffff' : textColor }}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <View style={{ borderTopWidth: 1, borderTopColor: '#e5e7eb', marginTop: 8, marginBottom: 12 }} />
+            </>
+          )}
+          <Text className="text-base font-bold mb-4" style={{ color: textColor }}>
             Categories
           </Text>
           <ScrollView style={{ flex: 1 }}>
@@ -724,7 +798,7 @@ export default function Home() {
                               className="font-bold"
                               style={{ color: textColor }}
                             >
-                              ₱{product.price.toFixed(2)}
+                              ₱{getEffectiveProductPrice(product).toFixed(2)}
                             </Text>
                           </View>
                           <Text
@@ -883,8 +957,8 @@ export default function Home() {
                             color: textColor,
                           }}
                         >
-                          {size.priceModifier > 0
-                            ? `+₱${size.priceModifier.toFixed(2)}`
+                          {getEffectiveSizeModifier(size) > 0
+                            ? `+₱${getEffectiveSizeModifier(size).toFixed(2)}`
                             : "Base"}
                         </Text>
                         {size.volume && (
@@ -943,7 +1017,7 @@ export default function Home() {
                             color: `${textColor}B3`,
                           }}
                         >
-                          +₱{addon.price.toFixed(2)}
+                          +₱{getEffectiveAddonPrice(addon).toFixed(2)}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -996,6 +1070,19 @@ export default function Home() {
         onCheckoutComplete={handleCheckoutComplete}
         isLoading={isCreatingTransaction}
         error={transactionError}
+        initialPaymentMethod={
+          orderType === 'foodpanda' ? 'foodpanda' :
+          orderType === 'grab' ? 'grab' :
+          null
+        }
+        hiddenPaymentMethods={
+          orderType === 'regular'
+            ? [
+                ...(hasFoodPanda ? ['foodpanda' as const] : []),
+                ...(hasGrab ? ['grab' as const] : []),
+              ]
+            : []
+        }
       />
 
       {/* Transaction Summary Modal */}

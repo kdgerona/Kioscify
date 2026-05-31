@@ -197,6 +197,12 @@ export default function BrandDetailPage() {
   const [settingsName, setSettingsName] = useState('');
   const [settingsDescription, setSettingsDescription] = useState('');
   const [settingsTheme, setSettingsTheme] = useState<Brand['themeColors']>({});
+  const [enableFoodPanda, setEnableFoodPanda] = useState(
+    brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ?? false
+  );
+  const [enableGrab, setEnableGrab] = useState(
+    brand?.enabledDeliveryPlatforms?.includes('GRAB') ?? false
+  );
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -238,6 +244,8 @@ export default function BrandDetailPage() {
         setSettingsName(b.name);
         setSettingsDescription(b.description || '');
         setSettingsTheme(b.themeColors || {});
+        setEnableFoodPanda(b.enabledDeliveryPlatforms?.includes('FOODPANDA') ?? false);
+        setEnableGrab(b.enabledDeliveryPlatforms?.includes('GRAB') ?? false);
       })
       .catch(() => setError('Failed to load brand'))
       .finally(() => setLoading(false));
@@ -273,6 +281,10 @@ export default function BrandDetailPage() {
         name: settingsName,
         description: settingsDescription || undefined,
         themeColors: Object.keys(settingsTheme || {}).length ? settingsTheme : undefined,
+        enabledDeliveryPlatforms: [
+          ...(enableFoodPanda ? ['FOODPANDA'] : []),
+          ...(enableGrab ? ['GRAB'] : []),
+        ],
       });
       setBrand(updated);
       setSettingsSuccess(true);
@@ -722,6 +734,33 @@ export default function BrandDetailPage() {
                   </div>
                 </div>
 
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Delivery Platforms</h4>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Enable delivery platforms to set separate pricing for those orders.
+                  </p>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enableFoodPanda}
+                        onChange={e => setEnableFoodPanda(e.target.checked)}
+                        className="rounded border-gray-300 text-pink-500 focus:ring-pink-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">FoodPanda</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enableGrab}
+                        onChange={e => setEnableGrab(e.target.checked)}
+                        className="rounded border-gray-300 text-green-500 focus:ring-green-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Grab</span>
+                    </label>
+                  </div>
+                </div>
+
                 <button
                   type="submit"
                   disabled={settingsSaving}
@@ -792,6 +831,7 @@ export default function BrandDetailPage() {
           mode={modal.mode}
           item={modal.item as Product | undefined}
           brandId={brandId}
+          brand={brand}
           categories={productCategories}
           sizes={sizes}
           addons={addons}
@@ -812,6 +852,7 @@ export default function BrandDetailPage() {
           mode={modal.mode}
           item={modal.item as Size | undefined}
           brandId={brandId}
+          brand={brand}
           onClose={closeModal}
           onSave={size => {
             if (modal.mode === 'create') {
@@ -829,6 +870,7 @@ export default function BrandDetailPage() {
           mode={modal.mode}
           item={modal.item as Addon | undefined}
           brandId={brandId}
+          brand={brand}
           onClose={closeModal}
           onSave={addon => {
             if (modal.mode === 'create') {
@@ -996,6 +1038,7 @@ function ProductModal({
   mode,
   item,
   brandId,
+  brand,
   categories,
   sizes,
   addons,
@@ -1005,6 +1048,7 @@ function ProductModal({
   mode: 'create' | 'edit';
   item?: Product;
   brandId: string;
+  brand: Brand | null;
   categories: Category[];
   sizes: Size[];
   addons: Addon[];
@@ -1013,6 +1057,12 @@ function ProductModal({
 }) {
   const [name, setName] = useState(item?.name || '');
   const [price, setPrice] = useState(item?.price?.toString() || '');
+  const [foodpandaPrice, setFoodpandaPrice] = useState(
+    item?.foodpandaPrice != null ? item.foodpandaPrice.toString() : ''
+  );
+  const [grabPrice, setGrabPrice] = useState(
+    item?.grabPrice != null ? item.grabPrice.toString() : ''
+  );
   const [categoryId, setCategoryId] = useState(item?.categoryId || '');
   const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(item?.sizes?.map(s => s.id) ?? []);
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(item?.addons?.map(a => a.id) ?? []);
@@ -1036,12 +1086,14 @@ function ProductModal({
     e.preventDefault();
     setError(null);
     setLoading(true);
+    const parseOptionalPrice = (val: string): number | null =>
+      val.trim() === '' ? null : parseFloat(val);
     try {
       let result: Product;
       if (mode === 'create') {
-        result = await api.createProduct({ name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, brandId });
+        result = await api.createProduct({ name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, brandId, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
       } else {
-        result = await api.updateProduct(item!.id, { name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds });
+        result = await api.updateProduct(item!.id, { name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
       }
       if (imageFile) {
         result = await api.uploadProductImage(result.id, brandId, imageFile);
@@ -1104,6 +1156,43 @@ function ProductModal({
           <input type="number" value={price} onChange={e => setPrice(e.target.value)} required min="0" step="0.01"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
         </div>
+        {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
+          brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
+          <div className="grid grid-cols-2 gap-3">
+            {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  FoodPanda Price <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="number"
+                  value={foodpandaPrice}
+                  onChange={e => setFoodpandaPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  placeholder="Same as base price"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                />
+              </div>
+            )}
+            {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Grab Price <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="number"
+                  value={grabPrice}
+                  onChange={e => setGrabPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  placeholder="Same as base price"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                />
+              </div>
+            )}
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
           <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
@@ -1175,17 +1264,25 @@ function SizeModal({
   mode,
   item,
   brandId,
+  brand,
   onClose,
   onSave,
 }: {
   mode: 'create' | 'edit';
   item?: Size;
   brandId: string;
+  brand: Brand | null;
   onClose: () => void;
   onSave: (size: Size) => void;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [priceModifier, setPriceModifier] = useState(item?.priceModifier?.toString() || '0');
+  const [foodpandaPrice, setFoodpandaPrice] = useState(
+    item?.foodpandaPrice != null ? item.foodpandaPrice.toString() : ''
+  );
+  const [grabPrice, setGrabPrice] = useState(
+    item?.grabPrice != null ? item.grabPrice.toString() : ''
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1193,12 +1290,25 @@ function SizeModal({
     e.preventDefault();
     setError(null);
     setLoading(true);
+    const parseOptionalPrice = (val: string): number | null =>
+      val.trim() === '' ? null : parseFloat(val);
     try {
       let result: Size;
       if (mode === 'create') {
-        result = await api.createSize({ name, priceModifier: parseFloat(priceModifier), brandId });
+        result = await api.createSize({
+          name,
+          priceModifier: parseFloat(priceModifier),
+          foodpandaPrice: parseOptionalPrice(foodpandaPrice),
+          grabPrice: parseOptionalPrice(grabPrice),
+          brandId,
+        });
       } else {
-        result = await api.updateSize(item!.id, { name, priceModifier: parseFloat(priceModifier) });
+        result = await api.updateSize(item!.id, {
+          name,
+          priceModifier: parseFloat(priceModifier),
+          foodpandaPrice: parseOptionalPrice(foodpandaPrice),
+          grabPrice: parseOptionalPrice(grabPrice),
+        });
       }
       onSave(result);
     } catch (err: unknown) {
@@ -1220,10 +1330,41 @@ function SizeModal({
             placeholder="e.g. Small, Medium, Large" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Price Modifier (+$)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Price Modifier (+₱)</label>
           <input type="number" value={priceModifier} onChange={e => setPriceModifier(e.target.value)} required min="0" step="0.01"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
         </div>
+        {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
+          brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
+          <div className="grid grid-cols-2 gap-3">
+            {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  FoodPanda Modifier <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="number" value={foodpandaPrice}
+                  onChange={e => setFoodpandaPrice(e.target.value)}
+                  min="0" step="0.01" placeholder="Same as base"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                />
+              </div>
+            )}
+            {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Grab Modifier <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="number" value={grabPrice}
+                  onChange={e => setGrabPrice(e.target.value)}
+                  min="0" step="0.01" placeholder="Same as base"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                />
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
           <button type="submit" disabled={loading} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
@@ -1239,17 +1380,25 @@ function AddonModal({
   mode,
   item,
   brandId,
+  brand,
   onClose,
   onSave,
 }: {
   mode: 'create' | 'edit';
   item?: Addon;
   brandId: string;
+  brand: Brand | null;
   onClose: () => void;
   onSave: (addon: Addon) => void;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [price, setPrice] = useState(item?.price?.toString() || '0');
+  const [foodpandaPrice, setFoodpandaPrice] = useState(
+    item?.foodpandaPrice != null ? item.foodpandaPrice.toString() : ''
+  );
+  const [grabPrice, setGrabPrice] = useState(
+    item?.grabPrice != null ? item.grabPrice.toString() : ''
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1257,12 +1406,14 @@ function AddonModal({
     e.preventDefault();
     setError(null);
     setLoading(true);
+    const parseOptionalPrice = (val: string): number | null =>
+      val.trim() === '' ? null : parseFloat(val);
     try {
       let result: Addon;
       if (mode === 'create') {
-        result = await api.createAddon({ name, price: parseFloat(price), brandId });
+        result = await api.createAddon({ name, price: parseFloat(price), brandId, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
       } else {
-        result = await api.updateAddon(item!.id, { name, price: parseFloat(price) });
+        result = await api.updateAddon(item!.id, { name, price: parseFloat(price), foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
       }
       onSave(result);
     } catch (err: unknown) {
@@ -1288,6 +1439,43 @@ function AddonModal({
           <input type="number" value={price} onChange={e => setPrice(e.target.value)} required min="0" step="0.01"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
         </div>
+        {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
+          brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
+          <div className="grid grid-cols-2 gap-3">
+            {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  FoodPanda Price <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="number"
+                  value={foodpandaPrice}
+                  onChange={e => setFoodpandaPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  placeholder="Same as base price"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                />
+              </div>
+            )}
+            {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Grab Price <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="number"
+                  value={grabPrice}
+                  onChange={e => setGrabPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                  placeholder="Same as base price"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                />
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
           <button type="submit" disabled={loading} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">

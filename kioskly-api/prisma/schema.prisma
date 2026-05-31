@@ -37,18 +37,20 @@ model Company {
 }
 
 model Brand {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  companyId   String      @db.ObjectId
-  name        String
-  slug        String
-  description String?
-  logoUrl     String?
-  themeColors ThemeColors?
-  isActive    Boolean     @default(true)
-  tombstone   Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id                       String            @id @default(auto()) @map("_id") @db.ObjectId
+  companyId                String            @db.ObjectId
+  name                     String
+  slug                     String
+  description              String?
+  logoUrl                  String?
+  themeColors              ThemeColors?
+  isActive                 Boolean           @default(true)
+  enabledDeliveryPlatforms DeliveryPlatform[] @default([])
+  tombstone                Int               @default(0)
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   stores         Tenant[]
   categories     Category[]
   products       Product[]
@@ -210,9 +212,11 @@ model Size {
   id            String   @id @map("_id")
   tenantId      String?  @db.ObjectId
   brandId       String?  @db.ObjectId
-  name          String
-  priceModifier Float
-  volume        String?
+  name           String
+  priceModifier  Float
+  foodpandaPrice Float?
+  grabPrice      Float?
+  volume         String?
   tombstone     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -230,8 +234,10 @@ model Addon {
   id        String   @id @map("_id")
   tenantId  String?  @db.ObjectId
   brandId   String?  @db.ObjectId
-  name      String
-  price     Float
+  name           String
+  price          Float
+  foodpandaPrice Float?
+  grabPrice      Float?
   tombstone Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -249,8 +255,10 @@ model Product {
   id         String   @id @map("_id")
   tenantId   String?  @db.ObjectId
   brandId    String?  @db.ObjectId
-  name       String
-  price      Float
+  name           String
+  price          Float
+  foodpandaPrice Float?
+  grabPrice      Float?
   categoryId String
   image      String?
   tombstone  Int      @default(0)
@@ -576,6 +584,11 @@ enum PaymentMethod {
   GCASH
   PAYMAYA
   ONLINE
+  FOODPANDA
+  GRAB
+}
+
+enum DeliveryPlatform {
   FOODPANDA
   GRAB
 }

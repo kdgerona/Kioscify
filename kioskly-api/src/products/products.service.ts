@@ -38,7 +38,7 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto, brandId: string) {
-    const { id, name, price, categoryId, image, sizeIds, addonIds } =
+    const { id, name, price, foodpandaPrice, grabPrice, categoryId, image, sizeIds, addonIds } =
       createProductDto;
 
     // Generate ID from product name if not provided
@@ -62,6 +62,8 @@ export class ProductsService {
         id: productId,
         name,
         price,
+        foodpandaPrice,
+        grabPrice,
         categoryId,
         image,
         brandId,
@@ -276,6 +278,8 @@ export class ProductsService {
       id: product.id,
       name: product.name,
       price: product.price,
+      foodpandaPrice: product.foodpandaPrice ?? null,
+      grabPrice: product.grabPrice ?? null,
       categoryId: product.categoryId,
       image: imageUrl,
       createdAt: product.createdAt,

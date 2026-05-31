@@ -13,7 +13,7 @@ export class AddonsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createAddonDto: CreateAddonDto, brandId: string) {
-    const { id: providedId, name, price } = createAddonDto;
+    const { id: providedId, name, price, foodpandaPrice, grabPrice } = createAddonDto;
     const id = providedId || randomUUID();
 
     if (providedId) {
@@ -22,7 +22,7 @@ export class AddonsService {
     }
 
     return this.prisma.addon.create({
-      data: { id, name, price, brandId },
+      data: { id, name, price, foodpandaPrice, grabPrice, brandId },
     });
   }
 

@@ -13,7 +13,7 @@ export class SizesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createSizeDto: CreateSizeDto, brandId: string) {
-    const { id: providedId, name, priceModifier, volume } = createSizeDto;
+    const { id: providedId, name, priceModifier, foodpandaPrice, grabPrice, volume } = createSizeDto;
     const id = providedId || randomUUID();
 
     if (providedId) {
@@ -22,7 +22,7 @@ export class SizesService {
     }
 
     return this.prisma.size.create({
-      data: { id, name, priceModifier, volume, brandId },
+      data: { id, name, priceModifier, foodpandaPrice, grabPrice, volume, brandId },
     });
   }
 

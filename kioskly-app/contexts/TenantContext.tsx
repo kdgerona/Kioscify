@@ -22,6 +22,7 @@ export interface Brand {
   logoUrl?: string;
   themeColors?: ThemeColors;
   isActive: boolean;
+  enabledDeliveryPlatforms?: string[];
 }
 
 export interface Company {

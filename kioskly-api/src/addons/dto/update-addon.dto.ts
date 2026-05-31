@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNumber, IsOptional } from 'class-validator';
 
 export class UpdateAddonDto {
@@ -11,4 +11,14 @@ export class UpdateAddonDto {
   @IsNumber()
   @IsOptional()
   price?: number;
+
+  @ApiPropertyOptional({ example: 12 })
+  @IsNumber()
+  @IsOptional()
+  foodpandaPrice?: number;
+
+  @ApiPropertyOptional({ example: 12 })
+  @IsNumber()
+  @IsOptional()
+  grabPrice?: number;
 }

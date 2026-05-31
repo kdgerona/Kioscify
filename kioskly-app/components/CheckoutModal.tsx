@@ -32,6 +32,8 @@ type CheckoutModalProps = {
   ) => void;
   isLoading?: boolean;
   error?: string | null;
+  initialPaymentMethod?: PaymentMethod;
+  hiddenPaymentMethods?: PaymentMethod[];
 };
 
 type PaymentDetails = {
@@ -52,8 +54,10 @@ export default function CheckoutModal({
   onCheckoutComplete,
   isLoading = false,
   error = null,
+  initialPaymentMethod = null,
+  hiddenPaymentMethods = [],
 }: CheckoutModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initialPaymentMethod);
   const [cashReceived, setCashReceived] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -71,7 +75,7 @@ export default function CheckoutModal({
   // Reset form when modal is closed (visible changes to false)
   useEffect(() => {
     if (!visible) {
-      setPaymentMethod(null);
+      setPaymentMethod(initialPaymentMethod);
       setCashReceived("");
       setReferenceNumber("");
       setRemarks("");
@@ -80,7 +84,7 @@ export default function CheckoutModal({
       setCustomDiscountAmount("");
       setDiscountMode(null);
     }
-  }, [visible]);
+  }, [visible, initialPaymentMethod]);
 
   // Listen to keyboard show/hide events
   useEffect(() => {
@@ -98,7 +102,7 @@ export default function CheckoutModal({
   }, []);
 
   const resetForm = () => {
-    setPaymentMethod(null);
+    setPaymentMethod(initialPaymentMethod);
     setCashReceived("");
     setReferenceNumber("");
     setRemarks("");
@@ -245,7 +249,7 @@ export default function CheckoutModal({
               style={{ backgroundColor: backgroundColor }}
             >
               <View className="flex flex-row items-center justify-center">
-                {paymentMethod && (
+                {paymentMethod && !initialPaymentMethod && (
                   <TouchableOpacity onPress={handleBack} className="mr-3">
                     <Text className="text-black text-2xl font-bold mb-3">
                       ←
@@ -496,34 +500,38 @@ export default function CheckoutModal({
                       </TouchableOpacity>
                     </View>
 
-                    <View className="w-1/2 px-1.5 mb-2.5">
-                      <TouchableOpacity
-                        className="bg-pink-500 rounded-lg py-4 px-3 items-center shadow-sm"
-                        onPress={() => handlePaymentMethodSelect("foodpanda")}
-                      >
-                        <Text className="text-white text-xl font-bold mb-1">
-                          FoodPanda
-                        </Text>
-                        <Text className="text-pink-100 text-xs text-center">
-                          Delivery order
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                    {!hiddenPaymentMethods.includes("foodpanda") && (
+                      <View className="w-1/2 px-1.5 mb-2.5">
+                        <TouchableOpacity
+                          className="bg-pink-500 rounded-lg py-4 px-3 items-center shadow-sm"
+                          onPress={() => handlePaymentMethodSelect("foodpanda")}
+                        >
+                          <Text className="text-white text-xl font-bold mb-1">
+                            FoodPanda
+                          </Text>
+                          <Text className="text-pink-100 text-xs text-center">
+                            Delivery order
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
 
-                    <View className="w-1/2 px-1.5 mb-2.5">
-                      <TouchableOpacity
-                        className="rounded-lg py-4 px-3 items-center shadow-sm"
-                        style={{ backgroundColor: "#00B14F" }}
-                        onPress={() => handlePaymentMethodSelect("grab")}
-                      >
-                        <Text className="text-white text-xl font-bold mb-1">
-                          Grab
-                        </Text>
-                        <Text className="text-white text-xs text-center opacity-80">
-                          Delivery order
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                    {!hiddenPaymentMethods.includes("grab") && (
+                      <View className="w-1/2 px-1.5 mb-2.5">
+                        <TouchableOpacity
+                          className="rounded-lg py-4 px-3 items-center shadow-sm"
+                          style={{ backgroundColor: "#00B14F" }}
+                          onPress={() => handlePaymentMethodSelect("grab")}
+                        >
+                          <Text className="text-white text-xl font-bold mb-1">
+                            Grab
+                          </Text>
+                          <Text className="text-white text-xs text-center opacity-80">
+                            Delivery order
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
                 </View>
               )}
