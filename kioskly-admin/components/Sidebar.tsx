@@ -588,62 +588,122 @@ export default function Sidebar() {
           className={cn("p-4 border-t", isCollapsed && "lg:p-2")}
           style={{ borderColor }}
         >
-          {/* Store Switcher — shown only if user has 2+ stores and sidebar is not collapsed */}
-          {accessibleStores.length > 1 && !isCollapsed && (
-            <div className="relative mb-2">
-              <button
-                onClick={() => setShowStoreSwitcher((v) => !v)}
-                disabled={switching}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
-                style={{ color: textColor }}
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <Store className="w-5 h-5 flex-shrink-0" />
-                  <span className="truncate font-medium">
-                    {tenant?.name ?? "Select store"}
-                  </span>
-                </div>
-                <ChevronsUpDown className="w-4 h-4 flex-shrink-0 opacity-50" />
-              </button>
-
-              {showStoreSwitcher && (
-                <div className="absolute left-0 right-0 bottom-full mb-2 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-                  <div className="px-3 py-2 border-b border-gray-100">
-                    <p className="text-xs font-semibold text-black uppercase tracking-wider">Switch Store</p>
+          {/* Store Switcher — shown only if user has 2+ stores */}
+          {accessibleStores.length > 1 && (
+            isCollapsed ? (
+              /* Collapsed: icon button opens a popover to the right */
+              <div className="mb-2 flex justify-center">
+                <Popover.Root>
+                  <Popover.Trigger asChild>
+                    <button
+                      disabled={switching}
+                      className="flex items-center justify-center w-full rounded-lg px-2 py-3 transition disabled:opacity-50 hover:bg-gray-100"
+                      style={{ color: textColor }}
+                      title="Switch Store"
+                    >
+                      <Store className="w-5 h-5" />
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Portal>
+                    <Popover.Content
+                      side="right"
+                      sideOffset={8}
+                      className="z-50 min-w-[220px] rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden"
+                    >
+                      <div className="px-3 py-2 border-b border-gray-100">
+                        <p className="text-xs font-semibold text-black uppercase tracking-wider">Switch Store</p>
+                      </div>
+                      {accessibleStores.map((store) => {
+                        const isActive = store.id === tenant?.id;
+                        const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
+                        return (
+                          <button
+                            key={store.id}
+                            onClick={() => handleSwitchStore(store)}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition",
+                              isActive ? "bg-gray-50" : "hover:bg-gray-50",
+                            )}
+                          >
+                            <div
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
+                              style={{ backgroundColor: avatarColor }}
+                            >
+                              {store.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className={cn("truncate flex-1", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
+                              {store.name}
+                            </span>
+                            {isActive && (
+                              <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium whitespace-nowrap">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                Active
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </Popover.Content>
+                  </Popover.Portal>
+                </Popover.Root>
+              </div>
+            ) : (
+              /* Expanded: inline dropdown */
+              <div className="relative mb-2">
+                <button
+                  onClick={() => setShowStoreSwitcher((v) => !v)}
+                  disabled={switching}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+                  style={{ color: textColor }}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Store className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate font-medium">
+                      {tenant?.name ?? "Select store"}
+                    </span>
                   </div>
-                  {accessibleStores.map((store) => {
-                    const isActive = store.id === tenant?.id;
-                    const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
-                    return (
-                      <button
-                        key={store.id}
-                        onClick={() => handleSwitchStore(store)}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition",
-                          isActive ? "bg-gray-50" : "hover:bg-gray-50",
-                        )}
-                      >
-                        <div
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
-                          style={{ backgroundColor: avatarColor }}
+                  <ChevronsUpDown className="w-4 h-4 flex-shrink-0 opacity-50" />
+                </button>
+
+                {showStoreSwitcher && (
+                  <div className="absolute left-0 right-0 bottom-full mb-2 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-black uppercase tracking-wider">Switch Store</p>
+                    </div>
+                    {accessibleStores.map((store) => {
+                      const isActive = store.id === tenant?.id;
+                      const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
+                      return (
+                        <button
+                          key={store.id}
+                          onClick={() => handleSwitchStore(store)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition",
+                            isActive ? "bg-gray-50" : "hover:bg-gray-50",
+                          )}
                         >
-                          {store.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className={cn("truncate flex-1", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
-                          {store.name}
-                        </span>
-                        {isActive && (
-                          <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium whitespace-nowrap">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                            Active
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
+                            style={{ backgroundColor: avatarColor }}
+                          >
+                            {store.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className={cn("truncate flex-1", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
+                            {store.name}
                           </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                          {isActive && (
+                            <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                              Active
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )
           )}
 
           <button
