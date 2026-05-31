@@ -672,6 +672,11 @@ export default function DailyReport() {
                             </Text>
                           </View>
                           <View className="items-end">
+                            {(transaction as any).discountAmount != null && (transaction as any).discountAmount > 0 && (
+                              <Text className="text-xs text-gray-400 line-through">
+                                {formatCurrency(transaction.subtotal)}
+                              </Text>
+                            )}
                             <Text
                               className="text-lg font-bold"
                               style={{ color: textColor }}
@@ -718,6 +723,24 @@ export default function DailyReport() {
                             </View>
                           ))}
                         </View>
+
+                        {/* Discount breakdown — only when a discount was applied */}
+                        {(transaction as any).discountAmount != null && (transaction as any).discountAmount > 0 && (
+                          <View className="mt-2 bg-gray-50 rounded-lg px-3 py-2">
+                            <View className="flex-row justify-between">
+                              <Text className="text-xs text-gray-500">Subtotal:</Text>
+                              <Text className="text-xs text-gray-500">{formatCurrency(transaction.subtotal)}</Text>
+                            </View>
+                            <View className="flex-row justify-between mt-0.5">
+                              <Text className="text-xs text-red-500">Discount:</Text>
+                              <Text className="text-xs text-red-500">-{formatCurrency((transaction as any).discountAmount)}</Text>
+                            </View>
+                            <View className="flex-row justify-between mt-0.5 border-t border-gray-200 pt-1">
+                              <Text className="text-xs font-semibold text-gray-700">Total:</Text>
+                              <Text className="text-xs font-semibold text-gray-700">{formatCurrency(transaction.total)}</Text>
+                            </View>
+                          </View>
+                        )}
 
                         {/* Remarks if present */}
                         {transaction.remarks && (

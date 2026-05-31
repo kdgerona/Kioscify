@@ -355,6 +355,11 @@ export default function Transactions() {
                       </Text>
                     </View>
                     <View className="items-end">
+                      {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                        <Text className="text-xs text-gray-400 line-through">
+                          {formatCurrency(transaction.subtotal)}
+                        </Text>
+                      )}
                       <Text
                         className="text-xl font-bold"
                         style={{ color: textColor }}
@@ -418,6 +423,30 @@ export default function Transactions() {
                       </View>
                     ))}
                   </View>
+
+                  {/* Financial breakdown — only when a discount was applied */}
+                  {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                    <View className="border-t border-gray-200 pt-3 mt-2">
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-sm text-gray-500">Subtotal:</Text>
+                        <Text className="text-sm text-gray-500">
+                          {formatCurrency(transaction.subtotal)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-sm text-red-500">Discount:</Text>
+                        <Text className="text-sm text-red-500">
+                          -{formatCurrency(transaction.discountAmount)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-sm font-semibold" style={{ color: textColor }}>Total:</Text>
+                        <Text className="text-sm font-semibold" style={{ color: textColor }}>
+                          {formatCurrency(transaction.total)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
 
                   {/* Payment Details */}
                   {transaction.paymentMethod === "CASH" &&

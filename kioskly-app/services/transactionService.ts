@@ -42,6 +42,7 @@ function buildLocalTransaction(clientId: string, payload: Record<string, unknown
     userId: user?.id ?? "",
     user: user ?? { id: "", username: "Offline", email: "", role: "" },
     subtotal: (payload.subtotal as number) ?? 0,
+    discountAmount: (payload.discountAmount as number | undefined) ?? null,
     total: (payload.total as number) ?? 0,
     paymentMethod: (payload.paymentMethod as string) ?? "CASH",
     cashReceived: payload.cashReceived as number | undefined,
@@ -123,6 +124,7 @@ export interface TransactionResponse {
     role: string;
   };
   subtotal: number;
+  discountAmount?: number | null;
   total: number;
   paymentMethod: string;
   cashReceived?: number;
