@@ -484,7 +484,7 @@ export default function CheckoutModal({
                     <View className="w-1/2 px-1.5 mb-2.5">
                       <TouchableOpacity
                         className="rounded-lg py-4 px-3 items-center shadow-sm"
-                        style={{ backgroundColor: "#00D17B" }}
+                        style={{ backgroundColor: "#202122" }}
                         onPress={() => handlePaymentMethodSelect("paymaya")}
                       >
                         <Text className="text-white text-xl font-bold mb-1">
