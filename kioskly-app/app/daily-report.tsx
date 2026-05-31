@@ -97,7 +97,7 @@ function computeLocalReport(
 export default function DailyReport() {
   const router = useRouter();
   const { tenant, brand } = useTenant();
-  const { isOnline } = useSync();
+  const { isOnline, triggerSync } = useSync();
   const { user } = useAuth();
   const [reportData, setReportData] = useState<DailyReportResponse | null>(
     null
@@ -251,53 +251,84 @@ export default function DailyReport() {
   const handleSubmitReport = async () => {
     if (!reportData || !user) return;
 
-    // Capture the exact moment the staff pressed Submit so this time is preserved
-    // even when the report is queued offline and syncs hours/days later.
+    // Capture submission time immediately — preserved through the offline queue.
     const submittedAt = new Date().toISOString();
 
     setIsSubmitting(true);
     setSubmitError(null);
     setSubmitSuccess(false);
 
-    // Only include IDs of already-synced items — pending items don't have server IDs yet.
-    const syncedTransactions = transactions.filter((t) => !(t as any).pendingSync);
-    const syncedExpenses = expenses.filter((e) => !(e as any).pendingSync);
-    const syncedTransactionIds = syncedTransactions.map((t) => t.id);
-    const syncedExpenseIds = syncedExpenses.map((e) => e.id);
+    let workingTransactions = transactions;
+    let workingExpenses = expenses;
+    let workingReport = reportData;
 
-    // If there are pending items, recompute the snapshot from synced-only data so
-    // the counts in the snapshot exactly match the linked transaction/expense IDs.
-    // When fully online, reportData already comes from the server and is accurate.
-    const hasPending =
-      syncedTransactions.length !== transactions.length ||
-      syncedExpenses.length !== expenses.length;
-    const { startDate, endDate } = getTodayDateRange();
-    const today = new Date().toISOString().split("T")[0];
-    const snapshot = hasPending
-      ? computeLocalReport(syncedTransactions, syncedExpenses, today, startDate, endDate)
-      : reportData;
+    const pendingTxns = transactions.filter((t) => (t as any).pendingSync);
+    const pendingExps = expenses.filter((e) => (e as any).pendingSync);
 
+    // Online with pending items: push them to the server first so the submitted
+    // report captures every transaction the staff recorded today.
+    if (isOnline && (pendingTxns.length > 0 || pendingExps.length > 0)) {
+      await triggerSync();
+      const today = new Date().toISOString().split("T")[0];
+      const { startDate, endDate } = getTodayDateRange();
+      const [freshTxns, freshExps] = await Promise.all([
+        getTransactions({ startDate, endDate }),
+        getExpenses({ startDate, endDate }),
+      ]);
+      workingTransactions = freshTxns;
+      workingExpenses = freshExps;
+      setTransactions(freshTxns);
+      setExpenses(freshExps);
+      try {
+        workingReport = await getDailyReport(today);
+        setReportData(workingReport);
+      } catch {
+        // Server report unavailable after sync — compute locally from fresh data
+        const { startDate: sd, endDate: ed } = getTodayDateRange();
+        workingReport = computeLocalReport(freshTxns, freshExps, today, sd, ed);
+      }
+    }
+
+    // Separate synced items (have server IDs) from any that still couldn't sync.
+    // Pending clientIds are stored in the queue payload so the sync engine can
+    // resolve them to real server IDs when the report eventually goes online.
+    const syncedTransactionIds = workingTransactions
+      .filter((t) => !(t as any).pendingSync)
+      .map((t) => t.id);
+    const pendingTransactionClientIds = workingTransactions
+      .filter((t) => (t as any).pendingSync)
+      .map((t) => t.id);
+    const syncedExpenseIds = workingExpenses
+      .filter((e) => !(e as any).pendingSync)
+      .map((e) => e.id);
+    const pendingExpenseClientIds = workingExpenses
+      .filter((e) => (e as any).pendingSync)
+      .map((e) => e.id);
+
+    // workingReport already counts all transactions correctly:
+    //   online path  → fresh server report (all transactions synced)
+    //   offline path → computeLocalReport (includes pending in totals)
     const submitData = {
-      reportDate: snapshot.date,
-      periodStart: snapshot.period.start,
-      periodEnd: snapshot.period.end,
+      reportDate: workingReport.date,
+      periodStart: workingReport.period.start,
+      periodEnd: workingReport.period.end,
       salesSnapshot: {
-        totalAmount: snapshot.sales.totalAmount,
-        transactionCount: snapshot.sales.transactionCount,
-        averageTransaction: snapshot.sales.averageTransaction,
-        totalItemsSold: snapshot.sales.totalItemsSold,
-        paymentMethodBreakdown: snapshot.sales.paymentMethodBreakdown,
+        totalAmount: workingReport.sales.totalAmount,
+        transactionCount: workingReport.sales.transactionCount,
+        averageTransaction: workingReport.sales.averageTransaction,
+        totalItemsSold: workingReport.sales.totalItemsSold,
+        paymentMethodBreakdown: workingReport.sales.paymentMethodBreakdown,
       },
       expensesSnapshot: {
-        totalAmount: snapshot.expenses.totalAmount,
-        expenseCount: snapshot.expenses.expenseCount,
-        averageExpense: snapshot.expenses.averageExpense,
-        categoryBreakdown: snapshot.expenses.categoryBreakdown,
+        totalAmount: workingReport.expenses.totalAmount,
+        expenseCount: workingReport.expenses.expenseCount,
+        averageExpense: workingReport.expenses.averageExpense,
+        categoryBreakdown: workingReport.expenses.categoryBreakdown,
       },
       summarySnapshot: {
-        grossProfit: snapshot.summary.grossProfit,
-        profitMargin: snapshot.summary.profitMargin,
-        netRevenue: snapshot.summary.netRevenue,
+        grossProfit: workingReport.summary.grossProfit,
+        profitMargin: workingReport.summary.profitMargin,
+        netRevenue: workingReport.summary.netRevenue,
       },
       transactionIds: syncedTransactionIds,
       expenseIds: syncedExpenseIds,
@@ -311,11 +342,16 @@ export default function DailyReport() {
       setSubmitSuccess(true);
       setTimeout(() => setSubmitSuccess(false), 3000);
     } catch {
-      // Network failure — queue for later
+      // Network failure — queue for later. Include pending clientIds so the
+      // sync engine can resolve them to server IDs at the time of sync.
       await enqueue(
         "submitted_report",
         "/submitted-reports",
-        submitData as unknown as Record<string, unknown>,
+        {
+          ...submitData,
+          ...(pendingTransactionClientIds.length > 0 && { pendingTransactionClientIds }),
+          ...(pendingExpenseClientIds.length > 0 && { pendingExpenseClientIds }),
+        } as unknown as Record<string, unknown>,
       );
       Alert.alert(
         "Report Saved",

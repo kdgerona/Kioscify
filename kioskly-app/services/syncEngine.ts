@@ -137,6 +137,23 @@ export async function getQueue(): Promise<SyncQueueItem[]> {
   return rows.map(rowToItem);
 }
 
+// ─── ClientId resolution ─────────────────────────────────────────────────────
+
+// Looks up server IDs for a list of clientIds from the sync_queue.
+// Used when syncing submitted_report items that were queued while transactions
+// were still pending — by the time the report syncs, those transactions should
+// have synced and have a server_id stored in the queue.
+async function resolveClientIdsToServerIds(clientIds: string[]): Promise<string[]> {
+  if (!clientIds.length) return [];
+  const db = await getDb();
+  const placeholders = clientIds.map(() => "?").join(",");
+  const rows = await db.getAllAsync<{ server_id: string }>(
+    `SELECT server_id FROM sync_queue WHERE client_id IN (${placeholders}) AND server_id IS NOT NULL`,
+    clientIds,
+  );
+  return rows.map((r) => r.server_id).filter(Boolean);
+}
+
 // ─── Sync ─────────────────────────────────────────────────────────────────────
 
 let isSyncing = false;
@@ -177,13 +194,35 @@ export async function syncAll(
       await notifyListeners();
 
       try {
+        // For submitted reports queued offline, resolve any pending transaction/
+        // expense clientIds to their real server IDs. Transactions are ordered
+        // before the report in the queue, so they should be synced by now.
+        let body = row.method !== "DELETE" ? row.payload : undefined;
+        if (row.type === "submitted_report" && body) {
+          const parsed = JSON.parse(body) as Record<string, unknown>;
+          let dirty = false;
+          if (Array.isArray(parsed.pendingTransactionClientIds) && parsed.pendingTransactionClientIds.length) {
+            const resolved = await resolveClientIdsToServerIds(parsed.pendingTransactionClientIds as string[]);
+            parsed.transactionIds = [...((parsed.transactionIds as string[]) ?? []), ...resolved];
+            delete parsed.pendingTransactionClientIds;
+            dirty = true;
+          }
+          if (Array.isArray(parsed.pendingExpenseClientIds) && parsed.pendingExpenseClientIds.length) {
+            const resolved = await resolveClientIdsToServerIds(parsed.pendingExpenseClientIds as string[]);
+            parsed.expenseIds = [...((parsed.expenseIds as string[]) ?? []), ...resolved];
+            delete parsed.pendingExpenseClientIds;
+            dirty = true;
+          }
+          if (dirty) body = JSON.stringify(parsed);
+        }
+
         const response = await fetch(`${apiUrl}${row.endpoint}`, {
           method: row.method,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: row.method !== "DELETE" ? row.payload : undefined,
+          body,
         });
 
         if (response.ok) {

@@ -27,18 +27,29 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return onQueueChange(setPendingCount);
   }, []);
 
-  const triggerSync = useCallback(async () => {
-    if (!token || isSyncing) return;
-    setIsSyncing(true);
-    try {
-      await syncAll(token, apiUrl);
-      await pruneQueue();
-      const count = await getPendingCount();
-      setPendingCount(count);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [token, apiUrl, isSyncing]);
+  // Holds the in-flight sync promise so multiple callers can await the same run.
+  const syncPromiseRef = useRef<Promise<void> | null>(null);
+
+  const triggerSync = useCallback(async (): Promise<void> => {
+    if (!token) return;
+    // If a sync is already running, return the same promise so the caller can
+    // await its completion instead of starting (and losing) a second run.
+    if (syncPromiseRef.current) return syncPromiseRef.current;
+    const promise = (async () => {
+      setIsSyncing(true);
+      try {
+        await syncAll(token, apiUrl);
+        await pruneQueue();
+        const count = await getPendingCount();
+        setPendingCount(count);
+      } finally {
+        setIsSyncing(false);
+        syncPromiseRef.current = null;
+      }
+    })();
+    syncPromiseRef.current = promise;
+    return promise;
+  }, [token, apiUrl]);
 
   // System-level connectivity detection via netinfo
   useEffect(() => {
