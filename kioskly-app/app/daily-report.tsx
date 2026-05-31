@@ -32,6 +32,7 @@ import {
 } from "../services/expenseService";
 import { enqueue } from "../services/syncEngine";
 import { useSync } from "../contexts/SyncContext";
+import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paymentMethod";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
 
 // Build a DailyReportResponse from locally cached transactions and expenses.
@@ -685,15 +686,13 @@ export default function DailyReport() {
                             </Text>
                             <View
                               className="px-2 py-1 rounded-full mt-1"
-                              style={{
-                                backgroundColor:
-                                  transaction.paymentMethod === "CASH"
-                                    ? "#86efac"
-                                    : "#93c5fd",
-                              }}
+                              style={{ backgroundColor: getPaymentMethodBadgeStyle(transaction.paymentMethod).backgroundColor }}
                             >
-                              <Text className="text-xs font-semibold text-gray-800">
-                                {transaction.paymentMethod}
+                              <Text
+                                className="text-xs font-semibold"
+                                style={{ color: getPaymentMethodBadgeStyle(transaction.paymentMethod).textColor }}
+                              >
+                                {getPaymentMethodLabel(transaction.paymentMethod)}
                               </Text>
                             </View>
                           </View>

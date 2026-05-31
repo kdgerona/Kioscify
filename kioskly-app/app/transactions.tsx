@@ -24,6 +24,7 @@ import {
   requestVoidTransaction,
   TransactionResponse,
 } from "../services/transactionService";
+import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paymentMethod";
 
 export default function Transactions() {
   const router = useRouter();
@@ -369,15 +370,13 @@ export default function Transactions() {
                       <View className="flex-row items-center mt-1 flex-wrap gap-1">
                         <View
                           className="px-3 py-1 rounded-full"
-                          style={{
-                            backgroundColor:
-                              transaction.paymentMethod === "CASH"
-                                ? "#86efac"
-                                : "#93c5fd",
-                          }}
+                          style={{ backgroundColor: getPaymentMethodBadgeStyle(transaction.paymentMethod).backgroundColor }}
                         >
-                          <Text className="text-xs font-semibold text-gray-800">
-                            {transaction.paymentMethod}
+                          <Text
+                            className="text-xs font-semibold"
+                            style={{ color: getPaymentMethodBadgeStyle(transaction.paymentMethod).textColor }}
+                          >
+                            {getPaymentMethodLabel(transaction.paymentMethod)}
                           </Text>
                         </View>
                         {getVoidStatusBadge(transaction.voidStatus)}
