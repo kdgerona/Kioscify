@@ -114,6 +114,7 @@ export default function ExpenseModal({
       amount: parsedAmount,
       category,
       notes: notes.trim() || undefined,
+      date: new Date().toISOString(),
     };
 
     try {
