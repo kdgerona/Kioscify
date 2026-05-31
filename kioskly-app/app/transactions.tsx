@@ -12,8 +12,8 @@ import {
   Keyboard,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
-import { useRouter, Href } from "expo-router";
-import { useState, useEffect, useCallback } from "react";
+import { useRouter, Href, useFocusEffect } from "expo-router";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -82,6 +82,9 @@ export default function Transactions() {
     };
   };
 
+  const lastFetchedDate = useRef<string | null>(null);
+  const fetchRef = useRef<() => void>(() => {});
+
   const fetchTransactionsCallback = useCallback(async () => {
     try {
       setError(null);
@@ -89,22 +92,33 @@ export default function Transactions() {
       const data = await getTransactions({ startDate, endDate });
       setTransactions(data);
     } catch (err) {
-      console.error("Failed to fetch transactions:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load transactions"
-      );
+      setError(err instanceof Error ? err.message : "Failed to load transactions");
     } finally {
       setLoading(false);
     }
   }, []);
 
+  fetchRef.current = fetchTransactionsCallback;
+
   useEffect(() => {
     if (!tenant || !user) {
+      lastFetchedDate.current = null;
       router.replace("/");
       return;
     }
-    fetchTransactionsCallback();
-  }, [tenant, user, router, fetchTransactionsCallback]);
+    lastFetchedDate.current = null;
+    fetchRef.current();
+  }, [tenant, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useFocusEffect(
+    useCallback(() => {
+      const today = new Date().toISOString().split("T")[0];
+      if (lastFetchedDate.current !== today) {
+        lastFetchedDate.current = today;
+        fetchRef.current();
+      }
+    }, []),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

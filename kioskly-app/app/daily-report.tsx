@@ -8,7 +8,8 @@ import {
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter } from "expo-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -134,71 +135,88 @@ export default function DailyReport() {
     };
   };
 
-  useEffect(() => {
-    const fetchReportData = async () => {
-      if (!tenant || !user) {
-        router.replace("/");
-        return;
-      }
+  // Tracks the calendar date of the last data load.
+  const lastFetchedDate = useRef<string | null>(null);
 
-      setIsLoading(true);
-      setError(null);
+  // Always points to the latest version of the fetch fn so useFocusEffect
+  // doesn't need to re-subscribe when dependencies change (avoids stale closures).
+  const fetchRef = useRef<() => void>(() => {});
 
+  const fetchReportData = async () => {
+    if (!tenant || !user) {
+      router.replace("/");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const { startDate, endDate } = getTodayDateRange();
+
+      const [txns, exps, stats] = await Promise.all([
+        getTransactions({ startDate, endDate }),
+        getExpenses({ startDate, endDate }),
+        getDailyReportStats(),
+      ]);
+
+      setTransactions(txns);
+      setExpenses(exps);
+      setReportStats(stats);
+
+      let report: DailyReportResponse;
       try {
-        const today = new Date().toISOString().split("T")[0];
-        const { startDate, endDate } = getTodayDateRange();
-
-        // Transactions, expenses, and stats all handle offline gracefully.
-        const [txns, exps, stats] = await Promise.all([
-          getTransactions({ startDate, endDate }),
-          getExpenses({ startDate, endDate }),
-          getDailyReportStats(),
-        ]);
-
-        setTransactions(txns);
-        setExpenses(exps);
-        setReportStats(stats);
-
-        // Online: always use the backend — it is the source of truth.
-        // Offline: fall back to computing locally from cached data.
-        let report: DailyReportResponse;
-        try {
-          report = await getDailyReport(today);
-        } catch (err) {
-          if (!isOnline) {
-            // Explicitly fetch pending queue items so they are always included
-            // in the computation, even if getTransactions()/getExpenses() didn't
-            // return them (e.g. cache was empty, filter mismatch, timing issue).
-            const [pendingTxns, pendingExps] = await Promise.all([
-              getPendingTransactions(),
-              getPendingExpenses(),
-            ]);
-            const txnIds = new Set(txns.map((t) => t.id));
-            const expIds = new Set(exps.map((e) => e.id));
-            const allTxns = [
-              ...pendingTxns.filter((t) => !txnIds.has(t.id)),
-              ...txns,
-            ];
-            const allExps = [
-              ...pendingExps.filter((e) => !expIds.has(e.id)),
-              ...exps,
-            ];
-            report = computeLocalReport(allTxns, allExps, today, startDate, endDate);
-          } else {
-            throw err; // Online but server failed — surface the error normally
-          }
-        }
-        setReportData(report);
+        report = await getDailyReport(today);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load report");
-      } finally {
-        setIsLoading(false);
-        setStatsLoading(false);
+        if (!isOnline) {
+          const [pendingTxns, pendingExps] = await Promise.all([
+            getPendingTransactions(),
+            getPendingExpenses(),
+          ]);
+          const txnIds = new Set(txns.map((t) => t.id));
+          const expIds = new Set(exps.map((e) => e.id));
+          const allTxns = [...pendingTxns.filter((t) => !txnIds.has(t.id)), ...txns];
+          const allExps = [...pendingExps.filter((e) => !expIds.has(e.id)), ...exps];
+          report = computeLocalReport(allTxns, allExps, today, startDate, endDate);
+        } else {
+          throw err;
+        }
       }
-    };
+      setReportData(report);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load report");
+    } finally {
+      setIsLoading(false);
+      setStatsLoading(false);
+    }
+  };
 
-    fetchReportData();
-  }, [tenant, user, router]);
+  // Keep ref current on every render so useFocusEffect always calls latest version.
+  fetchRef.current = fetchReportData;
+
+  // Re-fetch when auth changes (login/logout).
+  useEffect(() => {
+    if (!tenant || !user) {
+      lastFetchedDate.current = null; // force re-fetch on next login
+      return;
+    }
+    lastFetchedDate.current = null; // force re-fetch when user/tenant changes
+    fetchRef.current();
+  }, [tenant, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-refresh when screen comes into focus AND the calendar date has changed.
+  // This handles the overnight edge case: if the app is left open past midnight
+  // the data updates automatically the next time the user visits this screen.
+  useFocusEffect(
+    useCallback(() => {
+      const today = new Date().toISOString().split("T")[0];
+      if (lastFetchedDate.current !== today) {
+        lastFetchedDate.current = today;
+        fetchRef.current();
+      }
+    }, []),
+  );
 
   if (!tenant || !user) {
     return null;

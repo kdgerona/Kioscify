@@ -12,8 +12,8 @@ import {
   Keyboard,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
-import { useState, useEffect } from "react";
-import { router } from "expo-router";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -62,13 +62,28 @@ export default function ExpensesScreen() {
   const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
   const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
 
+  const lastFetchedDate = useRef<string | null>(null);
+  const fetchRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     if (!tenant || !user) {
+      lastFetchedDate.current = null;
       router.replace("/");
       return;
     }
-    loadExpenses();
-  }, [tenant, user, router]);
+    lastFetchedDate.current = null;
+    fetchRef.current();
+  }, [tenant, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useFocusEffect(
+    useCallback(() => {
+      const today = new Date().toISOString().split("T")[0];
+      if (lastFetchedDate.current !== today) {
+        lastFetchedDate.current = today;
+        fetchRef.current();
+      }
+    }, []),
+  );
 
   const getTodayDateRange = () => {
     const today = new Date();
@@ -94,6 +109,8 @@ export default function ExpensesScreen() {
       setLoading(false);
     }
   };
+  // Keep fetchRef current so useFocusEffect always calls the latest version.
+  fetchRef.current = loadExpenses;
 
   const onRefresh = async () => {
     setRefreshing(true);
