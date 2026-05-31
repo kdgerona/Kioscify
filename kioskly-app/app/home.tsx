@@ -8,7 +8,7 @@ import {
   Animated,
   ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter, Href } from "expo-router";
 import { useState, useEffect, useRef } from "react";
 import { useTenant } from "../contexts/TenantContext";
@@ -525,7 +525,7 @@ export default function Home() {
   };
 
   return (
-    <SafeAreaView className="w-full h-full bg-gray-50">
+    <AppSafeAreaView className="w-full h-full bg-gray-50">
       {/* Transaction queued confirmation modal */}
       <Modal visible={showQueuedConfirm} transparent animationType="fade">
         <View className="flex-1 justify-center items-center bg-black/50 px-6">
@@ -992,6 +992,6 @@ export default function Home() {
         transaction={currentTransaction as any}
         onNewOrder={handleNewOrder}
       />
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }

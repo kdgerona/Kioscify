@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -196,7 +196,7 @@ export default function DailyReport() {
   };
 
   return (
-    <SafeAreaView className="w-full h-full bg-gray-50">
+    <AppSafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"
@@ -656,6 +656,6 @@ export default function DailyReport() {
           </View>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }

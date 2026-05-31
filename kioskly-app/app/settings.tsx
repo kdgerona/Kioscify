@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter, Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
@@ -64,7 +64,7 @@ export default function SettingsScreen() {
   const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || null;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f3f4f6" }}>
+    <AppSafeAreaView style={{ flex: 1, backgroundColor: "#f3f4f6" }}>
       {/* Header */}
       <View className="px-6 py-4 flex-row items-center" style={{ backgroundColor }}>
         <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
@@ -98,6 +98,6 @@ export default function SettingsScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }

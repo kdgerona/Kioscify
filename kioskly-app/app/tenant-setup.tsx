@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import AppSafeAreaView from "../components/AppSafeAreaView";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useTenant } from "../contexts/TenantContext";
@@ -88,7 +88,7 @@ export default function TenantSetup() {
           barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
           onBarcodeScanned={handleBarCodeScanned}
         >
-          <SafeAreaView style={{ flex: 1, justifyContent: "space-between", alignItems: "center", padding: 24 }}>
+          <AppSafeAreaView style={{ flex: 1, justifyContent: "space-between", alignItems: "center", padding: 24 }}>
             <Text style={{ color: "white", fontSize: 16, fontWeight: "600", textAlign: "center", marginTop: 16 }}>
               Point the camera at a Kioscify store QR code
             </Text>
@@ -99,7 +99,7 @@ export default function TenantSetup() {
             >
               <Text style={{ color: "white", fontWeight: "600" }}>Cancel</Text>
             </TouchableOpacity>
-          </SafeAreaView>
+          </AppSafeAreaView>
         </CameraView>
       </View>
     );
@@ -225,7 +225,7 @@ export default function TenantSetup() {
           <View style={{ position: "absolute", bottom: -80, right: -80, width: 280, height: 280, borderRadius: 140, borderWidth: 35, borderColor: "white", opacity: 0.1 }} />
           <View style={{ position: "absolute", bottom: 40, left: 16, width: 80, height: 80, borderRadius: 40, backgroundColor: "white", opacity: 0.1 }} />
 
-          <SafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <AppSafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
             <View style={{ width: 80, height: 80, backgroundColor: "white", borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 }}>
               <Image source={AppLogo} style={{ width: 60, height: 60 }} resizeMode="contain" />
             </View>
@@ -243,7 +243,7 @@ export default function TenantSetup() {
             >
               Smart Store Management & Monitoring Platform
             </Text>
-          </SafeAreaView>
+          </AppSafeAreaView>
         </View>
 
         {/* Right panel — form */}
@@ -267,7 +267,7 @@ export default function TenantSetup() {
 
   // ── PORTRAIT: stacked layout ─────────────────────────────────────────────────
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
+    <AppSafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
       <KeyboardAwareScrollView
         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 32, paddingVertical: 24 }}
         keyboardShouldPersistTaps="handled"
@@ -287,6 +287,6 @@ export default function TenantSetup() {
           </View>
         </View>
       </KeyboardAwareScrollView>
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }

@@ -12,7 +12,7 @@ import {
   Modal,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { SafeAreaView } from "react-native-safe-area-context";
+import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -466,7 +466,7 @@ export default function InventoryScreen() {
   const categories = Object.keys(groupedItems) as InventoryCategory[];
 
   return (
-    <SafeAreaView className="w-full h-full bg-gray-50">
+    <AppSafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"
@@ -815,6 +815,6 @@ export default function InventoryScreen() {
           onChange={handleDateChange}
         />
       )}
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }

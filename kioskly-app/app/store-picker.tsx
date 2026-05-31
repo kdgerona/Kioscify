@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { useRouter, Href } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import AppSafeAreaView from "../components/AppSafeAreaView";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -80,7 +80,7 @@ export default function StorePicker() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
+    <AppSafeAreaView className="flex-1 bg-gray-50">
       <View className="px-6 py-6 bg-white border-b border-gray-100">
         <Text className="text-2xl font-bold text-gray-900">Select a Store</Text>
         <Text className="text-sm text-gray-500 mt-1">
@@ -133,6 +133,6 @@ export default function StorePicker() {
           <Text style={{ fontSize: 11, color: "#9ca3af" }}>Powered by <Text style={{ fontWeight: "600", color: "#4b5563" }}>Kioscify</Text></Text>
         </View>
       </View>
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }
