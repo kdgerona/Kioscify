@@ -119,7 +119,7 @@ export default function ReportsPage() {
     const colors = {
       CASH: "#10b981",
       GCASH: "#2563eb",
-      PAYMAYA: "#50B16B",
+      PAYMAYA: "#202122",
       FOODPANDA: "#ec4899",
       ONLINE: "#6b7280",
       GRAB: "#00B14F",
