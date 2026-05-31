@@ -267,7 +267,9 @@ export const getTransactions = async (
     const pending = await getPending();
     const serverIds = new Set(data.map((t) => t.id));
     const newPending = pending.filter((p) => !serverIds.has(p.id));
-    return [...newPending, ...data];
+    return [...newPending, ...data].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
   } catch {
     let cached = (await getCachedTransactions()) ?? [];
     // Apply date filter offline so yesterday's cache doesn't bleed into today's report
@@ -282,7 +284,9 @@ export const getTransactions = async (
     const pending = await getPending();
     const cachedIds = new Set(cached.map((t: TransactionResponse) => t.id));
     const newPending = pending.filter((p) => !cachedIds.has(p.id));
-    return [...newPending, ...cached];
+    return [...newPending, ...cached].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
   }
 };
 

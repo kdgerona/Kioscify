@@ -218,7 +218,9 @@ export const getExpenses = async (filters?: {
     // Merge: pending first (newest activity), then server data (de-duplicate by id)
     const serverIds = new Set(data.map((e) => e.id));
     const newPending = pending.filter((p) => !serverIds.has(p.id));
-    return [...newPending, ...data];
+    return [...newPending, ...data].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
   } catch {
     let cached = (await getCachedExpenses()) ?? [];
     // Apply date filter offline so yesterday's cache doesn't bleed into today's report
@@ -233,7 +235,9 @@ export const getExpenses = async (filters?: {
     const pending = await getPending();
     const cachedIds = new Set(cached.map((e: ExpenseResponse) => e.id));
     const newPending = pending.filter((p) => !cachedIds.has(p.id));
-    return [...newPending, ...cached];
+    return [...newPending, ...cached].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
   }
 };
 
