@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { formatCurrency, formatDateTime, formatRole, formatUserName, getPaymentMethodLabel } from "@/lib/utils";
 import {
@@ -28,6 +28,7 @@ export default function SubmittedReportsPage() {
     null
   );
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const isFirstMount = useRef(true);
 
   const clearFilters = () => {
     setStartDate(undefined);
@@ -84,7 +85,9 @@ export default function SubmittedReportsPage() {
   );
 
   useEffect(() => {
-    loadReports(true);
+    const isInitial = isFirstMount.current;
+    isFirstMount.current = false;
+    loadReports(isInitial);
   }, [loadReports]);
 
   if (initialLoading) {
@@ -130,10 +133,11 @@ export default function SubmittedReportsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => loadReports(false)}
-              className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+              disabled={isFiltering}
+              className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition disabled:opacity-50"
               title="Refresh reports"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className={`w-5 h-5 ${isFiltering ? "animate-spin" : ""}`} />
             </button>
             {(startDate || endDate) && (
               <button

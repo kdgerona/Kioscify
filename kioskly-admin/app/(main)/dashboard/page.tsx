@@ -208,7 +208,7 @@ export default function DashboardPage() {
               Today&apos;s Sales{" "}
               {loadingTransactions ? "(Loading...)" : "(Click to view)"}
             </p>
-            <p className="text-2xl sm:text-3xl font-bold">
+            <p className="text-xl lg:text-2xl font-bold break-all">
               {formatCurrency(dailyAnalytics?.sales?.totalAmount || 0)}
             </p>
             <p className="text-xs sm:text-sm text-cyan-100 mt-2">
@@ -226,7 +226,7 @@ export default function DashboardPage() {
               Today&apos;s Expenses{" "}
               {loadingExpenses ? "(Loading...)" : "(Click to view)"}
             </p>
-            <p className="text-2xl sm:text-3xl font-bold">
+            <p className="text-xl lg:text-2xl font-bold break-all">
               {formatCurrency(dailyAnalytics?.expenses?.totalAmount || 0)}
             </p>
             <p className="text-xs sm:text-sm text-rose-100 mt-2">
@@ -239,7 +239,7 @@ export default function DashboardPage() {
             <p className="text-teal-100 text-xs sm:text-sm mb-2">
               Today&apos;s Net Revenue
             </p>
-            <p className="text-2xl sm:text-3xl font-bold">
+            <p className="text-xl lg:text-2xl font-bold break-all">
               {formatCurrency(dailyAnalytics?.summary?.netRevenue || 0)}
             </p>
             <p className="text-xs sm:text-sm text-teal-100 mt-2">
@@ -259,7 +259,7 @@ export default function DashboardPage() {
         {/* Monthly Total Sales */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
           <p className="text-blue-100 text-xs sm:text-sm mb-2">Monthly Sales</p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.sales?.totalAmount || 0)}
           </p>
           <p className="text-xs sm:text-sm text-blue-100 mt-2">
@@ -278,7 +278,7 @@ export default function DashboardPage() {
             Transactions{" "}
             {loadingTransactions ? "(Loading...)" : "(Click to view all)"}
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold">
             {analytics?.sales?.transactionCount || 0}
           </p>
           <p className="text-xs sm:text-sm text-green-100 mt-2">This month</p>
@@ -289,7 +289,7 @@ export default function DashboardPage() {
           <p className="text-purple-100 text-xs sm:text-sm mb-2">
             Avg. Order Value
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.sales?.averageTransaction || 0)}
           </p>
           <p className="text-xs sm:text-sm text-purple-100 mt-2">
@@ -302,7 +302,7 @@ export default function DashboardPage() {
           <p className="text-orange-100 text-xs sm:text-sm mb-2">
             Products Sold
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold">
             {analytics?.sales?.totalItemsSold || 0}
           </p>
           <p className="text-xs sm:text-sm text-orange-100 mt-2">This month</p>
@@ -326,7 +326,7 @@ export default function DashboardPage() {
             Monthly Expenses{" "}
             {loadingExpenses ? "(Loading...)" : "(Click to view all)"}
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.expenses?.totalAmount || 0)}
           </p>
           <p className="text-xs sm:text-sm text-red-100 mt-2">
@@ -339,7 +339,7 @@ export default function DashboardPage() {
           <p className="text-emerald-100 text-xs sm:text-sm mb-2">
             Monthly Gross Profit
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.summary?.grossProfit || 0)}
           </p>
           <p className="text-xs sm:text-sm text-emerald-100 mt-2">
@@ -352,7 +352,7 @@ export default function DashboardPage() {
           <p className="text-indigo-100 text-xs sm:text-sm mb-2">
             Monthly Net Revenue
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.summary?.netRevenue || 0)}
           </p>
           <p className="text-xs sm:text-sm text-indigo-100 mt-2">

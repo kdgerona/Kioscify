@@ -48,10 +48,14 @@ function Calendar({
           "bg-gray-900 text-white hover:bg-gray-900 hover:text-white focus:bg-gray-900 focus:text-white",
         day_outside:
           "day-outside text-gray-400 opacity-50 aria-selected:bg-gray-100/50 aria-selected:text-gray-500 aria-selected:opacity-30",
-        day_disabled: "text-gray-400 opacity-50",
+        day_disabled: "text-gray-300 opacity-40 cursor-not-allowed pointer-events-none",
+        disabled: "text-gray-300 opacity-40 cursor-not-allowed pointer-events-none",
         day_range_middle:
           "aria-selected:bg-gray-100 aria-selected:text-gray-900",
         day_hidden: "invisible",
+        outside: "text-gray-400 opacity-50",
+        selected: "bg-gray-900 text-white hover:bg-gray-900 hover:text-white",
+        hidden: "invisible",
         ...classNames,
       }}
       components={{

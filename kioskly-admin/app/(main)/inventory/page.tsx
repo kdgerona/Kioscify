@@ -11,7 +11,6 @@ import {
   TrendingDown,
   RefreshCw,
   Search,
-  Filter,
   Calendar,
   CalendarX,
 } from "lucide-react";
@@ -36,9 +35,7 @@ export default function InventoryPage() {
   );
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "items" | "count">(
-    "overview"
-  );
+  const [activeTab, setActiveTab] = useState<"overview" | "items">("overview");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [batchesMap, setBatchesMap] = useState<Map<string, ExpirationBatch[]>>(new Map());
@@ -281,7 +278,7 @@ export default function InventoryPage() {
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8">
-            {["overview", "items", "count"].map((tab) => (
+            {["overview", "items"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
@@ -401,22 +398,28 @@ export default function InventoryPage() {
                   placeholder="Search items..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base text-gray-900"
+                  className="w-full h-9 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none text-sm text-gray-900"
+                  style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
                 />
               </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger style={{ color: textColor }}>
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': textColor } as React.CSSProperties}>
-                  <SelectItem value="">All Categories</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {formatCategoryName(cat)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="w-full sm:w-48 flex-shrink-0">
+                <Select
+                  value={selectedCategory || "ALL"}
+                  onValueChange={(v) => setSelectedCategory(v === "ALL" ? "" : v)}
+                >
+                  <SelectTrigger style={{ color: textColor }}>
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': textColor } as React.CSSProperties}>
+                    <SelectItem value="ALL">All Categories</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {formatCategoryName(cat)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Inventory List - Grouped by Category */}
@@ -639,9 +642,9 @@ export default function InventoryPage() {
                         <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm">
                           {editingThresholdId === item.id ? (
                             <input
-                              type="number" min={0} step={0.1}
+                              type="number" min={0} step={1}
                               value={thresholdValues.minStockLevel ?? ''}
-                              onChange={(e) => setThresholdValues({ ...thresholdValues, minStockLevel: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
+                              onChange={(e) => setThresholdValues({ ...thresholdValues, minStockLevel: e.target.value === '' ? undefined : parseInt(e.target.value) })}
                               className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
                             />
                           ) : (
@@ -681,7 +684,7 @@ export default function InventoryPage() {
                         <td className="py-3 px-2 sm:px-4 text-right text-xs sm:text-sm">
                           {editingThresholdId === item.id ? (
                             <div className="flex gap-2 justify-end">
-                              <button onClick={() => handleSaveThreshold(item.id)} className="text-indigo-600 hover:text-indigo-800 font-medium">Save</button>
+                              <button onClick={() => handleSaveThreshold(item.id)} className="text-gray-900 hover:text-gray-600 font-medium">Save</button>
                               <button onClick={() => setEditingThresholdId(null)} className="text-gray-500 hover:text-gray-700">Cancel</button>
                             </div>
                           ) : (
@@ -700,28 +703,6 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* Count Tab */}
-      {activeTab === "count" && (
-        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
-            Quick Inventory Count
-          </h2>
-          <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-            This feature is available in the mobile app for easier counting on
-            the go.
-          </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6 text-center">
-            <Package className="w-12 h-12 sm:w-16 sm:h-16 text-blue-600 mx-auto mb-3 sm:mb-4" />
-            <p className="text-base sm:text-lg text-gray-900 font-semibold mb-2">
-              Use the Kioskly Mobile App
-            </p>
-            <p className="text-xs sm:text-sm text-gray-600">
-              Download the mobile app to quickly count inventory with an
-              optimized interface designed for daily use.
-            </p>
-          </div>
-        </div>
-      )}
 
     </div>
   );

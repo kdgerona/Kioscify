@@ -30,9 +30,11 @@ export default function DateRangeSelector({
     { value: 'weekly', label: 'This Week' },
     { value: 'monthly', label: 'This Month' },
     { value: 'yearly', label: 'This Year' },
-    { value: 'overall', label: 'All Time' },
     { value: 'custom', label: 'Custom Range' },
   ];
+
+  const today = new Date();
+  const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), today.getDate());
 
   return (
     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
@@ -81,6 +83,8 @@ export default function DateRangeSelector({
                 }
               }}
               placeholder="Select start date"
+              fromDate={twoYearsAgo}
+              toDate={today}
             />
           </div>
           <div className="w-full sm:w-auto">
@@ -100,6 +104,8 @@ export default function DateRangeSelector({
                 }
               }}
               placeholder="Select end date"
+              fromDate={twoYearsAgo}
+              toDate={today}
             />
           </div>
         </div>

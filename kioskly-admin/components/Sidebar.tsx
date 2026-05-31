@@ -293,7 +293,7 @@ export default function Sidebar() {
               <div
                 className={cn(
                   "relative flex-shrink-0",
-                  isCollapsed ? "lg:w-8 lg:h-8" : "w-10 h-10",
+                  isCollapsed ? "lg:w-12 lg:h-12" : "w-20 h-20",
                 )}
               >
                 <Image
@@ -318,7 +318,7 @@ export default function Sidebar() {
             {!isCollapsed && (
               <div className="lg:block flex-1 min-w-0">
                 <h2
-                  className="text-xl font-bold truncate"
+                  className="text-lg font-bold truncate"
                   style={{ color: textColor }}
                 >
                   {tenant?.name ?? "Store Portal"}
@@ -607,34 +607,40 @@ export default function Sidebar() {
               </button>
 
               {showStoreSwitcher && (
-                <div className="absolute left-0 right-0 bottom-full mb-1 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
-                  {accessibleStores.map((store) => (
-                    <button
-                      key={store.id}
-                      onClick={() => handleSwitchStore(store)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left hover:bg-gray-50 transition",
-                        store.id === tenant?.id &&
-                          "bg-indigo-50 text-indigo-700 font-medium",
-                      )}
-                    >
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                        style={{
-                          backgroundColor:
-                            store.brand?.themeColors?.primary ?? primaryColor,
-                        }}
+                <div className="absolute left-0 right-0 bottom-full mb-2 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+                  <div className="px-3 py-2 border-b border-gray-100">
+                    <p className="text-xs font-semibold text-black uppercase tracking-wider">Switch Store</p>
+                  </div>
+                  {accessibleStores.map((store) => {
+                    const isActive = store.id === tenant?.id;
+                    const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
+                    return (
+                      <button
+                        key={store.id}
+                        onClick={() => handleSwitchStore(store)}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition",
+                          isActive ? "bg-gray-50" : "hover:bg-gray-50",
+                        )}
                       >
-                        {store.name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="truncate">{store.name}</span>
-                      {store.id === tenant?.id && (
-                        <span className="ml-auto text-xs text-indigo-500">
-                          Active
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
+                          style={{ backgroundColor: avatarColor }}
+                        >
+                          {store.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className={cn("truncate flex-1", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
+                          {store.name}
                         </span>
-                      )}
-                    </button>
-                  ))}
+                        {isActive && (
+                          <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium whitespace-nowrap">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                            Active
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

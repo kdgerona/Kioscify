@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { formatCurrency, getPaymentMethodLabel } from "@/lib/utils";
 import {
@@ -23,7 +23,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import DateRangeSelector, { TimePeriod } from "@/components/DateRangeSelector";
 import TransactionListModal from "@/components/TransactionListModal";
 import ExpenseListModal from "@/components/ExpenseListModal";
-import { Transaction, Expense } from "@/types";
+import { Transaction, Expense, TimeOfDayData } from "@/types";
 
 interface AnalyticsData {
   period: {
@@ -69,6 +69,7 @@ export default function ReportsPage() {
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const isInitialLoad = useRef(true);
   const [period, setPeriod] = useState<TimePeriod>("daily");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
@@ -76,6 +77,7 @@ export default function ReportsPage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [hourlyData, setHourlyData] = useState<TimeOfDayData[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
@@ -86,25 +88,108 @@ export default function ReportsPage() {
     loadReportData();
   }, [period, startDate, endDate]);
 
+  const dayStart = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+  const dayEnd = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+  const computeDateRange = (
+    p: TimePeriod
+  ): { startDate: string; endDate: string } => {
+    const now = new Date();
+    switch (p) {
+      case "daily":
+        return {
+          startDate: dayStart(now).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+      case "yesterday": {
+        const y = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - 1
+        );
+        return {
+          startDate: dayStart(y).toISOString(),
+          endDate: dayEnd(y).toISOString(),
+        };
+      }
+      case "weekly": {
+        const dow = now.getDay();
+        const diff = dow === 0 ? 6 : dow - 1;
+        const mon = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - diff
+        );
+        return {
+          startDate: dayStart(mon).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+      }
+      case "monthly": {
+        const first = new Date(now.getFullYear(), now.getMonth(), 1);
+        return {
+          startDate: dayStart(first).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+      }
+      case "yearly": {
+        const jan1 = new Date(now.getFullYear(), 0, 1);
+        return {
+          startDate: dayStart(jan1).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+      }
+      default:
+        return {
+          startDate: dayStart(now).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+    }
+  };
+
   const loadReportData = async () => {
     try {
       setLoading(true);
+
+      if (period === "custom" && (!startDate || !endDate)) {
+        setLoading(false);
+        return;
+      }
+
       const params: {
         period?: TimePeriod;
         startDate?: string;
         endDate?: string;
       } = { period };
 
-      if (period === "custom" && startDate && endDate) {
-        // Convert YYYY-MM-DD to full datetime with start/end of day
-        const start = new Date(startDate + "T00:00:00");
-        const end = new Date(endDate + "T23:59:59.999");
-        params.startDate = start.toISOString();
-        params.endDate = end.toISOString();
+      if (period === "custom") {
+        params.startDate = dayStart(
+          new Date(startDate + "T00:00:00")
+        ).toISOString();
+        params.endDate = dayEnd(
+          new Date(endDate + "T00:00:00")
+        ).toISOString();
+      } else {
+        const range = computeDateRange(period);
+        params.startDate = range.startDate;
+        params.endDate = range.endDate;
       }
 
       const data = await api.getAnalytics(params);
       setAnalytics(data);
+      isInitialLoad.current = false;
+
+      try {
+        const hourly = await api.getTimeOfDayTrends(
+          data.period.start,
+          data.period.end
+        );
+        setHourlyData(hourly.hourlyBreakdown);
+      } catch {
+        setHourlyData([]);
+      }
     } catch (error) {
       console.error("Failed to load report data:", error);
     } finally {
@@ -155,6 +240,20 @@ export default function ReportsPage() {
       })
     );
   };
+
+  const formatHour = (h: number) => {
+    if (h === 0) return "12am";
+    if (h < 12) return `${h}am`;
+    if (h === 12) return "12pm";
+    return `${h - 12}pm`;
+  };
+
+  const getHourlyChartData = () =>
+    hourlyData.map((h) => ({
+      hour: formatHour(h.hour),
+      revenue: h.totalRevenue,
+      count: h.count,
+    }));
 
   // Prepare sales by day for charts
   const getSalesByDay = () => {
@@ -404,7 +503,7 @@ export default function ReportsPage() {
     }
   };
 
-  if (loading) {
+  if (loading && isInitialLoad.current) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
@@ -429,6 +528,11 @@ export default function ReportsPage() {
   const salesByDay = getSalesByDay();
   const paymentMethodData = getPaymentMethodData();
   const expenseCategoryData = getExpenseCategoryData();
+  const hourlyChartData = getHourlyChartData();
+  const peakHour = hourlyChartData.reduce(
+    (max, h) => (h.revenue > max.revenue ? h : max),
+    { hour: "", revenue: 0, count: 0 }
+  );
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -444,10 +548,11 @@ export default function ReportsPage() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={loadReportData}
-            className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+            disabled={loading}
+            className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition disabled:opacity-50"
             title="Refresh report data"
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={exportReport}
@@ -475,7 +580,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6 sm:mb-8">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-blue-100 text-sm mb-2">Total Sales</p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics.sales.totalAmount)}
           </p>
           <p className="text-sm text-blue-100 mt-2">
@@ -493,7 +598,7 @@ export default function ReportsPage() {
             Transactions{" "}
             {loadingTransactions ? "(Loading...)" : "(Click to view all)"}
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold">
             {analytics.sales.transactionCount}
           </p>
           <p className="text-sm text-green-100 mt-2">Completed orders</p>
@@ -501,7 +606,7 @@ export default function ReportsPage() {
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-purple-100 text-sm mb-2">Avg. Order Value</p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics.sales.averageTransaction)}
           </p>
           <p className="text-sm text-purple-100 mt-2">Per transaction</p>
@@ -509,7 +614,7 @@ export default function ReportsPage() {
 
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-orange-100 text-sm mb-2">Gross Profit</p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics.summary.grossProfit)}
           </p>
           <p className="text-sm text-orange-100 mt-2">
@@ -953,6 +1058,85 @@ export default function ReportsPage() {
             />
           </ComposedChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Sales by Time of Day */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6 sm:mt-8">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-bold text-gray-900">Sales by Time of Day</h2>
+          <TrendingUp className="w-5 h-5 text-gray-400" />
+        </div>
+        {peakHour.revenue > 0 && (
+          <p className="text-sm text-gray-500 mb-6">
+            Peak hour:{" "}
+            <span className="font-semibold text-black">
+              {peakHour.hour}
+            </span>{" "}
+            — {formatCurrency(peakHour.revenue)} across {peakHour.count} transaction{peakHour.count !== 1 ? "s" : ""}
+          </p>
+        )}
+        {hourlyChartData.some((h) => h.revenue > 0) ? (
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={hourlyChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="hour"
+                stroke="#6b7280"
+                style={{ fontSize: "11px" }}
+                interval={0}
+                tick={{ fontSize: 11 }}
+              />
+              <YAxis
+                yAxisId="left"
+                stroke="#6b7280"
+                style={{ fontSize: "11px" }}
+                tickFormatter={(v) => formatCurrency(v)}
+                width={72}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#6b7280"
+                style={{ fontSize: "11px" }}
+                allowDecimals={false}
+                width={36}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                }}
+                labelStyle={{ color: "#000", fontWeight: 600 }}
+                formatter={(value: number, name: string) =>
+                  name === "Revenue" ? formatCurrency(value) : `${value} txn`
+                }
+              />
+              <Legend />
+              <Bar
+                yAxisId="left"
+                dataKey="revenue"
+                name="Revenue"
+                radius={[4, 4, 0, 0]}
+                fill={primaryColor}
+                opacity={0.85}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="count"
+                name="Transactions"
+                stroke="#6b7280"
+                strokeWidth={2}
+                dot={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-[320px] flex items-center justify-center text-gray-500">
+            No sales data available for this period
+          </div>
+        )}
       </div>
 
       {/* Transaction List Modal */}

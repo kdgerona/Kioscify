@@ -110,8 +110,12 @@ export default function SettingsPage() {
             <div>
               <label className="block text-xs sm:text-sm font-medium text-gray-600 mb-1">Role</label>
               <span
-                className="inline-block px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold"
-                style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
+                className="inline-block whitespace-nowrap px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold"
+                style={
+                  ['STORE_ADMIN', 'ADMIN'].includes(user?.role ?? '')
+                    ? { backgroundColor: '#e0e7ff', color: '#3730a3' }
+                    : { backgroundColor: '#f3f4f6', color: '#374151' }
+                }
               >
                 {formatRole(user?.role) || 'N/A'}
               </span>
@@ -121,8 +125,7 @@ export default function SettingsPage() {
               {!showChangePassword ? (
                 <button
                   onClick={() => { setShowChangePassword(true); setPwError(null); setPwSuccess(false); }}
-                  className="flex items-center gap-2 text-sm font-medium hover:opacity-80 transition"
-                  style={{ color: primaryColor }}
+                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition"
                 >
                   <KeyRound className="h-4 w-4" />
                   Change Password
@@ -159,7 +162,7 @@ export default function SettingsPage() {
                     <button
                       type="submit"
                       disabled={pwLoading}
-                      className="px-4 py-2 text-sm text-white rounded-lg font-medium hover:opacity-90 transition disabled:opacity-50"
+                      className="px-4 py-2 text-sm text-black rounded-lg font-medium hover:opacity-90 transition disabled:opacity-50"
                       style={{ backgroundColor: primaryColor }}
                     >
                       {pwLoading ? 'Saving...' : 'Save'}

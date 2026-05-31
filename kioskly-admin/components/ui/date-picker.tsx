@@ -13,6 +13,8 @@ interface DatePickerProps {
   onDateChange?: (date: Date | undefined) => void
   placeholder?: string
   className?: string
+  fromDate?: Date
+  toDate?: Date
 }
 
 export function DatePicker({
@@ -20,6 +22,8 @@ export function DatePicker({
   onDateChange,
   placeholder = "Pick a date",
   className,
+  fromDate,
+  toDate,
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = React.useState(false)
 
@@ -49,6 +53,13 @@ export function DatePicker({
             selected={date}
             onSelect={handleSelect}
             initialFocus
+            defaultMonth={date}
+            startMonth={fromDate}
+            endMonth={toDate}
+            disabled={[
+              ...(fromDate ? [{ before: fromDate }] : []),
+              ...(toDate ? [{ after: toDate }] : []),
+            ]}
           />
         </PopoverContent>
       </Popover>

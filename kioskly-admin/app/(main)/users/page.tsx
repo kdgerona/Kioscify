@@ -6,10 +6,18 @@ import { useTenant } from '@/contexts/TenantContext';
 import { formatRole } from '@/lib/utils';
 import type { User, StoreUserCreatePayload } from '@/types';
 import { UserPlus, Eye, EyeOff, UserCheck, UserX } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function UsersPage() {
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? '#ea580c';
+  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? '#1f2937';
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -87,7 +95,7 @@ export default function UsersPage() {
         {isStoreAdmin && (
           <button
             onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-medium hover:opacity-90 transition"
+            className="flex items-center gap-2 px-4 py-2 text-black rounded-lg text-sm font-medium hover:opacity-90 transition"
             style={{ backgroundColor: primaryColor }}
           >
             <UserPlus className="h-4 w-4" />
@@ -178,27 +186,31 @@ export default function UsersPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-              <select
+              <Select
                 value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onValueChange={(v) => setForm({ ...form, role: v as any })}
               >
-                <option value="CASHIER">Cashier</option>
-                <option value="STORE_ADMIN">Store Admin</option>
-              </select>
+                <SelectTrigger className="w-full" style={{ color: textColor }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': textColor } as React.CSSProperties}>
+                  <SelectItem value="CASHIER">Cashier</SelectItem>
+                  <SelectItem value="STORE_ADMIN">Store Admin</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="col-span-2 flex gap-3 justify-end">
               <button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={formLoading}
-                className="px-4 py-2 text-sm text-white rounded-lg hover:opacity-90 transition disabled:opacity-50"
+                className="px-4 py-2 text-sm text-black rounded-lg hover:opacity-90 transition disabled:opacity-50"
                 style={{ backgroundColor: primaryColor }}
               >
                 {formLoading ? 'Creating...' : 'Create User'}
@@ -213,6 +225,7 @@ export default function UsersPage() {
         <div className="text-center py-12 text-gray-500">Loading users...</div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -221,7 +234,7 @@ export default function UsersPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -233,11 +246,14 @@ export default function UsersPage() {
                   <td className="px-6 py-4 text-sm font-mono text-gray-700">{user.username}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
                   <td className="px-6 py-4 text-sm">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      ['STORE_ADMIN', 'ADMIN'].includes(user.role)
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
+                    <span
+                      className="inline-block whitespace-nowrap px-2 py-1 rounded-full text-xs font-medium"
+                      style={
+                        ['STORE_ADMIN', 'ADMIN'].includes(user.role)
+                          ? { backgroundColor: '#e0e7ff', color: '#3730a3' }
+                          : { backgroundColor: '#f3f4f6', color: '#374151' }
+                      }
+                    >
                       {formatRole(user.role)}
                     </span>
                   </td>
@@ -253,19 +269,23 @@ export default function UsersPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-center">
                     {isStoreAdmin && currentUser?.id !== user.id && (
-                      <button
-                        onClick={() => handleToggleActive(user)}
-                        title={user.isActive ? 'Deactivate' : 'Activate'}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        {user.isActive ? (
-                          <UserX className="h-4 w-4" />
-                        ) : (
-                          <UserCheck className="h-4 w-4" />
-                        )}
-                      </button>
+                      <div className="relative group inline-block">
+                        <button
+                          onClick={() => handleToggleActive(user)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          {user.isActive ? (
+                            <UserX className="h-4 w-4" />
+                          ) : (
+                            <UserCheck className="h-4 w-4" />
+                          )}
+                        </button>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                          {user.isActive ? 'Disable account' : 'Enable account'}
+                        </div>
+                      </div>
                     )}
                     {currentUser?.id === user.id && (
                       <span className="text-xs text-gray-400">No action</span>
@@ -282,6 +302,7 @@ export default function UsersPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
