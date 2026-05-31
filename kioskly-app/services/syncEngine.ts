@@ -171,12 +171,19 @@ export async function syncAll(
   try {
     const db = await getDb();
 
-    // Reset previously-failed items that haven't hit the retry ceiling so they
-    // get another chance (e.g., items that failed due to a server-side bug that
-    // has since been fixed).
+    // Reset items that failed with HTTP 400 — these were likely caused by
+    // display-only fields (productName, sizeName, addonName) in the payload
+    // that the server rejects. The sync loop now strips those fields, so
+    // resetting retries to 0 gives them a clean retry.
+    await db.runAsync(
+      `UPDATE sync_queue SET status = 'pending', retries = 0, error_message = NULL
+       WHERE status = 'failed' AND error_message = 'HTTP 400'`,
+    );
+
+    // Reset other previously-failed items that haven't hit the retry ceiling.
     await db.runAsync(
       `UPDATE sync_queue SET status = 'pending', error_message = NULL
-       WHERE status = 'failed' AND retries < ?`,
+       WHERE status = 'failed' AND retries < ? AND error_message != 'HTTP 400'`,
       MAX_RETRIES,
     );
 
@@ -194,10 +201,29 @@ export async function syncAll(
       await notifyListeners();
 
       try {
+        let body = row.method !== "DELETE" ? row.payload : undefined;
+
+        // Strip display-only fields from transaction items before sending to the
+        // server. productName/sizeName/addonName are stored in the queue for local
+        // display but the server DTO rejects unknown fields (forbidNonWhitelisted).
+        if (row.type === "transaction" && body) {
+          const parsed = JSON.parse(body) as Record<string, unknown>;
+          if (Array.isArray(parsed.items)) {
+            parsed.items = (parsed.items as any[]).map(
+              ({ productName: _pn, sizeName: _sn, ...item }: any) => ({
+                ...item,
+                addons: Array.isArray(item.addons)
+                  ? item.addons.map(({ addonName: _an, ...addon }: any) => addon)
+                  : item.addons,
+              }),
+            );
+            body = JSON.stringify(parsed);
+          }
+        }
+
         // For submitted reports queued offline, resolve any pending transaction/
         // expense clientIds to their real server IDs. Transactions are ordered
         // before the report in the queue, so they should be synced by now.
-        let body = row.method !== "DELETE" ? row.payload : undefined;
         if (row.type === "submitted_report" && body) {
           const parsed = JSON.parse(body) as Record<string, unknown>;
           let dirty = false;
