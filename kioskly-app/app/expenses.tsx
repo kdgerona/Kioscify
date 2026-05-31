@@ -17,6 +17,7 @@ import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSync } from "@/contexts/SyncContext";
 import {
   createExpense,
   getExpenses,
@@ -58,12 +59,15 @@ export default function ExpensesScreen() {
 
   const { tenant, brand } = useTenant();
   const { user } = useAuth();
+  const { pendingCount } = useSync();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
   const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
 
   const lastFetchedDate = useRef<string | null>(null);
   const fetchRef = useRef<() => void>(() => {});
+  const hasPendingRef = useRef(false);
+  hasPendingRef.current = expenses.some((e) => (e as any).pendingSync);
 
   useEffect(() => {
     if (!tenant || !user) {
@@ -111,6 +115,13 @@ export default function ExpensesScreen() {
   };
   // Keep fetchRef current so useFocusEffect always calls the latest version.
   fetchRef.current = loadExpenses;
+
+  // Re-fetch whenever the sync engine finishes work and we're showing pending items.
+  useEffect(() => {
+    if (hasPendingRef.current) {
+      fetchRef.current();
+    }
+  }, [pendingCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onRefresh = async () => {
     setRefreshing(true);

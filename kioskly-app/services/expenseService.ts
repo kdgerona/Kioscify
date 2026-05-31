@@ -222,9 +222,11 @@ export const getExpenses = async (filters?: {
     const data: ExpenseResponse[] = await response.json();
     await cacheExpenses(data);
     const pending = await getPending();
-    // Merge: pending first (newest activity), then server data (de-duplicate by id)
-    const serverIds = new Set(data.map((e) => e.id));
-    const newPending = pending.filter((p) => !serverIds.has(p.id));
+    // De-duplicate by clientId: the server expense response includes clientId (Prisma
+    // returns all model fields), and buildLocalExpense sets id = clientId, so
+    // serverClientIds.has(p.id) correctly identifies already-synced pending items.
+    const serverClientIds = new Set(data.map((e: any) => e.clientId).filter(Boolean));
+    const newPending = pending.filter((p) => !serverClientIds.has(p.id));
     return [...newPending, ...data].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
@@ -240,8 +242,8 @@ export const getExpenses = async (filters?: {
       });
     }
     const pending = await getPending();
-    const cachedIds = new Set(cached.map((e: ExpenseResponse) => e.id));
-    const newPending = pending.filter((p) => !cachedIds.has(p.id));
+    const cachedClientIds = new Set(cached.map((e: any) => e.clientId).filter(Boolean));
+    const newPending = pending.filter((p) => !cachedClientIds.has(p.id));
     return [...newPending, ...cached].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );

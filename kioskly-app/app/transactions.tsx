@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useSync } from "../contexts/SyncContext";
 import {
   getTransactions,
   updateTransactionRemarks,
@@ -28,6 +29,7 @@ export default function Transactions() {
   const router = useRouter();
   const { tenant, brand } = useTenant();
   const { user } = useAuth();
+  const { pendingCount } = useSync();
   const [transactions, setTransactions] = useState<(TransactionResponse & { pendingSync?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -99,6 +101,19 @@ export default function Transactions() {
   }, []);
 
   fetchRef.current = fetchTransactionsCallback;
+
+  // Ref always holds whether any pending items are currently visible.
+  // Used by the pendingCount effect without creating a stale-closure dependency.
+  const hasPendingRef = useRef(false);
+  hasPendingRef.current = transactions.some((t) => (t as any).pendingSync);
+
+  // Re-fetch whenever the sync engine finishes work and we're showing pending items.
+  // This clears stale "Pending sync" badges without requiring a manual pull-to-refresh.
+  useEffect(() => {
+    if (hasPendingRef.current) {
+      fetchRef.current();
+    }
+  }, [pendingCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!tenant || !user) {

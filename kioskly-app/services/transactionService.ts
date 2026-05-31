@@ -297,8 +297,11 @@ export const getTransactions = async (
     const data: TransactionResponse[] = await response.json();
     await cacheTransactions(data);
     const pending = await getPending();
-    const serverIds = new Set(data.map((t) => t.id));
-    const newPending = pending.filter((p) => !serverIds.has(p.id));
+    // De-duplicate by transactionId (the TXN… string) — both server responses and
+    // pending items carry the same transactionId, unlike id (MongoDB ObjectId) vs
+    // clientId (UUID) which are different types and never match.
+    const serverTxnIds = new Set(data.map((t) => t.transactionId));
+    const newPending = pending.filter((p) => !serverTxnIds.has(p.transactionId));
     return [...newPending, ...data].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
@@ -314,8 +317,8 @@ export const getTransactions = async (
       });
     }
     const pending = await getPending();
-    const cachedIds = new Set(cached.map((t: TransactionResponse) => t.id));
-    const newPending = pending.filter((p) => !cachedIds.has(p.id));
+    const cachedTxnIds = new Set(cached.map((t: TransactionResponse) => t.transactionId));
+    const newPending = pending.filter((p) => !cachedTxnIds.has(p.transactionId));
     return [...newPending, ...cached].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
