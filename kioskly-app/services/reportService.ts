@@ -89,48 +89,13 @@ export interface SubmitReportData {
 /**
  * Submit a daily report to the backend
  */
-export const submitReport = async (
-  data: SubmitReportData
-): Promise<any> => {
-  try {
-    console.log("🔵 SUBMITTING REPORT:", data);
-
-    safeReactotron.display({
-      name: "SUBMIT REPORT",
-      value: data,
-      preview: `Submitting report for ${data.reportDate}`,
-    });
-
-    const response = await apiPost("/submitted-reports", data);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 SUBMIT REPORT ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "SUBMIT REPORT ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to submit report",
-        important: true,
-      });
-
-      throw new Error(`Failed to submit report: ${errorText}`);
-    }
-
-    const result = await response.json();
-    console.log("🟢 REPORT SUBMITTED:", result);
-
-    safeReactotron.display({
-      name: "REPORT SUBMITTED",
-      value: result,
-      preview: "Report submitted successfully",
-    });
-
-    return result;
-  } catch (error) {
-    console.error("Failed to submit report:", error);
-    throw error;
+export const submitReport = async (data: SubmitReportData): Promise<any> => {
+  const response = await apiPost("/submitted-reports", data);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to submit report: ${errorText}`);
   }
+  return response.json();
 };
 
 export interface DailyReportStats {

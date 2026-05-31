@@ -4,6 +4,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter } from "expo-router";
@@ -104,7 +105,6 @@ export default function DailyReport() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [submitQueued, setSubmitQueued] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reportStats, setReportStats] = useState<DailyReportStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -217,7 +217,6 @@ export default function DailyReport() {
     setIsSubmitting(true);
     setSubmitError(null);
     setSubmitSuccess(false);
-    setSubmitQueued(false);
 
     // Only include IDs of already-synced items so the server can look them up.
     const syncedTransactionIds = transactions
@@ -266,8 +265,11 @@ export default function DailyReport() {
         "/submitted-reports",
         submitData as unknown as Record<string, unknown>,
       );
-      setSubmitQueued(true);
-      setTimeout(() => setSubmitQueued(false), 4000);
+      Alert.alert(
+        "Report Saved",
+        "You're offline. The report has been saved and will sync automatically once you're back online.",
+        [{ text: "OK" }],
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -334,14 +336,6 @@ export default function DailyReport() {
             <Ionicons name="checkmark-circle" size={24} color="#10b981" />
             <Text className="ml-3 text-green-800 font-semibold flex-1">
               Report submitted successfully!
-            </Text>
-          </View>
-        )}
-        {submitQueued && (
-          <View className="mb-4 bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4 flex-row items-center">
-            <Ionicons name="cloud-upload-outline" size={24} color="#d97706" />
-            <Text className="ml-3 text-yellow-800 font-semibold flex-1">
-              {"You're offline. Report saved and will sync when you reconnect."}
             </Text>
           </View>
         )}
