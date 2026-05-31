@@ -487,10 +487,10 @@ export default function CheckoutModal({
                         style={{ backgroundColor: "#202122" }}
                         onPress={() => handlePaymentMethodSelect("paymaya")}
                       >
-                        <Text className="text-white text-xl font-bold mb-1">
+                        <Text className="text-xl font-bold mb-1" style={{ color: "#50B16B" }}>
                           Maya
                         </Text>
-                        <Text className="text-white text-xs text-center opacity-80">
+                        <Text className="text-xs text-center" style={{ color: "#50B16B", opacity: 0.8 }}>
                           Maya wallet
                         </Text>
                       </TouchableOpacity>
