@@ -442,11 +442,14 @@ export default function Home() {
       // Map frontend OrderItems to backend TransactionItems format
       const backendItems = orders.map((item) => ({
         productId: item.product.id,
+        productName: item.product.name,
         quantity: item.quantity,
         sizeId: item.selectedSize?.id,
+        sizeName: item.selectedSize?.name,
         subtotal: calculateItemPrice(item) * item.quantity,
         addons: item.selectedAddons.map((addon) => ({
           addonId: addon.id,
+          addonName: addon.name,
         })),
       }));
 

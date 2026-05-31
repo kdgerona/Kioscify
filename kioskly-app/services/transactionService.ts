@@ -17,6 +17,24 @@ function buildLocalTransaction(clientId: string, payload: Record<string, unknown
   // Use the timestamp captured at sale time so pending transactions always
   // display when the sale happened, not when this function is called.
   const saleTime = (payload.timestamp as string | undefined) ?? new Date().toISOString();
+
+  // Reconstruct display items from the names embedded in the payload at checkout.
+  // productName / sizeName / addonName are stripped before the API call but kept
+  // in the SQLite queue so pending transactions can show what was ordered.
+  const payloadItems = (payload.items as any[] | undefined) ?? [];
+  const items: TransactionItemResponse[] = payloadItems.map((item: any) => ({
+    id: item.productId,
+    productId: item.productId,
+    product: { id: item.productId, name: item.productName ?? item.productId, price: 0 },
+    quantity: item.quantity,
+    sizeId: item.sizeId,
+    size: item.sizeName ? { id: item.sizeId ?? "", name: item.sizeName, priceModifier: 0 } : undefined,
+    subtotal: item.subtotal,
+    addons: (item.addons as any[] | undefined)
+      ?.filter((a: any) => a.addonName)
+      .map((a: any) => ({ id: a.addonId, name: a.addonName, price: 0 })) ?? [],
+  }));
+
   return {
     id: clientId,
     transactionId: (payload.transactionId as string) ?? clientId,
@@ -33,7 +51,7 @@ function buildLocalTransaction(clientId: string, payload: Record<string, unknown
     timestamp: saleTime,
     createdAt: saleTime,
     updatedAt: saleTime,
-    items: [],
+    items,
     voidStatus: "NONE",
     pendingSync: true,
   } as TransactionResponse & { pendingSync: true };
@@ -41,12 +59,15 @@ function buildLocalTransaction(clientId: string, payload: Record<string, unknown
 
 interface TransactionItemAddon {
   addonId: string;
+  addonName?: string; // display-only: stored in queue, stripped before API call
 }
 
 interface TransactionItem {
   productId: string;
+  productName?: string; // display-only: stored in queue, stripped before API call
   quantity: number;
   sizeId?: string;
+  sizeName?: string;  // display-only: stored in queue, stripped before API call
   subtotal: number;
   addons?: TransactionItemAddon[];
 }
@@ -142,8 +163,19 @@ export const createTransactionOffline = async (
   const clientId = await generateClientId();
   const payload = { ...transactionData, clientId };
 
+  // Strip display-only fields (productName, sizeName, addonName) before sending
+  // to the API — the server DTO rejects unknown fields (forbidNonWhitelisted).
+  // These fields are kept in `payload` so the SQLite queue has them for display.
+  const apiPayload = {
+    ...payload,
+    items: payload.items.map(({ productName: _pn, sizeName: _sn, ...item }) => ({
+      ...item,
+      addons: item.addons?.map(({ addonName: _an, ...addon }) => addon),
+    })),
+  };
+
   try {
-    const response = await apiPost("/transactions", payload);
+    const response = await apiPost("/transactions", apiPayload);
 
     if (response.ok) {
       const data: TransactionResponse = await response.json();
