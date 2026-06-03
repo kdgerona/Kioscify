@@ -122,7 +122,7 @@ export default function BrandSlugForm() {
             </button>
           </form>
 
-          <div className="flex items-center justify-center gap-2 mt-10 bg-white border border-gray-200 rounded-full px-3 py-1.5">
+          <div className="flex items-center justify-center gap-2 mt-10 bg-white border border-gray-200 rounded-full px-3 py-1.5 w-fit mx-auto">
             <div className="relative w-5 h-5">
               <Image src="/logo-full.png" alt="Kioscify" fill className="object-contain" />
             </div>
