@@ -25,6 +25,7 @@ import {
   Wallet,
   Users,
   ChevronsUpDown,
+  Check,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
@@ -627,10 +628,7 @@ export default function Sidebar() {
                               {store.name}
                             </span>
                             {isActive && (
-                              <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium whitespace-nowrap">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                                Active
-                              </span>
+                              <Check className="ml-auto w-4 h-4 text-emerald-500 flex-shrink-0" />
                             )}
                           </button>
                         );
@@ -645,8 +643,16 @@ export default function Sidebar() {
                 <button
                   onClick={() => setShowStoreSwitcher((v) => !v)}
                   disabled={switching}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
-                  style={{ color: textColor }}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg transition disabled:opacity-50"
+                  style={{ color: adaptiveNavText, opacity: 0.7 }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                    e.currentTarget.style.opacity = "1";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.opacity = "0.7";
+                  }}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <Store className="w-5 h-5 flex-shrink-0" />
@@ -684,10 +690,7 @@ export default function Sidebar() {
                             {store.name}
                           </span>
                           {isActive && (
-                            <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium whitespace-nowrap">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                              Active
-                            </span>
+                            <Check className="ml-auto w-4 h-4 text-emerald-500 flex-shrink-0" />
                           )}
                         </button>
                       );
