@@ -752,10 +752,10 @@ export default function InventoryScreen() {
                     <Ionicons
                       name="checkmark-circle-outline"
                       size={20}
-                      color="white"
+                      color="black"
                       style={{ marginRight: 8 }}
                     />
-                    <Text className="text-white font-bold text-lg">
+                    <Text className="text-black font-bold text-lg">
                       Submit Inventory Report
                     </Text>
                   </>

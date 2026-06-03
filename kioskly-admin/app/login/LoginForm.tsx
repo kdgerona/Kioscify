@@ -204,7 +204,7 @@ export default function LoginForm({
 
         <div className="w-full max-w-sm">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Sign in</h2>
             <p className="text-gray-500 text-sm mt-1">Sign in to your store account</p>
           </div>
 
@@ -303,9 +303,9 @@ export default function LoginForm({
             </button>
           </form>
 
-          <div className="flex items-center justify-center gap-2 mt-10">
+          <div className="flex items-center justify-center gap-2 mt-10 bg-white border border-gray-200 rounded-full px-3 py-1.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-full.png" alt="Kioscify" className="w-8 h-8 object-contain" />
+            <img src="/logo-full.png" alt="Kioscify" className="w-5 h-5 object-contain" />
             <p className="text-xs text-gray-400">
               Powered by <span className="font-semibold text-gray-500">Kioscify</span>
             </p>

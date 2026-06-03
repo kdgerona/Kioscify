@@ -654,9 +654,9 @@ export default function Home() {
                 Order Type
               </Text>
               {([
-                { value: 'regular' as OrderType, label: 'In-store', color: primaryColor },
-                ...(hasFoodPanda ? [{ value: 'foodpanda' as OrderType, label: 'FoodPanda', color: '#ec4899' }] : []),
-                ...(hasGrab ? [{ value: 'grab' as OrderType, label: 'Grab', color: '#00B14F' }] : []),
+                { value: 'regular' as OrderType, label: 'In-store', color: primaryColor, selectedTextColor: '#000000' },
+                ...(hasFoodPanda ? [{ value: 'foodpanda' as OrderType, label: 'FoodPanda', color: '#ec4899', selectedTextColor: '#ffffff' }] : []),
+                ...(hasGrab ? [{ value: 'grab' as OrderType, label: 'Grab', color: '#00B14F', selectedTextColor: '#ffffff' }] : []),
               ]).map((opt) => (
                 <TouchableOpacity
                   key={opt.value}
@@ -679,7 +679,7 @@ export default function Home() {
                 >
                   <Text
                     className="font-semibold"
-                    style={{ color: orderType === opt.value ? '#ffffff' : textColor }}
+                    style={{ color: orderType === opt.value ? opt.selectedTextColor : textColor }}
                   >
                     {opt.label}
                   </Text>

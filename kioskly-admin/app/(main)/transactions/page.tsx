@@ -50,7 +50,7 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function TransactionsPage() {
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
-  const activeTabColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+  const activeTabColor = "#1f2937";
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);

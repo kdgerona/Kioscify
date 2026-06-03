@@ -261,12 +261,12 @@ export default function ChangePasswordPage() {
             </button>
           </form>
 
-          <div className="flex items-center justify-center gap-2 mt-10">
+          <div className="flex items-center justify-center gap-2 mt-10 bg-white border border-gray-200 rounded-full px-3 py-1.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo-full.png"
               alt="Kioscify"
-              className="w-8 h-8 object-contain"
+              className="w-5 h-5 object-contain"
             />
             <p className="text-xs text-gray-400">
               Powered by{" "}

@@ -63,7 +63,7 @@ const getCategoryColor = (category: string) => {
 export default function ExpensesPage() {
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
-  const activeTabColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+  const activeTabColor = "#1f2937";
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);

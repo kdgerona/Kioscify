@@ -297,8 +297,8 @@ export default function Transactions() {
           style={{ backgroundColor: primaryColor }}
           onPress={handleGenerateReport}
         >
-          <Ionicons name="document-text" size={18} color="#ffffff" />
-          <Text className="font-semibold text-white ml-1.5">Report</Text>
+          <Ionicons name="document-text" size={18} color="#000000" />
+          <Text className="font-semibold text-black ml-1.5">Report</Text>
         </TouchableOpacity>
       </View>
 

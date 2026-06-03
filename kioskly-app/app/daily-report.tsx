@@ -401,8 +401,8 @@ export default function DailyReport() {
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
               <View className="flex-row items-center">
-                <Ionicons name="cloud-upload" size={20} color="#ffffff" />
-                <Text className="text-white font-semibold ml-2">Submit Report</Text>
+                <Ionicons name="cloud-upload" size={20} color="#000000" />
+                <Text className="text-black font-semibold ml-2">Submit Report</Text>
               </View>
             )}
           </TouchableOpacity>

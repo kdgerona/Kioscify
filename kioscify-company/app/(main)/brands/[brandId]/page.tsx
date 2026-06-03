@@ -1227,12 +1227,12 @@ function ProductModal({
         )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-          <Select value={categoryId} onValueChange={setCategoryId}>
+          <Select value={categoryId || 'none'} onValueChange={v => setCategoryId(v === 'none' ? '' : v)}>
             <SelectTrigger>
               <SelectValue placeholder="— None —" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">— None —</SelectItem>
+              <SelectItem value="none">— None —</SelectItem>
               {categories.map(cat => (
                 <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
               ))}

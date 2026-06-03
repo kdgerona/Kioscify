@@ -81,7 +81,7 @@ export default function SettingsScreen() {
         <InfoRow icon="at-outline" label="Username" value={user?.username} />
         <InfoRow icon="mail-outline" label="Email" value={user?.email} />
         <InfoRow icon="shield-checkmark-outline" label="Role" value={user?.role ? roleLabel[user.role] ?? user.role : null} />
-        <NavRow icon="key-outline" label="Change Password" route="/change-password" color={primaryColor} router={router} />
+        <NavRow icon="key-outline" label="Change Password" route="/change-password" color="#9ca3af" router={router} />
 
         {/* Business */}
         <Section title="Business" />

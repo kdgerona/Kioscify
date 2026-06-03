@@ -58,7 +58,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back{company ? `, ${company.name}` : ''}
+          {company ? company.name : 'Dashboard'}
         </h1>
         <p className="text-gray-500 text-sm mt-1">Here is an overview of your company</p>
       </div>

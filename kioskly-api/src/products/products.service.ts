@@ -44,7 +44,7 @@ export class ProductsService {
     // Generate ID from product name if not provided
     let productId = id;
     if (!productId) {
-      productId = await this.generateProductId(name, brandId);
+      productId = await this.generateProductId(name);
     } else {
       // Check if manually provided ID already exists
       const existingProduct = await this.prisma.product.findUnique({
@@ -100,34 +100,27 @@ export class ProductsService {
     return this.formatProduct(product);
   }
 
-  private async generateProductId(
-    name: string,
-    brandId: string,
-  ): Promise<string> {
+  private async generateProductId(name: string): Promise<string> {
     // Create slug from product name
     const baseSlug = name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    // Check if slug already exists for this tenant
+    // Check if slug already exists globally — _id is unique across all brands in MongoDB
     let slug = baseSlug;
     let counter = 1;
 
     while (true) {
-      const existing = await this.prisma.product.findFirst({
-        where: {
-          id: slug,
-          brandId,
-          tombstone: { not: 1 },
-        },
+      const existing = await this.prisma.product.findUnique({
+        where: { id: slug },
+        select: { id: true },
       });
 
       if (!existing) {
         return slug;
       }
 
-      // Add counter suffix if slug exists
       counter++;
       slug = `${baseSlug}-${counter}`;
     }

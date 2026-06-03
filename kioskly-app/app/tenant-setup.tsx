@@ -206,9 +206,9 @@ export default function TenantSetup() {
         }}
       >
         {loading ? (
-          <ActivityIndicator color="white" />
+          <ActivityIndicator color="#000000" />
         ) : (
-          <Text style={{ color: "white", fontSize: 15, fontWeight: "700" }}>Continue</Text>
+          <Text style={{ color: "#000000", fontSize: 15, fontWeight: "700" }}>Continue</Text>
         )}
       </TouchableOpacity>
     </>

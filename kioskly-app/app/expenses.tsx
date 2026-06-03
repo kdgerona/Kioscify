@@ -263,8 +263,8 @@ export default function ExpensesScreen() {
           className="px-3 py-2 rounded-lg flex-row items-center"
           style={{ backgroundColor: primaryColor }}
         >
-          <Ionicons name="add-circle-outline" size={18} color="white" />
-          <Text className="text-white font-semibold ml-1.5">Add</Text>
+          <Ionicons name="add-circle-outline" size={18} color="black" />
+          <Text className="text-black font-semibold ml-1.5">Add</Text>
         </TouchableOpacity>
       </View>
 

@@ -17,7 +17,7 @@ import {
 export default function UsersPage() {
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? '#ea580c';
-  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? '#1f2937';
+  const textColor = '#1f2937';
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -252,7 +252,7 @@ export default function Sidebar() {
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="p-2 rounded-lg transition-all duration-200 hover:bg-gray-100"
             style={{
-              color: textColor,
+              color: adaptiveNavText,
             }}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >

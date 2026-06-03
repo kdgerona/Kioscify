@@ -16,6 +16,7 @@ import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import LogoWithAppName from "../assets/images/logo-with-appname.png";
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
 
 export default function Index() {
   const [username, setUsername] = useState("");
@@ -128,7 +129,7 @@ export default function Index() {
     }
   };
   const resolvedLogoUri = resolveLogoUrl(
-    company?.logoUrl ?? brand?.logoUrl ?? tenant?.logoUrl ?? null
+    brand?.logoUrl ?? tenant?.logoUrl ?? company?.logoUrl ?? null
   );
 
   return (
@@ -205,7 +206,7 @@ export default function Index() {
 
           <Text
             style={{
-              color: "white", fontSize: 18, fontWeight: "700",
+              color: "#000000", fontSize: 18, fontWeight: "700",
               marginBottom: 24, textAlign: "center",
             }}
           >
@@ -226,7 +227,7 @@ export default function Index() {
                 <Text
                   style={{ fontSize: 22, fontWeight: "700", color: "#111827", marginBottom: 20 }}
                 >
-                  Welcome back
+                  Sign in
                 </Text>
 
                 {error ? (
@@ -312,9 +313,9 @@ export default function Index() {
                   disabled={loading}
                 >
                   {loading ? (
-                    <ActivityIndicator color="white" />
+                    <ActivityIndicator color="#000000" />
                   ) : (
-                    <Text style={{ color: "white", fontWeight: "700", fontSize: 15 }}>
+                    <Text style={{ color: "#000000", fontWeight: "700", fontSize: 15 }}>
                       Sign In
                     </Text>
                   )}
@@ -382,9 +383,9 @@ export default function Index() {
                   disabled={changeStoreLoading || !newStoreSlug.trim()}
                 >
                   {changeStoreLoading ? (
-                    <ActivityIndicator color="white" />
+                    <ActivityIndicator color="#000000" />
                   ) : (
-                    <Text style={{ color: "white", fontWeight: "700", fontSize: 15 }}>
+                    <Text style={{ color: "#000000", fontWeight: "700", fontSize: 15 }}>
                       Confirm
                     </Text>
                   )}
@@ -412,7 +413,7 @@ export default function Index() {
               onPress={() => { setMode("change-store"); setChangeStoreError(""); }}
               disabled={loading}
             >
-              <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 14 }}>
+              <Text style={{ color: "rgba(0,0,0,0.65)", fontSize: 14 }}>
                 Change Store
               </Text>
             </TouchableOpacity>
@@ -423,7 +424,7 @@ export default function Index() {
               onPress={handleChangeCompanyBrand}
               disabled={changeStoreLoading}
             >
-              <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+              <Text style={{ color: "rgba(0,0,0,0.55)", fontSize: 13 }}>
                 Change Company / Brand
               </Text>
             </TouchableOpacity>
@@ -433,9 +434,9 @@ export default function Index() {
           <View
             style={{
               flexDirection: "row", alignItems: "center", gap: 8,
-              marginTop: 32, backgroundColor: "rgba(255,255,255,0.15)",
+              marginTop: 32, backgroundColor: "white",
               borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
-              borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
+              borderWidth: 1, borderColor: "rgba(0,0,0,0.08)",
             }}
           >
             <Image
@@ -443,11 +444,14 @@ export default function Index() {
               style={{ width: 20, height: 20 }}
               resizeMode="contain"
             />
-            <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 11 }}>
+            <Text style={{ color: "#9ca3af", fontSize: 12 }}>
               Powered by{" "}
-              <Text style={{ fontWeight: "600" }}>Kioscify</Text>
+              <Text style={{ fontWeight: "600", color: "#6b7280" }}>Kioscify</Text>
             </Text>
           </View>
+          <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 6 }}>
+            v{Constants.expoConfig?.version ?? "1.0.0"}
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
