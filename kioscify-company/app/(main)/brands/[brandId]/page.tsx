@@ -1594,12 +1594,12 @@ function InventoryModal({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category (optional)</label>
-          <Select value={category} onValueChange={setCategory}>
+          <Select value={category || 'none'} onValueChange={v => setCategory(v === 'none' ? '' : v)}>
             <SelectTrigger>
               <SelectValue placeholder="— None —" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">— None —</SelectItem>
+              <SelectItem value="none">— None —</SelectItem>
               {categories.map(c => (
                 <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
               ))}

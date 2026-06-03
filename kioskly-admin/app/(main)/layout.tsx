@@ -19,19 +19,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-    if (userStr) {
-      const user = JSON.parse(userStr);
+    if (!userStr) {
+      router.push('/login');
+      return;
+    }
 
-      const allowedRoles = ['STORE_ADMIN', 'ADMIN'];
-      if (!allowedRoles.includes(user.role)) {
-        api.logout();
-        return;
-      }
+    const user = JSON.parse(userStr);
 
-      if (user.mustChangePassword || user.isFirstLogin) {
-        router.push('/change-password');
-        return;
-      }
+    const allowedRoles = ['STORE_ADMIN', 'ADMIN'];
+    if (!allowedRoles.includes(user.role)) {
+      api.logout();
+      return;
+    }
+
+    if (user.mustChangePassword || user.isFirstLogin) {
+      router.push('/change-password');
+      return;
     }
 
     setLoading(false);

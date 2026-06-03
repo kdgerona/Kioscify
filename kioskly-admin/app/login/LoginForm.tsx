@@ -41,9 +41,13 @@ export default function LoginForm({
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
+    if (api.getToken()) {
+      router.replace('/dashboard');
+      return;
+    }
     const saved = localStorage.getItem(STORE_SLUG_KEY);
     if (saved) { setStoreSlug(saved); setRememberedSlug(true); }
-  }, []);
+  }, [router]);
 
   const primaryColor    = brand?.themeColors?.primary || "#ea580c";
   // On the white right panel, only use primaryColor as a text/link color if it's dark enough to read on white.

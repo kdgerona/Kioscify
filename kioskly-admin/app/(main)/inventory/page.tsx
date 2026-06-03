@@ -166,8 +166,8 @@ export default function InventoryPage() {
 
   // Get unique categories from inventory items
   const categories = Array.from(
-    new Set(inventoryItems.map((item) => item.category))
-  ).sort();
+    new Set(inventoryItems.map((item) => item.category).filter(Boolean))
+  ).sort() as string[];
 
   // Filter items based on search and category
   const filteredItems = latestInventory.filter((item) => {

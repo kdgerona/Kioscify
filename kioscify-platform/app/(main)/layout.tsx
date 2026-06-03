@@ -32,18 +32,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
 
     const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-    if (userStr) {
-      const user = JSON.parse(userStr);
+    if (!userStr) {
+      router.push('/login');
+      return;
+    }
 
-      if (user.role !== 'PLATFORM_ADMIN') {
-        api.logout();
-        return;
-      }
+    const user = JSON.parse(userStr);
 
-      if (user.isFirstLogin || user.mustChangePassword) {
-        router.push('/change-password');
-        return;
-      }
+    if (user.role !== 'PLATFORM_ADMIN') {
+      api.logout();
+      return;
+    }
+
+    if (user.isFirstLogin || user.mustChangePassword) {
+      router.push('/change-password');
+      return;
     }
 
     setLoading(false);

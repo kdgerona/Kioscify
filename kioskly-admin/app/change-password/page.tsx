@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, Store } from "lucide-react";
 import { api } from "@/lib/api";
@@ -11,6 +11,20 @@ export default function ChangePasswordPage() {
   const router = useRouter();
   const { tenant, brand } = useTenant();
   const [currentPassword, setCurrentPassword] = useState("");
+
+  useEffect(() => {
+    if (!api.getToken()) {
+      router.replace('/login');
+      return;
+    }
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (!user.mustChangePassword && !user.isFirstLogin) {
+        router.replace('/dashboard');
+      }
+    }
+  }, [router]);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showCurrent, setShowCurrent] = useState(false);

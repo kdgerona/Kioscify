@@ -37,22 +37,24 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
 
     const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-    if (userStr) {
-      const user = JSON.parse(userStr);
-
-      if (user.role !== 'COMPANY_ADMIN') {
-        api.logout();
-        return;
-      }
-
-      if (user.isFirstLogin || user.mustChangePassword) {
-        router.push('/change-password');
-        return;
-      }
-
-      setCompanyName(user.companyName || 'Company Portal');
+    if (!userStr) {
+      router.push('/login');
+      return;
     }
 
+    const user = JSON.parse(userStr);
+
+    if (user.role !== 'COMPANY_ADMIN') {
+      api.logout();
+      return;
+    }
+
+    if (user.isFirstLogin || user.mustChangePassword) {
+      router.push('/change-password');
+      return;
+    }
+
+    setCompanyName(user.companyName || 'Company Portal');
     setLoading(false);
   }, [router]);
 

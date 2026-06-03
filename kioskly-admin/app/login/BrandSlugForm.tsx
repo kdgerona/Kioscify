@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Store } from 'lucide-react';
+import { api } from '@/lib/api';
 
 const KIOSCIFY_ORANGE = '#ea580c';
 
@@ -12,6 +13,12 @@ export default function BrandSlugForm() {
   const [brandSlug, setBrandSlug] = useState('');
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (api.getToken()) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
