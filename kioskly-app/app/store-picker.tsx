@@ -9,10 +9,11 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { useRouter, Href } from "expo-router";
-import AppSafeAreaView from "../components/AppSafeAreaView";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
+import LogoWithAppName from "../assets/images/logo-with-appname.png";
 
 interface StoreOption {
   id: string;
@@ -22,6 +23,19 @@ interface StoreOption {
   companyId?: string;
   brand?: { name: string; themeColors?: { primary: string }; logoUrl?: string } | null;
   company?: { name: string; logoUrl?: string } | null;
+}
+
+function resolveLogoUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const apiBase =
+    process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") ||
+    "http://localhost:3000";
+  try {
+    const path = raw.startsWith("http") ? new URL(raw).pathname : raw;
+    return `${apiBase}${path}`;
+  } catch {
+    return raw;
+  }
 }
 
 export default function StorePicker() {
@@ -50,21 +64,12 @@ export default function StorePicker() {
         },
         body: JSON.stringify({ targetStoreId: store.id }),
       });
-
-      if (!resp.ok) {
-        throw new Error("Failed to switch store");
-      }
-
+      if (!resp.ok) throw new Error("Failed to switch store");
       const data = await resp.json();
-
-      // Update token
       await AsyncStorage.setItem("@kioscify:auth_token", data.accessToken);
-
-      // Load the selected store's tenant data
       await fetchTenantBySlug(store.slug);
-
       router.replace("/home" as Href);
-    } catch (err) {
+    } catch {
       Alert.alert("Error", "Failed to switch store. Please try again.");
     } finally {
       setSwitching(null);
@@ -73,66 +78,157 @@ export default function StorePicker() {
 
   if (stores.length === 0) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "white" }}>
         <ActivityIndicator size="large" color="#ea580c" />
       </View>
     );
   }
 
+  const primaryColor = stores[0]?.brand?.themeColors?.primary ?? "#ea580c";
+  const headerLogoUri = resolveLogoUrl(stores[0]?.brand?.logoUrl ?? stores[0]?.company?.logoUrl);
+  const brandName = stores[0]?.brand?.name ?? null;
+
   return (
-    <AppSafeAreaView className="flex-1 bg-gray-50">
-      <View className="px-6 py-6 bg-white border-b border-gray-100">
-        <Text className="text-2xl font-bold text-gray-900">Select a Store</Text>
-        <Text className="text-sm text-gray-500 mt-1">
-          You manage {stores.length} stores. Choose which one to open.
-        </Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: primaryColor }}>
+      {/* Decorative rings — matches login screen geometry */}
+      <View style={{ position: "absolute", top: -96, left: -96, width: 384, height: 384, borderRadius: 192, borderWidth: 40, borderColor: "white", opacity: 0.1 }} />
+      <View style={{ position: "absolute", bottom: -128, right: -128, width: 448, height: 448, borderRadius: 224, borderWidth: 50, borderColor: "white", opacity: 0.1 }} />
+      <View style={{ position: "absolute", top: "50%", right: -64, width: 256, height: 256, borderRadius: 128, borderWidth: 30, borderColor: "white", opacity: 0.07 }} />
+      <View style={{ position: "absolute", bottom: 96, left: 32, width: 128, height: 128, borderRadius: 64, backgroundColor: "white", opacity: 0.1 }} />
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {stores.map((store) => {
-          const primaryColor = store.brand?.themeColors?.primary ?? "#4f46e5";
-          const isLoading = switching === store.id;
-
-          return (
-            <TouchableOpacity
-              key={store.id}
-              onPress={() => handleSelectStore(store)}
-              disabled={!!switching}
-              className="bg-white border-b border-gray-100 px-6 py-4 flex-row items-center gap-4 active:bg-gray-50"
-            >
-              {/* Color avatar */}
-              <View
-                className="w-12 h-12 rounded-full items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <Text className="text-white font-bold text-lg">
-                  {store.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-
-              <View className="flex-1">
-                <Text className="font-semibold text-gray-900 text-base">{store.name}</Text>
-                {store.brand && (
-                  <Text className="text-sm text-gray-500">{store.brand.name}</Text>
-                )}
-              </View>
-
-              {isLoading ? (
-                <ActivityIndicator size="small" color={primaryColor} />
-              ) : (
-                <Text className="text-gray-400 text-lg">›</Text>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      <View className="px-6 py-4 bg-white border-t border-gray-100 items-center">
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "white", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: "#f3f4f6", shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1 }}>
-          <Image source={require("../assets/images/logo-with-appname.png")} style={{ width: 20, height: 20 }} resizeMode="contain" />
-          <Text style={{ fontSize: 11, color: "#9ca3af" }}>Powered by <Text style={{ fontWeight: "600", color: "#4b5563" }}>Kioscify</Text></Text>
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingHorizontal: 24,
+          paddingVertical: 56,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Brand logo */}
+        <View
+          style={{
+            width: 88, height: 88, backgroundColor: "white", borderRadius: 20,
+            alignItems: "center", justifyContent: "center", marginBottom: 14,
+            shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 }, elevation: 6,
+          }}
+        >
+          {headerLogoUri ? (
+            <Image source={{ uri: headerLogoUri }} style={{ width: 64, height: 64 }} resizeMode="contain" />
+          ) : (
+            <Image source={LogoWithAppName} style={{ width: 64, height: 64 }} resizeMode="contain" />
+          )}
         </View>
-      </View>
-    </AppSafeAreaView>
+
+        {brandName && (
+          <Text style={{ color: "white", fontSize: 20, fontWeight: "700", marginBottom: 4, textAlign: "center" }}>
+            {brandName}
+          </Text>
+        )}
+        <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, marginBottom: 28, textAlign: "center" }}>
+          Choose a store to manage
+        </Text>
+
+        {/* White card */}
+        <View
+          style={{
+            width: "100%", maxWidth: 420, backgroundColor: "white",
+            borderRadius: 24, overflow: "hidden",
+            shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20,
+            shadowOffset: { width: 0, height: 8 }, elevation: 8,
+          }}
+        >
+          <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 }}>
+            <Text style={{ fontSize: 18, fontWeight: "700", color: "#111827" }}>Select a Store</Text>
+            <Text style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+              You manage {stores.length} store{stores.length !== 1 ? "s" : ""}. Choose which one to open.
+            </Text>
+          </View>
+
+          {stores.map((store, index) => {
+            const storeColor = store.brand?.themeColors?.primary ?? primaryColor;
+            const logoUri = resolveLogoUrl(store.brand?.logoUrl ?? store.company?.logoUrl);
+            const isLoading = switching === store.id;
+            const isLast = index === stores.length - 1;
+
+            return (
+              <TouchableOpacity
+                key={store.id}
+                onPress={() => handleSelectStore(store)}
+                disabled={!!switching}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: "row", alignItems: "center", gap: 12,
+                  paddingHorizontal: 20, paddingVertical: 14,
+                  borderTopWidth: 1, borderTopColor: "#f3f4f6",
+                  borderBottomLeftRadius: isLast ? 24 : 0,
+                  borderBottomRightRadius: isLast ? 24 : 0,
+                }}
+              >
+                {/* Accent bar */}
+                <View style={{ width: 3, alignSelf: "stretch", borderRadius: 99, backgroundColor: storeColor }} />
+
+                {/* Logo / avatar */}
+                {logoUri ? (
+                  <Image
+                    source={{ uri: logoUri }}
+                    style={{ width: 48, height: 48, borderRadius: 12 }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 48, height: 48, borderRadius: 12,
+                      backgroundColor: storeColor,
+                      alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ color: "white", fontWeight: "700", fontSize: 18 }}>
+                      {store.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Store name + brand */}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: "600", fontSize: 15, color: "#111827" }} numberOfLines={1}>
+                    {store.name}
+                  </Text>
+                  {store.brand && (
+                    <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 1 }} numberOfLines={1}>
+                      {store.brand.name}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Trailing */}
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={storeColor} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Powered by Kioscify */}
+        <View
+          style={{
+            flexDirection: "row", alignItems: "center", gap: 8, marginTop: 32,
+            backgroundColor: "white", borderRadius: 999,
+            paddingHorizontal: 12, paddingVertical: 6,
+            borderWidth: 1, borderColor: "rgba(0,0,0,0.08)",
+          }}
+        >
+          <Image source={LogoWithAppName} style={{ width: 20, height: 20 }} resizeMode="contain" />
+          <Text style={{ fontSize: 11, color: "#9ca3af" }}>
+            Powered by <Text style={{ fontWeight: "600", color: "#6b7280" }}>Kioscify</Text>
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
