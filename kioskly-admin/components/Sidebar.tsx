@@ -69,7 +69,7 @@ interface AccessibleStore {
   id: string;
   name: string;
   slug: string;
-  brand?: { name: string; themeColors?: { primary: string } } | null;
+  brand?: { name: string; logoUrl?: string; themeColors?: { primary: string } } | null;
 }
 
 export default function Sidebar() {
@@ -618,15 +618,29 @@ export default function Sidebar() {
                               isActive ? "bg-gray-50" : "hover:bg-gray-50",
                             )}
                           >
-                            <div
-                              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
-                              style={{ backgroundColor: avatarColor }}
-                            >
-                              {store.name.charAt(0).toUpperCase()}
+                            {store.brand?.logoUrl ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={(() => { try { const p = store.brand.logoUrl!.startsWith('http') ? new URL(store.brand.logoUrl!).pathname : store.brand.logoUrl!; return `${apiBase}${p}`; } catch { return store.brand.logoUrl!; } })()}
+                                alt={store.brand.name}
+                                className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow-sm"
+                              />
+                            ) : (
+                              <div
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
+                                style={{ backgroundColor: avatarColor }}
+                              >
+                                {store.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <span className={cn("truncate", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
+                                {store.name}
+                              </span>
+                              {store.brand?.name && (
+                                <span className="truncate text-xs text-gray-400">{store.brand.name}</span>
+                              )}
                             </div>
-                            <span className={cn("truncate flex-1", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
-                              {store.name}
-                            </span>
                             {isActive && (
                               <Check className="ml-auto w-4 h-4 text-emerald-500 flex-shrink-0" />
                             )}
@@ -680,15 +694,29 @@ export default function Sidebar() {
                             isActive ? "bg-gray-50" : "hover:bg-gray-50",
                           )}
                         >
-                          <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
-                            style={{ backgroundColor: avatarColor }}
-                          >
-                            {store.name.charAt(0).toUpperCase()}
+                          {store.brand?.logoUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={(() => { try { const p = store.brand.logoUrl!.startsWith('http') ? new URL(store.brand.logoUrl!).pathname : store.brand.logoUrl!; return `${apiBase}${p}`; } catch { return store.brand.logoUrl!; } })()}
+                              alt={store.brand.name}
+                              className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow-sm"
+                            />
+                          ) : (
+                            <div
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
+                              style={{ backgroundColor: avatarColor }}
+                            >
+                              {store.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className={cn("truncate", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
+                              {store.name}
+                            </span>
+                            {store.brand?.name && (
+                              <span className="truncate text-xs text-gray-400">{store.brand.name}</span>
+                            )}
                           </div>
-                          <span className={cn("truncate flex-1", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
-                            {store.name}
-                          </span>
                           {isActive && (
                             <Check className="ml-auto w-4 h-4 text-emerald-500 flex-shrink-0" />
                           )}
