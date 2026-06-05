@@ -202,19 +202,20 @@ export default function InventoryItemSheet({
       transparent
       onRequestClose={handleDismiss}
     >
-      {/* Backdrop — tap to dismiss */}
+      {/* Backdrop — absolute, tap to dismiss; sits behind the sheet */}
       <TouchableOpacity
-        className="flex-1 bg-black/50"
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)" }}
         activeOpacity={1}
         onPress={handleDismiss}
+      />
+
+      {/* Sheet — layered on top; box-none lets touches on empty space fall through to backdrop */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1 justify-end"
+        pointerEvents="box-none"
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="flex-1 justify-end"
-        >
-          {/* Sheet content — onStartShouldSetResponder absorbs touches so backdrop doesn't fire */}
-          <View onStartShouldSetResponder={() => true}>
-            <View className="bg-white rounded-t-2xl" style={{ maxHeight: MAX_SHEET_HEIGHT }}>
+        <View className="bg-white rounded-t-2xl" style={{ maxHeight: MAX_SHEET_HEIGHT }}>
               {/* Drag handle */}
               <View className="items-center pt-3 pb-1">
                 <View className="w-10 h-1 bg-gray-300 rounded-full" />
@@ -329,10 +330,8 @@ export default function InventoryItemSheet({
                   <Text className="text-base font-bold text-white">Done</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
 
       {/* iOS Date Picker — nested Modal (safe in RN 0.81.5) */}
       {Platform.OS === "ios" && showDatePicker && activeBatchId && (
