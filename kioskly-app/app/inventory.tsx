@@ -6,8 +6,6 @@ import {
   RefreshControl,
   Alert,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useState, useEffect, useMemo } from "react";
@@ -74,6 +72,7 @@ export default function InventoryScreen() {
   const loadInventory = async () => {
     try {
       setError(null);
+      setStatsLoading(true);
 
       const [data, stats, reports] = await Promise.all([
         getLatestInventory(),
@@ -245,7 +244,7 @@ export default function InventoryScreen() {
               string,
               unknown
             >,
-            replaceExisting: true,
+            replaceExisting,
             submittedAt,
           } as Record<string, unknown>
         );
@@ -340,12 +339,7 @@ export default function InventoryScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-      >
-        <View className="flex-1 px-4 py-4">
+      <View className="flex-1 px-4 py-4">
           {!loading && !error && (
             <LastSubmissionBanner
               lastSubmission={reportStats?.lastSubmission ?? null}
@@ -456,8 +450,7 @@ export default function InventoryScreen() {
               )}
             </>
           )}
-        </View>
-      </KeyboardAvoidingView>
+      </View>
 
       <InventoryItemSheet
         item={selectedItem}
