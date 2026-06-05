@@ -283,8 +283,6 @@ export default function InventoryScreen() {
     );
   };
 
-  if (!tenant || !user) return null;
-
   const groupedItems = useMemo(
     () =>
       inventoryInputs.reduce(
@@ -315,6 +313,8 @@ export default function InventoryScreen() {
         : null,
     [selectedItemId, inventoryInputs]
   );
+
+  if (!tenant || !user) return null;
 
   return (
     <AppSafeAreaView className="w-full h-full bg-gray-50">
