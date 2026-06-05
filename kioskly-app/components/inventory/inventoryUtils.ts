@@ -3,7 +3,7 @@ import { ExpirationBatchInput, InventoryInput } from "./types";
 export type ExpiryStatus = "expired" | "expiring-soon" | "warning" | "ok";
 
 export const generateBatchId = (): string =>
-  `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  `batch_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
 export const calculateTotalFromBatches = (batches: ExpirationBatchInput[]): number =>
   batches.reduce((sum, batch) => {
