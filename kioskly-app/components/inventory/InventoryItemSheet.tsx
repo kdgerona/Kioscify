@@ -212,8 +212,8 @@ export default function InventoryItemSheet({
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           className="flex-1 justify-end"
         >
-          {/* Sheet content — inner TouchableOpacity absorbs touches so backdrop doesn't fire */}
-          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+          {/* Sheet content — onStartShouldSetResponder absorbs touches so backdrop doesn't fire */}
+          <View onStartShouldSetResponder={() => true}>
             <View className="bg-white rounded-t-2xl" style={{ maxHeight: MAX_SHEET_HEIGHT }}>
               {/* Drag handle */}
               <View className="items-center pt-3 pb-1">
@@ -246,6 +246,7 @@ export default function InventoryItemSheet({
               {/* Body */}
               <ScrollView
                 className="px-5"
+                style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
@@ -330,7 +331,7 @@ export default function InventoryItemSheet({
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </TouchableOpacity>
 
