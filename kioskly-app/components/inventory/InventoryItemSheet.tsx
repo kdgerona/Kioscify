@@ -246,7 +246,6 @@ export default function InventoryItemSheet({
               {/* Body */}
               <ScrollView
                 className="px-5"
-                style={{ flex: 1 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
