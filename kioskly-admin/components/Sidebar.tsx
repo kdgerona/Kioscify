@@ -70,6 +70,7 @@ interface AccessibleStore {
   name: string;
   slug: string;
   brand?: { name: string; logoUrl?: string; themeColors?: { primary: string } } | null;
+  company?: { name: string; logoUrl?: string } | null;
 }
 
 export default function Sidebar() {
@@ -594,7 +595,7 @@ export default function Sidebar() {
                       {accessibleStores.map((store) => {
                         const isActive = store.id === tenant?.id;
                         const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
-                        const storeLogoSrc = resolveLogoUrl(store.brand?.logoUrl);
+                        const storeLogoSrc = resolveLogoUrl(store.company?.logoUrl ?? store.brand?.logoUrl);
                         return (
                           <button
                             key={store.id}
