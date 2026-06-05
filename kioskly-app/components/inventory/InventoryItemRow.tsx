@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { InventoryInput } from "./types";
-import { getItemWorstExpiryStatus } from "./inventoryUtils";
+import { ExpiryStatus, getItemWorstExpiryStatus } from "./inventoryUtils";
 
 interface InventoryItemRowProps {
   item: InventoryInput;
@@ -10,7 +10,7 @@ interface InventoryItemRowProps {
   onPress: () => void;
 }
 
-const STATUS_DOT_COLORS: Record<string, string> = {
+const STATUS_DOT_COLORS: Record<ExpiryStatus | "none" | "uncounted", string> = {
   expired: "#ef4444",
   "expiring-soon": "#f97316",
   warning: "#eab308",
@@ -33,7 +33,7 @@ export default function InventoryItemRow({
       if (!item.requiresExpirationDate) {
         return <Ionicons name="checkmark-circle" size={20} color="#22c55e" />;
       }
-      const dotColor = STATUS_DOT_COLORS[expiryStatus] ?? "#9ca3af";
+      const dotColor = STATUS_DOT_COLORS[expiryStatus];
       return (
         <View
           style={{
