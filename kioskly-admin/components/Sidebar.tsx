@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -75,7 +74,6 @@ interface AccessibleStore {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { tenant, brand, company, fetchTenantBySlug } = useTenant();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
