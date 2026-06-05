@@ -10,7 +10,7 @@ import {
   Platform,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "@/contexts/TenantContext";
@@ -167,12 +167,13 @@ export default function InventoryScreen() {
 
   const submitReport = async (replaceExisting: boolean = false) => {
     setSaving(true);
-    const submittedAt = new Date().toISOString();
+    const now = new Date();
+    const submittedAt = now.toISOString();
     try {
       const itemsWithQuantity = inventoryInputs.filter(
         (input) => input.quantity.trim() !== ""
       );
-      const today = new Date().toISOString().split("T")[0];
+      const today = now.toISOString().split("T")[0];
 
       const inventorySnapshot = {
         items: itemsWithQuantity.map((input) => ({
@@ -182,7 +183,7 @@ export default function InventoryScreen() {
           unit: input.unit,
           quantity: parseFloat(input.quantity),
           minStockLevel: input.minStockLevel,
-          recordDate: new Date().toISOString(),
+          recordDate: submittedAt,
           requiresExpirationDate: input.requiresExpirationDate,
           expirationWarningDays: input.expirationWarningDays,
           expirationBatches: input.requiresExpirationDate
@@ -284,23 +285,36 @@ export default function InventoryScreen() {
 
   if (!tenant || !user) return null;
 
-  const groupedItems = inventoryInputs.reduce(
-    (acc, item) => {
-      if (!acc[item.category]) acc[item.category] = [];
-      acc[item.category].push(item);
-      return acc;
-    },
-    {} as Record<InventoryCategory, InventoryInput[]>
+  const groupedItems = useMemo(
+    () =>
+      inventoryInputs.reduce(
+        (acc, item) => {
+          if (!acc[item.category]) acc[item.category] = [];
+          acc[item.category].push(item);
+          return acc;
+        },
+        {} as Record<InventoryCategory, InventoryInput[]>
+      ),
+    [inventoryInputs]
   );
 
-  const categories = Object.keys(groupedItems) as InventoryCategory[];
-  const countedCount = inventoryInputs.filter(
-    (i) => i.quantity.trim() !== ""
-  ).length;
-  const selectedItem =
-    selectedItemId
-      ? inventoryInputs.find((i) => i.id === selectedItemId) ?? null
-      : null;
+  const categories = useMemo(
+    () => Object.keys(groupedItems) as InventoryCategory[],
+    [groupedItems]
+  );
+
+  const countedCount = useMemo(
+    () => inventoryInputs.filter((i) => i.quantity.trim() !== "").length,
+    [inventoryInputs]
+  );
+
+  const selectedItem = useMemo(
+    () =>
+      selectedItemId
+        ? inventoryInputs.find((i) => i.id === selectedItemId) ?? null
+        : null,
+    [selectedItemId, inventoryInputs]
+  );
 
   return (
     <AppSafeAreaView className="w-full h-full bg-gray-50">
@@ -395,10 +409,7 @@ export default function InventoryScreen() {
                       className="px-4 py-2 rounded-lg mb-2"
                       style={{ backgroundColor: primaryColor }}
                     >
-                      <Text
-                        className="text-sm font-bold"
-                        style={{ color: textColor }}
-                      >
+                      <Text className="text-sm font-bold text-white">
                         {getCategoryLabel(category)}
                       </Text>
                     </View>
@@ -432,10 +443,10 @@ export default function InventoryScreen() {
                         <Ionicons
                           name="checkmark-circle-outline"
                           size={20}
-                          color="black"
+                          color="white"
                           style={{ marginRight: 8 }}
                         />
-                        <Text className="text-black font-bold text-lg">
+                        <Text className="text-white font-bold text-lg">
                           Submit Report ({countedCount} items)
                         </Text>
                       </>
