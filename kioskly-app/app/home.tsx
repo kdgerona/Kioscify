@@ -629,7 +629,7 @@ export default function Home() {
           >
             <Ionicons name="cube-outline" size={24} color={textColor} />
           </TouchableOpacity>
-          <View className="w-px bg-black self-stretch mx-2" />
+          <View className="w-px bg-black self-stretch" />
           <TouchableOpacity
             className="p-2"
             onPress={() => router.push("/settings" as Href)}
