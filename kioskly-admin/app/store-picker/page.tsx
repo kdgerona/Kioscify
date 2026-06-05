@@ -177,14 +177,14 @@ export default function StorePickerPage() {
                   key={store.id}
                   onClick={() => handleSelectStore(store)}
                   disabled={!!switching}
-                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition disabled:opacity-60 text-left"
+                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none transition disabled:opacity-60 text-left"
                 >
                   {/* Accent bar */}
                   <div className="self-stretch w-[3px] rounded-full flex-shrink-0" style={{ backgroundColor: storeColor }} />
 
                   {storeLogoSrc ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={storeLogoSrc} alt={store.name} className="w-12 h-12 rounded-2xl object-cover flex-shrink-0" />
+                    <img src={storeLogoSrc} alt={store.brand?.name ? `${store.name} – ${store.brand.name}` : store.name} className="w-12 h-12 rounded-2xl object-cover flex-shrink-0" />
                   ) : (
                     <div
                       className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
