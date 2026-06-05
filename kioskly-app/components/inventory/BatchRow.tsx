@@ -88,8 +88,8 @@ export default function BatchRow({
         )}
       </View>
 
-      <View className="flex-row gap-2">
-        <View className="flex-1">
+      <View className="flex-row">
+        <View className="flex-1 mr-2">
           <TextInput
             className="border border-gray-300 rounded-lg px-3 py-2 text-center font-semibold bg-white"
             placeholder="Qty"
