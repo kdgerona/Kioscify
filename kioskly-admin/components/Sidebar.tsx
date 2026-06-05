@@ -76,7 +76,7 @@ interface AccessibleStore {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { tenant, brand, fetchTenantBySlug } = useTenant();
+  const { tenant, brand, company, fetchTenantBySlug } = useTenant();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -163,7 +163,7 @@ export default function Sidebar() {
   const adaptiveNavText = getContrastColor(backgroundColor);
   const borderColor = adaptiveNavText === "#ffffff" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)";
 
-  const logoSrc = resolveLogoUrl(brand?.logoUrl ?? tenant?.logoUrl);
+  const logoSrc = resolveLogoUrl(brand?.logoUrl ?? company?.logoUrl ?? tenant?.logoUrl);
 
   return (
     <>
@@ -272,7 +272,7 @@ export default function Sidebar() {
               <div
                 className={cn(
                   "relative flex-shrink-0",
-                  isCollapsed ? "lg:w-12 lg:h-12" : "w-20 h-20",
+                  isCollapsed ? "lg:w-8 lg:h-8" : "w-10 h-10",
                 )}
               >
                 <Image
@@ -672,7 +672,7 @@ export default function Sidebar() {
                     {accessibleStores.map((store) => {
                       const isActive = store.id === tenant?.id;
                       const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
-                      const storeLogoSrc = resolveLogoUrl(store.brand?.logoUrl);
+                      const storeLogoSrc = resolveLogoUrl(store.brand?.logoUrl ?? store.company?.logoUrl);
                       return (
                         <button
                           key={store.id}
