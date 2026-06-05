@@ -3,7 +3,7 @@
 import React from "react";
 import { X } from "lucide-react";
 import { Transaction } from "@/types";
-import { formatCurrency, getPaymentMethodLabel } from "@/lib/utils";
+import { formatCurrency, getPaymentMethodLabel, formatUserName } from "@/lib/utils";
 
 interface TransactionListModalProps {
   isOpen: boolean;
@@ -95,7 +95,7 @@ export default function TransactionListModal({
                       </p>
                       {transaction.user && (
                         <p className="text-xs text-gray-500 mt-1 truncate">
-                          Cashier: {transaction.user.email}
+                          Cashier: {formatUserName(transaction.user)}
                         </p>
                       )}
                     </div>

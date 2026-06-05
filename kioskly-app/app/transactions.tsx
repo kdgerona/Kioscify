@@ -25,6 +25,7 @@ import {
   TransactionResponse,
 } from "../services/transactionService";
 import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paymentMethod";
+import { formatUserName } from "../utils/formatUserName";
 
 export default function Transactions() {
   const router = useRouter();
@@ -352,7 +353,7 @@ export default function Transactions() {
                         {formatDate(transaction.timestamp)}
                       </Text>
                       <Text className="text-sm text-gray-600">
-                        Cashier: {transaction.user.email}
+                        Cashier: {formatUserName(transaction.user)}
                       </Text>
                     </View>
                     <View className="items-end">
@@ -516,7 +517,7 @@ export default function Transactions() {
                           )}
                           {transaction.voidRequester && (
                             <Text className="text-xs text-gray-600">
-                              Requested by: {transaction.voidRequester.email}
+                              Requested by: {formatUserName(transaction.voidRequester)}
                             </Text>
                           )}
                           {transaction.voidRequestedAt && (
@@ -527,7 +528,7 @@ export default function Transactions() {
                           )}
                           {transaction.voidReviewer && (
                             <Text className="text-xs text-gray-600 mt-1">
-                              Reviewed by: {transaction.voidReviewer.email}
+                              Reviewed by: {formatUserName(transaction.voidReviewer)}
                             </Text>
                           )}
                           {transaction.voidReviewedAt && (

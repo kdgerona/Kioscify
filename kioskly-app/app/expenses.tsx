@@ -27,6 +27,7 @@ import {
   ExpenseCategory,
 } from "@/services/expenseService";
 import ExpenseModal from "@/components/ExpenseModal";
+import { formatUserName } from "@/utils/formatUserName";
 
 export default function ExpensesScreen() {
   const [expenses, setExpenses] = useState<(ExpenseResponse & { pendingSync?: boolean })[]>([]);
@@ -317,7 +318,7 @@ export default function ExpensesScreen() {
                       {formatDate(expense.date)}
                     </Text>
                     <Text className="text-sm text-gray-600">
-                      Added by: {expense.user.username}
+                      Added by: {formatUserName(expense.user)}
                     </Text>
                   </View>
                   <View className="items-end">
@@ -379,7 +380,7 @@ export default function ExpensesScreen() {
                         )}
                         {expense.voidRequester && (
                           <Text className="text-xs text-gray-600">
-                            Requested by: {expense.voidRequester.email}
+                            Requested by: {formatUserName(expense.voidRequester)}
                           </Text>
                         )}
                         {expense.voidRequestedAt && (
@@ -390,7 +391,7 @@ export default function ExpensesScreen() {
                         )}
                         {expense.voidReviewer && (
                           <Text className="text-xs text-gray-600 mt-1">
-                            Reviewed by: {expense.voidReviewer.email}
+                            Reviewed by: {formatUserName(expense.voidReviewer)}
                           </Text>
                         )}
                         {expense.voidReviewedAt && (

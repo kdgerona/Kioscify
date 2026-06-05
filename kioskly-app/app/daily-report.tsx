@@ -33,6 +33,7 @@ import {
 import { enqueue } from "../services/syncEngine";
 import { useSync } from "../contexts/SyncContext";
 import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paymentMethod";
+import { formatUserName } from "../utils/formatUserName";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
 
 // Build a DailyReportResponse from locally cached transactions and expenses.
@@ -669,7 +670,7 @@ export default function DailyReport() {
                               {formatTransactionTime(transaction.timestamp)}
                             </Text>
                             <Text className="text-xs text-gray-500">
-                              {transaction.user.email}
+                              {formatUserName(transaction.user)}
                             </Text>
                           </View>
                           <View className="items-end">
@@ -798,7 +799,7 @@ export default function DailyReport() {
                               </View>
                             </View>
                             <Text className="text-xs text-gray-500 mt-1">
-                              Recorded by: {expense.user.email}
+                              Recorded by: {formatUserName(expense.user)}
                             </Text>
                           </View>
                           <View className="items-end">

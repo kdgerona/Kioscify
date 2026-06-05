@@ -45,6 +45,8 @@ export interface ExpenseResponse {
   user: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
@@ -58,12 +60,16 @@ export interface ExpenseResponse {
   voidRequester?: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
   voidReviewer?: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
@@ -88,7 +94,7 @@ export interface ExpenseStatsResponse {
   >;
 }
 
-async function getStoredUser(): Promise<{ id: string; username: string; email: string; role: string } | null> {
+async function getStoredUser(): Promise<{ id: string; username: string; firstName?: string; lastName?: string; email: string; role: string } | null> {
   try {
     const raw = await AsyncStorage.getItem("@kioscify:user");
     return raw ? JSON.parse(raw) : null;
@@ -100,7 +106,7 @@ async function getStoredUser(): Promise<{ id: string; username: string; email: s
 function buildLocalExpense(
   clientId: string,
   data: CreateExpensePayload,
-  user: { id: string; username: string; email: string; role: string } | null,
+  user: { id: string; username: string; firstName?: string; lastName?: string; email: string; role: string } | null,
   queuedAt?: string,
 ): ExpenseResponse {
   // Prefer the tap-time date captured in the payload; fall back to the SQLite

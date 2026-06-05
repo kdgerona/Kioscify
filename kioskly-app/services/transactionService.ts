@@ -4,7 +4,7 @@ import { enqueue, generateClientId } from "./syncEngine";
 import { cacheTransactions, getCachedTransactions, getPendingByType } from "../lib/localCache";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-async function getStoredUser(): Promise<{ id: string; username: string; email: string; role: string } | null> {
+async function getStoredUser(): Promise<{ id: string; username: string; firstName?: string; lastName?: string; email: string; role: string } | null> {
   try {
     const raw = await AsyncStorage.getItem("@kioscify:user");
     return raw ? JSON.parse(raw) : null;
@@ -13,7 +13,7 @@ async function getStoredUser(): Promise<{ id: string; username: string; email: s
   }
 }
 
-function buildLocalTransaction(clientId: string, payload: Record<string, unknown>, user: { id: string; username: string; email: string; role: string } | null): TransactionResponse & { pendingSync: true } {
+function buildLocalTransaction(clientId: string, payload: Record<string, unknown>, user: { id: string; username: string; firstName?: string; lastName?: string; email: string; role: string } | null): TransactionResponse & { pendingSync: true } {
   // Use the timestamp captured at sale time so pending transactions always
   // display when the sale happened, not when this function is called.
   const saleTime = (payload.timestamp as string | undefined) ?? new Date().toISOString();
@@ -120,6 +120,8 @@ export interface TransactionResponse {
   user: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
@@ -145,12 +147,16 @@ export interface TransactionResponse {
   voidRequester?: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
   voidReviewer?: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };

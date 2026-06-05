@@ -33,6 +33,7 @@ import {
 } from "@/services/submittedInventoryReportService";
 import { enqueue } from "@/services/syncEngine";
 import LastSubmissionBanner from "@/components/LastSubmissionBanner";
+import { formatUserName } from "@/utils/formatUserName";
 
 interface ExpirationBatchInput {
   id: string; // Unique ID for React key
@@ -357,7 +358,7 @@ export default function InventoryScreen() {
             : undefined,
         })),
         totalItems: itemsWithQuantity.length,
-        submittedBy: user?.email || user?.username || "Unknown",
+        submittedBy: formatUserName(user) || "Unknown",
       };
 
       try {
