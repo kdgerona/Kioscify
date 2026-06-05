@@ -63,7 +63,7 @@ export default function StorePickerPage() {
   const panelPillBg = panelText === '#ffffff' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)';
   const ringColor  = panelText === '#ffffff' ? 'white' : '#111827';
 
-  const logoSrc = resolveLogoUrl(stores[0]?.company?.logoUrl ?? brand?.logoUrl);
+  const logoSrc = resolveLogoUrl(brand?.logoUrl ?? stores[0]?.company?.logoUrl);
 
   if (stores.length === 0) {
     return (
@@ -148,7 +148,7 @@ export default function StorePickerPage() {
           <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
             {stores.map((store) => {
               const storeColor = store.brand?.themeColors?.primary ?? primaryColor;
-              const storeLogoSrc = resolveLogoUrl(store.company?.logoUrl ?? store.brand?.logoUrl);
+              const storeLogoSrc = resolveLogoUrl(store.brand?.logoUrl ?? store.company?.logoUrl);
               const isLoading = switching === store.id;
 
               return (

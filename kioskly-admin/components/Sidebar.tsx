@@ -595,7 +595,7 @@ export default function Sidebar() {
                       {accessibleStores.map((store) => {
                         const isActive = store.id === tenant?.id;
                         const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
-                        const storeLogoSrc = resolveLogoUrl(store.company?.logoUrl ?? store.brand?.logoUrl);
+                        const storeLogoSrc = resolveLogoUrl(store.brand?.logoUrl ?? store.company?.logoUrl);
                         return (
                           <button
                             key={store.id}
