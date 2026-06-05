@@ -30,7 +30,7 @@ import {
 import Image from "next/image";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
-import { cn, getContrastColor } from "@/lib/utils";
+import { cn, getContrastColor, resolveLogoUrl } from "@/lib/utils";
 import * as Popover from "@radix-ui/react-popover";
 
 interface NavigationItem {
@@ -162,22 +162,7 @@ export default function Sidebar() {
   const adaptiveNavText = getContrastColor(backgroundColor);
   const borderColor = adaptiveNavText === "#ffffff" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)";
 
-  const apiBase =
-    process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ??
-    "http://localhost:3000";
-  const rawLogoUrl = brand?.logoUrl ?? tenant?.logoUrl ?? null;
-  const logoSrc = rawLogoUrl
-    ? (() => {
-        try {
-          const path = rawLogoUrl.startsWith("http")
-            ? new URL(rawLogoUrl).pathname
-            : rawLogoUrl;
-          return `${apiBase}${path}`;
-        } catch {
-          return rawLogoUrl;
-        }
-      })()
-    : null;
+  const logoSrc = resolveLogoUrl(brand?.logoUrl ?? tenant?.logoUrl);
 
   return (
     <>
@@ -609,18 +594,7 @@ export default function Sidebar() {
                       {accessibleStores.map((store) => {
                         const isActive = store.id === tenant?.id;
                         const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
-                        const storeLogoSrc = store.brand?.logoUrl
-                          ? (() => {
-                              try {
-                                const p = store.brand.logoUrl!.startsWith("http")
-                                  ? new URL(store.brand.logoUrl!).pathname
-                                  : store.brand.logoUrl!;
-                                return `${apiBase}${p}`;
-                              } catch {
-                                return store.brand.logoUrl!;
-                              }
-                            })()
-                          : null;
+                        const storeLogoSrc = resolveLogoUrl(store.brand?.logoUrl);
                         return (
                           <button
                             key={store.id}
@@ -697,18 +671,7 @@ export default function Sidebar() {
                     {accessibleStores.map((store) => {
                       const isActive = store.id === tenant?.id;
                       const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
-                      const storeLogoSrc = store.brand?.logoUrl
-                        ? (() => {
-                            try {
-                              const p = store.brand.logoUrl!.startsWith("http")
-                                ? new URL(store.brand.logoUrl!).pathname
-                                : store.brand.logoUrl!;
-                              return `${apiBase}${p}`;
-                            } catch {
-                              return store.brand.logoUrl!;
-                            }
-                          })()
-                        : null;
+                      const storeLogoSrc = resolveLogoUrl(store.brand?.logoUrl);
                       return (
                         <button
                           key={store.id}

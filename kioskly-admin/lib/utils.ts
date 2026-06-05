@@ -80,6 +80,18 @@ export function formatRole(role: string | undefined | null): string {
   }
 }
 
+const _apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3000';
+
+export function resolveLogoUrl(rawUrl: string | null | undefined, apiBase = _apiBase): string | null {
+  if (!rawUrl) return null;
+  try {
+    const path = rawUrl.startsWith('http') ? new URL(rawUrl).pathname : rawUrl;
+    return `${apiBase}${path}`;
+  } catch {
+    return rawUrl;
+  }
+}
+
 export function getContrastColor(hex: string): string {
   const c = hex.replace("#", "");
   if (c.length !== 6) return "#111827";

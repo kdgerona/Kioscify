@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, KeyRound, Store } from "lucide-react";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
-import { getContrastColor } from "@/lib/utils";
+import { getContrastColor, resolveLogoUrl } from "@/lib/utils";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -76,22 +76,7 @@ export default function ChangePasswordPage() {
     panelText === "#ffffff" ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.08)";
   const ringColor = panelText === "#ffffff" ? "white" : "#111827";
 
-  const apiBase =
-    process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ??
-    "http://localhost:3000";
-  const rawLogoUrl = brand?.logoUrl ?? tenant?.logoUrl ?? null;
-  const logoSrc = rawLogoUrl
-    ? (() => {
-        try {
-          const path = rawLogoUrl.startsWith("http")
-            ? new URL(rawLogoUrl).pathname
-            : rawLogoUrl;
-          return `${apiBase}${path}`;
-        } catch {
-          return rawLogoUrl;
-        }
-      })()
-    : null;
+  const logoSrc = resolveLogoUrl(brand?.logoUrl ?? tenant?.logoUrl);
 
   const displayName = brand?.name ?? tenant?.name ?? "Store Portal";
 

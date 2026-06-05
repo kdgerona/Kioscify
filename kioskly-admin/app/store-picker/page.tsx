@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
 import { Store, ChevronRight } from 'lucide-react';
-import { getContrastColor } from '@/lib/utils';
+import { getContrastColor, resolveLogoUrl } from '@/lib/utils';
 
 interface StoreOption {
   id: string;
@@ -63,18 +63,7 @@ export default function StorePickerPage() {
   const panelPillBg = panelText === '#ffffff' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)';
   const ringColor  = panelText === '#ffffff' ? 'white' : '#111827';
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3000';
-  const rawLogoUrl = brand?.logoUrl ?? null;
-  const logoSrc = rawLogoUrl
-    ? (() => {
-        try {
-          const path = rawLogoUrl.startsWith('http') ? new URL(rawLogoUrl).pathname : rawLogoUrl;
-          return `${apiBase}${path}`;
-        } catch {
-          return rawLogoUrl;
-        }
-      })()
-    : null;
+  const logoSrc = resolveLogoUrl(brand?.logoUrl);
 
   if (stores.length === 0) {
     return (
@@ -159,17 +148,7 @@ export default function StorePickerPage() {
           <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
             {stores.map((store) => {
               const storeColor = store.brand?.themeColors?.primary ?? primaryColor;
-              const storeLogo = store.company?.logoUrl ?? store.brand?.logoUrl;
-              const storeLogoSrc = storeLogo
-                ? (() => {
-                    try {
-                      const path = storeLogo.startsWith('http') ? new URL(storeLogo).pathname : storeLogo;
-                      return `${apiBase}${path}`;
-                    } catch {
-                      return storeLogo;
-                    }
-                  })()
-                : null;
+              const storeLogoSrc = resolveLogoUrl(store.company?.logoUrl ?? store.brand?.logoUrl);
               const isLoading = switching === store.id;
 
               return (

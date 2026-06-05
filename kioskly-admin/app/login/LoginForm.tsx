@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Store } from "lucide-react";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
-import { getContrastColor } from "@/lib/utils";
+import { getContrastColor, resolveLogoUrl } from "@/lib/utils";
 
 const PORTAL_COMPANY_KEY = "kioscify_portal_company_slug";
 const PORTAL_BRAND_KEY = "kioscify_portal_brand_slug";
@@ -114,12 +114,7 @@ export default function LoginForm({
     }
   };
 
-  const apiBase =
-    process.env.NEXT_PUBLIC_API_URL?.replace("/api/v1", "") ||
-    "http://localhost:3000";
-  const logoSrc = brand?.logoUrl
-    ? (() => { try { const path = brand.logoUrl!.startsWith('http') ? new URL(brand.logoUrl!).pathname : brand.logoUrl!; return `${apiBase}${path}`; } catch { return brand.logoUrl; } })()
-    : null;
+  const logoSrc = resolveLogoUrl(brand?.logoUrl);
 
   return (
     <div className="min-h-screen flex">
