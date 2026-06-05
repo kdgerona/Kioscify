@@ -634,7 +634,7 @@ export default function Sidebar() {
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img
                                 src={storeLogoSrc}
-                                alt={store.name}
+                                alt={store.brand?.name ? `${store.name} – ${store.brand.name}` : store.name}
                                 className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow-sm"
                               />
                             ) : (
@@ -722,7 +722,7 @@ export default function Sidebar() {
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
                               src={storeLogoSrc}
-                              alt={store.name}
+                              alt={store.brand?.name ? `${store.name} – ${store.brand.name}` : store.name}
                               className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow-sm"
                             />
                           ) : (
