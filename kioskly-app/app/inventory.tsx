@@ -312,9 +312,18 @@ export default function InventoryScreen() {
         <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
           <Ionicons name="arrow-back" size={24} color={textColor} />
         </TouchableOpacity>
-        <Text className="text-2xl font-bold" style={{ color: textColor }}>
-          Daily Inventory
-        </Text>
+        <View>
+          <Text className="text-2xl font-bold" style={{ color: textColor }}>
+            Daily Inventory
+          </Text>
+          <Text className="text-xs text-gray-500 mt-0.5">
+            {new Date().toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </Text>
+        </View>
       </View>
 
       <KeyboardAvoidingView
