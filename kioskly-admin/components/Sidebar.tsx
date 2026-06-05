@@ -609,6 +609,18 @@ export default function Sidebar() {
                       {accessibleStores.map((store) => {
                         const isActive = store.id === tenant?.id;
                         const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
+                        const storeLogoSrc = store.brand?.logoUrl
+                          ? (() => {
+                              try {
+                                const p = store.brand.logoUrl!.startsWith("http")
+                                  ? new URL(store.brand.logoUrl!).pathname
+                                  : store.brand.logoUrl!;
+                                return `${apiBase}${p}`;
+                              } catch {
+                                return store.brand.logoUrl!;
+                              }
+                            })()
+                          : null;
                         return (
                           <button
                             key={store.id}
@@ -618,11 +630,11 @@ export default function Sidebar() {
                               isActive ? "bg-gray-50" : "hover:bg-gray-50",
                             )}
                           >
-                            {store.brand?.logoUrl ? (
+                            {storeLogoSrc ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img
-                                src={(() => { try { const p = store.brand.logoUrl!.startsWith('http') ? new URL(store.brand.logoUrl!).pathname : store.brand.logoUrl!; return `${apiBase}${p}`; } catch { return store.brand.logoUrl!; } })()}
-                                alt={store.brand.name}
+                                src={storeLogoSrc}
+                                alt={store.name}
                                 className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow-sm"
                               />
                             ) : (
@@ -685,6 +697,18 @@ export default function Sidebar() {
                     {accessibleStores.map((store) => {
                       const isActive = store.id === tenant?.id;
                       const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
+                      const storeLogoSrc = store.brand?.logoUrl
+                        ? (() => {
+                            try {
+                              const p = store.brand.logoUrl!.startsWith("http")
+                                ? new URL(store.brand.logoUrl!).pathname
+                                : store.brand.logoUrl!;
+                              return `${apiBase}${p}`;
+                            } catch {
+                              return store.brand.logoUrl!;
+                            }
+                          })()
+                        : null;
                       return (
                         <button
                           key={store.id}
@@ -694,11 +718,11 @@ export default function Sidebar() {
                             isActive ? "bg-gray-50" : "hover:bg-gray-50",
                           )}
                         >
-                          {store.brand?.logoUrl ? (
+                          {storeLogoSrc ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
-                              src={(() => { try { const p = store.brand.logoUrl!.startsWith('http') ? new URL(store.brand.logoUrl!).pathname : store.brand.logoUrl!; return `${apiBase}${p}`; } catch { return store.brand.logoUrl!; } })()}
-                              alt={store.brand.name}
+                              src={storeLogoSrc}
+                              alt={store.name}
                               className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow-sm"
                             />
                           ) : (
