@@ -232,6 +232,12 @@ export default function CompanyDetailPage() {
   const [cashierUsername, setCashierUsername] = useState('');
   const [cashierLoading, setCashierLoading] = useState(false);
   const [cashierError, setCashierError] = useState<string | null>(null);
+  const [cashierRole, setCashierRole] = useState<'STORE_ADMIN' | 'CASHIER'>('CASHIER');
+  const [cashierMode, setCashierMode] = useState<'new' | 'existing'>('new');
+  const [cashierExistingSearch, setCashierExistingSearch] = useState('');
+  const [cashierExistingResults, setCashierExistingResults] = useState<any[]>([]);
+  const [cashierExistingSearching, setCashierExistingSearching] = useState(false);
+  const [cashierSelectedUser, setCashierSelectedUser] = useState<any | null>(null);
 
   // Onboard admin form
   const [adminFirstName, setAdminFirstName] = useState('');
@@ -418,6 +424,7 @@ export default function CompanyDetailPage() {
       setAdminEmail('');
       setAdminUsername('');
       setShowOnboardAdmin(false);
+      await loadUsers();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setAdminError(axiosErr?.response?.data?.message || 'Failed to onboard admin');
@@ -458,6 +465,27 @@ export default function CompanyDetailPage() {
       setExistingUserResults(results);
     } catch { /* silent */ } finally {
       setExistingUserSearching(false);
+    }
+  };
+
+  const resetCashierForm = () => {
+    setCashierFirstName(''); setCashierLastName(''); setCashierEmail(''); setCashierUsername('');
+    setCashierRole('CASHIER');
+    setCashierMode('new');
+    setCashierExistingSearch('');
+    setCashierExistingResults([]);
+    setCashierSelectedUser(null);
+    setCashierError(null);
+  };
+
+  const handleCashierExistingSearch = async () => {
+    if (!cashierExistingSearch.trim()) return;
+    setCashierExistingSearching(true);
+    try {
+      const results = await api.searchCompanyUsers(companyId, cashierExistingSearch);
+      setCashierExistingResults(results);
+    } catch { /* silent */ } finally {
+      setCashierExistingSearching(false);
     }
   };
 
@@ -550,25 +578,34 @@ export default function CompanyDetailPage() {
     e.preventDefault();
     setCashierError(null);
     if (!cashierStoreId) { setCashierError('Please select a store.'); return; }
+    if (cashierMode === 'existing' && !cashierSelectedUser) {
+      setCashierError('Please select a user.');
+      return;
+    }
     setCashierLoading(true);
     try {
-      const result = await api.createStoreUser(cashierStoreId, {
-        firstName: cashierFirstName,
-        lastName: cashierLastName,
-        email: cashierEmail,
-        username: cashierUsername,
-        role: 'CASHIER',
-      });
-      setResetPasswordResult({
-        userName: `${result.user.firstName} ${result.user.lastName} (@${result.user.username})`,
-        password: result.temporaryPassword,
-      });
-      setCashierFirstName(''); setCashierLastName(''); setCashierEmail(''); setCashierUsername(''); setCashierStoreId('');
+      if (cashierMode === 'existing') {
+        await api.assignUserToStore(cashierStoreId, { username: cashierSelectedUser.username, role: cashierRole });
+      } else {
+        const result = await api.createStoreUser(cashierStoreId, {
+          firstName: cashierFirstName,
+          lastName: cashierLastName,
+          email: cashierEmail,
+          username: cashierUsername,
+          role: cashierRole,
+        });
+        setResetPasswordResult({
+          userName: `${result.user.firstName} ${result.user.lastName} (@${result.user.username})`,
+          password: result.temporaryPassword,
+        });
+      }
+      resetCashierForm();
+      setCashierStoreId('');
       setShowAddCashier(false);
       await loadUsers();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
-      setCashierError(axiosErr?.response?.data?.message || 'Failed to create cashier');
+      setCashierError(axiosErr?.response?.data?.message || 'Failed to add staff member');
     } finally {
       setCashierLoading(false);
     }
@@ -957,10 +994,19 @@ export default function CompanyDetailPage() {
             <>
               {/* Company Admins */}
               <div className="bg-white rounded-lg border">
-                <div className="px-5 py-4 border-b flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-indigo-500" />
-                  <h3 className="font-semibold text-gray-900 text-sm">Company Admins</h3>
-                  <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{companyAdmins.length}</span>
+                <div className="px-5 py-4 border-b flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-indigo-500" />
+                    <h3 className="font-semibold text-gray-900 text-sm">Company Admins</h3>
+                    <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{companyAdmins.length}</span>
+                  </div>
+                  <button
+                    onClick={() => { setAdminError(null); setShowOnboardAdmin(true); }}
+                    className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 rounded px-2.5 py-1.5"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    Add Admin
+                  </button>
                 </div>
                 {companyAdmins.length === 0 ? (
                   <div className="px-5 py-8 text-center text-sm text-gray-400">No company admin users yet</div>
@@ -994,13 +1040,13 @@ export default function CompanyDetailPage() {
                           onClick={() => {
                             setCashierStoreId(store.id);
                             setCashierStoreName(store.name);
-                            setCashierError(null);
+                            resetCashierForm();
                             setShowAddCashier(true);
                           }}
                           className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 rounded px-2.5 py-1.5"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
-                          Add Cashier
+                          Add Staff
                         </button>
                       </div>
                       {staff.length === 0 ? (
@@ -1421,35 +1467,139 @@ export default function CompanyDetailPage() {
         </Modal>
       )}
 
-      {/* Add Cashier modal */}
+      {/* Add Staff modal */}
       {showAddCashier && (
-        <Modal title={`Add Cashier — ${cashierStoreName}`} onClose={() => { setShowAddCashier(false); setCashierError(null); }}>
+        <Modal title={`Add Staff — ${cashierStoreName}`} onClose={() => { setShowAddCashier(false); resetCashierForm(); }}>
           <form onSubmit={handleAddCashier} className="space-y-4">
             {cashierError && <p className="text-red-600 text-sm">{cashierError}</p>}
-            <AdminFields
-              firstName={cashierFirstName}
-              lastName={cashierLastName}
-              email={cashierEmail}
-              username={cashierUsername}
-              setFirstName={setCashierFirstName}
-              setLastName={setCashierLastName}
-              setEmail={setCashierEmail}
-              setUsername={setCashierUsername}
-            />
+
+            {/* Role selector */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Role</p>
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                <button
+                  type="button"
+                  onClick={() => setCashierRole('STORE_ADMIN')}
+                  className={`flex-1 py-2 font-medium transition ${cashierRole === 'STORE_ADMIN' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Store Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCashierRole('CASHIER')}
+                  className={`flex-1 py-2 font-medium transition ${cashierRole === 'CASHIER' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Cashier
+                </button>
+              </div>
+            </div>
+
+            {/* Mode toggle */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">User</p>
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                <button
+                  type="button"
+                  onClick={() => { setCashierMode('new'); setCashierSelectedUser(null); }}
+                  className={`flex-1 py-2 font-medium transition ${cashierMode === 'new' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Create New
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCashierMode('existing')}
+                  className={`flex-1 py-2 font-medium transition ${cashierMode === 'existing' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Assign Existing
+                </button>
+              </div>
+            </div>
+
+            {cashierMode === 'new' && (
+              <AdminFields
+                firstName={cashierFirstName}
+                lastName={cashierLastName}
+                email={cashierEmail}
+                username={cashierUsername}
+                setFirstName={setCashierFirstName}
+                setLastName={setCashierLastName}
+                setEmail={setCashierEmail}
+                setUsername={setCashierUsername}
+              />
+            )}
+
+            {cashierMode === 'existing' && (
+              <div className="space-y-3">
+                {cashierSelectedUser ? (
+                  <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{cashierSelectedUser.firstName} {cashierSelectedUser.lastName}</p>
+                      <p className="text-xs text-gray-500">@{cashierSelectedUser.username} · {cashierSelectedUser.email}</p>
+                    </div>
+                    <button type="button" onClick={() => setCashierSelectedUser(null)} className="text-xs text-gray-400 hover:text-gray-600 ml-3">
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Search by username, email, or name..."
+                        value={cashierExistingSearch}
+                        onChange={e => setCashierExistingSearch(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleCashierExistingSearch())}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCashierExistingSearch}
+                        disabled={cashierExistingSearching}
+                        className="px-3 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {cashierExistingSearching ? '...' : 'Search'}
+                      </button>
+                    </div>
+                    {cashierExistingResults.length > 0 && (
+                      <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                        {cashierExistingResults.map((u: any) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => { setCashierSelectedUser(u); setCashierExistingResults([]); setCashierExistingSearch(''); }}
+                            className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
+                              <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
+                            </div>
+                            <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {cashierExistingResults.length === 0 && cashierExistingSearch && !cashierExistingSearching && (
+                      <p className="text-xs text-gray-400">No users found for "{cashierExistingSearch}"</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => { setShowAddCashier(false); setCashierError(null); }}
+                onClick={() => { setShowAddCashier(false); resetCashierForm(); }}
                 className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={cashierLoading}
+                disabled={cashierLoading || (cashierMode === 'existing' && !cashierSelectedUser)}
                 className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
               >
-                {cashierLoading ? 'Creating...' : 'Create Cashier'}
+                {cashierLoading ? 'Saving...' : cashierMode === 'existing' ? 'Assign User' : 'Create User'}
               </button>
             </div>
           </form>

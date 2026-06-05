@@ -147,7 +147,7 @@ export class UsersService {
   async getCompanyUsers(companyId: string, requestingCompanyId: string, requestingRole?: string) {
     if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) throw new ForbiddenException('Access denied');
     return this.prisma.user.findMany({
-      where: { companyId, role: 'COMPANY_ADMIN', tenantId: null },
+      where: { companyId, role: 'COMPANY_ADMIN' },
       select: {
         id: true,
         username: true,
@@ -351,7 +351,7 @@ export class UsersService {
 
     const [companyAdmins, storeUsers] = await Promise.all([
       this.prisma.user.findMany({
-        where: { companyId, role: 'COMPANY_ADMIN', tenantId: null },
+        where: { companyId, role: 'COMPANY_ADMIN' },
         select,
         orderBy: { createdAt: 'desc' },
       }),

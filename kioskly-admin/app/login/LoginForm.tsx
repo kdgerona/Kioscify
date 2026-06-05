@@ -9,7 +9,6 @@ import { getContrastColor } from "@/lib/utils";
 
 const PORTAL_COMPANY_KEY = "kioscify_portal_company_slug";
 const PORTAL_BRAND_KEY = "kioscify_portal_brand_slug";
-const STORE_SLUG_KEY = "kioscify_store_slug";
 
 interface BrandInfo {
   name: string;
@@ -32,6 +31,7 @@ export default function LoginForm({
 }) {
   const router = useRouter();
   const { fetchTenantBySlug } = useTenant();
+  const storeSlugKey = `kioscify_store_slug_${companySlug}_${brandSlug}`;
   const [storeSlug, setStoreSlug] = useState("");
   const [rememberedSlug, setRememberedSlug] = useState(false);
   const [username, setUsername] = useState("");
@@ -45,9 +45,9 @@ export default function LoginForm({
       router.replace('/dashboard');
       return;
     }
-    const saved = localStorage.getItem(STORE_SLUG_KEY);
+    const saved = localStorage.getItem(storeSlugKey);
     if (saved) { setStoreSlug(saved); setRememberedSlug(true); }
-  }, [router]);
+  }, [router, storeSlugKey]);
 
   const primaryColor    = brand?.themeColors?.primary || "#ea580c";
   // On the white right panel, only use primaryColor as a text/link color if it's dark enough to read on white.
@@ -81,6 +81,7 @@ export default function LoginForm({
       }
 
       localStorage.setItem("user", JSON.stringify(response.user));
+      localStorage.setItem(storeSlugKey, storeSlug.trim().toLowerCase());
       if (companySlug) localStorage.setItem(PORTAL_COMPANY_KEY, companySlug);
       if (brandSlug) localStorage.setItem(PORTAL_BRAND_KEY, brandSlug);
 
@@ -230,7 +231,7 @@ export default function LoginForm({
                     onClick={() => {
                       setStoreSlug("");
                       setRememberedSlug(false);
-                      localStorage.removeItem(STORE_SLUG_KEY);
+                      localStorage.removeItem(storeSlugKey);
                     }}
                     className="text-xs font-medium hover:underline"
                     style={{ color: rightPanelAccent }}
