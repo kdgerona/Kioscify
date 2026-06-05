@@ -63,7 +63,7 @@ export default function StorePickerPage() {
   const panelPillBg = panelText === '#ffffff' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)';
   const ringColor  = panelText === '#ffffff' ? 'white' : '#111827';
 
-  const logoSrc = resolveLogoUrl(brand?.logoUrl);
+  const logoSrc = resolveLogoUrl(stores[0]?.company?.logoUrl ?? brand?.logoUrl);
 
   if (stores.length === 0) {
     return (
