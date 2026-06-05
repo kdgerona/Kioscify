@@ -151,7 +151,6 @@ export default function InventoryItemSheet({
     for (const batch of localItem.batches) {
       const hasQty = batch.quantity.trim() !== "";
       const hasDate = batch.expirationDate !== null;
-      if (hasQty && !hasDate) errors[batch.id] = "Set an expiry date for this batch";
       if (!hasQty && hasDate) errors[batch.id] = "Enter a quantity for this batch";
     }
     setBatchErrors(errors);
