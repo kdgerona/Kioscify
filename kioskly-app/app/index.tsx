@@ -103,7 +103,7 @@ export default function Index() {
     router.replace("/tenant-setup" as Href);
   };
 
-  if (tenantInitializing || authInitializing) {
+  if (tenantInitializing || authInitializing || (tenant && user)) {
     return (
       <View style={{ flex: 1, backgroundColor: "white", justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#ea580c" />
