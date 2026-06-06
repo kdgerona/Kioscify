@@ -13,8 +13,8 @@ interface StoreOption {
   slug: string;
   brandId?: string;
   companyId?: string;
-  brand?: { name: string; logoUrl?: string; themeColors?: { primary: string } } | null;
-  company?: { name: string; logoUrl?: string } | null;
+  brand?: { name: string; slug?: string; logoUrl?: string; themeColors?: { primary: string } } | null;
+  company?: { name: string; slug?: string; logoUrl?: string } | null;
 }
 
 export default function StorePickerPage() {
@@ -45,6 +45,17 @@ export default function StorePickerPage() {
         user.brandId = store.brandId;
         user.companyId = store.companyId;
         localStorage.setItem('user', JSON.stringify(user));
+      }
+
+      // Update portal slugs so logout redirects to the correct brand login page
+      const prevCompanySlug = localStorage.getItem('kioscify_portal_company_slug');
+      const prevBrandSlug = localStorage.getItem('kioscify_portal_brand_slug');
+      const newCompanySlug = store.company?.slug ?? prevCompanySlug;
+      const newBrandSlug = store.brand?.slug ?? prevBrandSlug;
+      if (newCompanySlug) localStorage.setItem('kioscify_portal_company_slug', newCompanySlug);
+      if (newBrandSlug) localStorage.setItem('kioscify_portal_brand_slug', newBrandSlug);
+      if (newCompanySlug && newBrandSlug) {
+        localStorage.setItem(`kioscify_store_slug_${newCompanySlug}_${newBrandSlug}`, store.slug);
       }
 
       await fetchTenantBySlug(store.slug);

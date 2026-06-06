@@ -68,8 +68,8 @@ interface AccessibleStore {
   id: string;
   name: string;
   slug: string;
-  brand?: { name: string; logoUrl?: string; themeColors?: { primary: string } } | null;
-  company?: { name: string; logoUrl?: string } | null;
+  brand?: { name: string; slug?: string; logoUrl?: string; themeColors?: { primary: string } } | null;
+  company?: { name: string; slug?: string; logoUrl?: string } | null;
 }
 
 export default function Sidebar() {
@@ -133,6 +133,16 @@ export default function Sidebar() {
         const user = JSON.parse(userStr);
         user.tenantId = store.id;
         localStorage.setItem("user", JSON.stringify(user));
+      }
+      // Update portal brand/company slugs so logout redirects to the correct brand
+      const prevCompanySlug = localStorage.getItem("kioscify_portal_company_slug");
+      const prevBrandSlug = localStorage.getItem("kioscify_portal_brand_slug");
+      const newCompanySlug = store.company?.slug ?? prevCompanySlug;
+      const newBrandSlug = store.brand?.slug ?? prevBrandSlug;
+      if (newCompanySlug) localStorage.setItem("kioscify_portal_company_slug", newCompanySlug);
+      if (newBrandSlug) localStorage.setItem("kioscify_portal_brand_slug", newBrandSlug);
+      if (newCompanySlug && newBrandSlug) {
+        localStorage.setItem(`kioscify_store_slug_${newCompanySlug}_${newBrandSlug}`, store.slug);
       }
       await fetchTenantBySlug(store.slug);
       setShowStoreSwitcher(false);
