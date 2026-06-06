@@ -85,6 +85,7 @@ async function bootstrap() {
     .addTag('reports', 'Analytics and reporting')
     .addTag('submitted-reports', 'Daily submitted reports')
     .addTag('submitted-inventory-reports', 'Inventory submitted reports')
+    .addTag('analytics', 'Company-level franchise analytics')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
