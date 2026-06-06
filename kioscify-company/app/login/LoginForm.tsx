@@ -92,7 +92,7 @@ export default function LoginForm({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoSrc}
-              alt={company!.name}
+              alt={company?.name ?? 'Company Logo'}
               className="w-28 h-28 object-contain rounded-2xl mb-6 shadow-lg bg-white p-3"
             />
           ) : (
@@ -128,7 +128,7 @@ export default function LoginForm({
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoSrc}
-              alt={company!.name}
+              alt={company?.name ?? 'Company Logo'}
               className="w-16 h-16 object-contain rounded-xl mb-3"
             />
           ) : (
