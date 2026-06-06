@@ -363,9 +363,10 @@ export default function DashboardPage() {
 
       {/* Top Products */}
       <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
           Top Selling Products
         </h2>
+        <p className="text-sm text-gray-500 mb-4 sm:mb-6">Ranked by revenue for the current month.</p>
 
         {analytics?.topProducts && analytics.topProducts.length > 0 ? (
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto -mx-4 sm:mx-0">
