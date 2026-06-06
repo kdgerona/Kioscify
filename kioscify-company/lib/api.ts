@@ -276,7 +276,7 @@ class ApiClient {
     return data;
   }
 
-  async updateSize(id: string, payload: Partial<{ name: string; priceModifier: number; foodpandaPrice: number | null; grabPrice: number | null }>): Promise<Size> {
+  async updateSize(id: string, payload: Partial<{ name: string; priceModifier: number; foodpandaPrice: number | null; grabPrice: number | null; sequenceNo: number }>): Promise<Size> {
     const { data } = await this.client.patch<Size>(`/sizes/${id}`, payload);
     return data;
   }
@@ -306,7 +306,7 @@ class ApiClient {
     return data;
   }
 
-  async updateAddon(id: string, payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null }>): Promise<Addon> {
+  async updateAddon(id: string, payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; sequenceNo: number }>): Promise<Addon> {
     const { data } = await this.client.patch<Addon>(`/addons/${id}`, payload);
     return data;
   }

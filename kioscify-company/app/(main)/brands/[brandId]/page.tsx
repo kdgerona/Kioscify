@@ -117,6 +117,62 @@ function CategoryRow({
   );
 }
 
+// ─── Generic row with sequence reorder controls ───────────────────────────
+
+function ReorderRow({
+  label,
+  sublabel,
+  index,
+  total,
+  onMoveUp,
+  onMoveDown,
+  onEdit,
+  onDelete,
+}: {
+  label: string;
+  sublabel?: string;
+  index: number;
+  total: number;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-2">
+      <div className="flex flex-col items-center gap-0.5 shrink-0">
+        <button
+          onClick={onMoveUp}
+          disabled={index === 0}
+          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+        >
+          <ChevronUp className="w-3.5 h-3.5" />
+        </button>
+        <span className="text-xs text-gray-400 font-mono w-5 text-center leading-none">{index + 1}</span>
+        <button
+          onClick={onMoveDown}
+          disabled={index === total - 1}
+          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">{label}</p>
+        {sublabel && <p className="text-xs text-gray-400 truncate">{sublabel}</p>}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded">
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Product row with image thumbnail ────────────────────────────────────
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000';
@@ -260,24 +316,25 @@ export default function BrandDetailPage() {
       .finally(() => setLoading(false));
   }, [brandId]);
 
-  const reorderCategory = async (
-    list: Category[],
-    setList: React.Dispatch<React.SetStateAction<Category[]>>,
+
+  const reorderItem = async <T extends { id: string; sequenceNo?: number }>(
+    list: T[],
+    setList: React.Dispatch<React.SetStateAction<T[]>>,
     index: number,
     direction: 'up' | 'down',
+    updateFn: (id: string, sequenceNo: number) => Promise<T>,
   ) => {
     const swapIndex = direction === 'up' ? index - 1 : index + 1;
     if (swapIndex < 0 || swapIndex >= list.length) return;
 
-    // Swap positions in the array, then stamp sequenceNo = array index
     const reordered = [...list];
     [reordered[index], reordered[swapIndex]] = [reordered[swapIndex], reordered[index]];
-    const stamped = reordered.map((c, i) => ({ ...c, sequenceNo: i }));
+    const stamped = reordered.map((item, i) => ({ ...item, sequenceNo: i }));
 
     setList(stamped);
     await Promise.all([
-      api.updateCategory(stamped[index].id, { sequenceNo: index }),
-      api.updateCategory(stamped[swapIndex].id, { sequenceNo: swapIndex }),
+      updateFn(stamped[index].id, index),
+      updateFn(stamped[swapIndex].id, swapIndex),
     ]);
   };
 
@@ -463,8 +520,8 @@ export default function BrandDetailPage() {
                     cat={cat}
                     index={i}
                     total={productCategories.length}
-                    onMoveUp={() => reorderCategory(productCategories, setProductCategories, i, 'up')}
-                    onMoveDown={() => reorderCategory(productCategories, setProductCategories, i, 'down')}
+                    onMoveUp={() => reorderItem(productCategories, setProductCategories, i, 'up', (id, seq) => api.updateCategory(id, { sequenceNo: seq }))}
+                    onMoveDown={() => reorderItem(productCategories, setProductCategories, i, 'down', (id, seq) => api.updateCategory(id, { sequenceNo: seq }))}
                     onEdit={() => setModal({ type: 'categories', mode: 'edit', item: cat })}
                     onDelete={async () => {
                       if (!confirm(`Delete "${cat.name}"?`)) return;
@@ -490,8 +547,8 @@ export default function BrandDetailPage() {
                     cat={cat}
                     index={i}
                     total={invCategories.length}
-                    onMoveUp={() => reorderCategory(invCategories, setInvCategories, i, 'up')}
-                    onMoveDown={() => reorderCategory(invCategories, setInvCategories, i, 'down')}
+                    onMoveUp={() => reorderItem(invCategories, setInvCategories, i, 'up', (id, seq) => api.updateCategory(id, { sequenceNo: seq }))}
+                    onMoveDown={() => reorderItem(invCategories, setInvCategories, i, 'down', (id, seq) => api.updateCategory(id, { sequenceNo: seq }))}
                     onEdit={() => setModal({ type: 'categories', mode: 'edit', item: cat })}
                     onDelete={async () => {
                       if (!confirm(`Delete "${cat.name}"?`)) return;
@@ -539,11 +596,15 @@ export default function BrandDetailPage() {
             {sizes.length === 0 ? (
               <EmptyState message="No sizes yet" />
             ) : (
-              sizes.map(size => (
-                <CRUDRow
+              sizes.map((size, i) => (
+                <ReorderRow
                   key={size.id}
                   label={size.name}
-                  sublabel={`Price modifier: +$${size.priceModifier.toFixed(2)}`}
+                  sublabel={`Price modifier: +₱${size.priceModifier.toFixed(2)}`}
+                  index={i}
+                  total={sizes.length}
+                  onMoveUp={() => reorderItem(sizes, setSizes, i, 'up', (id, seq) => api.updateSize(id, { sequenceNo: seq }))}
+                  onMoveDown={() => reorderItem(sizes, setSizes, i, 'down', (id, seq) => api.updateSize(id, { sequenceNo: seq }))}
                   onEdit={() => setModal({ type: 'sizes', mode: 'edit', item: size })}
                   onDelete={async () => {
                     if (!confirm(`Delete "${size.name}"?`)) return;
@@ -565,11 +626,15 @@ export default function BrandDetailPage() {
             {addons.length === 0 ? (
               <EmptyState message="No add-ons yet" />
             ) : (
-              addons.map(addon => (
-                <CRUDRow
+              addons.map((addon, i) => (
+                <ReorderRow
                   key={addon.id}
                   label={addon.name}
-                  sublabel={`$${addon.price.toFixed(2)}`}
+                  sublabel={`₱${addon.price.toFixed(2)}`}
+                  index={i}
+                  total={addons.length}
+                  onMoveUp={() => reorderItem(addons, setAddons, i, 'up', (id, seq) => api.updateAddon(id, { sequenceNo: seq }))}
+                  onMoveDown={() => reorderItem(addons, setAddons, i, 'down', (id, seq) => api.updateAddon(id, { sequenceNo: seq }))}
                   onEdit={() => setModal({ type: 'addons', mode: 'edit', item: addon })}
                   onDelete={async () => {
                     if (!confirm(`Delete "${addon.name}"?`)) return;

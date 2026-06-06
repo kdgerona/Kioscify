@@ -104,6 +104,7 @@ export interface Size {
   grabPrice?: number | null;
   brandId?: string;
   tenantId?: string;
+  sequenceNo?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -116,6 +117,7 @@ export interface Addon {
   grabPrice?: number | null;
   brandId?: string;
   tenantId?: string;
+  sequenceNo?: number;
   createdAt: string;
   updatedAt: string;
 }
