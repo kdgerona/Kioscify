@@ -40,6 +40,20 @@ name: kioscify-local
 
 services:
   # ================================
+  # Redis (JWT token blacklist)
+  # ================================
+  redis:
+    image: redis:7-alpine
+    container_name: kioscify-redis-local
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data-local:/data
+    networks:
+      - kioscify-local
+
+  # ================================
   # MongoDB with Replica Set
   # ================================
   mongo:
@@ -92,6 +106,8 @@ networks:
     driver: bridge
 
 volumes:
+  redis-data-local:
+    driver: local
   mongo-data-local:
     driver: local
   mongo-config-local:

@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { getLoggerToken } from 'nestjs-pino';
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { TokenBlacklistService } from './token-blacklist.service';
 
 jest.mock('bcrypt');
 const bcryptCompare = bcrypt.compare as jest.Mock;
@@ -17,6 +18,7 @@ const mockPrisma = {
 };
 const mockJwt = { sign: jest.fn().mockReturnValue('mock-token') };
 const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const mockTokenBlacklist = { blacklist: jest.fn(), isBlacklisted: jest.fn() };
 
 const mockStore = {
   id: 'store-1',
@@ -48,6 +50,7 @@ describe('AuthService — logging', () => {
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
+        { provide: TokenBlacklistService, useValue: mockTokenBlacklist },
         { provide: getLoggerToken(AuthService.name), useValue: mockLogger },
       ],
     }).compile();

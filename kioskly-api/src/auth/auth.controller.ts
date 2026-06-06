@@ -24,6 +24,8 @@ import {
   SwitchStoreDto,
 } from './dto/login.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { Public } from '../common/decorators/public.decorator';
+import { AuthenticatedUser } from './strategies/jwt.strategy';
 
 // Configurable via env — defaults to 20 attempts per 15 min
 const LOGIN_THROTTLE = {
@@ -39,6 +41,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle(LOGIN_THROTTLE)
   @ApiOperation({ summary: 'Store user login (STORE_ADMIN / CASHIER)' })
@@ -50,6 +53,7 @@ export class AuthController {
   }
 
   @Post('company-login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle(LOGIN_THROTTLE)
   @ApiOperation({ summary: 'Company admin login (COMPANY_ADMIN)' })
@@ -61,6 +65,7 @@ export class AuthController {
   }
 
   @Post('platform-login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Throttle(LOGIN_THROTTLE)
   @ApiOperation({ summary: 'Platform admin login (PLATFORM_ADMIN)' })
@@ -101,5 +106,18 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Profile retrieved' })
   getProfile(@Request() req) {
     return this.authService.getProfile(req.user.id);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Logout and revoke current token' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  async logout(@Request() req): Promise<{ message: string }> {
+    const user = req.user as AuthenticatedUser;
+    if (user.jti && user.exp) {
+      await this.authService.logout(user.jti, user.exp);
+    }
+    return { message: 'Logged out successfully' };
   }
 }

@@ -3,6 +3,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { CacheModule } from '@nestjs/cache-manager';
+import KeyvRedis from '@keyv/redis';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -18,7 +22,6 @@ import { ProductsModule } from './products/products.module';
 import { SizesModule } from './sizes/sizes.module';
 import { AddonsModule } from './addons/addons.module';
 import { TransactionsModule } from './transactions/transactions.module';
-import { TenantsModule } from './tenants/tenants.module';  // kept as deprecated alias
 import { ExpensesModule } from './expenses/expenses.module';
 import { ReportsModule } from './reports/reports.module';
 import { InventoryModule } from './inventory/inventory.module';
@@ -56,6 +59,12 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
       limit: parseInt(process.env.THROTTLE_GLOBAL_LIMIT ?? '100'),
     }]),
 
+    // Redis-backed cache — used for JWT token blacklist (logout/revocation)
+    CacheModule.register({
+      isGlobal: true,
+      stores: [new KeyvRedis(`redis://${process.env.REDIS_HOST ?? 'localhost'}:${process.env.REDIS_PORT ?? '6379'}`)],
+    }),
+
     PrismaModule,
     AuthModule,
 
@@ -81,14 +90,14 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
     SubmittedReportsModule,
     SubmittedInventoryReportsModule,
 
-    // Deprecated — kept for backward compat during migration
-    TenantsModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    // Apply throttler globally (individual endpoints can override with @Throttle)
+    // Global guard order: throttle → JWT auth → roles
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

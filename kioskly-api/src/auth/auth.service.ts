@@ -16,6 +16,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { TokenBlacklistService } from './token-blacklist.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -28,6 +29,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private tokenBlacklist: TokenBlacklistService,
     @InjectPinoLogger(AuthService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -56,7 +58,11 @@ export class AuthService {
   }
 
   private buildJwt(payload: object): string {
-    return this.jwtService.sign(payload);
+    return this.jwtService.sign({ ...payload, jti: crypto.randomUUID() });
+  }
+
+  async logout(jti: string, exp: number): Promise<void> {
+    await this.tokenBlacklist.blacklist(jti, exp);
   }
 
   // ─── Store Login ──────────────────────────────────────────────────────────

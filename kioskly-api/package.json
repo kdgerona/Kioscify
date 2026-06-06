@@ -26,6 +26,8 @@
     "create:platform-admin": "dotenv -e .env -- ts-node prisma/create-platform-admin.ts"
   },
   "dependencies": {
+    "@keyv/redis": "5.1.6",
+    "@nestjs/cache-manager": "3.1.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",

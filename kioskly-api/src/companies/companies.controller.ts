@@ -33,6 +33,7 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { CompanyId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('companies')
@@ -41,6 +42,7 @@ export class CompaniesController {
   constructor(private companiesService: CompaniesService) {}
 
   @Get('validate-subdomain/:slug')
+  @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Validate a company subdomain (public, rate-limited)' })
   @ApiResponse({ status: 200, description: 'Validation result' })

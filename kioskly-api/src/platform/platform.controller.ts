@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UpdateMaintenanceStatusDto } from './dto/update-maintenance-status.dto';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('platform')
 @Controller('platform')
@@ -13,6 +14,7 @@ export class PlatformController {
   constructor(private platformService: PlatformService) {}
 
   @Get('maintenance-status')
+  @Public()
   @SkipThrottle()
   @ApiOperation({ summary: 'Get maintenance status for all portals (public)' })
   getMaintenanceStatus() {

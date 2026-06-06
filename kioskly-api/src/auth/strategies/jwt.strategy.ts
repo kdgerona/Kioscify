@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { TokenBlacklistService } from '../token-blacklist.service';
 import { auth } from '../../constants/env.constants';
 
 export interface JwtPayload {
@@ -13,6 +14,7 @@ export interface JwtPayload {
   brandId?: string;
   companyId?: string;
   mustChangePassword?: boolean;
+  jti?: string;
   iat?: number;
   exp?: number;
 }
@@ -29,6 +31,8 @@ export interface AuthenticatedUser {
   companyId?: string | null;
   isFirstLogin: boolean;
   mustChangePassword: boolean;
+  jti?: string;
+  exp?: number;
 }
 
 @Injectable()
@@ -36,6 +40,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly tokenBlacklist: TokenBlacklistService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -70,6 +75,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
+    if (payload.jti && (await this.tokenBlacklist.isBlacklisted(payload.jti))) {
+      throw new UnauthorizedException('Token has been revoked');
+    }
+
     // Build the complete set of stores this user can access — unbounded,
     // covers primary store plus every active UserStoreAccess row.
     const jwtTenantId = payload.tenantId;
@@ -98,6 +107,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       companyId: usingJwtStore && payload.companyId ? payload.companyId : user.companyId,
       isFirstLogin: user.isFirstLogin,
       mustChangePassword: user.isFirstLogin,
+      jti: payload.jti,
+      exp: payload.exp,
     };
   }
 }

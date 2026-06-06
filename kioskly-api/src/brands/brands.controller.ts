@@ -29,6 +29,7 @@ import { CreateBrandDto, UpdateBrandDto } from './dto/brand.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { CompanyId } from '../common/decorators/tenant.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -57,6 +58,7 @@ export class BrandsController {
   }
 
   @Get('validate-subdomain')
+  @Public()
   @ApiOperation({ summary: 'Validate company+brand subdomain pair (public, no auth)' })
   @ApiResponse({ status: 200, description: 'Validation result with brand branding data' })
   validateSubdomain(
