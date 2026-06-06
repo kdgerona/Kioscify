@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsInt } from 'class-validator';
 
 export class UpdateAddonDto {
   @ApiProperty({ example: 'Nata De Coco', required: false })
@@ -21,4 +21,9 @@ export class UpdateAddonDto {
   @IsNumber()
   @IsOptional()
   grabPrice?: number;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsInt()
+  @IsOptional()
+  sequenceNo?: number;
 }
