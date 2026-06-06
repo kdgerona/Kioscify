@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import AssignUserModal from './AssignUserModal';
 
 export default function UsersPage() {
   const { tenant, brand } = useTenant();
@@ -25,7 +26,9 @@ export default function UsersPage() {
     ? (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })()
     : null;
   const isStoreAdmin = currentUser?.role === 'STORE_ADMIN' || currentUser?.role === 'ADMIN';
+  const [isMultiStoreAdmin, setIsMultiStoreAdmin] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState<StoreUserCreatePayload>({
@@ -54,6 +57,13 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  useEffect(() => {
+    if (!tenant?.id || !currentUser?.id || !isStoreAdmin) return;
+    api.getMyStoreAccess(currentUser.id)
+      .then((stores) => setIsMultiStoreAdmin(stores.length >= 1))
+      .catch(() => {});
+  }, [currentUser?.id, isStoreAdmin, tenant?.id]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,6 +94,16 @@ export default function UsersPage() {
     }
   };
 
+  const handleRevokeAccess = async (user: User) => {
+    if (!tenant?.id) return;
+    try {
+      await api.revokeStoreAccess(tenant.id, user.id);
+      await fetchUsers();
+    } catch (err) {
+      console.error('Failed to revoke access:', err);
+    }
+  };
+
 
   return (
     <div className="p-6">
@@ -93,14 +113,26 @@ export default function UsersPage() {
           <p className="text-sm text-gray-500 mt-1">Manage staff accounts for this store</p>
         </div>
         {isStoreAdmin && (
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2 px-4 py-2 text-black rounded-lg text-sm font-medium hover:opacity-90 transition"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <UserPlus className="h-4 w-4" />
-            Add User
-          </button>
+          <div className="flex items-center gap-3">
+            {isStoreAdmin && isMultiStoreAdmin && (
+              <button
+                onClick={() => setShowAssignModal(true)}
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition"
+                style={{ borderColor: primaryColor, color: primaryColor }}
+              >
+                <UserCheck className="h-4 w-4" />
+                Assign Existing User
+              </button>
+            )}
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="flex items-center gap-2 px-4 py-2 text-black rounded-lg text-sm font-medium hover:opacity-90 transition"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <UserPlus className="h-4 w-4" />
+              Add User
+            </button>
+          </div>
         )}
       </div>
 
@@ -241,7 +273,17 @@ export default function UsersPage() {
               {users.map((user) => (
                 <tr key={user.id} className={!user.isActive ? 'opacity-50' : ''}>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {user.firstName} {user.lastName}
+                    <div className="flex items-center gap-2">
+                      <span>{user.firstName} {user.lastName}</span>
+                      {user.isAssigned && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                          Assigned
+                        </span>
+                      )}
+                    </div>
+                    {user.isAssigned && user.primaryStore && (
+                      <p className="text-xs text-gray-400 mt-0.5">from {user.primaryStore.name}</p>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm font-mono text-gray-700">{user.username}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
@@ -249,12 +291,12 @@ export default function UsersPage() {
                     <span
                       className="inline-block whitespace-nowrap px-2 py-1 rounded-full text-xs font-medium"
                       style={
-                        ['STORE_ADMIN', 'ADMIN'].includes(user.role)
+                        ['STORE_ADMIN', 'ADMIN'].includes(user.isAssigned ? (user.assignedRole ?? user.role) : user.role)
                           ? { backgroundColor: '#e0e7ff', color: '#3730a3' }
                           : { backgroundColor: '#f3f4f6', color: '#374151' }
                       }
                     >
-                      {formatRole(user.role)}
+                      {formatRole(user.isAssigned ? (user.assignedRole ?? user.role) : user.role)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">
@@ -271,21 +313,35 @@ export default function UsersPage() {
                   </td>
                   <td className="px-6 py-4 text-center">
                     {isStoreAdmin && currentUser?.id !== user.id && (
-                      <div className="relative group inline-block">
-                        <button
-                          onClick={() => handleToggleActive(user)}
-                          className="text-gray-400 hover:text-gray-600"
-                        >
-                          {user.isActive ? (
+                      user.isAssigned ? (
+                        <div className="relative group inline-block">
+                          <button
+                            onClick={() => handleRevokeAccess(user)}
+                            className="text-gray-400 hover:text-red-500"
+                          >
                             <UserX className="h-4 w-4" />
-                          ) : (
-                            <UserCheck className="h-4 w-4" />
-                          )}
-                        </button>
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                          {user.isActive ? 'Disable account' : 'Enable account'}
+                          </button>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                            Remove access
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="relative group inline-block">
+                          <button
+                            onClick={() => handleToggleActive(user)}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            {user.isActive ? (
+                              <UserX className="h-4 w-4" />
+                            ) : (
+                              <UserCheck className="h-4 w-4" />
+                            )}
+                          </button>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                            {user.isActive ? 'Disable account' : 'Enable account'}
+                          </div>
+                        </div>
+                      )
                     )}
                     {currentUser?.id === user.id && (
                       <span className="text-xs text-gray-400">No action</span>
@@ -306,6 +362,13 @@ export default function UsersPage() {
         </div>
       )}
 
+      <AssignUserModal
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        storeId={tenant?.id ?? ''}
+        primaryColor={primaryColor}
+        onAssigned={fetchUsers}
+      />
     </div>
   );
 }

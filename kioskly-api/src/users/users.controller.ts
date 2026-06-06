@@ -168,7 +168,7 @@ export class UsersController {
   @Delete('stores/:storeId/:userId/access')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @Roles('STORE_ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'Revoke a user\'s access to a store' })
   revokeStoreAccess(
     @Param('storeId') storeId: string,
@@ -176,7 +176,7 @@ export class UsersController {
     @CompanyId() companyId: string,
     @Request() req,
   ) {
-    return this.usersService.revokeStoreAccess(storeId, userId, companyId, req.user.role);
+    return this.usersService.revokeStoreAccess(storeId, userId, companyId, req.user.role, req.user.id);
   }
 
   @Get('search')

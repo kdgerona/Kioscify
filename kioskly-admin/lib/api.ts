@@ -18,6 +18,8 @@ import type {
   TimeOfDayData,
   SubmittedReport,
   Expense,
+  AssignableUser,
+  StoreAccess,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -631,6 +633,18 @@ class ApiClient {
     return data;
   }
   // ─── Store assignment (multi-store) ───────────────────────────────────────
+
+  async getMyStoreAccess(userId: string): Promise<StoreAccess[]> {
+    const { data } = await this.client.get<StoreAccess[]>(`/users/${userId}/stores`);
+    return data;
+  }
+
+  async getAssignablePool(storeId: string, q?: string): Promise<AssignableUser[]> {
+    const { data } = await this.client.get<AssignableUser[]>(`/users/stores/${storeId}/assignable-pool`, {
+      params: q ? { q } : undefined,
+    });
+    return data;
+  }
 
   async assignUserToStore(storeId: string, payload: { username: string; role: 'STORE_ADMIN' | 'CASHIER' }): Promise<void> {
     await this.client.post(`/users/stores/${storeId}/assign`, payload);

@@ -227,7 +227,7 @@ export class UsersService {
     const eligibleIds = poolIds.filter(id => !excludedIds.has(id));
     if (eligibleIds.length === 0) return [];
 
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: {
         id: { in: eligibleIds },
         isActive: true,
@@ -245,10 +245,16 @@ export class UsersService {
         firstName: true,
         lastName: true,
         role: true,
-        tenant: { select: { id: true, name: true, slug: true } },
+        tenant: { select: { id: true, name: true, slug: true, brand: { select: { name: true } } } },
       },
       take: 20,
     });
+
+    return users.map(({ tenant, ...u }) => ({
+      ...u,
+      primaryStore: tenant ? { id: tenant.id, name: tenant.name, slug: tenant.slug } : undefined,
+      brandName: tenant?.brand?.name ?? undefined,
+    }));
   }
 
   async createCompanyUser(companyId: string, requestingCompanyId: string, dto: CreateCompanyUserDto) {
@@ -365,14 +371,25 @@ export class UsersService {
     });
   }
 
-  async revokeStoreAccess(storeId: string, userId: string, requestingCompanyId: string, requestingRole: string) {
+  async revokeStoreAccess(storeId: string, userId: string, requestingCompanyId: string, requestingRole: string, requestingUserId?: string) {
     const store = await this.prisma.tenant.findUnique({
       where: { id: storeId },
       select: { companyId: true },
     });
     if (!store) throw new NotFoundException('Store not found');
 
-    if (requestingRole !== 'PLATFORM_ADMIN' && store.companyId !== requestingCompanyId) {
+    if (requestingRole === 'STORE_ADMIN') {
+      const managedIds = await this.getManagedStoreIds(requestingUserId!);
+      if (!managedIds.includes(storeId)) throw new ForbiddenException('Access denied');
+
+      const targetUser = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { tenantId: true },
+      });
+      if (targetUser?.tenantId === storeId) {
+        throw new BadRequestException('Cannot revoke primary store assignment; deactivate the user instead');
+      }
+    } else if (requestingRole !== 'PLATFORM_ADMIN' && store.companyId !== requestingCompanyId) {
       throw new ForbiddenException('Access denied');
     }
 

@@ -38,6 +38,12 @@ export interface Tenant {
   company?: Company;
 }
 
+export interface StoreRef {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export interface User {
   id: string;
   tenantId?: string;
@@ -52,6 +58,27 @@ export interface User {
   isFirstLogin?: boolean;
   createdAt: string;
   updatedAt: string;
+  isAssigned?: boolean;
+  assignedRole?: "STORE_ADMIN" | "CASHIER";
+  primaryStore?: StoreRef;
+}
+
+export interface AssignableUser {
+  id: string;
+  username: string;
+  firstName?: string;
+  lastName?: string;
+  role: "STORE_ADMIN" | "CASHIER" | "ADMIN";
+  primaryStore?: StoreRef;
+  brandName?: string;
+}
+
+export interface StoreAccess {
+  id: string;
+  tenantId: string;
+  role: "STORE_ADMIN" | "CASHIER";
+  isActive: boolean;
+  tenant: StoreRef;
 }
 
 export interface Category {
