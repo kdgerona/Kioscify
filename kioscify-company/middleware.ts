@@ -3,10 +3,10 @@ import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
   // Maintenance check — runs first, before any routing logic
   if (pathname !== '/maintenance') {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
     try {
       const res = await fetch(`${apiUrl}/platform/maintenance-status`, { cache: 'no-store' });
       if (res.ok) {
@@ -56,7 +56,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // Validate all other subdomains against the database
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
   try {
     const res = await fetch(`${apiUrl}/companies/validate-subdomain/${subdomain}`, {
       cache: 'no-store',
