@@ -27,7 +27,7 @@ export function TopProductsWidget({ startDate, endDate }: Props) {
         setBrands(b);
         if (b.length > 0) setSelectedBrandId(b[0].id);
       })
-      .catch(() => {})
+      .catch(() => setError('Failed to load brands'))
       .finally(() => setLoadingBrands(false));
   }, []);
 

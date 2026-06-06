@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { startOfMonth, endOfDay } from 'date-fns';
+import { startOfMonth, endOfMonth } from 'date-fns';
 import { DateRangePicker } from './components/DateRangePicker';
 import { OverviewCards } from './components/OverviewCards';
 import { TopBrandsWidget } from './components/TopBrandsWidget';
@@ -10,7 +10,7 @@ import { NetworkGrowthChart } from './components/NetworkGrowthChart';
 
 export default function AnalyticsPage() {
   const [startDate, setStartDate] = useState(startOfMonth(new Date()).toISOString());
-  const [endDate, setEndDate] = useState(endOfDay(new Date()).toISOString());
+  const [endDate, setEndDate] = useState(endOfMonth(new Date()).toISOString());
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
