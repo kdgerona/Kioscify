@@ -1560,6 +1560,7 @@ export default function CompanyDetailPage() {
                     )}
                     {!assignableLoading && !assignableError && (() => {
                       const filtered = allAssignableUsers.filter(u => {
+                        if ((u.allStores ?? []).some((s: any) => s.id === cashierStoreId)) return false;
                         if (!cashierFilter.trim()) return true;
                         const q = cashierFilter.toLowerCase();
                         return u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) ||
