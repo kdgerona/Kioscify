@@ -95,7 +95,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600" />
       </div>
     );
   }
@@ -156,7 +156,8 @@ export default function SettingsPage() {
                   value={currentPassword}
                   onChange={e => setCurrentPassword(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
                 />
               </div>
               <div>
@@ -166,7 +167,8 @@ export default function SettingsPage() {
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
                 />
               </div>
               <div>
@@ -176,7 +178,8 @@ export default function SettingsPage() {
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
                 />
               </div>
               <div className="flex gap-3 pt-1">
@@ -190,7 +193,7 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={pwSaving}
-                  className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                  className="flex-1 py-3 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700 disabled:opacity-50"
                 >
                   {pwSaving ? 'Saving...' : 'Update Password'}
                 </button>
@@ -213,7 +216,8 @@ export default function SettingsPage() {
               value={name}
               onChange={e => setName(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+              style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
             />
           </div>
           <div>
@@ -222,7 +226,8 @@ export default function SettingsPage() {
               type="email"
               value={contactEmail}
               onChange={e => setContactEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+              style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
             />
           </div>
           <div>
@@ -231,13 +236,14 @@ export default function SettingsPage() {
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none"
+              style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
             />
           </div>
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium transition-colors"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save Changes'}
