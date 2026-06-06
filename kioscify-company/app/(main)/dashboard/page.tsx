@@ -38,7 +38,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600" />
       </div>
     );
   }
@@ -68,8 +68,8 @@ export default function DashboardPage() {
         <div className="bg-white rounded-lg border p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-gray-500">Total Brands</span>
-            <div className="p-2 bg-indigo-50 rounded-lg">
-              <BookOpen className="w-4 h-4 text-indigo-600" />
+            <div className="p-2 bg-orange-50 rounded-lg">
+              <BookOpen className="w-4 h-4 text-orange-600" />
             </div>
           </div>
           <p className="text-3xl font-bold text-gray-900">{brands.length}</p>
@@ -105,7 +105,7 @@ export default function DashboardPage() {
           <h2 className="font-semibold text-gray-900">Your Brands</h2>
           <a
             href="/brands"
-            className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+            className="text-sm text-orange-600 hover:text-orange-800 flex items-center gap-1"
           >
             View all <ArrowRight className="w-3 h-3" />
           </a>
@@ -114,7 +114,7 @@ export default function DashboardPage() {
           <div className="px-6 py-10 text-center text-gray-400 text-sm">
             No brands yet.{' '}
             {company?.canCreateBrands && (
-              <a href="/brands" className="text-indigo-600 hover:underline">
+              <a href="/brands" className="text-orange-600 hover:underline">
                 Create your first brand
               </a>
             )}
@@ -136,7 +136,7 @@ export default function DashboardPage() {
                   </span>
                   <a
                     href={`/brands/${brand.id}`}
-                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                    className="text-sm text-orange-600 hover:text-orange-800 font-medium"
                   >
                     Manage
                   </a>
