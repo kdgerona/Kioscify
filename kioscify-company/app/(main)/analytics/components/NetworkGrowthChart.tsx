@@ -40,7 +40,10 @@ export function NetworkGrowthChart({ startDate, endDate }: Props) {
 
   return (
     <div className="bg-white rounded-lg border p-6">
-      <h2 className="font-semibold text-gray-900 mb-4">Network Growth</h2>
+      <div className="mb-4">
+        <h2 className="font-semibold text-gray-900">Network Growth</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Cumulative number of stores and brands added over time</p>
+      </div>
       {loading ? (
         <div className="h-52 bg-gray-100 rounded animate-pulse" />
       ) : error ? (
@@ -59,7 +62,7 @@ export function NetworkGrowthChart({ startDate, endDate }: Props) {
               type="monotone"
               dataKey="storeCount"
               name="Stores"
-              stroke="#4f46e5"
+              stroke="#3b82f6"
               strokeWidth={2}
               dot={false}
             />

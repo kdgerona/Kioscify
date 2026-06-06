@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/api';
+import { resolveLogoUrl } from '@/lib/utils';
 import {
   LayoutDashboard,
   BookOpen,
@@ -12,6 +13,7 @@ import {
   LogOut,
   Menu,
   X,
+  Building2,
 } from 'lucide-react';
 
 const navItems = [
@@ -28,6 +30,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [loading, setLoading] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [companyName, setCompanyName] = useState('');
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const token = api.getToken();
@@ -55,7 +58,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
 
     setCompanyName(user.companyName || 'Company Portal');
-    setLoading(false);
+
+    api.getMyCompany()
+      .then(company => {
+        setCompanyLogoUrl(resolveLogoUrl(company.logoUrl));
+        if (company.name) setCompanyName(company.name);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [router]);
 
   if (loading) {
@@ -86,12 +96,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }`}
       >
         <div className="p-4 border-b flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Kioscify" className="w-7 h-7 object-contain rounded-lg flex-shrink-0" />
+          <div className="flex items-center gap-2.5 min-w-0">
+            {companyLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={companyLogoUrl} alt={companyName} className="w-8 h-8 object-contain rounded-lg flex-shrink-0 border border-gray-100" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center bg-orange-50 border border-orange-100">
+                <Building2 className="w-4 h-4 text-orange-600" />
+              </div>
+            )}
             <div className="min-w-0">
-              <h2 className="font-bold text-gray-900 text-sm">Kioscify</h2>
-              <p className="text-xs text-gray-500 truncate">{companyName}</p>
+              <h2 className="font-bold text-gray-900 text-sm truncate">{companyName}</h2>
+              <p className="text-xs text-gray-400">Company Portal</p>
             </div>
           </div>
           <button
@@ -153,9 +169,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           >
             <Menu className="w-5 h-5" />
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Kioscify" className="w-5 h-5 object-contain" />
-          <span className="font-semibold text-gray-900 text-sm">Kioscify</span>
+          {companyLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={companyLogoUrl} alt={companyName} className="w-6 h-6 object-contain rounded" />
+          ) : (
+            <div className="w-6 h-6 rounded flex items-center justify-center bg-orange-50">
+              <Building2 className="w-3.5 h-3.5 text-orange-600" />
+            </div>
+          )}
+          <span className="font-semibold text-gray-900 text-sm truncate">{companyName}</span>
         </header>
 
         <main className="flex-1 overflow-auto">

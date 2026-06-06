@@ -158,9 +158,9 @@ export interface AnalyticsOverview {
 export interface TopBrandItem {
   brandId: string;
   brandName: string;
-  totalRevenue: number;
+  primaryColor?: string;
   storeCount: number;
-  transactionCount: number;
+  unitsSold: number;
 }
 
 export interface TopProductItem {

@@ -1,24 +1,31 @@
 'use client';
 import { useEffect, useState } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { api } from '@/lib/api';
-import type { TopBrandItem } from '@/types';
+import type { TopBrandItem, Brand } from '@/types';
 
 interface Props {
   startDate: string;
   endDate: string;
 }
 
-function peso(n: number) {
-  return `₱${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 export function TopBrandsWidget({ startDate, endDate }: Props) {
   const [data, setData] = useState<TopBrandItem[]>([]);
+  const [colorMap, setColorMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getBrands()
+      .then((brands: Brand[]) => {
+        const map: Record<string, string> = {};
+        for (const b of brands) map[b.id] = b.themeColors?.primary ?? '#ea580c';
+        setColorMap(map);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -35,8 +42,8 @@ export function TopBrandsWidget({ startDate, endDate }: Props) {
   return (
     <div className="bg-white rounded-lg border p-6">
       <div className="mb-4">
-        <h2 className="font-semibold text-gray-900">Top Brands by Revenue</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Combined revenue across all stores per brand</p>
+        <h2 className="font-semibold text-gray-900">Top Brands</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Total units sold across all stores per brand</p>
       </div>
       {loading ? (
         <div className="h-48 bg-gray-100 rounded animate-pulse" />
@@ -52,7 +59,7 @@ export function TopBrandsWidget({ startDate, endDate }: Props) {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   type="number"
-                  tickFormatter={v => `₱${(v as number).toLocaleString()}`}
+                  allowDecimals={false}
                   tick={{ fontSize: 11 }}
                 />
                 <YAxis
@@ -61,8 +68,12 @@ export function TopBrandsWidget({ startDate, endDate }: Props) {
                   width={90}
                   tick={{ fontSize: 11 }}
                 />
-                <Tooltip formatter={(v: number) => peso(v)} />
-                <Bar dataKey="totalRevenue" name="Revenue" fill="#4f46e5" radius={[0, 4, 4, 0]} />
+                <Tooltip formatter={(v: number) => [`${v} units`, 'Units Sold']} />
+                <Bar dataKey="unitsSold" name="Units Sold" radius={[0, 4, 4, 0]}>
+                  {data.map(brand => (
+                    <Cell key={brand.brandId} fill={colorMap[brand.brandId] ?? '#ea580c'} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -72,7 +83,8 @@ export function TopBrandsWidget({ startDate, endDate }: Props) {
                 <tr className="text-left text-gray-500 border-b">
                   <th className="pb-2 pr-2">#</th>
                   <th className="pb-2 pr-4">Brand</th>
-                  <th className="pb-2 text-right pr-2">Total Revenue</th>
+                  <th className="pb-2 text-right pr-2">Units Sold</th>
+                  <th className="pb-2 text-right pr-2">Stores</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -80,7 +92,8 @@ export function TopBrandsWidget({ startDate, endDate }: Props) {
                   <tr key={brand.brandId} className="hover:bg-gray-50">
                     <td className="py-2 pr-2 text-gray-400">{i + 1}</td>
                     <td className="py-2 pr-4 font-medium text-gray-900">{brand.brandName}</td>
-                    <td className="py-2 pr-2 text-right text-gray-700">{peso(brand.totalRevenue)}</td>
+                    <td className="py-2 pr-2 text-right text-gray-700">{brand.unitsSold.toLocaleString()}</td>
+                    <td className="py-2 pr-2 text-right text-gray-700">{brand.storeCount}</td>
                   </tr>
                 ))}
               </tbody>

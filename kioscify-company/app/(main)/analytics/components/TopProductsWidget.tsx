@@ -15,10 +15,6 @@ interface Props {
   endDate: string;
 }
 
-function peso(n: number) {
-  return `₱${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 export function TopProductsWidget({ startDate, endDate }: Props) {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [selectedBrandId, setSelectedBrandId] = useState<string>('');
@@ -53,8 +49,11 @@ export function TopProductsWidget({ startDate, endDate }: Props) {
 
   return (
     <div className="bg-white rounded-lg border p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-gray-900">Top Products</h2>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="font-semibold text-gray-900">Top Products</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Best-selling products by units sold for the selected brand</p>
+        </div>
         {!loadingBrands && brands.length > 0 && (
           <Select value={selectedBrandId} onValueChange={setSelectedBrandId}>
             <SelectTrigger className="w-36 h-8 text-xs">
@@ -87,13 +86,10 @@ export function TopProductsWidget({ startDate, endDate }: Props) {
             >
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-gray-400 w-5">{i + 1}</span>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{product.productName}</p>
-                  <p className="text-xs text-gray-400">{product.unitsSold} units sold</p>
-                </div>
+                <p className="text-sm font-medium text-gray-900">{product.productName}</p>
               </div>
-              <span className="text-sm font-semibold text-gray-700">
-                {peso(product.totalRevenue)}
+              <span className="text-sm font-semibold text-gray-500">
+                {product.unitsSold.toLocaleString()} sold
               </span>
             </div>
           ))}

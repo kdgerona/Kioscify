@@ -15,10 +15,6 @@ interface Props {
   endDate: string;
 }
 
-function peso(n: number) {
-  return `₱${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 export function TopStoresWidget({ startDate, endDate }: Props) {
   const [allData, setAllData] = useState<TopStoreItem[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -49,8 +45,11 @@ export function TopStoresWidget({ startDate, endDate }: Props) {
 
   return (
     <div className="bg-white rounded-lg border p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-gray-900">Top Stores by Revenue</h2>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="font-semibold text-gray-900">Top Stores</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Stores ranked by transaction volume in the selected period</p>
+        </div>
         {brands.length > 0 && (
           <Select value={selectedBrandId} onValueChange={setSelectedBrandId}>
             <SelectTrigger className="w-36 h-8 text-xs">
@@ -89,7 +88,6 @@ export function TopStoresWidget({ startDate, endDate }: Props) {
                   <p className="text-xs text-gray-400">{store.brandName}</p>
                 </div>
               </div>
-              <p className="text-sm font-semibold text-gray-700">{peso(store.totalRevenue)}</p>
             </div>
           ))}
         </div>

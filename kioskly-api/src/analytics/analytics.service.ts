@@ -38,6 +38,7 @@ export class AnalyticsService {
       select: {
         id: true,
         name: true,
+        themeColors: true,
         stores: {
           where: { tombstone: { not: 1 } },
           select: { id: true },
@@ -52,9 +53,9 @@ export class AnalyticsService {
           return {
             brandId: brand.id,
             brandName: brand.name,
-            totalRevenue: 0,
+            primaryColor: (brand.themeColors as any)?.primary ?? '#ea580c',
             storeCount: 0,
-            transactionCount: 0,
+            unitsSold: 0,
           };
         }
         const filter = {
@@ -62,21 +63,23 @@ export class AnalyticsService {
           voidStatus: { not: 'APPROVED' as const },
           timestamp: { gte: startDate, lte: endDate },
         };
-        const [agg, transactionCount] = await Promise.all([
-          this.prisma.transaction.aggregate({ where: filter, _sum: { total: true } }),
-          this.prisma.transaction.count({ where: filter }),
-        ]);
+        const transactions = await this.prisma.transaction.findMany({ where: filter, select: { id: true } });
+        const txIds = transactions.map(t => t.id);
+        const itemAgg = await this.prisma.transactionItem.aggregate({
+          where: { transactionId: { in: txIds } },
+          _sum: { quantity: true },
+        });
         return {
           brandId: brand.id,
           brandName: brand.name,
-          totalRevenue: agg._sum.total ?? 0,
+          primaryColor: (brand.themeColors as any)?.primary ?? '#ea580c',
           storeCount: storeIds.length,
-          transactionCount,
+          unitsSold: itemAgg._sum.quantity ?? 0,
         };
       }),
     );
 
-    return results.sort((a, b) => b.totalRevenue - a.totalRevenue);
+    return results.sort((a, b) => b.unitsSold - a.unitsSold);
   }
 
   async getTopProducts(
@@ -162,7 +165,7 @@ export class AnalyticsService {
       }),
     );
 
-    return results.sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 10);
+    return results.sort((a, b) => b.transactionCount - a.transactionCount).slice(0, 10);
   }
 
   async getNetworkGrowth(companyId: string, startDate: Date, endDate: Date) {
