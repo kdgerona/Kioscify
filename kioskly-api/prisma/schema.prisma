@@ -217,6 +217,7 @@ model Size {
   foodpandaPrice Float?
   grabPrice      Float?
   volume         String?
+  sequenceNo    Int      @default(0)
   tombstone     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -238,9 +239,10 @@ model Addon {
   price          Float
   foodpandaPrice Float?
   grabPrice      Float?
-  tombstone Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  sequenceNo Int      @default(0)
+  tombstone  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   tenant                Tenant?                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   brand                 Brand?                 @relation(fields: [brandId], references: [id], onDelete: Cascade)
