@@ -278,8 +278,10 @@ export class ProductsService {
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
       category: product.category,
-      sizes: product.productSizes?.map((ps) => ps.size) || [],
-      addons: product.productAddons?.map((pa) => pa.addon) || [],
+      sizes: (product.productSizes?.map((ps) => ps.size) || [])
+        .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
+      addons: (product.productAddons?.map((pa) => pa.addon) || [])
+        .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
     };
   }
 }

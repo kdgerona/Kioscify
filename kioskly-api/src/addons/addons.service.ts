@@ -29,7 +29,7 @@ export class AddonsService {
   async findAll(brandId: string) {
     return this.prisma.addon.findMany({
       where: { brandId, tombstone: { not: 1 } },
-      orderBy: { name: 'asc' },
+      orderBy: { sequenceNo: 'asc' },
     });
   }
 
