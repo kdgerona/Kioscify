@@ -11,6 +11,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
@@ -130,9 +131,12 @@ export class UsersController {
 
   @Get(':userId/stores')
   @UseGuards(RolesGuard)
-  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @Roles('STORE_ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'List all stores a user has access to' })
-  getStoreAccess(@Param('userId') userId: string) {
+  getStoreAccess(@Param('userId') userId: string, @Request() req) {
+    if (req.user.role === 'STORE_ADMIN' && userId !== req.user.id) {
+      throw new ForbiddenException('STORE_ADMIN can only query their own store access');
+    }
     return this.usersService.getStoreAccess(userId);
   }
 
