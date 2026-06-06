@@ -73,7 +73,7 @@ export default function ChangePasswordPage() {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+          <div className="mb-5 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
             {error}
           </div>
         )}
@@ -88,7 +88,8 @@ export default function ChangePasswordPage() {
               value={currentPassword}
               onChange={e => setCurrentPassword(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+              style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
             />
           </div>
           <div>
@@ -99,7 +100,8 @@ export default function ChangePasswordPage() {
               onChange={e => setNewPassword(e.target.value)}
               required
               minLength={10}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+              style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
             />
             <p className="text-xs text-gray-400 mt-1">Minimum 10 characters</p>
           </div>
@@ -112,13 +114,14 @@ export default function ChangePasswordPage() {
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+              style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium transition-colors"
+            className="w-full py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 disabled:opacity-50 text-sm font-semibold transition-colors"
           >
             {loading ? 'Updating...' : 'Update Password'}
           </button>
