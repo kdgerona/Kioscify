@@ -1,5 +1,5 @@
 import "../ReactotronConfig";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { TenantProvider } from "../contexts/TenantContext";
@@ -8,6 +8,8 @@ import { SyncProvider } from "../contexts/SyncContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { initDb } from "../lib/db";
 import OfflineBanner from "../components/OfflineBanner";
+import { getApiUrl } from "../utils/api";
+import MaintenanceScreen from "../components/MaintenanceScreen";
 
 // Inner component — must live inside SyncProvider to call useSync() via OfflineBanner.
 function AppNavigator() {
@@ -27,9 +29,30 @@ function AppNavigator() {
 }
 
 export default function RootLayout() {
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [checking, setChecking] = useState(true);
+
   useEffect(() => {
-    initDb();
+    Promise.all([
+      fetch(`${getApiUrl()}/platform/maintenance-status`)
+        .then((r) => r.json())
+        .then((data: { mobileAppMaintenance?: boolean }) => {
+          if (data.mobileAppMaintenance) setMaintenanceMode(true);
+        })
+        .catch(() => {}), // fail open
+      initDb(),
+    ]).finally(() => setChecking(false));
   }, []);
+
+  if (checking) return null;
+
+  if (maintenanceMode) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <MaintenanceScreen />
+      </GestureHandlerRootView>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
