@@ -4,6 +4,23 @@ import type { NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+
+  // Maintenance check
+  if (pathname !== '/maintenance') {
+    try {
+      const res = await fetch(`${apiUrl}/platform/maintenance-status`, { cache: 'no-store' })
+      if (res.ok) {
+        const { storePortalMaintenance } = await res.json()
+        if (storePortalMaintenance) {
+          return NextResponse.rewrite(new URL('/maintenance', request.url))
+        }
+      }
+    } catch {
+      // fail open — API unreachable, let request through
+    }
+  }
+
   // Match /<companySlug>/<brandSlug> or /<companySlug>/<brandSlug>/<rest>
   const match = pathname.match(/^\/([a-z0-9-]+)\/([a-z0-9-]+)(\/.*)?$/);
 
@@ -13,8 +30,6 @@ export async function middleware(request: NextRequest) {
   }
 
   const [, companySlug, brandSlug, rest] = match;
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
   try {
     const res = await fetch(
       `${apiUrl}/brands/validate-subdomain?companySlug=${encodeURIComponent(companySlug)}&brandSlug=${encodeURIComponent(brandSlug)}`,
