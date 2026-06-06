@@ -11,6 +11,7 @@ import { BrandsModule } from './brands/brands.module';
 import { StoresModule } from './stores/stores.module';
 import { UsersModule } from './users/users.module';
 import { PlatformModule } from './platform/platform.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { SizesModule } from './sizes/sizes.module';
@@ -43,6 +44,7 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
     StoresModule,
     UsersModule,
     PlatformModule,
+    AnalyticsModule,
 
     // Catalog (brand-scoped)
     CategoriesModule,
