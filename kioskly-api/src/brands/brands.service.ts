@@ -36,13 +36,14 @@ export class BrandsService {
   }
 
   async findAllByCompany(companyId: string) {
-    return this.prisma.brand.findMany({
+    const brands = await this.prisma.brand.findMany({
       where: companyId ? { companyId, tombstone: { not: 1 } } : { tombstone: { not: 1 } },
       include: {
-        _count: { select: { stores: true, products: true, categories: true } },
+        _count: { select: { stores: true, products: true, categories: true, inventoryItems: true } },
       },
       orderBy: { name: 'asc' },
     });
+    return brands.map(b => this.mapBrand(b));
   }
 
   async findOne(id: string, companyId: string | undefined) {
@@ -59,7 +60,17 @@ export class BrandsService {
       },
     });
     if (!brand) throw new NotFoundException(`Brand ${id} not found`);
-    return brand;
+    return this.mapBrand(brand);
+  }
+
+  private mapBrand<T extends { _count?: { stores?: number; products?: number; inventoryItems?: number } }>(brand: T) {
+    const { _count, ...rest } = brand as any;
+    return {
+      ...rest,
+      storeCount: _count?.stores ?? 0,
+      productCount: _count?.products ?? 0,
+      inventoryItemCount: _count?.inventoryItems ?? 0,
+    };
   }
 
   async create(
