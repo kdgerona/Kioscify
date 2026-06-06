@@ -83,21 +83,21 @@ export default function PlatformSettingsPage() {
           <div className="px-6 py-4 space-y-1 divide-y divide-gray-50">
             <MaintenanceToggleRow
               label="Store Portal"
-              description="kioskly-admin web portal"
+              description="Store web portal"
               enabled={maintenance.storePortalMaintenance}
               disabled={togglingKeys.has('storePortalMaintenance')}
               onToggle={() => handleMaintenanceToggle('storePortalMaintenance')}
             />
             <MaintenanceToggleRow
               label="Company Portal"
-              description="kioscify-company web portal"
+              description="Company web portal"
               enabled={maintenance.companyPortalMaintenance}
               disabled={togglingKeys.has('companyPortalMaintenance')}
               onToggle={() => handleMaintenanceToggle('companyPortalMaintenance')}
             />
             <MaintenanceToggleRow
-              label="Mobile App"
-              description="kioskly-app (store staff)"
+              label="Kioscify Mobile App"
+              description="Kioscify Mobile App (store staff)"
               enabled={maintenance.mobileAppMaintenance}
               disabled={togglingKeys.has('mobileAppMaintenance')}
               onToggle={() => handleMaintenanceToggle('mobileAppMaintenance')}

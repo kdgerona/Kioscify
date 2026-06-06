@@ -82,5 +82,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|api|favicon.ico|invalid-subdomain).*)'],
+  matcher: ['/((?!_next|api|favicon\\.ico|logo\\.png|logo-full\\.png|invalid-subdomain).*)'],
 };
