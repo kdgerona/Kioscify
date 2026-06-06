@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Maintenance check — runs first, before any routing logic
+  if (pathname !== '/maintenance') {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+    try {
+      const res = await fetch(`${apiUrl}/platform/maintenance-status`, { cache: 'no-store' });
+      if (res.ok) {
+        const { companyPortalMaintenance } = await res.json();
+        if (companyPortalMaintenance) {
+          return NextResponse.rewrite(new URL('/maintenance', request.url));
+        }
+      }
+    } catch {
+      // fail open — API unreachable, let request through
+    }
+  }
+
   const host = request.headers.get('host') || '';
   const hostname = host.split(':')[0];
 
