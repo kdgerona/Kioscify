@@ -1,12 +1,12 @@
 // kioscify-company/app/(main)/analytics/components/DateRangePicker.tsx
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   startOfDay, endOfDay, subDays,
   startOfWeek, endOfWeek,
   startOfMonth, endOfMonth, subMonths,
   startOfYear, endOfYear,
-  parseISO, differenceInDays, format,
+  parseISO, differenceInDays, format, isValid,
 } from 'date-fns';
 import { Calendar } from 'lucide-react';
 
@@ -60,11 +60,20 @@ const PRESETS: { value: DatePreset; label: string }[] = [
 export function DateRangePicker({ initialPreset = 'this_month', onChange }: Props) {
   const [preset, setPreset] = useState<DatePreset>(initialPreset);
   const [customStart, setCustomStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [customEnd, setCustomEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [customEnd, setCustomEnd] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [customError, setCustomError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialPreset !== 'custom') {
+      const { start, end } = getPresetRange(initialPreset);
+      onChange(start.toISOString(), end.toISOString());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handlePresetChange(value: DatePreset) {
     setPreset(value);
+    setCustomError(null);
     if (value !== 'custom') {
       const { start, end } = getPresetRange(value);
       onChange(start.toISOString(), end.toISOString());
@@ -74,6 +83,10 @@ export function DateRangePicker({ initialPreset = 'this_month', onChange }: Prop
   function handleCustomApply() {
     const start = startOfDay(parseISO(customStart));
     const end = endOfDay(parseISO(customEnd));
+    if (!isValid(start) || !isValid(end)) {
+      setCustomError('Please enter valid start and end dates');
+      return;
+    }
     const diff = differenceInDays(end, start);
     if (diff < 0) {
       setCustomError('Start date must be before end date');
@@ -117,6 +130,7 @@ export function DateRangePicker({ initialPreset = 'this_month', onChange }: Prop
             className="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
           <button
+            type="button"
             onClick={handleCustomApply}
             className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700 transition-colors"
           >
