@@ -154,15 +154,15 @@ export class UsersController {
 
   @Post('stores/:storeId/assign')
   @UseGuards(RolesGuard)
-  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
-  @ApiOperation({ summary: 'Link an existing user to a store (COMPANY_ADMIN / PLATFORM_ADMIN only)' })
+  @Roles('STORE_ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Link an existing user to a store' })
   assignUserToStore(
     @Param('storeId') storeId: string,
     @Body() dto: { username: string; role: 'STORE_ADMIN' | 'CASHIER' },
     @CompanyId() companyId: string,
     @Request() req,
   ) {
-    return this.usersService.assignUserToStore(storeId, dto, companyId, req.user.role);
+    return this.usersService.assignUserToStore(storeId, dto, companyId, req.user.role, req.user.id);
   }
 
   @Delete('stores/:storeId/:userId/access')

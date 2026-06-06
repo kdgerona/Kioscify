@@ -310,6 +310,7 @@ export class UsersService {
     dto: { username: string; role: 'STORE_ADMIN' | 'CASHIER' },
     requestingCompanyId: string,
     requestingRole: string,
+    requestingUserId?: string,
   ) {
     const store = await this.prisma.tenant.findUnique({
       where: { id: storeId },
@@ -317,46 +318,50 @@ export class UsersService {
     });
     if (!store) throw new NotFoundException('Store not found');
 
-    // COMPANY_ADMIN can only manage stores within their company
+    if (requestingRole === 'STORE_ADMIN') {
+      const managedIds = await this.getManagedStoreIds(requestingUserId!);
+      if (!managedIds.includes(storeId)) throw new ForbiddenException('Access denied');
+
+      const user = await this.prisma.user.findFirst({
+        where: { username: dto.username, companyId: store.companyId, isActive: true },
+      });
+      if (!user) throw new NotFoundException(`User "${dto.username}" not found`);
+
+      const inPool = managedIds.includes(user.tenantId ?? '') ||
+        !!(await this.prisma.userStoreAccess.findFirst({
+          where: { userId: user.id, tenantId: { in: managedIds }, isActive: true },
+        }));
+      if (!inPool) throw new ForbiddenException('User not in your managed stores');
+
+      return this.upsertStoreAccess(user.id, storeId, dto.role);
+    }
+
+    // COMPANY_ADMIN / PLATFORM_ADMIN path (unchanged)
     if (requestingRole !== 'PLATFORM_ADMIN' && store.companyId !== requestingCompanyId) {
       throw new ForbiddenException('Access denied');
     }
 
     const user = await this.prisma.user.findFirst({
-      where: {
-        username: dto.username,
-        companyId: store.companyId,
-        isActive: true,
-      },
+      where: { username: dto.username, companyId: store.companyId, isActive: true },
     });
+    if (!user) throw new NotFoundException(`User "${dto.username}" not found in this company`);
 
-    if (!user) {
-      throw new NotFoundException(
-        `User "${dto.username}" not found in this company`,
-      );
-    }
+    return this.upsertStoreAccess(user.id, storeId, dto.role);
+  }
 
-    // Check not already assigned
+  private async upsertStoreAccess(userId: string, storeId: string, role: 'STORE_ADMIN' | 'CASHIER') {
     const existing = await this.prisma.userStoreAccess.findFirst({
-      where: { userId: user.id, tenantId: storeId },
+      where: { userId, tenantId: storeId },
     });
     if (existing) {
-      if (existing.isActive) {
-        throw new ConflictException('User already has access to this store');
-      }
-      // Reactivate if previously deactivated
+      if (existing.isActive) throw new ConflictException('User already has access to this store');
       return this.prisma.userStoreAccess.update({
         where: { id: existing.id },
-        data: { isActive: true, role: dto.role as any },
+        data: { isActive: true, role: role as any },
       });
     }
-
     return this.prisma.userStoreAccess.create({
-      data: {
-        userId: user.id,
-        tenantId: storeId,
-        role: dto.role as any,
-      },
+      data: { userId, tenantId: storeId, role: role as any },
     });
   }
 

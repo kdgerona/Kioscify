@@ -38,7 +38,7 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('getManagedStoreIds', () => {
@@ -159,6 +159,75 @@ describe('UsersService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].username).toBe('bob');
+    });
+  });
+
+  describe('assignUserToStore (STORE_ADMIN path)', () => {
+    it('throws ForbiddenException when target store is not in managed stores', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({ id: 'store-other', companyId: 'co-1' });
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'store-a' });
+      mockPrisma.userStoreAccess.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.assignUserToStore(
+          'store-other',
+          { username: 'bob', role: 'CASHIER' },
+          'co-1',
+          'STORE_ADMIN',
+          'user-1',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws ForbiddenException when target user is not in managed pool', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({ id: 'store-a', companyId: 'co-1' });
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'store-a' });
+      mockPrisma.userStoreAccess.findMany
+        .mockResolvedValueOnce([])  // getManagedStoreIds (UserStoreAccess)
+        .mockResolvedValueOnce([]); // pool check via UserStoreAccess
+
+      mockPrisma.user.findFirst.mockResolvedValue(
+        { id: 'u-bob', username: 'bob', tenantId: 'store-z', isActive: true },
+      );
+
+      await expect(
+        service.assignUserToStore(
+          'store-a',
+          { username: 'bob', role: 'CASHIER' },
+          'co-1',
+          'STORE_ADMIN',
+          'user-1',
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('creates a UserStoreAccess record when all checks pass', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({ id: 'store-a', companyId: 'co-1' });
+      // getManagedStoreIds: user-1 manages store-a (primary) and store-b (via access)
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'store-a' });
+      mockPrisma.userStoreAccess.findMany
+        .mockResolvedValueOnce([{ tenantId: 'store-b' }])  // getManagedStoreIds (UserStoreAccess)
+        .mockResolvedValueOnce([]);                          // pool check (no existing access for bob)
+
+      mockPrisma.user.findFirst.mockResolvedValue(
+        { id: 'u-bob', username: 'bob', tenantId: 'store-b', isActive: true },
+      );
+
+      mockPrisma.userStoreAccess.findFirst.mockResolvedValue(null);
+      mockPrisma.userStoreAccess.create.mockResolvedValue({ id: 'access-1' });
+
+      const result = await service.assignUserToStore(
+        'store-a',
+        { username: 'bob', role: 'CASHIER' },
+        'co-1',
+        'STORE_ADMIN',
+        'user-1',
+      );
+
+      expect(mockPrisma.userStoreAccess.create).toHaveBeenCalledWith({
+        data: { userId: 'u-bob', tenantId: 'store-a', role: 'CASHIER' },
+      });
+      expect(result).toEqual({ id: 'access-1' });
     });
   });
 });
