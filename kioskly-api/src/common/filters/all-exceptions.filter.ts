@@ -26,7 +26,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const message = isHttp
       ? typeof rawResponse === 'string'
         ? rawResponse
-        : (rawResponse as any).message ?? exception.message
+        : (rawResponse as { message?: string | string[] }).message ?? exception.message
       : 'Internal server error';
 
     const logMeta = { statusCode, path: request.url };
