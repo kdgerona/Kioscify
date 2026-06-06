@@ -17,7 +17,7 @@ const SelectTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       "flex h-9 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900",
-      "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent",
+      "outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition",
       "disabled:cursor-not-allowed disabled:opacity-50",
       "[&_[data-placeholder]]:text-gray-400",
       className
@@ -46,8 +46,8 @@ const SelectContent = React.forwardRef<
       )}
       position={position}
       style={{
-        '--select-hover-bg': '#EEF2FF',
-        '--select-hover-text': '#312E81',
+        '--select-hover-bg': '#fff7ed',
+        '--select-hover-text': '#9a3412',
         ...style,
       } as React.CSSProperties}
       {...props}
