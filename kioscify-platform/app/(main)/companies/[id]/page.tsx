@@ -28,6 +28,7 @@ type Tab = 'settings' | 'brands' | 'stores' | 'users';
 
 interface StoreUser extends User {
   tenant: { id: string; name: string; slug: string } | null;
+  storeAccess?: { tenantId: string; role: string; tenant: { id: string; name: string; slug: string } | null }[];
 }
 
 // ─── Modal wrapper ────────────────────────────────────────────────────────
@@ -1017,7 +1018,12 @@ export default function CompanyDetailPage() {
                 </div>
               ) : (
                 stores.map(store => {
-                  const staff = storeUsers.filter(u => u.tenant?.id === store.id);
+                  const staff = storeUsers
+                    .filter(u => u.tenant?.id === store.id || u.storeAccess?.some(a => a.tenantId === store.id))
+                    .map(u => {
+                      const access = u.storeAccess?.find(a => a.tenantId === store.id);
+                      return { ...u, isAssigned: !!access && u.tenant?.id !== store.id, assignedRole: access?.role ?? u.role };
+                    });
                   return (
                     <div key={store.id} className="bg-white rounded-lg border">
                       <div className="px-5 py-4 border-b flex items-center justify-between">
@@ -1045,7 +1051,7 @@ export default function CompanyDetailPage() {
                       ) : (
                         <div className="divide-y">
                           {staff.map(user => (
-                            <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
+                            <UserRow key={`${user.id}-${store.id}`} user={{ ...user, role: user.assignedRole as any }} isAssigned={user.isAssigned} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
                           ))}
                         </div>
                       )}
@@ -1413,32 +1419,44 @@ export default function CompanyDetailPage() {
                         return u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) ||
                           u.firstName?.toLowerCase().includes(q) || u.lastName?.toLowerCase().includes(q);
                       });
-                      return filtered.length > 0 ? (
-                        <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
-                          {filtered.map((u: any) => (
-                            <button
-                              key={u.id}
-                              type="button"
-                              onClick={() => { setSelectedExistingUser(u); setExistingFilter(''); }}
-                              className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left"
-                            >
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
-                                <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
-                                <p className="text-xs text-indigo-500 mt-0.5">
-                                  {(u.allStores ?? []).length > 0
-                                    ? `Manages: ${u.allStores.map((s: any) => s.name).join(', ')}`
-                                    : 'No stores yet'}
-                                </p>
-                              </div>
-                              <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
+                      if (filtered.length === 0) return (
                         <p className="text-xs text-gray-400 text-center py-2">
                           {existingFilter.trim() ? 'No users match your filter' : 'No assignable users available'}
                         </p>
+                      );
+                      const groups = filtered.reduce((acc: Record<string, any[]>, u: any) => {
+                        const brand = u.allStores?.[0]?.brandName ?? 'Uncategorized';
+                        if (!acc[brand]) acc[brand] = [];
+                        acc[brand].push(u);
+                        return acc;
+                      }, {});
+                      const brandKeys = Object.keys(groups).sort((a, b) =>
+                        a === 'Uncategorized' ? 1 : b === 'Uncategorized' ? -1 : a.localeCompare(b)
+                      );
+                      return (
+                        <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
+                          {brandKeys.map(brand => (
+                            <div key={brand}>
+                              <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 sticky top-0">
+                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{brand}</span>
+                              </div>
+                              {groups[brand].map((u: any) => (
+                                <button
+                                  key={u.id}
+                                  type="button"
+                                  onClick={() => { setSelectedExistingUser(u); setExistingFilter(''); }}
+                                  className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left border-b border-gray-100 last:border-0"
+                                >
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
+                                    <p className="text-xs text-gray-400">@{u.username} · {u.allStores?.[0]?.name ?? u.email}</p>
+                                  </div>
+                                  <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
                       );
                     })()}
                   </>
@@ -1566,27 +1584,44 @@ export default function CompanyDetailPage() {
                         return u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) ||
                           u.firstName?.toLowerCase().includes(q) || u.lastName?.toLowerCase().includes(q);
                       });
-                      return filtered.length > 0 ? (
-                        <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
-                          {filtered.map((u: any) => (
-                            <button
-                              key={u.id}
-                              type="button"
-                              onClick={() => { setCashierSelectedUser(u); setCashierFilter(''); }}
-                              className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left"
-                            >
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
-                                <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
-                              </div>
-                              <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
+                      if (filtered.length === 0) return (
                         <p className="text-xs text-gray-400 text-center py-2">
                           {cashierFilter.trim() ? 'No users match your filter' : 'No assignable users available'}
                         </p>
+                      );
+                      const groups = filtered.reduce((acc: Record<string, any[]>, u: any) => {
+                        const brand = u.allStores?.[0]?.brandName ?? 'Uncategorized';
+                        if (!acc[brand]) acc[brand] = [];
+                        acc[brand].push(u);
+                        return acc;
+                      }, {});
+                      const brandKeys = Object.keys(groups).sort((a, b) =>
+                        a === 'Uncategorized' ? 1 : b === 'Uncategorized' ? -1 : a.localeCompare(b)
+                      );
+                      return (
+                        <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
+                          {brandKeys.map(brand => (
+                            <div key={brand}>
+                              <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 sticky top-0">
+                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{brand}</span>
+                              </div>
+                              {groups[brand].map((u: any) => (
+                                <button
+                                  key={u.id}
+                                  type="button"
+                                  onClick={() => { setCashierSelectedUser(u); setCashierFilter(''); }}
+                                  className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left border-b border-gray-100 last:border-0"
+                                >
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
+                                    <p className="text-xs text-gray-400">@{u.username} · {u.allStores?.[0]?.name ?? u.email}</p>
+                                  </div>
+                                  <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
                       );
                     })()}
                   </>
@@ -1631,10 +1666,12 @@ export default function CompanyDetailPage() {
 
 function UserRow({
   user,
+  isAssigned,
   onReset,
   resetting,
 }: {
   user: User;
+  isAssigned?: boolean;
   onReset: (user: User) => void;
   resetting: boolean;
 }) {
@@ -1654,6 +1691,9 @@ function UserRow({
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleBadge[user.role] ?? 'bg-gray-100 text-gray-700'}`}>
             {formatRole(user.role)}
           </span>
+          {isAssigned && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">Assigned</span>
+          )}
         </div>
         <p className="text-xs text-gray-400 mt-0.5">{user.email}</p>
       </div>

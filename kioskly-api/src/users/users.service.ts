@@ -422,10 +422,10 @@ export class UsersService {
         email: true,
         role: true,
         tenantId: true,
-        tenant: { select: { id: true, name: true, slug: true } },
+        tenant: { select: { id: true, name: true, slug: true, brand: { select: { name: true } } } },
         storeAccess: {
           where: { isActive: true },
-          select: { tenantId: true, tenant: { select: { id: true, name: true, slug: true } } },
+          select: { tenantId: true, tenant: { select: { id: true, name: true, slug: true, brand: { select: { name: true } } } } },
         },
       },
       ...(query ? { take: 20 } : {}),
@@ -433,11 +433,11 @@ export class UsersService {
 
     // Build a unified "all stores" list per user: primary tenantId + storeAccess records
     return users.map(u => {
-      const allStores: { id: string; name: string; slug: string }[] = [];
-      if (u.tenant) allStores.push(u.tenant);
+      const allStores: { id: string; name: string; slug: string; brandName?: string }[] = [];
+      if (u.tenant) allStores.push({ id: u.tenant.id, name: u.tenant.name, slug: u.tenant.slug, brandName: u.tenant.brand?.name });
       for (const a of u.storeAccess) {
         if (a.tenant && !allStores.find(s => s.id === a.tenantId)) {
-          allStores.push(a.tenant);
+          allStores.push({ id: a.tenant.id, name: a.tenant.name, slug: a.tenant.slug, brandName: a.tenant.brand?.name });
         }
       }
       return { ...u, allStores };
@@ -473,6 +473,14 @@ export class UsersService {
         select: {
           ...select,
           tenant: { select: { id: true, name: true, slug: true } },
+          storeAccess: {
+            where: { isActive: true },
+            select: {
+              tenantId: true,
+              role: true,
+              tenant: { select: { id: true, name: true, slug: true } },
+            },
+          },
         },
         orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
       }),
