@@ -128,19 +128,21 @@ export function DateRangePicker({ initialPreset = 'this_month', onChange }: Prop
             type="date"
             value={customStart}
             onChange={e => setCustomStart(e.target.value)}
-            className="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 outline-none transition focus:ring-2 focus:border-transparent"
+            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
           />
           <span className="text-gray-400 text-sm">to</span>
           <input
             type="date"
             value={customEnd}
             onChange={e => setCustomEnd(e.target.value)}
-            className="text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 outline-none transition focus:ring-2 focus:border-transparent"
+            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
           />
           <button
             type="button"
             onClick={handleCustomApply}
-            className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700 transition-colors"
+            className="text-sm bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors"
           >
             Apply
           </button>

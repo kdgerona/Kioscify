@@ -31,8 +31,8 @@ export function OverviewCards({ startDate, endDate }: Props) {
       label: 'Total Brands',
       value: data?.totalBrands ?? 0,
       icon: BookOpen,
-      bgClass: 'bg-indigo-50',
-      iconClass: 'text-indigo-600',
+      bgClass: 'bg-orange-50',
+      iconClass: 'text-orange-600',
     },
     {
       label: 'Total Stores',
