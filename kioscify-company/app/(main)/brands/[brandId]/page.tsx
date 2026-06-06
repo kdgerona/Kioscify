@@ -676,7 +676,7 @@ export default function BrandDetailPage() {
                             if (e.key === 'Enter') handleSaveStoreName(store.id);
                             if (e.key === 'Escape') setEditingStoreId(null);
                           }}
-                          className="px-3 py-1.5 border border-orange-400 rounded-md text-sm outline-none focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white w-full max-w-xs"
+                          className="px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white w-full max-w-xs"
                           style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
                         />
                       ) : (
@@ -1275,7 +1275,8 @@ function ProductModal({
                   min="0"
                   step="0.01"
                   placeholder="Same as base price"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                  style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
                 />
               </div>
             )}
@@ -1291,7 +1292,8 @@ function ProductModal({
                   min="0"
                   step="0.01"
                   placeholder="Same as base price"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                  style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
                 />
               </div>
             )}
@@ -1456,7 +1458,8 @@ function SizeModal({
                   type="number" value={foodpandaPrice}
                   onChange={e => setFoodpandaPrice(e.target.value)}
                   min="0" step="0.01" placeholder="Same as base"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                  style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
                 />
               </div>
             )}
@@ -1469,7 +1472,8 @@ function SizeModal({
                   type="number" value={grabPrice}
                   onChange={e => setGrabPrice(e.target.value)}
                   min="0" step="0.01" placeholder="Same as base"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                  style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
                 />
               </div>
             )}
@@ -1566,7 +1570,8 @@ function AddonModal({
                   min="0"
                   step="0.01"
                   placeholder="Same as base price"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                  style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
                 />
               </div>
             )}
@@ -1582,7 +1587,8 @@ function AddonModal({
                   min="0"
                   step="0.01"
                   placeholder="Same as base price"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                  style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
                 />
               </div>
             )}
