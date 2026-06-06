@@ -624,3 +624,11 @@ enum ExpenseCategory {
   MISCELLANEOUS
 }
 
+model PlatformConfig {
+  id                       String  @id @default(auto()) @map("_id") @db.ObjectId
+  key                      String  @unique @default("global")
+  storePortalMaintenance   Boolean @default(false)
+  companyPortalMaintenance Boolean @default(false)
+  mobileAppMaintenance     Boolean @default(false)
+}
+

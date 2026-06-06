@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateMaintenanceStatusDto } from './dto/update-maintenance-status.dto';
 
 @Injectable()
 export class PlatformService {
@@ -55,6 +56,30 @@ export class PlatformService {
       data: companies,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
+  }
+
+  async getMaintenanceStatus() {
+    return this.prisma.platformConfig.upsert({
+      where: { key: 'global' },
+      update: {},
+      create: {
+        storePortalMaintenance: false,
+        companyPortalMaintenance: false,
+        mobileAppMaintenance: false,
+      },
+    });
+  }
+
+  async updateMaintenanceStatus(dto: UpdateMaintenanceStatusDto) {
+    return this.prisma.platformConfig.upsert({
+      where: { key: 'global' },
+      update: dto,
+      create: {
+        storePortalMaintenance: dto.storePortalMaintenance ?? false,
+        companyPortalMaintenance: dto.companyPortalMaintenance ?? false,
+        mobileAppMaintenance: dto.mobileAppMaintenance ?? false,
+      },
+    });
   }
 
   async getActivity() {
