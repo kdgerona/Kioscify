@@ -37,8 +37,8 @@ export class UsersController {
   @UseGuards(RolesGuard)
   @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'List users in a store' })
-  getStoreUsers(@Param('storeId') storeId: string, @TenantId() tenantId: string, @Request() req) {
-    return this.usersService.getStoreUsers(storeId, tenantId, req.user.role);
+  getStoreUsers(@Param('storeId') storeId: string, @Request() req) {
+    return this.usersService.getStoreUsers(storeId, req.user.role, req.user.id);
   }
 
   @Post('stores/:storeId')

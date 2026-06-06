@@ -19,25 +19,45 @@ export class UsersService {
 
   // ─── Store users ──────────────────────────────────────────────────────────
 
-  async getStoreUsers(storeId: string, requestingTenantId: string, requestingRole?: string) {
-    if (requestingRole !== 'PLATFORM_ADMIN' && storeId !== requestingTenantId) {
-      throw new ForbiddenException('Access denied');
+  async getStoreUsers(storeId: string, requestingRole: string, requestingUserId: string) {
+    if (requestingRole !== 'PLATFORM_ADMIN') {
+      const managedIds = await this.getManagedStoreIds(requestingUserId);
+      if (!managedIds.includes(storeId)) throw new ForbiddenException('Access denied');
     }
-    return this.prisma.user.findMany({
-      where: { tenantId: storeId },
-      select: {
-        id: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        role: true,
-        isActive: true,
-        isFirstLogin: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+
+    const userSelect = {
+      id: true, username: true, firstName: true, lastName: true,
+      email: true, role: true, isActive: true, isFirstLogin: true, createdAt: true,
+      tenant: { select: { id: true, name: true, slug: true } },
+    };
+
+    const [primaryUsers, accessRecords] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { tenantId: storeId },
+        select: userSelect,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.userStoreAccess.findMany({
+        where: { tenantId: storeId, isActive: true },
+        include: { user: { select: userSelect } },
+      }),
+    ]);
+
+    const primaryIds = new Set(primaryUsers.map(u => u.id));
+
+    const assignedUsers = accessRecords
+      .filter(a => !primaryIds.has(a.userId))
+      .map(a => ({
+        ...a.user,
+        isAssigned: true as const,
+        assignedRole: a.role,
+        primaryStore: a.user.tenant,
+      }));
+
+    return [
+      ...primaryUsers.map(u => ({ ...u, isAssigned: false as const, assignedRole: undefined, primaryStore: undefined })),
+      ...assignedUsers,
+    ];
   }
 
   async createStoreUser(

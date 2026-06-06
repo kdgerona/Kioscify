@@ -74,4 +74,55 @@ describe('UsersService', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('getStoreUsers', () => {
+    it('throws ForbiddenException when STORE_ADMIN does not manage the store', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'store-x' });
+      mockPrisma.userStoreAccess.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.getStoreUsers('store-other', 'STORE_ADMIN', 'user-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('includes primary users with isAssigned=false', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'store-a' });
+      mockPrisma.userStoreAccess.findMany
+        .mockResolvedValueOnce([])  // getManagedStoreIds call
+        .mockResolvedValueOnce([]);  // assigned-users-in-store call
+
+      mockPrisma.user.findMany.mockResolvedValue([
+        { id: 'u1', username: 'alice', firstName: 'Alice', lastName: 'A', email: 'a@a.com',
+          role: 'CASHIER', isActive: true, isFirstLogin: false, createdAt: new Date(), tenant: null },
+      ]);
+
+      const result = await service.getStoreUsers('store-a', 'STORE_ADMIN', 'user-1');
+
+      expect(result[0].isAssigned).toBe(false);
+      expect(result[0].id).toBe('u1');
+    });
+
+    it('includes assigned users with isAssigned=true and assignedRole from UserStoreAccess', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'store-a' });
+      mockPrisma.userStoreAccess.findMany
+        .mockResolvedValueOnce([{ tenantId: 'store-b' }])  // getManagedStoreIds
+        .mockResolvedValueOnce([  // assigned users in store
+          {
+            userId: 'u2',
+            role: 'STORE_ADMIN',
+            user: { id: 'u2', username: 'bob', firstName: 'Bob', lastName: 'B', email: 'b@b.com',
+                    role: 'CASHIER', isActive: true, isFirstLogin: false, createdAt: new Date(),
+                    tenant: { id: 'store-b', name: 'Store B', slug: 'store-b' } },
+          },
+        ]);
+
+      mockPrisma.user.findMany.mockResolvedValue([]);  // no primary users
+
+      const result = await service.getStoreUsers('store-a', 'STORE_ADMIN', 'user-1');
+
+      expect(result[0].isAssigned).toBe(true);
+      expect(result[0].assignedRole).toBe('STORE_ADMIN');
+      expect(result[0].primaryStore).toEqual({ id: 'store-b', name: 'Store B', slug: 'store-b' });
+    });
+  });
 });
