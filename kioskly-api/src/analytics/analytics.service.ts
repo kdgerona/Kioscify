@@ -20,7 +20,7 @@ export class AnalyticsService {
       by: ['tenantId'],
       where: {
         tenantId: { in: storeIds },
-        voidStatus: { not: 'APPROVED' },
+        voidStatus: { not: 'APPROVED' as const },
         timestamp: { gte: startDate, lte: endDate },
       },
     });
@@ -95,7 +95,7 @@ export class AnalyticsService {
     const transactions = await this.prisma.transaction.findMany({
       where: {
         tenantId: { in: storeIds },
-        voidStatus: { not: 'APPROVED' },
+        voidStatus: { not: 'APPROVED' as const },
         timestamp: { gte: startDate, lte: endDate },
       },
       select: { id: true },
@@ -103,6 +103,8 @@ export class AnalyticsService {
     const txIds = transactions.map(t => t.id);
     if (txIds.length === 0) return [];
 
+    // NOTE: Large txIds arrays (>5000) may slow the $in query on MongoDB.
+    // Acceptable at typical franchise scale. For high-volume brands, aggregate via pipeline.
     const grouped = await this.prisma.transactionItem.groupBy({
       by: ['productId'],
       where: { transactionId: { in: txIds } },
@@ -135,6 +137,8 @@ export class AnalyticsService {
       },
     });
 
+    // TODO: Replace with a single transaction.groupBy aggregation for companies with many stores.
+    // Acceptable at typical franchise scale (<50 stores).
     const results = await Promise.all(
       stores.map(async store => {
         const filter = {
@@ -162,11 +166,11 @@ export class AnalyticsService {
   async getNetworkGrowth(companyId: string, startDate: Date, endDate: Date) {
     const [allBrands, allStores] = await Promise.all([
       this.prisma.brand.findMany({
-        where: { companyId, tombstone: { not: 1 } },
+        where: { companyId, createdAt: { lte: endDate } },
         select: { createdAt: true },
       }),
       this.prisma.tenant.findMany({
-        where: { companyId, tombstone: { not: 1 } },
+        where: { companyId, createdAt: { lte: endDate } },
         select: { createdAt: true },
       }),
     ]);
