@@ -62,7 +62,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto" />
           <p className="mt-4 text-gray-600 text-sm">Loading...</p>
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                   isActive
-                    ? 'bg-indigo-50 text-indigo-700 font-medium'
+                    ? 'bg-orange-50 text-orange-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
