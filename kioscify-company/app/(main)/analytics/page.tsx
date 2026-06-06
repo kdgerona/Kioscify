@@ -1,25 +1,46 @@
 'use client';
-
-import { BarChart2 } from 'lucide-react';
+import { useState } from 'react';
+import { DateRangePicker } from './components/DateRangePicker';
+import { OverviewCards } from './components/OverviewCards';
+import { TopBrandsWidget } from './components/TopBrandsWidget';
+import { TopProductsWidget } from './components/TopProductsWidget';
+import { TopStoresWidget } from './components/TopStoresWidget';
+import { NetworkGrowthChart } from './components/NetworkGrowthChart';
 
 export default function AnalyticsPage() {
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  function handleDateChange(start: string, end: string) {
+    setStartDate(start);
+    setEndDate(end);
+  }
+
   return (
-    <div className="p-6 lg:p-8 space-y-6">
-      <div>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-        <p className="text-sm text-gray-500 mt-1">Cross-brand performance overview</p>
+        <DateRangePicker onChange={handleDateChange} />
       </div>
 
-      <div className="bg-white rounded-lg border p-10 flex flex-col items-center justify-center text-center">
-        <div className="w-14 h-14 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
-          <BarChart2 className="w-7 h-7 text-indigo-600" />
+      {startDate && endDate ? (
+        <>
+          <OverviewCards startDate={startDate} endDate={endDate} />
+
+          <TopBrandsWidget startDate={startDate} endDate={endDate} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TopProductsWidget startDate={startDate} endDate={endDate} />
+            <TopStoresWidget startDate={startDate} endDate={endDate} />
+          </div>
+
+          <NetworkGrowthChart startDate={startDate} endDate={endDate} />
+        </>
+      ) : (
+        <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
+          Select a date range to load analytics
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">Analytics Coming Soon</h2>
-        <p className="text-gray-500 text-sm max-w-sm">
-          Cross-brand analytics will be available here. You will be able to compare store performance
-          across all your brands.
-        </p>
-      </div>
+      )}
     </div>
   );
 }
