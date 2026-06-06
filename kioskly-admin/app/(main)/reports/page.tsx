@@ -627,10 +627,11 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 sm:mb-8">
         {/* Sales Trend */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-1">
             <h2 className="text-xl font-bold text-gray-900">Sales Trend</h2>
             <Calendar className="w-5 h-5 text-gray-400" />
           </div>
+          <p className="text-sm text-gray-500 mb-4">Daily revenue totals over the selected period.</p>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={salesByDay}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -664,12 +665,13 @@ export default function ReportsPage() {
 
         {/* Payment Methods Distribution */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-1">
             <h2 className="text-xl font-bold text-gray-900">
               Payment Methods Distribution
             </h2>
             <TrendingUp className="w-5 h-5 text-gray-400" />
           </div>
+          <p className="text-sm text-gray-500 mb-4">Share of transaction count by payment type.</p>
           {paymentMethodData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
