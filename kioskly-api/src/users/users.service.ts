@@ -400,4 +400,14 @@ export class UsersService {
     if (!user) throw new NotFoundException(`User ${userId} not found in this store`);
     return user;
   }
+
+  private async getManagedStoreIds(userId: string): Promise<string[]> {
+    const [user, accessRecords] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId }, select: { tenantId: true } }),
+      this.prisma.userStoreAccess.findMany({ where: { userId, isActive: true }, select: { tenantId: true } }),
+    ]);
+    const ids = accessRecords.map(r => r.tenantId);
+    if (user?.tenantId) ids.push(user.tenantId);
+    return [...new Set(ids)];
+  }
 }
