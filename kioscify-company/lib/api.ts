@@ -10,6 +10,11 @@ import type {
   InventoryBrandTemplate,
   User,
   CompanyUserCreatePayload,
+  AnalyticsOverview,
+  TopBrandItem,
+  TopProductItem,
+  TopStoreItem,
+  GrowthDataPoint,
 } from '@/types';
 
 const API_BASE_URL =
@@ -424,6 +429,52 @@ class ApiClient {
 
   async revokeStoreAccess(storeId: string, userId: string): Promise<void> {
     await this.client.delete(`/users/stores/${storeId}/${userId}/access`);
+  }
+
+  // ─── Analytics ────────────────────────────────────────────────────────────
+
+  async getAnalyticsOverview(startDate: string, endDate: string): Promise<AnalyticsOverview> {
+    const { data } = await this.client.get<AnalyticsOverview>(
+      '/analytics/company/overview',
+      { params: { startDate, endDate } },
+    );
+    return data;
+  }
+
+  async getTopBrands(startDate: string, endDate: string): Promise<TopBrandItem[]> {
+    const { data } = await this.client.get<TopBrandItem[]>(
+      '/analytics/company/top-brands',
+      { params: { startDate, endDate } },
+    );
+    return data;
+  }
+
+  async getTopProducts(
+    brandId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<TopProductItem[]> {
+    const { data } = await this.client.get<TopProductItem[]>(
+      '/analytics/company/top-products',
+      { params: { brandId, startDate, endDate } },
+    );
+    return data;
+  }
+
+  async getTopStores(startDate: string, endDate: string): Promise<TopStoreItem[]> {
+    const { data } = await this.client.get<TopStoreItem[]>(
+      '/analytics/company/top-stores',
+      { params: { startDate, endDate } },
+    );
+    return data;
+  }
+
+  async getNetworkGrowth(startDate: string, endDate: string): Promise<GrowthDataPoint[]> {
+    const { data } = await this.client.get<GrowthDataPoint[]>(
+      '/analytics/company/growth',
+      { params: { startDate, endDate } },
+    );
+    return data;
   }
 }
 
