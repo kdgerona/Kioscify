@@ -15,6 +15,7 @@ import {
 } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -27,6 +28,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    @InjectPinoLogger(AuthService.name) private readonly logger: PinoLogger,
   ) {}
 
   // ─── Utility ──────────────────────────────────────────────────────────────
@@ -70,7 +72,13 @@ export class AuthService {
       : { slug: dto.storeSlug, isActive: true };
 
     const store = await this.prisma.tenant.findFirst({ where: storeWhere });
-    if (!store) throw new UnauthorizedException('Invalid credentials');
+    if (!store) {
+      this.logger.warn(
+        { storeSlug: dto.storeSlug, reason: 'store_not_found' },
+        'Store login failed',
+      );
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     // Simple lookup — no complex nested includes (Prisma MongoDB can silently return
     // null when include chains are too deep). Tenant data is fetched separately.
@@ -89,10 +97,22 @@ export class AuthService {
       }
     }
 
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) {
+      this.logger.warn(
+        { storeSlug: dto.storeSlug, username: dto.username, reason: 'user_not_found' },
+        'Store login failed',
+      );
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
-    if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
+    if (!passwordMatch) {
+      this.logger.warn(
+        { tenantId: store.id, username: dto.username, reason: 'invalid_password' },
+        'Store login failed',
+      );
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     // Fetch related data needed to build the stores list (kept separate from auth query)
     const storeSelect = {
@@ -143,6 +163,11 @@ export class AuthService {
       companyId: activeStore.companyId,
       mustChangePassword: user.isFirstLogin,
     };
+
+    this.logger.log(
+      { tenantId: activeStore.id, username: user.username, role },
+      'Store login successful',
+    );
 
     return {
       accessToken: this.buildJwt(payload),
@@ -276,6 +301,10 @@ export class AuthService {
     });
 
     if (!company) {
+      this.logger.warn(
+        { companySlug: dto.companySlug, reason: 'company_not_found' },
+        'Company login failed',
+      );
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -289,6 +318,10 @@ export class AuthService {
     });
 
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
+      this.logger.warn(
+        { companySlug: dto.companySlug, username: dto.username, reason: 'invalid_credentials' },
+        'Company login failed',
+      );
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -299,6 +332,11 @@ export class AuthService {
       companyId: user.companyId,
       mustChangePassword: user.isFirstLogin,
     };
+
+    this.logger.log(
+      { companyId: user.companyId, username: user.username, role: user.role },
+      'Company login successful',
+    );
 
     return {
       accessToken: this.buildJwt(payload),
@@ -324,6 +362,10 @@ export class AuthService {
     });
 
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
+      this.logger.warn(
+        { username: dto.username, reason: 'invalid_credentials' },
+        'Platform login failed',
+      );
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -333,6 +375,11 @@ export class AuthService {
       role: user.role,
       mustChangePassword: user.isFirstLogin,
     };
+
+    this.logger.log(
+      { username: user.username, role: user.role },
+      'Platform login successful',
+    );
 
     return {
       accessToken: this.buildJwt(payload),
