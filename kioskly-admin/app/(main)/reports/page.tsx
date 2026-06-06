@@ -704,9 +704,10 @@ export default function ReportsPage() {
 
       {/* Payment Method Breakdown */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-1">
           Sales by Payment Method
         </h2>
+        <p className="text-sm text-gray-500 mb-6">Revenue and transaction count per payment channel. Click any card to filter transactions.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Object.entries(analytics.sales.paymentMethodBreakdown).map(
             ([method, data]) => {
@@ -795,9 +796,10 @@ export default function ReportsPage() {
 
       {/* Top Products Section */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-1">
           Top Selling Products
         </h2>
+        <p className="text-sm text-gray-500 mb-6">Ranked by revenue within the selected period.</p>
         {analytics.topProducts.length > 0 ? (
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             <table className="w-full">
@@ -924,7 +926,8 @@ export default function ReportsPage() {
 
       {/* Expenses Section */}
       <div className="mb-6 sm:mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Expenses</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">Expenses</h2>
+        <p className="text-sm text-gray-500 mb-6">Total outflows logged for the selected period.</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           {/* Total Expenses Card */}
           <button
@@ -965,9 +968,10 @@ export default function ReportsPage() {
 
         {/* Expense Breakdown Chart */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-1">
             Expense Breakdown by Category
           </h3>
+          <p className="text-sm text-gray-500 mb-6">Total spend distributed across expense categories.</p>
           {expenseCategoryData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -1000,9 +1004,10 @@ export default function ReportsPage() {
 
       {/* Daily Sales Bar Chart */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-1">
           Daily Sales & Quantity Overview
         </h2>
+        <p className="text-sm text-gray-500 mb-6">Revenue bars show daily totals; the line tracks number of items sold.</p>
         <ResponsiveContainer width="100%" height={400}>
           <ComposedChart data={salesByDay}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
