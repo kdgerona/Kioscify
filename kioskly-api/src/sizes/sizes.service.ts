@@ -13,16 +13,32 @@ export class SizesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createSizeDto: CreateSizeDto, brandId: string) {
-    const { id: providedId, name, priceModifier, foodpandaPrice, grabPrice, volume } = createSizeDto;
+    const {
+      id: providedId,
+      name,
+      priceModifier,
+      foodpandaPrice,
+      grabPrice,
+      volume,
+    } = createSizeDto;
     const id = providedId || randomUUID();
 
     if (providedId) {
       const existing = await this.prisma.size.findUnique({ where: { id } });
-      if (existing) throw new ConflictException('Size with this ID already exists');
+      if (existing)
+        throw new ConflictException('Size with this ID already exists');
     }
 
     return this.prisma.size.create({
-      data: { id, name, priceModifier, foodpandaPrice, grabPrice, volume, brandId },
+      data: {
+        id,
+        name,
+        priceModifier,
+        foodpandaPrice,
+        grabPrice,
+        volume,
+        brandId,
+      },
     });
   }
 

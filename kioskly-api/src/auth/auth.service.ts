@@ -164,7 +164,7 @@ export class AuthService {
       mustChangePassword: user.isFirstLogin,
     };
 
-    this.logger.log(
+    this.logger.info(
       { tenantId: activeStore.id, username: user.username, role },
       'Store login successful',
     );
@@ -333,7 +333,7 @@ export class AuthService {
       mustChangePassword: user.isFirstLogin,
     };
 
-    this.logger.log(
+    this.logger.info(
       { companyId: user.companyId, username: user.username, role: user.role },
       'Company login successful',
     );
@@ -376,7 +376,7 @@ export class AuthService {
       mustChangePassword: user.isFirstLogin,
     };
 
-    this.logger.log(
+    this.logger.info(
       { username: user.username, role: user.role },
       'Platform login successful',
     );

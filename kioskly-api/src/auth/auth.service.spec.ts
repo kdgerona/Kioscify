@@ -16,7 +16,7 @@ const mockPrisma = {
   company: { findFirst: jest.fn() },
 };
 const mockJwt = { sign: jest.fn().mockReturnValue('mock-token') };
-const mockLogger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 const mockStore = {
   id: 'store-1',
@@ -110,7 +110,7 @@ describe('AuthService — logging', () => {
 
       await service.loginStore({ storeSlug: 'store-1', username: 'john', password: 'correct' });
 
-      expect(mockLogger.log).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         expect.objectContaining({ tenantId: 'store-1', username: 'john', role: 'STORE_ADMIN' }),
         expect.any(String),
       );
@@ -167,7 +167,7 @@ describe('AuthService — logging', () => {
 
       await service.loginCompany({ companySlug: 'acme', username: 'admin', password: 'correct' });
 
-      expect(mockLogger.log).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         expect.objectContaining({ companyId: 'company-1', username: 'admin', role: 'COMPANY_ADMIN' }),
         expect.any(String),
       );
@@ -206,7 +206,7 @@ describe('AuthService — logging', () => {
 
       await service.loginPlatform({ username: 'kevin', password: 'correct' });
 
-      expect(mockLogger.log).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         expect.objectContaining({ username: 'kevin', role: 'PLATFORM_ADMIN' }),
         expect.any(String),
       );
