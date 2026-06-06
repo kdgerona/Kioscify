@@ -70,6 +70,12 @@ export interface PlatformStats {
   monthlyActiveStores: number;
 }
 
+export interface MaintenanceStatus {
+  storePortalMaintenance: boolean;
+  companyPortalMaintenance: boolean;
+  mobileAppMaintenance: boolean;
+}
+
 export interface AuthResponse {
   accessToken: string;
   mustChangePassword?: boolean;

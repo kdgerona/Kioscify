@@ -6,6 +6,7 @@ import type {
   ThemeColors,
   Store,
   PlatformStats,
+  MaintenanceStatus,
   User,
   OnboardAdminPayload,
   OnboardStorePayload,
@@ -113,6 +114,18 @@ class ApiClient {
 
   async getPlatformStats(): Promise<PlatformStats> {
     const { data } = await this.client.get<PlatformStats>('/platform/stats');
+    return data;
+  }
+
+  async getMaintenanceStatus(): Promise<MaintenanceStatus> {
+    const { data } = await this.client.get<MaintenanceStatus>('/platform/maintenance-status');
+    return data;
+  }
+
+  async updateMaintenanceStatus(
+    dto: Partial<MaintenanceStatus>
+  ): Promise<MaintenanceStatus> {
+    const { data } = await this.client.patch<MaintenanceStatus>('/platform/maintenance-status', dto);
     return data;
   }
 
