@@ -27,6 +27,7 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
@@ -47,7 +48,6 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
         };
       },
     }),
-    ConfigModule.forRoot({ isGlobal: true }),
 
     // Global rate limiting — fully configurable via env vars
     // Defaults: 100 req/min globally, 20 login attempts per 15 min
