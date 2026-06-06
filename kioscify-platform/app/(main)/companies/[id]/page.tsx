@@ -1011,53 +1011,68 @@ export default function CompanyDetailPage() {
                 )}
               </div>
 
-              {/* Per-store staff sections */}
+              {/* Per-store staff sections — grouped by brand */}
               {stores.length === 0 ? (
                 <div className="bg-white rounded-lg border py-12 text-center text-sm text-gray-400">
                   No stores yet — onboard a store first to manage its staff
                 </div>
               ) : (
-                stores.map(store => {
-                  const staff = storeUsers
-                    .filter(u => u.tenant?.id === store.id || u.storeAccess?.some(a => a.tenantId === store.id))
-                    .map(u => {
-                      const access = u.storeAccess?.find(a => a.tenantId === store.id);
-                      return { ...u, isAssigned: !!access && u.tenant?.id !== store.id, assignedRole: access?.role ?? u.role };
-                    });
-                  return (
-                    <div key={store.id} className="bg-white rounded-lg border">
-                      <div className="px-5 py-4 border-b flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <StoreIcon className="w-4 h-4 text-indigo-500" />
-                          <h3 className="font-semibold text-gray-900 text-sm">{store.name}</h3>
-                          <span className="text-xs text-gray-400">{store.slug}</span>
-                          <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{staff.length} staff</span>
+                brands
+                  .filter(brand => stores.some(s => s.brandId === brand.id))
+                  .map(brand => {
+                    const brandStores = stores.filter(s => s.brandId === brand.id);
+                    return (
+                      <div key={brand.id}>
+                        <div className="flex items-center gap-2 px-1 py-2 mt-2">
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{brand.name}</span>
+                          <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{brandStores.length} {brandStores.length === 1 ? 'store' : 'stores'}</span>
                         </div>
-                        <button
-                          onClick={() => {
-                            setCashierStoreId(store.id);
-                            setCashierStoreName(store.name);
-                            resetCashierForm();
-                            setShowAddCashier(true);
-                          }}
-                          className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 rounded px-2.5 py-1.5"
-                        >
-                          <UserPlus className="w-3.5 h-3.5" />
-                          Add Staff
-                        </button>
+                        <div className="space-y-3">
+                          {brandStores.map(store => {
+                            const staff = storeUsers
+                              .filter(u => u.tenant?.id === store.id || u.storeAccess?.some(a => a.tenantId === store.id))
+                              .map(u => {
+                                const access = u.storeAccess?.find(a => a.tenantId === store.id);
+                                return { ...u, isAssigned: !!access && u.tenant?.id !== store.id, assignedRole: access?.role ?? u.role };
+                              });
+                            return (
+                              <div key={store.id} className="bg-white rounded-lg border">
+                                <div className="px-5 py-4 border-b flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <StoreIcon className="w-4 h-4 text-indigo-500" />
+                                    <h3 className="font-semibold text-gray-900 text-sm">{store.name}</h3>
+                                    <span className="text-xs text-gray-400">{store.slug}</span>
+                                    <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{staff.length} staff</span>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      setCashierStoreId(store.id);
+                                      setCashierStoreName(store.name);
+                                      resetCashierForm();
+                                      setShowAddCashier(true);
+                                    }}
+                                    className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 rounded px-2.5 py-1.5"
+                                  >
+                                    <UserPlus className="w-3.5 h-3.5" />
+                                    Add Staff
+                                  </button>
+                                </div>
+                                {staff.length === 0 ? (
+                                  <div className="px-5 py-6 text-center text-sm text-gray-400">No staff in this store yet</div>
+                                ) : (
+                                  <div className="divide-y">
+                                    {staff.map(user => (
+                                      <UserRow key={`${user.id}-${store.id}`} user={{ ...user, role: user.assignedRole as any }} isAssigned={user.isAssigned} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      {staff.length === 0 ? (
-                        <div className="px-5 py-6 text-center text-sm text-gray-400">No staff in this store yet</div>
-                      ) : (
-                        <div className="divide-y">
-                          {staff.map(user => (
-                            <UserRow key={`${user.id}-${store.id}`} user={{ ...user, role: user.assignedRole as any }} isAssigned={user.isAssigned} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                    );
+                  })
               )}
             </>
           )}
