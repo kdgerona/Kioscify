@@ -34,7 +34,10 @@ export function TopBrandsWidget({ startDate, endDate }: Props) {
 
   return (
     <div className="bg-white rounded-lg border p-6">
-      <h2 className="font-semibold text-gray-900 mb-4">Top Brands by Revenue</h2>
+      <div className="mb-4">
+        <h2 className="font-semibold text-gray-900">Top Brands by Revenue</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Combined revenue across all stores per brand</p>
+      </div>
       {loading ? (
         <div className="h-48 bg-gray-100 rounded animate-pulse" />
       ) : error ? (
@@ -69,8 +72,7 @@ export function TopBrandsWidget({ startDate, endDate }: Props) {
                 <tr className="text-left text-gray-500 border-b">
                   <th className="pb-2 pr-2">#</th>
                   <th className="pb-2 pr-4">Brand</th>
-                  <th className="pb-2 text-right pr-4">Revenue</th>
-                  <th className="pb-2 text-right pr-2">Txns</th>
+                  <th className="pb-2 text-right pr-2">Total Revenue</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -78,10 +80,7 @@ export function TopBrandsWidget({ startDate, endDate }: Props) {
                   <tr key={brand.brandId} className="hover:bg-gray-50">
                     <td className="py-2 pr-2 text-gray-400">{i + 1}</td>
                     <td className="py-2 pr-4 font-medium text-gray-900">{brand.brandName}</td>
-                    <td className="py-2 pr-4 text-right text-gray-700">{peso(brand.totalRevenue)}</td>
-                    <td className="py-2 pr-2 text-right text-gray-500">
-                      {brand.transactionCount.toLocaleString()}
-                    </td>
+                    <td className="py-2 pr-2 text-right text-gray-700">{peso(brand.totalRevenue)}</td>
                   </tr>
                 ))}
               </tbody>

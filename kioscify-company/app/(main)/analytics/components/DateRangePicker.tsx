@@ -9,6 +9,13 @@ import {
   parseISO, differenceInDays, format, isValid,
 } from 'date-fns';
 import { Calendar } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export type DatePreset =
   | 'today'
@@ -104,15 +111,16 @@ export function DateRangePicker({ initialPreset = 'this_month', onChange }: Prop
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2">
         <Calendar className="w-4 h-4 text-gray-500" />
-        <select
-          value={preset}
-          onChange={e => handlePresetChange(e.target.value as DatePreset)}
-          className="text-sm border border-gray-300 rounded-md px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          {PRESETS.map(p => (
-            <option key={p.value} value={p.value}>{p.label}</option>
-          ))}
-        </select>
+        <Select value={preset} onValueChange={(v) => handlePresetChange(v as DatePreset)}>
+          <SelectTrigger className="w-40 h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PRESETS.map(p => (
+              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       {preset === 'custom' && (
         <div className="flex items-center gap-2 flex-wrap">

@@ -1,7 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { TopStoreItem } from '@/types';
+import type { TopStoreItem, Brand } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   startDate: string;
@@ -13,25 +20,51 @@ function peso(n: number) {
 }
 
 export function TopStoresWidget({ startDate, endDate }: Props) {
-  const [data, setData] = useState<TopStoreItem[]>([]);
+  const [allData, setAllData] = useState<TopStoreItem[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [selectedBrandId, setSelectedBrandId] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getBrands().then(setBrands).catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     api
       .getTopStores(startDate, endDate)
-      .then(setData)
+      .then(setAllData)
       .catch((err: { response?: { data?: { message?: string } } }) =>
         setError(err?.response?.data?.message || 'Failed to load stores'),
       )
       .finally(() => setLoading(false));
   }, [startDate, endDate]);
 
+  const data =
+    selectedBrandId === 'all'
+      ? allData
+      : allData.filter(s => s.brandId === selectedBrandId);
+
   return (
     <div className="bg-white rounded-lg border p-6">
-      <h2 className="font-semibold text-gray-900 mb-4">Top Stores by Revenue</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-gray-900">Top Stores by Revenue</h2>
+        {brands.length > 0 && (
+          <Select value={selectedBrandId} onValueChange={setSelectedBrandId}>
+            <SelectTrigger className="w-36 h-8 text-xs">
+              <SelectValue placeholder="All Brands" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Brands</SelectItem>
+              {brands.map(b => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
       {loading ? (
         <div className="space-y-2">
           {[0, 1, 2, 3, 4].map(i => (

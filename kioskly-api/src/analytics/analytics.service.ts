@@ -133,6 +133,7 @@ export class AnalyticsService {
       select: {
         id: true,
         name: true,
+        brandId: true,
         brand: { select: { name: true } },
       },
     });
@@ -153,6 +154,7 @@ export class AnalyticsService {
         return {
           storeId: store.id,
           storeName: store.name,
+          brandId: store.brandId,
           brandName: store.brand?.name ?? '—',
           totalRevenue: agg._sum.total ?? 0,
           transactionCount,

@@ -2,6 +2,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { TopProductItem, Brand } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   startDate: string;
@@ -49,15 +56,16 @@ export function TopProductsWidget({ startDate, endDate }: Props) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-gray-900">Top Products</h2>
         {!loadingBrands && brands.length > 0 && (
-          <select
-            value={selectedBrandId}
-            onChange={e => setSelectedBrandId(e.target.value)}
-            className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {brands.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
+          <Select value={selectedBrandId} onValueChange={setSelectedBrandId}>
+            <SelectTrigger className="w-36 h-8 text-xs">
+              <SelectValue placeholder="Select brand" />
+            </SelectTrigger>
+            <SelectContent>
+              {brands.map(b => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </div>
       {loading ? (

@@ -173,6 +173,7 @@ export interface TopProductItem {
 export interface TopStoreItem {
   storeId: string;
   storeName: string;
+  brandId: string;
   brandName: string;
   totalRevenue: number;
   transactionCount: number;
