@@ -58,6 +58,19 @@ describe('AuthService — logging', () => {
   });
 
   describe('loginStore', () => {
+    it('logs warn with reason store_not_found when store does not exist', async () => {
+      mockPrisma.tenant.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.loginStore({ storeSlug: 'ghost-store', username: 'john', password: 'x' }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ storeSlug: 'ghost-store', reason: 'store_not_found' }),
+        expect.any(String),
+      );
+    });
+
     it('logs warn with reason user_not_found when user does not exist', async () => {
       mockPrisma.tenant.findFirst.mockResolvedValue(mockStore);
       mockPrisma.user.findFirst.mockResolvedValue(null);
