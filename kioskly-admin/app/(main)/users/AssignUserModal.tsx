@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { X, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Search, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { AssignableUser } from '@/types';
 import {
@@ -21,60 +21,63 @@ interface Props {
 }
 
 export default function AssignUserModal({ isOpen, onClose, storeId, primaryColor, onAssigned }: Props) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<AssignableUser[]>([]);
+  const [allUsers, setAllUsers] = useState<AssignableUser[]>([]);
+  const [filter, setFilter] = useState('');
   const [selectedUser, setSelectedUser] = useState<AssignableUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<'CASHIER' | 'STORE_ADMIN'>('CASHIER');
-  const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Reset state when modal opens/closes
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    setLoadError(false);
+    try {
+      const data = await api.getAssignablePool(storeId);
+      setAllUsers(data);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) {
-      setQuery('');
-      setResults([]);
+      setAllUsers([]);
+      setFilter('');
       setSelectedUser(null);
       setSelectedRole('CASHIER');
-      setError(null);
-    }
-  }, [isOpen]);
-
-  // Debounced search
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim()) {
-      setResults([]);
+      setSubmitError(null);
+      setLoadError(false);
       return;
     }
-    debounceRef.current = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const data = await api.getAssignablePool(storeId, query.trim());
-        setResults(data);
-      } catch {
-        // silently ignore search errors
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, storeId]);
+    loadUsers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  const filteredUsers = allUsers.filter(u => {
+    if (!filter.trim()) return true;
+    const q = filter.toLowerCase();
+    return (
+      u.username.toLowerCase().includes(q) ||
+      (u.firstName ?? '').toLowerCase().includes(q) ||
+      (u.lastName ?? '').toLowerCase().includes(q)
+    );
+  });
 
   const handleConfirm = async () => {
     if (!selectedUser) return;
     setSubmitting(true);
-    setError(null);
+    setSubmitError(null);
     try {
       await api.assignUserToStore(storeId, { username: selectedUser.username, role: selectedRole });
       onAssigned();
       onClose();
     } catch (err: unknown) {
       const apiErr = err as { response?: { data?: { message?: string } } };
-      setError(apiErr?.response?.data?.message || 'Failed to assign user');
+      setSubmitError(apiErr?.response?.data?.message || 'Failed to assign user');
     } finally {
       setSubmitting(false);
     }
@@ -95,13 +98,12 @@ export default function AssignUserModal({ isOpen, onClose, storeId, primaryColor
           </button>
         </div>
 
-        {error && (
+        {submitError && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
+            {submitError}
           </div>
         )}
 
-        {/* Search or selected user */}
         {selectedUser ? (
           <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between">
             <div>
@@ -114,43 +116,67 @@ export default function AssignUserModal({ isOpen, onClose, storeId, primaryColor
           </div>
         ) : (
           <div className="mb-4">
-            <div className="relative">
+            <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name or username..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filter by name or username..."
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={loadingUsers || loadError}
               />
             </div>
-            {loading && <p className="text-xs text-gray-400 mt-2">Searching...</p>}
-            {!loading && results.length > 0 && (
-              <ul className="mt-2 border border-gray-200 rounded-md divide-y divide-gray-100 max-h-48 overflow-y-auto">
-                {results.map((u) => (
-                  <li
-                    key={u.id}
-                    onClick={() => setSelectedUser(u)}
-                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <p className="text-sm font-medium text-gray-900">{displayName(u)}</p>
-                    <p className="text-xs text-gray-500">
-                      <span className="font-mono">{u.username}</span>
-                      {' · '}
-                      {u.brandName && <span>{u.brandName} · </span>}
-                      <span>{u.primaryStore?.name ?? '—'}</span>
-                    </p>
-                  </li>
-                ))}
-              </ul>
+
+            {loadingUsers && (
+              <p className="text-xs text-gray-400 text-center py-4">Loading users...</p>
             )}
-            {!loading && query.trim() && results.length === 0 && (
-              <p className="text-xs text-gray-400 mt-2">No users found in your managed stores.</p>
+
+            {loadError && (
+              <div className="text-center py-4">
+                <p className="text-xs text-red-500 mb-2">Failed to load users</p>
+                <button
+                  onClick={loadUsers}
+                  className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {!loadingUsers && !loadError && (
+              <>
+                {filteredUsers.length > 0 ? (
+                  <ul className="border border-gray-200 rounded-md divide-y divide-gray-100 max-h-52 overflow-y-auto">
+                    {filteredUsers.map((u) => (
+                      <li
+                        key={u.id}
+                        onClick={() => setSelectedUser(u)}
+                        className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <p className="text-sm font-medium text-gray-900">{displayName(u)}</p>
+                        <p className="text-xs text-gray-500">
+                          <span className="font-mono">{u.username}</span>
+                          {' · '}
+                          {u.brandName && <span>{u.brandName} · </span>}
+                          <span>{u.primaryStore?.name ?? '—'}</span>
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-gray-400 text-center py-4">
+                    {filter.trim()
+                      ? 'No users match your filter'
+                      : 'No assignable users available'}
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
 
-        {/* Role picker — only shown when user selected */}
         {selectedUser && (
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-1">Role in this store</label>
