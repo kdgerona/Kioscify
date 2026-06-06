@@ -233,9 +233,9 @@ export class UsersService {
         isActive: true,
         ...(query ? {
           OR: [
-            { username: { contains: query } },
-            { firstName: { contains: query } },
-            { lastName: { contains: query } },
+            { username: { contains: query, mode: 'insensitive' } },
+            { firstName: { contains: query, mode: 'insensitive' } },
+            { lastName: { contains: query, mode: 'insensitive' } },
           ],
         } : {}),
       },
