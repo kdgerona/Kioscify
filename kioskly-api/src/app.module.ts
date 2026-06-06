@@ -35,7 +35,7 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
         return {
           pinoHttp: {
             level: isProduction ? 'info' : 'debug',
-            redact: ['req.headers.authorization', 'req.body.password'],
+            redact: ['req.headers.authorization'],
             ...(isProduction
               ? {}
               : {
