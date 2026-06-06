@@ -41,7 +41,7 @@ function resolveLogoUrl(raw: string | null | undefined): string | null {
 export default function StorePicker() {
   const router = useRouter();
   const { fetchTenantBySlug } = useTenant();
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [switching, setSwitching] = useState<string | null>(null);
 
@@ -213,6 +213,14 @@ export default function StorePicker() {
             );
           })}
         </View>
+
+        {/* Cancel */}
+        <TouchableOpacity
+          style={{ marginTop: 16, paddingVertical: 12, paddingHorizontal: 32, alignItems: "center" }}
+          onPress={async () => { await logout(); router.replace("/"); }}
+        >
+          <Text style={{ fontSize: 14, fontWeight: "500", color: "rgba(255,255,255,0.8)" }}>Cancel</Text>
+        </TouchableOpacity>
 
         {/* Powered by Kioscify */}
         <View

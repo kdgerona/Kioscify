@@ -158,6 +158,7 @@ export class AuthService {
         tenantId: activeStore.id,
         brandId: activeStore.brandId,
         companyId: activeStore.companyId,
+        mustChangePassword: user.isFirstLogin,
       },
     };
   }
@@ -310,6 +311,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         companyId: user.companyId,
+        mustChangePassword: user.isFirstLogin,
       },
     };
   }
@@ -342,6 +344,7 @@ export class AuthService {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        mustChangePassword: user.isFirstLogin,
       },
     };
   }

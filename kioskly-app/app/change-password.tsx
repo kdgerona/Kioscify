@@ -61,7 +61,7 @@ function PasswordField({
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
-  const { changePassword, mustChangePassword } = useAuth();
+  const { changePassword, mustChangePassword, logout } = useAuth();
   const { tenant, brand } = useTenant();
 
   const primaryColor =
@@ -214,6 +214,15 @@ export default function ChangePasswordScreen() {
                     </Text>
                   )}
                 </TouchableOpacity>
+
+                {mustChangePassword && (
+                  <TouchableOpacity
+                    style={{ marginTop: 10, paddingVertical: 12, alignItems: "center", borderRadius: 10 }}
+                    onPress={async () => { await logout(); router.replace("/"); }}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: "500", color: "#6b7280" }}>Cancel</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </View>
