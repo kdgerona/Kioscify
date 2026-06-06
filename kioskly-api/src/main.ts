@@ -7,12 +7,14 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
   app.useLogger(app.get(Logger));
+  app.useGlobalFilters(new AllExceptionsFilter(app.get(Logger)));
 
   // Security headers (helmet must come before CORS)
   // crossOriginResourcePolicy set to cross-origin so logo/image uploads can load
