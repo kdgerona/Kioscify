@@ -248,6 +248,66 @@ describe('UsersService', () => {
     });
   });
 
+  describe('getAssignablePool — no query returns all', () => {
+    it('should not apply take limit when query is empty', async () => {
+      // Requesting user manages storeId as primary store
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'storeId' });
+      mockPrisma.userStoreAccess.findMany
+        .mockResolvedValueOnce([])   // getManagedStoreIds access records
+        .mockResolvedValueOnce([])   // assignedInManaged
+        .mockResolvedValueOnce([]);  // existingAssigned
+
+      mockPrisma.user.findMany
+        .mockResolvedValueOnce([{ id: 'u1' }])  // primaryInManaged
+        .mockResolvedValueOnce([])               // existingPrimary in target store
+        .mockResolvedValueOnce([]);              // final user fetch
+
+      await service.getAssignablePool('storeId', 'requestorId', 'STORE_ADMIN', '');
+
+      // The final findMany (returning actual users) should NOT include take
+      const finalCall = mockPrisma.user.findMany.mock.calls.at(-1)?.[0];
+      expect(finalCall?.take).toBeUndefined();
+    });
+
+    it('should apply take: 20 when query is provided', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'storeId' });
+      mockPrisma.userStoreAccess.findMany
+        .mockResolvedValueOnce([])   // getManagedStoreIds access records
+        .mockResolvedValueOnce([])   // assignedInManaged
+        .mockResolvedValueOnce([]);  // existingAssigned
+
+      mockPrisma.user.findMany
+        .mockResolvedValueOnce([{ id: 'u1' }])  // primaryInManaged
+        .mockResolvedValueOnce([])               // existingPrimary in target store
+        .mockResolvedValueOnce([]);              // final user fetch
+
+      await service.getAssignablePool('storeId', 'requestorId', 'STORE_ADMIN', 'john');
+
+      const finalCall = mockPrisma.user.findMany.mock.calls.at(-1)?.[0];
+      expect(finalCall?.take).toBe(20);
+    });
+  });
+
+  describe('searchUsersInCompany — no query returns all', () => {
+    it('should not apply take limit when query is empty', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([]);
+
+      await service.searchUsersInCompany('companyId', '');
+
+      const call = mockPrisma.user.findMany.mock.calls[0]?.[0];
+      expect(call?.take).toBeUndefined();
+    });
+
+    it('should apply take: 20 when query is provided', async () => {
+      mockPrisma.user.findMany.mockResolvedValue([]);
+
+      await service.searchUsersInCompany('companyId', 'alice');
+
+      const call = mockPrisma.user.findMany.mock.calls[0]?.[0];
+      expect(call?.take).toBe(20);
+    });
+  });
+
   describe('revokeStoreAccess (STORE_ADMIN path)', () => {
     it('throws ForbiddenException when target store is not in managed stores', async () => {
       mockPrisma.tenant.findUnique.mockResolvedValue({ companyId: 'co-1' });

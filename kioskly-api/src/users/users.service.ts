@@ -247,7 +247,7 @@ export class UsersService {
         role: true,
         tenant: { select: { id: true, name: true, slug: true, brand: { select: { name: true } } } },
       },
-      take: 20,
+      ...(query ? { take: 20 } : {}),
     });
 
     return users.map(({ tenant, ...u }) => ({
@@ -428,7 +428,7 @@ export class UsersService {
           select: { tenantId: true, tenant: { select: { id: true, name: true, slug: true } } },
         },
       },
-      take: 20,
+      ...(query ? { take: 20 } : {}),
     });
 
     // Build a unified "all stores" list per user: primary tenantId + storeAccess records
