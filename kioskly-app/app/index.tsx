@@ -66,11 +66,7 @@ export default function Index() {
         router.replace("/change-password" as Href);
         return;
       }
-      const storesRaw = await (
-        await import("@react-native-async-storage/async-storage")
-      ).default.getItem("@kioscify:accessible_stores");
-      const stores = storesRaw ? JSON.parse(storesRaw) : [];
-      if (stores.length > 1) {
+      if (result.stores.length > 1) {
         router.replace("/store-picker" as Href);
         return;
       }

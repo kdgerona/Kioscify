@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
@@ -23,8 +23,8 @@ export default function StorePickerPage() {
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [switching, setSwitching] = useState<string | null>(null);
 
-  useEffect(() => {
-    const raw = typeof window !== 'undefined' ? sessionStorage.getItem('accessible_stores') : null;
+  useLayoutEffect(() => {
+    const raw = sessionStorage.getItem('accessible_stores');
     if (!raw) {
       router.replace('/login');
       return;

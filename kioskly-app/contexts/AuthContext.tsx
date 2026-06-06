@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { safeReactotron } from "../utils/reactotron";
 
@@ -26,7 +26,7 @@ interface AuthContextType {
   error: string | null;
   initializing: boolean;
   mustChangePassword: boolean;
-  login: (username: string, password: string, storeSlug: string) => Promise<{ mustChangePassword: boolean }>;
+  login: (username: string, password: string, storeSlug: string) => Promise<{ mustChangePassword: boolean; stores: any[] }>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   clearError: () => void;
@@ -122,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setToken(data.accessToken);
         setUser(data.user);
         setMustChangePassword(!!data.mustChangePassword);
-        return { mustChangePassword: !!data.mustChangePassword };
+        return { mustChangePassword: !!data.mustChangePassword, stores: data.stores ?? [] };
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "An unexpected error occurred";
