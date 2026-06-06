@@ -89,12 +89,7 @@ export function TopStoresWidget({ startDate, endDate }: Props) {
                   <p className="text-xs text-gray-400">{store.brandName}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-gray-700">{peso(store.totalRevenue)}</p>
-                <p className="text-xs text-gray-400">
-                  {store.transactionCount.toLocaleString()} txns
-                </p>
-              </div>
+              <p className="text-sm font-semibold text-gray-700">{peso(store.totalRevenue)}</p>
             </div>
           ))}
         </div>
