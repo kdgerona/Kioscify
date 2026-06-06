@@ -55,7 +55,7 @@ export class UsersService {
       }));
 
     return [
-      ...primaryUsers.map(u => ({ ...u, isAssigned: false as const, assignedRole: undefined, primaryStore: undefined })),
+      ...primaryUsers.map(({ tenant: _tenant, ...u }) => ({ ...u, isAssigned: false as const, assignedRole: undefined, primaryStore: undefined })),
       ...assignedUsers,
     ];
   }
@@ -180,6 +180,74 @@ export class UsersService {
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getAssignablePool(
+    storeId: string,
+    requestingUserId: string,
+    requestingRole: string,
+    query: string,
+  ) {
+    const managedIds = await this.getManagedStoreIds(requestingUserId);
+
+    if (requestingRole !== 'PLATFORM_ADMIN' && !managedIds.includes(storeId)) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    // Collect all user IDs in the managed pool
+    const [primaryInManaged, assignedInManaged] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { tenantId: { in: managedIds } },
+        select: { id: true },
+      }),
+      this.prisma.userStoreAccess.findMany({
+        where: { tenantId: { in: managedIds }, isActive: true },
+        select: { userId: true },
+      }),
+    ]);
+
+    const poolIds = [...new Set([
+      ...primaryInManaged.map(u => u.id),
+      ...assignedInManaged.map(a => a.userId),
+    ])];
+
+    if (poolIds.length === 0) return [];
+
+    // Collect user IDs already in the target store
+    const [existingPrimary, existingAssigned] = await Promise.all([
+      this.prisma.user.findMany({ where: { tenantId: storeId }, select: { id: true } }),
+      this.prisma.userStoreAccess.findMany({ where: { tenantId: storeId, isActive: true }, select: { userId: true } }),
+    ]);
+    const excludedIds = new Set([
+      ...existingPrimary.map(u => u.id),
+      ...existingAssigned.map(a => a.userId),
+    ]);
+
+    const eligibleIds = poolIds.filter(id => !excludedIds.has(id));
+    if (eligibleIds.length === 0) return [];
+
+    return this.prisma.user.findMany({
+      where: {
+        id: { in: eligibleIds },
+        isActive: true,
+        ...(query ? {
+          OR: [
+            { username: { contains: query } },
+            { firstName: { contains: query } },
+            { lastName: { contains: query } },
+          ],
+        } : {}),
+      },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        tenant: { select: { id: true, name: true, slug: true } },
+      },
+      take: 20,
     });
   }
 

@@ -125,4 +125,40 @@ describe('UsersService', () => {
       expect(result[0].primaryStore).toEqual({ id: 'store-b', name: 'Store B', slug: 'store-b' });
     });
   });
+
+  describe('getAssignablePool', () => {
+    it('throws ForbiddenException when STORE_ADMIN does not manage the target store', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'store-x' });
+      mockPrisma.userStoreAccess.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.getAssignablePool('store-other', 'user-1', 'STORE_ADMIN', ''),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('returns users from managed stores excluding those already in the target store', async () => {
+      // getManagedStoreIds: user-1 manages store-a (primary) and store-b (via access)
+      mockPrisma.user.findUnique.mockResolvedValue({ tenantId: 'store-a' });
+      mockPrisma.userStoreAccess.findMany
+        .mockResolvedValueOnce([{ tenantId: 'store-b' }])  // getManagedStoreIds (userStoreAccess)
+        .mockResolvedValueOnce([])                          // assigned users in managed stores pool
+        .mockResolvedValueOnce([]);                         // existing assigned in target store-a
+
+      // Pool queries
+      mockPrisma.user.findMany
+        .mockResolvedValueOnce([  // primary users in managed stores
+          { id: 'u2' },
+        ])
+        .mockResolvedValueOnce([])  // existing primary users in target store-a (for exclusion)
+        .mockResolvedValueOnce([    // final filtered query
+          { id: 'u2', username: 'bob', firstName: 'Bob', lastName: 'B',
+            role: 'CASHIER', tenant: { id: 'store-b', name: 'Store B', slug: 'store-b' } },
+        ]);
+
+      const result = await service.getAssignablePool('store-a', 'user-1', 'STORE_ADMIN', '');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].username).toBe('bob');
+    });
+  });
 });

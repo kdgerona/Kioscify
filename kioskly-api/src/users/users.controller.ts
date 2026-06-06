@@ -42,6 +42,18 @@ export class UsersController {
     return this.usersService.getStoreUsers(storeId, req.user.role, req.user.id);
   }
 
+  @Get('stores/:storeId/assignable-pool')
+  @UseGuards(RolesGuard)
+  @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Get users assignable to a store (scoped to managed stores)' })
+  getAssignablePool(
+    @Param('storeId') storeId: string,
+    @Query('q') query: string,
+    @Request() req,
+  ) {
+    return this.usersService.getAssignablePool(storeId, req.user.id, req.user.role, query ?? '');
+  }
+
   @Post('stores/:storeId')
   @UseGuards(RolesGuard)
   @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
