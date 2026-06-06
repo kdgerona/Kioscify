@@ -477,6 +477,7 @@ export default function CompanyDetailPage() {
     setCashierFilter('');
     setCashierSelectedUser(null);
     setCashierError(null);
+    setAllAssignableUsers([]);
   };
 
   const resetStoreForm = () => {
@@ -490,6 +491,7 @@ export default function CompanyDetailPage() {
     setExistingFilter('');
     setSelectedExistingUser(null);
     setStoreError(null);
+    setAllAssignableUsers([]);
   };
 
   const handleOnboardStore = async (e: React.FormEvent) => {
