@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { PlatformService } from './platform.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -12,6 +13,7 @@ export class PlatformController {
   constructor(private platformService: PlatformService) {}
 
   @Get('maintenance-status')
+  @SkipThrottle()
   @ApiOperation({ summary: 'Get maintenance status for all portals (public)' })
   getMaintenanceStatus() {
     return this.platformService.getMaintenanceStatus();

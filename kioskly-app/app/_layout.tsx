@@ -33,8 +33,16 @@ export default function RootLayout() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    let apiUrl: string;
+    try {
+      apiUrl = getApiUrl();
+    } catch {
+      // EXPO_PUBLIC_API_URL not set — fail open
+      setChecking(false);
+      return;
+    }
     Promise.all([
-      fetch(`${getApiUrl()}/platform/maintenance-status`)
+      fetch(`${apiUrl}/platform/maintenance-status`)
         .then((r) => r.json())
         .then((data: { mobileAppMaintenance?: boolean }) => {
           if (data.mobileAppMaintenance) setMaintenanceMode(true);
