@@ -234,9 +234,6 @@ export default function CompanyDetailPage() {
   const [cashierError, setCashierError] = useState<string | null>(null);
   const [cashierRole, setCashierRole] = useState<'STORE_ADMIN' | 'CASHIER'>('CASHIER');
   const [cashierMode, setCashierMode] = useState<'new' | 'existing'>('new');
-  const [cashierExistingSearch, setCashierExistingSearch] = useState('');
-  const [cashierExistingResults, setCashierExistingResults] = useState<any[]>([]);
-  const [cashierExistingSearching, setCashierExistingSearching] = useState(false);
   const [cashierSelectedUser, setCashierSelectedUser] = useState<any | null>(null);
 
   // Onboard admin form
@@ -318,10 +315,12 @@ export default function CompanyDetailPage() {
   const [storeAdminLast, setStoreAdminLast] = useState('');
   const [storeAdminEmail, setStoreAdminEmail] = useState('');
   const [storeAdminUsername, setStoreAdminUsername] = useState('');
-  const [existingUserSearch, setExistingUserSearch] = useState('');
-  const [existingUserResults, setExistingUserResults] = useState<any[]>([]);
-  const [existingUserSearching, setExistingUserSearching] = useState(false);
   const [selectedExistingUser, setSelectedExistingUser] = useState<any | null>(null);
+  const [allAssignableUsers, setAllAssignableUsers] = useState<any[]>([]);
+  const [assignableLoading, setAssignableLoading] = useState(false);
+  const [assignableError, setAssignableError] = useState(false);
+  const [existingFilter, setExistingFilter] = useState('');
+  const [cashierFilter, setCashierFilter] = useState('');
   const [storeLoading, setStoreLoading] = useState(false);
   const [storeError, setStoreError] = useState<string | null>(null);
 
@@ -457,14 +456,17 @@ export default function CompanyDetailPage() {
     }
   };
 
-  const handleExistingUserSearch = async () => {
-    if (!existingUserSearch.trim() || !showOnboardStore || showOnboardStore === 'pick') return;
-    setExistingUserSearching(true);
+  const loadAssignableUsers = async () => {
+    if (allAssignableUsers.length > 0) return; // already loaded
+    setAssignableLoading(true);
+    setAssignableError(false);
     try {
-      const results = await api.searchCompanyUsers(companyId, existingUserSearch);
-      setExistingUserResults(results);
-    } catch { /* silent */ } finally {
-      setExistingUserSearching(false);
+      const results = await api.searchCompanyUsers(companyId, '');
+      setAllAssignableUsers(results);
+    } catch {
+      setAssignableError(true);
+    } finally {
+      setAssignableLoading(false);
     }
   };
 
@@ -472,21 +474,9 @@ export default function CompanyDetailPage() {
     setCashierFirstName(''); setCashierLastName(''); setCashierEmail(''); setCashierUsername('');
     setCashierRole('CASHIER');
     setCashierMode('new');
-    setCashierExistingSearch('');
-    setCashierExistingResults([]);
+    setCashierFilter('');
     setCashierSelectedUser(null);
     setCashierError(null);
-  };
-
-  const handleCashierExistingSearch = async () => {
-    if (!cashierExistingSearch.trim()) return;
-    setCashierExistingSearching(true);
-    try {
-      const results = await api.searchCompanyUsers(companyId, cashierExistingSearch);
-      setCashierExistingResults(results);
-    } catch { /* silent */ } finally {
-      setCashierExistingSearching(false);
-    }
   };
 
   const resetStoreForm = () => {
@@ -497,8 +487,7 @@ export default function CompanyDetailPage() {
     setStoreAdminLast('');
     setStoreAdminEmail('');
     setStoreAdminUsername('');
-    setExistingUserSearch('');
-    setExistingUserResults([]);
+    setExistingFilter('');
     setSelectedExistingUser(null);
     setStoreError(null);
   };
@@ -1359,7 +1348,7 @@ export default function CompanyDetailPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setStoreAdminMode('existing')}
+                onClick={() => { setStoreAdminMode('existing'); loadAssignableUsers(); }}
                 className={`flex-1 py-2 font-medium transition ${storeAdminMode === 'existing' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >
                 Assign Existing User
@@ -1398,50 +1387,58 @@ export default function CompanyDetailPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Search by username, email, or name..."
-                        value={existingUserSearch}
-                        onChange={e => setExistingUserSearch(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleExistingUserSearch())}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleExistingUserSearch}
-                        disabled={existingUserSearching}
-                        className="px-3 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {existingUserSearching ? '...' : 'Search'}
-                      </button>
-                    </div>
-                    {existingUserResults.length > 0 && (
-                      <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
-                        {existingUserResults.map((u: any) => (
-                          <button
-                            key={u.id}
-                            type="button"
-                            onClick={() => { setSelectedExistingUser(u); setExistingUserResults([]); setExistingUserSearch(''); }}
-                            className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left"
-                          >
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
-                              <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
-                              <p className="text-xs text-indigo-500 mt-0.5">
-                                {(u.allStores ?? []).length > 0
-                                  ? `Manages: ${u.allStores.map((s: any) => s.name).join(', ')}`
-                                  : 'No stores yet'}
-                              </p>
-                            </div>
-                            <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
-                          </button>
-                        ))}
+                    <input
+                      type="text"
+                      placeholder="Filter by name, username, or email..."
+                      value={existingFilter}
+                      onChange={e => setExistingFilter(e.target.value)}
+                      disabled={assignableLoading || assignableError}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                    />
+                    {assignableLoading && (
+                      <p className="text-xs text-gray-400 text-center py-2">Loading users...</p>
+                    )}
+                    {assignableError && (
+                      <div className="text-center py-2">
+                        <p className="text-xs text-red-500 mb-1">Failed to load users</p>
+                        <button type="button" onClick={loadAssignableUsers} className="text-xs text-indigo-600 hover:underline">Try again</button>
                       </div>
                     )}
-                    {existingUserResults.length === 0 && existingUserSearch && !existingUserSearching && (
-                      <p className="text-xs text-gray-400">No users found for "{existingUserSearch}"</p>
-                    )}
+                    {!assignableLoading && !assignableError && (() => {
+                      const filtered = allAssignableUsers.filter(u => {
+                        if (!existingFilter.trim()) return true;
+                        const q = existingFilter.toLowerCase();
+                        return u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) ||
+                          u.firstName?.toLowerCase().includes(q) || u.lastName?.toLowerCase().includes(q);
+                      });
+                      return filtered.length > 0 ? (
+                        <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                          {filtered.map((u: any) => (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => { setSelectedExistingUser(u); setExistingFilter(''); }}
+                              className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left"
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
+                                <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
+                                <p className="text-xs text-indigo-500 mt-0.5">
+                                  {(u.allStores ?? []).length > 0
+                                    ? `Manages: ${u.allStores.map((s: any) => s.name).join(', ')}`
+                                    : 'No stores yet'}
+                                </p>
+                              </div>
+                              <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 text-center py-2">
+                          {existingFilter.trim() ? 'No users match your filter' : 'No assignable users available'}
+                        </p>
+                      );
+                    })()}
                   </>
                 )}
               </div>
@@ -1507,7 +1504,7 @@ export default function CompanyDetailPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCashierMode('existing')}
+                  onClick={() => { setCashierMode('existing'); loadAssignableUsers(); }}
                   className={`flex-1 py-2 font-medium transition ${cashierMode === 'existing' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 >
                   Assign Existing
@@ -1542,45 +1539,53 @@ export default function CompanyDetailPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Search by username, email, or name..."
-                        value={cashierExistingSearch}
-                        onChange={e => setCashierExistingSearch(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleCashierExistingSearch())}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleCashierExistingSearch}
-                        disabled={cashierExistingSearching}
-                        className="px-3 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        {cashierExistingSearching ? '...' : 'Search'}
-                      </button>
-                    </div>
-                    {cashierExistingResults.length > 0 && (
-                      <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
-                        {cashierExistingResults.map((u: any) => (
-                          <button
-                            key={u.id}
-                            type="button"
-                            onClick={() => { setCashierSelectedUser(u); setCashierExistingResults([]); setCashierExistingSearch(''); }}
-                            className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left"
-                          >
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
-                              <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
-                            </div>
-                            <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
-                          </button>
-                        ))}
+                    <input
+                      type="text"
+                      placeholder="Filter by name, username, or email..."
+                      value={cashierFilter}
+                      onChange={e => setCashierFilter(e.target.value)}
+                      disabled={assignableLoading || assignableError}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                    />
+                    {assignableLoading && (
+                      <p className="text-xs text-gray-400 text-center py-2">Loading users...</p>
+                    )}
+                    {assignableError && (
+                      <div className="text-center py-2">
+                        <p className="text-xs text-red-500 mb-1">Failed to load users</p>
+                        <button type="button" onClick={loadAssignableUsers} className="text-xs text-indigo-600 hover:underline">Try again</button>
                       </div>
                     )}
-                    {cashierExistingResults.length === 0 && cashierExistingSearch && !cashierExistingSearching && (
-                      <p className="text-xs text-gray-400">No users found for "{cashierExistingSearch}"</p>
-                    )}
+                    {!assignableLoading && !assignableError && (() => {
+                      const filtered = allAssignableUsers.filter(u => {
+                        if (!cashierFilter.trim()) return true;
+                        const q = cashierFilter.toLowerCase();
+                        return u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) ||
+                          u.firstName?.toLowerCase().includes(q) || u.lastName?.toLowerCase().includes(q);
+                      });
+                      return filtered.length > 0 ? (
+                        <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                          {filtered.map((u: any) => (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => { setCashierSelectedUser(u); setCashierFilter(''); }}
+                              className="w-full flex items-start justify-between px-4 py-3 hover:bg-gray-50 text-left"
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
+                                <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
+                              </div>
+                              <span className="text-xs text-indigo-600 font-medium ml-3 shrink-0 mt-0.5">Select</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 text-center py-2">
+                          {cashierFilter.trim() ? 'No users match your filter' : 'No assignable users available'}
+                        </p>
+                      );
+                    })()}
                   </>
                 )}
               </div>
