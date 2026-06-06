@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -26,6 +27,26 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
 
 @Module({
   imports: [
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const isProduction = config.get<string>('NODE_ENV') === 'production';
+        return {
+          pinoHttp: {
+            level: isProduction ? 'info' : 'debug',
+            redact: ['req.headers.authorization', 'req.body.password'],
+            ...(isProduction
+              ? {}
+              : {
+                  transport: {
+                    target: 'pino-pretty',
+                    options: { colorize: true, singleLine: true },
+                  },
+                }),
+          },
+        };
+      },
+    }),
     ConfigModule.forRoot({ isGlobal: true }),
 
     // Global rate limiting — fully configurable via env vars

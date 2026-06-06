@@ -6,9 +6,13 @@ import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import helmet from 'helmet';
+import { Logger } from 'nestjs-pino';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(Logger));
 
   // Security headers (helmet must come before CORS)
   // crossOriginResourcePolicy set to cross-origin so logo/image uploads can load
@@ -92,9 +96,10 @@ async function bootstrap() {
   SwaggerModule.setup(`${globalPrefix}/docs`, app, document);
 
   const port = process.env.PORT ?? 3000;
+  const logger = app.get(Logger);
   await app.listen(port);
-  console.log(`\n🚀 Kioscify API running on: http://localhost:${port}`);
-  console.log(`📚 Swagger docs: http://localhost:${port}/${globalPrefix}/docs\n`);
+  logger.log(`🚀 Kioscify API running on: http://localhost:${port}`);
+  logger.log(`📚 Swagger docs: http://localhost:${port}/${globalPrefix}/docs`);
 }
 
 void bootstrap();
