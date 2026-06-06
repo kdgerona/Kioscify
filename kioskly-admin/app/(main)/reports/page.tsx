@@ -631,7 +631,7 @@ export default function ReportsPage() {
             <h2 className="text-xl font-bold text-gray-900">Sales Trend</h2>
             <Calendar className="w-5 h-5 text-gray-400" />
           </div>
-          <p className="text-sm text-gray-500 mb-4">Daily revenue totals over the selected period.</p>
+          <p className="text-sm text-gray-500 mb-6">Daily revenue totals over the selected period.</p>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={salesByDay}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -671,7 +671,7 @@ export default function ReportsPage() {
             </h2>
             <TrendingUp className="w-5 h-5 text-gray-400" />
           </div>
-          <p className="text-sm text-gray-500 mb-4">Share of transaction count by payment type.</p>
+          <p className="text-sm text-gray-500 mb-6">Share of transaction count by payment type.</p>
           {paymentMethodData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
