@@ -342,6 +342,7 @@ model Transaction {
 
   @@unique([tenantId, transactionId])
   @@unique([tenantId, clientId])  // offline deduplication
+  @@index([tenantId, createdAt])
   @@map("transactions")
 }
 
@@ -359,6 +360,7 @@ model TransactionItem {
   size        Size?                 @relation(fields: [sizeId], references: [id], onDelete: Restrict)
   addons      TransactionItemAddon[]
 
+  @@index([transactionId])
   @@map("transaction_items")
 }
 
@@ -408,6 +410,7 @@ model Expense {
   voidReviewer  User?  @relation("ExpenseVoidReviews", fields: [voidReviewedBy], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, clientId])  // offline deduplication
+  @@index([tenantId, createdAt])
   @@map("expenses")
 }
 
