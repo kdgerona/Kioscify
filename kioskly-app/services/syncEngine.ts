@@ -171,19 +171,25 @@ export async function syncAll(
   try {
     const db = await getDb();
 
-    // Reset items that failed with HTTP 400 — these were likely caused by
-    // display-only fields (productName, sizeName, addonName) in the payload
-    // that the server rejects. The sync loop now strips those fields, so
-    // resetting retries to 0 gives them a clean retry.
+    // Reset items that failed with HTTP 400 — previously caused by display-only
+    // fields; sync loop now strips them, so giving a clean retry.
     await db.runAsync(
       `UPDATE sync_queue SET status = 'pending', retries = 0, error_message = NULL
        WHERE status = 'failed' AND error_message = 'HTTP 400'`,
     );
 
-    // Reset other previously-failed items that haven't hit the retry ceiling.
+    // Reset other failed items that haven't hit the retry ceiling.
     await db.runAsync(
       `UPDATE sync_queue SET status = 'pending', error_message = NULL
        WHERE status = 'failed' AND retries < ? AND error_message != 'HTTP 400'`,
+      MAX_RETRIES,
+    );
+
+    // Recover items stuck in pending-zombie state (retries >= MAX_RETRIES but
+    // status never flipped to failed — legacy 429 accumulation).
+    await db.runAsync(
+      `UPDATE sync_queue SET status = 'failed', error_message = 'retry limit exceeded'
+       WHERE status = 'pending' AND retries >= ?`,
       MAX_RETRIES,
     );
 
@@ -192,8 +198,13 @@ export async function syncAll(
       MAX_RETRIES,
     );
 
+    let rateLimited = false;
+
     for (const row of rows) {
-      // Mark as syncing
+      // If this sync run was rate-limited, skip remaining items — they stay
+      // pending and will retry on the next sync trigger.
+      if (rateLimited) break;
+
       await db.runAsync(
         `UPDATE sync_queue SET status = 'syncing' WHERE client_id = ?`,
         row.client_id,
@@ -203,9 +214,6 @@ export async function syncAll(
       try {
         let body = row.method !== "DELETE" ? row.payload : undefined;
 
-        // Strip display-only fields from transaction items before sending to the
-        // server. productName/sizeName/addonName are stored in the queue for local
-        // display but the server DTO rejects unknown fields (forbidNonWhitelisted).
         if (row.type === "transaction" && body) {
           const parsed = JSON.parse(body) as Record<string, unknown>;
           if (Array.isArray(parsed.items)) {
@@ -221,9 +229,6 @@ export async function syncAll(
           }
         }
 
-        // For submitted reports queued offline, resolve any pending transaction/
-        // expense clientIds to their real server IDs. Transactions are ordered
-        // before the report in the queue, so they should be synced by now.
         if (row.type === "submitted_report" && body) {
           const parsed = JSON.parse(body) as Record<string, unknown>;
           let dirty = false;
@@ -263,7 +268,6 @@ export async function syncAll(
           );
           synced++;
         } else if (response.status === 409) {
-          // Already synced on server — mark done
           const data = await response.json().catch(() => ({}));
           await db.runAsync(
             `UPDATE sync_queue
@@ -274,8 +278,19 @@ export async function syncAll(
             row.client_id,
           );
           synced++;
-        } else if (response.status === 429 || response.status >= 500) {
-          // Retriable error — back to pending
+        } else if (response.status === 429) {
+          // Rate limited — reset to pending WITHOUT consuming retry budget.
+          // Abort the rest of this sync run; next trigger will retry.
+          await db.runAsync(
+            `UPDATE sync_queue
+             SET status = 'pending', error_message = 'HTTP 429'
+             WHERE client_id = ?`,
+            row.client_id,
+          );
+          rateLimited = true;
+          failed++;
+        } else if (response.status >= 500) {
+          // Transient server error — reset to pending, increment retries.
           await db.runAsync(
             `UPDATE sync_queue
              SET status = 'pending', retries = retries + 1, error_message = ?
@@ -285,9 +300,8 @@ export async function syncAll(
           );
           failed++;
         } else {
-          // Other 4xx — retry up to MAX_RETRIES, then permanently fail.
-          // Treating as retriable handles server-side bugs that may be fixed
-          // before the next sync attempt (e.g., missing DTO field).
+          // 4xx (non-409, non-429) — logic/validation error. Retry up to
+          // MAX_RETRIES, then permanently fail so user can see it.
           const newRetries = row.retries + 1;
           await db.runAsync(
             `UPDATE sync_queue
@@ -301,13 +315,14 @@ export async function syncAll(
           failed++;
         }
       } catch {
-        // Network error — retry later with backoff via retries counter
+        // Network error — reset to pending, increment retries.
         await db.runAsync(
           `UPDATE sync_queue
            SET status = 'pending', retries = retries + 1
            WHERE client_id = ?`,
           row.client_id,
         );
+        failed++;
       }
 
       await notifyListeners();
@@ -326,4 +341,21 @@ export async function pruneQueue(): Promise<void> {
     `DELETE FROM sync_queue WHERE status = 'synced' AND synced_at < ?`,
     sevenDaysAgo,
   );
+}
+
+export async function getFailedCount(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM sync_queue WHERE status = 'failed'`,
+  );
+  return row?.count ?? 0;
+}
+
+export async function resetFailedItems(): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE sync_queue SET status = 'pending', retries = 0, error_message = NULL
+     WHERE status = 'failed'`,
+  );
+  await notifyListeners();
 }
