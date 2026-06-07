@@ -229,6 +229,9 @@ export async function syncAll(
           }
         }
 
+        // For submitted reports queued offline, resolve any pending transaction/
+        // expense clientIds to their real server IDs. Transactions are ordered
+        // before the report in the queue, so they should be synced by now.
         if (row.type === "submitted_report" && body) {
           const parsed = JSON.parse(body) as Record<string, unknown>;
           let dirty = false;
@@ -281,6 +284,7 @@ export async function syncAll(
         } else if (response.status === 429) {
           // Rate limited — reset to pending WITHOUT consuming retry budget.
           // Abort the rest of this sync run; next trigger will retry.
+          // This is a healthy item, not a failure, so we don't increment failed.
           await db.runAsync(
             `UPDATE sync_queue
              SET status = 'pending', error_message = 'HTTP 429'
@@ -288,7 +292,6 @@ export async function syncAll(
             row.client_id,
           );
           rateLimited = true;
-          failed++;
         } else if (response.status >= 500) {
           // Transient server error — reset to pending, increment retries.
           await db.runAsync(
@@ -353,9 +356,16 @@ export async function getFailedCount(): Promise<number> {
 
 export async function resetFailedItems(): Promise<void> {
   const db = await getDb();
+  // HTTP 400 items get a clean slate (retries = 0) — display-field stripping fixed these
   await db.runAsync(
     `UPDATE sync_queue SET status = 'pending', retries = 0, error_message = NULL
-     WHERE status = 'failed'`,
+     WHERE status = 'failed' AND error_message = 'HTTP 400'`,
+  );
+  // Other failed items only reset if they haven't hit the retry ceiling
+  await db.runAsync(
+    `UPDATE sync_queue SET status = 'pending', error_message = NULL
+     WHERE status = 'failed' AND retries < ? AND error_message != 'HTTP 400'`,
+    MAX_RETRIES,
   );
   await notifyListeners();
 }
