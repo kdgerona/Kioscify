@@ -14,6 +14,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { SubmittedReportsService } from './submitted-reports.service';
 import { CreateSubmittedReportDto } from './dto/create-submitted-report.dto';
 import { SubmittedReportFiltersDto } from './dto/submitted-report-filters.dto';
@@ -28,6 +29,7 @@ export class SubmittedReportsController {
     private readonly submittedReportsService: SubmittedReportsService,
   ) {}
 
+  @SkipThrottle()
   @Post()
   @ApiOperation({ summary: 'Submit a daily report' })
   @ApiResponse({ status: 201, description: 'Report submitted successfully' })
