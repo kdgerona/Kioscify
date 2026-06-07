@@ -65,7 +65,6 @@ services:
       MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-kioskly}
       MONGO_REPLICA_HOST: mongo
       MONGO_REPLICA_PORT: 27017
-    command: mongod --auth --replSet rs0 --bind_ip_all --quiet
     volumes:
       - mongo-data:/data/db
       - mongo-config:/data/configdb

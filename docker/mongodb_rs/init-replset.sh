@@ -1,12 +1,11 @@
 #!/bin/bash
 set -e
 
-# Start mongod WITHOUT auth first so we can initialize replica set and create root user
 mongod --port "$MONGO_REPLICA_PORT" --replSet rs0 --bind_ip 0.0.0.0 &
 MONGOD_PID=$!
 
 echo "Waiting for mongod to be ready..."
-until mongosh --port "$MONGO_REPLICA_PORT" --eval "db.adminCommand('ping')" --quiet; do
+until mongosh --port "$MONGO_REPLICA_PORT" --eval "db.adminCommand('ping')" --quiet 2>/dev/null; do
   sleep 1
 done
 
@@ -22,10 +21,10 @@ mongosh admin --port "$MONGO_REPLICA_PORT" --eval "
       throw e;
     }
   }
-"
+" --quiet
 
 echo "Waiting for primary election..."
-until mongosh admin --port "$MONGO_REPLICA_PORT" --eval "rs.isMaster().ismaster" --quiet | grep -q "true"; do
+until mongosh admin --port "$MONGO_REPLICA_PORT" --eval "rs.isMaster().ismaster" --quiet 2>/dev/null | grep -q "true"; do
   sleep 1
 done
 
@@ -41,11 +40,7 @@ mongosh admin --port "$MONGO_REPLICA_PORT" --eval "
   } else {
     print('Root user already exists.');
   }
-"
-
-echo "Restarting mongod with auth enabled..."
-kill "$MONGOD_PID"
-wait "$MONGOD_PID" 2>/dev/null || true
+" --quiet
 
 echo "REPLICA SET ONLINE"
-exec mongod --port "$MONGO_REPLICA_PORT" --replSet rs0 --bind_ip 0.0.0.0 --auth
+wait "$MONGOD_PID"
