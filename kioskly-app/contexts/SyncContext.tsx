@@ -2,13 +2,22 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { AppState, AppStateStatus } from "react-native";
 import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import { useAuth } from "./AuthContext";
-import { syncAll, getPendingCount, pruneQueue, onQueueChange } from "../services/syncEngine";
+import {
+  syncAll,
+  getPendingCount,
+  getFailedCount,
+  resetFailedItems,
+  pruneQueue,
+  onQueueChange,
+} from "../services/syncEngine";
 
 interface SyncContextType {
   pendingCount: number;
+  failedCount: number;
   isOnline: boolean;
   isSyncing: boolean;
   triggerSync: () => Promise<void>;
+  retryFailed: () => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -16,32 +25,35 @@ const SyncContext = createContext<SyncContextType | undefined>(undefined);
 export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useAuth();
   const [pendingCount, setPendingCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const appState = useRef(AppState.currentState);
   const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
 
-  // Load initial pending count and subscribe to queue changes
-  useEffect(() => {
-    getPendingCount().then(setPendingCount);
-    return onQueueChange(setPendingCount);
+  const refreshCounts = useCallback(async () => {
+    const [pending, failed] = await Promise.all([getPendingCount(), getFailedCount()]);
+    setPendingCount(pending);
+    setFailedCount(failed);
   }, []);
+
+  useEffect(() => {
+    refreshCounts();
+    return onQueueChange(() => refreshCounts());
+  }, [refreshCounts]);
 
   // Holds the in-flight sync promise so multiple callers can await the same run.
   const syncPromiseRef = useRef<Promise<void> | null>(null);
 
   const triggerSync = useCallback(async (): Promise<void> => {
     if (!token) return;
-    // If a sync is already running, return the same promise so the caller can
-    // await its completion instead of starting (and losing) a second run.
     if (syncPromiseRef.current) return syncPromiseRef.current;
     const promise = (async () => {
       setIsSyncing(true);
       try {
         await syncAll(token, apiUrl);
         await pruneQueue();
-        const count = await getPendingCount();
-        setPendingCount(count);
+        await refreshCounts();
       } finally {
         setIsSyncing(false);
         syncPromiseRef.current = null;
@@ -49,7 +61,12 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })();
     syncPromiseRef.current = promise;
     return promise;
-  }, [token, apiUrl]);
+  }, [token, apiUrl, refreshCounts]);
+
+  const retryFailed = useCallback(async (): Promise<void> => {
+    await resetFailedItems();
+    await triggerSync();
+  }, [triggerSync]);
 
   // System-level connectivity detection via netinfo
   useEffect(() => {
@@ -80,7 +97,7 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <SyncContext.Provider value={{ pendingCount, isOnline, isSyncing, triggerSync }}>
+    <SyncContext.Provider value={{ pendingCount, failedCount, isOnline, isSyncing, triggerSync, retryFailed }}>
       {children}
     </SyncContext.Provider>
   );
