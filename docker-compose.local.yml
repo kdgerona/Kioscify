@@ -77,7 +77,7 @@ services:
     networks:
       - kioscify-local
     healthcheck:
-      test: ["CMD-SHELL", "mongo --quiet --eval \"db.adminCommand('ping')\" || mongo admin -u root -p s3cr3t --quiet --eval \"db.adminCommand('ping')\""]
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping')\" || mongosh admin -u root -p s3cr3t --quiet --eval \"db.adminCommand('ping')\""]
       interval: 15s
       timeout: 10s
       retries: 5
