@@ -356,15 +356,21 @@ export async function getFailedCount(): Promise<number> {
 
 export async function resetFailedItems(): Promise<void> {
   const db = await getDb();
-  // HTTP 400 items get a clean slate (retries = 0) — display-field stripping fixed these
+  // HTTP 400 items get a clean slate (display-field stripping fixed these)
   await db.runAsync(
     `UPDATE sync_queue SET status = 'pending', retries = 0, error_message = NULL
      WHERE status = 'failed' AND error_message = 'HTTP 400'`,
   );
-  // Other failed items only reset if they haven't hit the retry ceiling
+  // Other failed items below the ceiling reset normally
   await db.runAsync(
     `UPDATE sync_queue SET status = 'pending', error_message = NULL
      WHERE status = 'failed' AND retries < ? AND error_message != 'HTTP 400'`,
+    MAX_RETRIES,
+  );
+  // Non-400 items at the ceiling get a clean slate too — user explicitly requested retry
+  await db.runAsync(
+    `UPDATE sync_queue SET status = 'pending', retries = 0, error_message = NULL
+     WHERE status = 'failed' AND retries >= ? AND error_message != 'HTTP 400'`,
     MAX_RETRIES,
   );
   await notifyListeners();

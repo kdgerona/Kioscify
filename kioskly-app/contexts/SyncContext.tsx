@@ -31,8 +31,12 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const appState = useRef(AppState.currentState);
   const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
 
+  const refreshCounterRef = useRef(0);
+
   const refreshCounts = useCallback(async () => {
+    const gen = ++refreshCounterRef.current;
     const [pending, failed] = await Promise.all([getPendingCount(), getFailedCount()]);
+    if (gen !== refreshCounterRef.current) return;
     setPendingCount(pending);
     setFailedCount(failed);
   }, []);
@@ -64,6 +68,7 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token, apiUrl, refreshCounts]);
 
   const retryFailed = useCallback(async (): Promise<void> => {
+    if (syncPromiseRef.current) await syncPromiseRef.current;
     await resetFailedItems();
     await triggerSync();
   }, [triggerSync]);

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSync } from "../contexts/SyncContext";
 
 export default function OfflineBanner() {
-  const { isOnline, pendingCount, failedCount, retryFailed } = useSync();
+  const { isOnline, pendingCount, failedCount, retryFailed, isSyncing } = useSync();
   const insets = useSafeAreaInsets();
 
   if (!isOnline) {
@@ -36,8 +36,10 @@ export default function OfflineBanner() {
             {failedCount} {failedCount === 1 ? "record" : "records"} failed to sync
           </Text>
         </View>
-        <TouchableOpacity onPress={retryFailed} className="px-2 py-1">
-          <Text className="text-red-200 text-xs font-semibold underline">Retry</Text>
+        <TouchableOpacity onPress={retryFailed} disabled={isSyncing} className={`px-2 py-1 ${isSyncing ? "opacity-50" : ""}`}>
+          <Text className="text-red-200 text-xs font-semibold underline">
+            {isSyncing ? "Retrying…" : "Retry"}
+          </Text>
         </TouchableOpacity>
       </View>
     );
