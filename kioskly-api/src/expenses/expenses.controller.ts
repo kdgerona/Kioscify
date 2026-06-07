@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto, ExpenseCategory } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
@@ -35,6 +36,7 @@ import { TenantId } from '../common/decorators/tenant.decorator';
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 
+  @SkipThrottle()
   @Post()
   @ApiOperation({ summary: 'Create a new expense' })
   @ApiResponse({ status: 201, description: 'Expense created successfully' })

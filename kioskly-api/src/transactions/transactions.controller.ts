@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
@@ -34,6 +35,7 @@ import { TenantId } from '../common/decorators/tenant.decorator';
 export class TransactionsController {
   constructor(private transactionsService: TransactionsService) {}
 
+  @SkipThrottle()
   @Post()
   @ApiOperation({ summary: 'Create a new transaction' })
   @ApiResponse({ status: 201, description: 'Transaction created successfully' })

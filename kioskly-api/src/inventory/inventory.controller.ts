@@ -18,6 +18,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
@@ -159,6 +160,7 @@ export class InventoryController {
   }
 
   // Inventory Records Endpoints
+  @SkipThrottle()
   @Post('records')
   @ApiOperation({ summary: 'Record a single inventory count' })
   @ApiResponse({
@@ -178,6 +180,7 @@ export class InventoryController {
     );
   }
 
+  @SkipThrottle()
   @Post('records/bulk')
   @ApiOperation({ summary: 'Record multiple inventory counts at once' })
   @ApiResponse({
