@@ -7,12 +7,14 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -20,72 +22,77 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { TenantId } from '../common/decorators/tenant.decorator';
+import { BrandId, TenantId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('categories')
 @Controller('categories')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class CategoriesController {
   constructor(private categoriesService: CategoriesService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new category (admin only)' })
-  @ApiResponse({ status: 201, description: 'Category created successfully' })
-  @ApiResponse({ status: 409, description: 'Category already exists' })
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Create a category (brand-scoped, COMPANY_ADMIN only)' })
+  @ApiResponse({ status: 201, description: 'Category created' })
+  @ApiQuery({ name: 'brandId', required: false })
   create(
-    @Body() createCategoryDto: CreateCategoryDto,
-    @TenantId() tenantId: string,
+    @Body() dto: CreateCategoryDto,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
   ) {
-    return this.categoriesService.create(createCategoryDto, tenantId);
+    return this.categoriesService.create(dto, queryBrandId || jwtBrandId);
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all categories' })
-  @ApiResponse({
-    status: 200,
-    description: 'Categories retrieved successfully',
-  })
-  findAll(@TenantId() tenantId: string) {
-    return this.categoriesService.findAll(tenantId);
+  @ApiOperation({ summary: 'Get all categories for the brand' })
+  @ApiQuery({ name: 'brandId', required: false })
+  @ApiQuery({ name: 'type', required: false, enum: ['PRODUCT', 'INVENTORY'] })
+  findAll(
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+    @TenantId() tenantId: string,
+    @Query('type') type?: 'PRODUCT' | 'INVENTORY',
+  ) {
+    return this.categoriesService.findAll(queryBrandId || jwtBrandId, type);
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get a single category by ID' })
-  @ApiResponse({ status: 200, description: 'Category retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Category not found' })
-  findOne(@Param('id') id: string, @TenantId() tenantId: string) {
-    return this.categoriesService.findOne(id, tenantId);
+  @ApiOperation({ summary: 'Get a category by ID' })
+  @ApiQuery({ name: 'brandId', required: false })
+  findOne(
+    @Param('id') id: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.categoriesService.findOne(id, queryBrandId || jwtBrandId);
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update a category (admin only)' })
-  @ApiResponse({ status: 200, description: 'Category updated successfully' })
-  @ApiResponse({ status: 404, description: 'Category not found' })
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Update a category (COMPANY_ADMIN only)' })
+  @ApiQuery({ name: 'brandId', required: false })
   update(
     @Param('id') id: string,
-    @Body() updateCategoryDto: UpdateCategoryDto,
-    @TenantId() tenantId: string,
+    @Body() dto: UpdateCategoryDto,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
   ) {
-    return this.categoriesService.update(id, updateCategoryDto, tenantId);
+    return this.categoriesService.update(id, dto, queryBrandId || jwtBrandId);
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a category (admin only)' })
-  @ApiResponse({ status: 200, description: 'Category deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Category not found' })
-  remove(@Param('id') id: string, @TenantId() tenantId: string) {
-    return this.categoriesService.remove(id, tenantId);
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Delete a category (COMPANY_ADMIN only)' })
+  @ApiQuery({ name: 'brandId', required: false })
+  remove(
+    @Param('id') id: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.categoriesService.remove(id, queryBrandId || jwtBrandId);
   }
 }

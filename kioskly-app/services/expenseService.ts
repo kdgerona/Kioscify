@@ -1,5 +1,8 @@
 import { apiPost, apiGet, apiPatch, apiDelete } from "../utils/api";
 import { safeReactotron } from "../utils/reactotron";
+import { enqueue, generateClientId } from "./syncEngine";
+import { cacheExpenses, getCachedExpenses, getPendingByType } from "../lib/localCache";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export enum ExpenseCategory {
   SUPPLIES = "SUPPLIES",
@@ -42,6 +45,8 @@ export interface ExpenseResponse {
   user: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
@@ -55,17 +60,22 @@ export interface ExpenseResponse {
   voidRequester?: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
   voidReviewer?: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
   createdAt: string;
   updatedAt: string;
+  pendingSync?: boolean;
 }
 
 export interface ExpenseStatsResponse {
@@ -84,63 +94,109 @@ export interface ExpenseStatsResponse {
   >;
 }
 
+async function getStoredUser(): Promise<{ id: string; username: string; firstName?: string; lastName?: string; email: string; role: string } | null> {
+  try {
+    const raw = await AsyncStorage.getItem("@kioscify:user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildLocalExpense(
+  clientId: string,
+  data: CreateExpensePayload,
+  user: { id: string; username: string; firstName?: string; lastName?: string; email: string; role: string } | null,
+  queuedAt?: string,
+): ExpenseResponse {
+  // Prefer the tap-time date captured in the payload; fall back to the SQLite
+  // enqueue timestamp (stable across refreshes); last resort is now().
+  const stableTime = data.date ?? queuedAt ?? new Date().toISOString();
+  return {
+    id: clientId,
+    description: data.description,
+    amount: data.amount,
+    category: data.category,
+    date: stableTime,
+    receipt: data.receipt,
+    notes: data.notes,
+    userId: user?.id ?? "",
+    user: user ?? { id: "", username: "Offline", email: "", role: "" },
+    voidStatus: "NONE",
+    createdAt: stableTime,
+    updatedAt: stableTime,
+    pendingSync: true,
+  };
+}
+
 /**
- * Create a new expense on the backend
- * @param expenseData - Expense data to send to the API
- * @returns Created expense response
+ * Create a new expense — offline-first.
+ * Tries network; on failure queues locally. Returns immediately in both cases.
  */
 export const createExpense = async (
   expenseData: CreateExpensePayload
 ): Promise<ExpenseResponse> => {
+  const clientId = await generateClientId();
+  const payload = { ...expenseData, clientId };
+
+  safeReactotron.display({
+    name: "CREATE EXPENSE",
+    value: payload,
+    preview: `Creating expense: ${expenseData.description}`,
+  });
+
   try {
-    console.log("🔵 CREATING EXPENSE:");
-    console.log("  Description:", expenseData.description);
-    console.log("  Amount:", expenseData.amount);
-    console.log("  Category:", expenseData.category);
+    const response = await apiPost("/expenses", payload);
 
-    safeReactotron.display({
-      name: "CREATE EXPENSE",
-      value: expenseData,
-      preview: `Creating expense: ${expenseData.description}`,
-    });
-
-    const response = await apiPost("/expenses", expenseData);
+    if (response.status === 409) {
+      const existing = await response.json().catch(() => ({}));
+      return existing as ExpenseResponse;
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.log("🔴 EXPENSE ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "EXPENSE ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Expense creation failed",
-        important: true,
-      });
-
       throw new Error(`Failed to create expense: ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("🟢 EXPENSE CREATED:", data.id);
-
-    safeReactotron.display({
-      name: "EXPENSE SUCCESS",
-      value: data,
-      preview: `Expense ${data.id} created successfully`,
-    });
-
+    safeReactotron.display({ name: "EXPENSE SUCCESS", value: data, preview: `Expense ${data.id} created` });
+    // Append to local cache so the expense is visible offline
+    const cached = (await getCachedExpenses()) ?? [];
+    await cacheExpenses([data, ...cached.filter((e: ExpenseResponse) => e.id !== data.id)]);
     return data;
-  } catch (error) {
-    console.error("Failed to create expense:", error);
-    throw error;
+  } catch (err) {
+    // Queue on any non-4xx failure (network down, timeout, server error).
+    // 4xx errors surface immediately so the user knows what went wrong.
+    const status = (err as any)?.status;
+    const is4xx = typeof status === "number" && status >= 400 && status < 500;
+    if (!is4xx) {
+      await enqueue("expense", "/expenses", payload as unknown as Record<string, unknown>, clientId);
+      const user = await getStoredUser();
+      const local = buildLocalExpense(clientId, expenseData, user);
+      safeReactotron.display({ name: "EXPENSE QUEUED", value: local, preview: "Expense queued for sync" });
+      return local;
+    }
+    throw err;
   }
 };
 
 /**
- * Fetch all expenses for the current tenant
- * @param filters - Optional filters (startDate, endDate, category, minAmount, maxAmount)
- * @returns List of expenses
+ * Fetch expenses — returns API data cached locally; falls back to cache + pending
+ * queue items when offline.
  */
+/**
+ * Returns all pending (unsynced) expenses from the local queue,
+ * shaped as ExpenseResponse so they can be used in report computations.
+ */
+export async function getPendingExpenses(): Promise<(ExpenseResponse & { pendingSync: true })[]> {
+  const pending = await getPendingByType("expense");
+  const user = await getStoredUser();
+  return pending.map((item) => {
+    const p = item.payload as any;
+    return { ...buildLocalExpense(item.clientId, p, user, item.createdAt), pendingSync: true as const };
+  });
+}
+
 export const getExpenses = async (filters?: {
   startDate?: string;
   endDate?: string;
@@ -148,306 +204,109 @@ export const getExpenses = async (filters?: {
   minAmount?: number;
   maxAmount?: number;
 }): Promise<ExpenseResponse[]> => {
-  try {
-    const params = new URLSearchParams();
-    if (filters?.startDate) params.append("startDate", filters.startDate);
-    if (filters?.endDate) params.append("endDate", filters.endDate);
-    if (filters?.category) params.append("category", filters.category);
-    if (filters?.minAmount !== undefined)
-      params.append("minAmount", filters.minAmount.toString());
-    if (filters?.maxAmount !== undefined)
-      params.append("maxAmount", filters.maxAmount.toString());
+  const params = new URLSearchParams();
+  if (filters?.startDate) params.append("startDate", filters.startDate);
+  if (filters?.endDate) params.append("endDate", filters.endDate);
+  if (filters?.category) params.append("category", filters.category);
+  if (filters?.minAmount !== undefined) params.append("minAmount", filters.minAmount.toString());
+  if (filters?.maxAmount !== undefined) params.append("maxAmount", filters.maxAmount.toString());
+  const queryString = params.toString();
+  const endpoint = `/expenses${queryString ? `?${queryString}` : ""}`;
 
-    const queryString = params.toString();
-    const endpoint = `/expenses${queryString ? `?${queryString}` : ""}`;
-
-    console.log("🔵 FETCHING EXPENSES:", endpoint);
-
-    safeReactotron.display({
-      name: "FETCH EXPENSES",
-      value: { endpoint, filters },
-      preview: "Fetching expenses from API",
+  const getPending = async (): Promise<ExpenseResponse[]> => {
+    const pending = await getPendingByType("expense");
+    const user = await getStoredUser();
+    return pending.map((item) => {
+      const p = item.payload as any;
+      return buildLocalExpense(item.clientId, p, user, item.createdAt);
     });
+  };
 
+  try {
     const response = await apiGet(endpoint);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH EXPENSES ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH EXPENSES ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch expenses",
-        important: true,
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data: ExpenseResponse[] = await response.json();
+    await cacheExpenses(data);
+    const pending = await getPending();
+    // De-duplicate by clientId: the server expense response includes clientId (Prisma
+    // returns all model fields), and buildLocalExpense sets id = clientId, so
+    // serverClientIds.has(p.id) correctly identifies already-synced pending items.
+    const serverClientIds = new Set(data.map((e: any) => e.clientId).filter(Boolean));
+    const newPending = pending.filter((p) => !serverClientIds.has(p.id));
+    return [...newPending, ...data].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+  } catch {
+    let cached = (await getCachedExpenses()) ?? [];
+    // Apply date filter offline so yesterday's cache doesn't bleed into today's report
+    if (filters?.startDate || filters?.endDate) {
+      const start = filters.startDate ? new Date(filters.startDate).getTime() : -Infinity;
+      const end = filters.endDate ? new Date(filters.endDate).getTime() : Infinity;
+      cached = cached.filter((e: ExpenseResponse) => {
+        const ts = new Date(e.date).getTime();
+        return ts >= start && ts <= end;
       });
-
-      throw new Error(`Failed to fetch expenses: ${errorText}`);
     }
-
-    const data = await response.json();
-    console.log("🟢 EXPENSES FETCHED:", data.length, "expenses");
-
-    safeReactotron.display({
-      name: "EXPENSES FETCHED",
-      value: { count: data.length },
-      preview: `Fetched ${data.length} expenses`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch expenses:", error);
-    throw error;
+    const pending = await getPending();
+    const cachedClientIds = new Set(cached.map((e: any) => e.clientId).filter(Boolean));
+    const newPending = pending.filter((p) => !cachedClientIds.has(p.id));
+    return [...newPending, ...cached].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
   }
 };
 
-/**
- * Fetch a single expense by ID
- * @param expenseId - Expense ID to fetch
- * @returns Expense details
- */
-export const getExpense = async (
-  expenseId: string
-): Promise<ExpenseResponse> => {
-  try {
-    console.log("🔵 FETCHING EXPENSE:", expenseId);
-
-    safeReactotron.display({
-      name: "FETCH EXPENSE",
-      value: { expenseId },
-      preview: `Fetching expense ${expenseId}`,
-    });
-
-    const response = await apiGet(`/expenses/${expenseId}`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH EXPENSE ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH EXPENSE ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch expense",
-        important: true,
-      });
-
-      throw new Error(`Failed to fetch expense: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 EXPENSE FETCHED:", data.id);
-
-    safeReactotron.display({
-      name: "EXPENSE FETCHED",
-      value: data,
-      preview: `Fetched expense ${data.id}`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch expense:", error);
-    throw error;
+export const getExpense = async (expenseId: string): Promise<ExpenseResponse> => {
+  const response = await apiGet(`/expenses/${expenseId}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch expense: ${errorText}`);
   }
+  return response.json();
 };
 
-/**
- * Update an expense
- * @param expenseId - Expense ID to update
- * @param updateData - Updated expense data
- * @returns Updated expense
- */
 export const updateExpense = async (
   expenseId: string,
   updateData: UpdateExpensePayload
 ): Promise<ExpenseResponse> => {
-  try {
-    console.log("🔵 UPDATING EXPENSE:", expenseId);
-
-    safeReactotron.display({
-      name: "UPDATE EXPENSE",
-      value: { expenseId, updateData },
-      preview: `Updating expense ${expenseId}`,
-    });
-
-    const response = await apiPatch(`/expenses/${expenseId}`, updateData);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 UPDATE EXPENSE ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "UPDATE EXPENSE ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to update expense",
-        important: true,
-      });
-
-      throw new Error(`Failed to update expense: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 EXPENSE UPDATED:", data.id);
-
-    safeReactotron.display({
-      name: "EXPENSE UPDATED",
-      value: data,
-      preview: `Expense ${data.id} updated successfully`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to update expense:", error);
-    throw error;
+  const response = await apiPatch(`/expenses/${expenseId}`, updateData);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update expense: ${errorText}`);
   }
+  return response.json();
 };
 
-/**
- * Delete an expense
- * @param expenseId - Expense ID to delete
- * @returns Success message
- */
 export const deleteExpense = async (
   expenseId: string
 ): Promise<{ message: string }> => {
-  try {
-    console.log("🔵 DELETING EXPENSE:", expenseId);
-
-    safeReactotron.display({
-      name: "DELETE EXPENSE",
-      value: { expenseId },
-      preview: `Deleting expense ${expenseId}`,
-    });
-
-    const response = await apiDelete(`/expenses/${expenseId}`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 DELETE EXPENSE ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "DELETE EXPENSE ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to delete expense",
-        important: true,
-      });
-
-      throw new Error(`Failed to delete expense: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 EXPENSE DELETED:", expenseId);
-
-    safeReactotron.display({
-      name: "EXPENSE DELETED",
-      value: data,
-      preview: `Expense ${expenseId} deleted successfully`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to delete expense:", error);
-    throw error;
+  const response = await apiDelete(`/expenses/${expenseId}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete expense: ${errorText}`);
   }
+  return response.json();
 };
 
-/**
- * Get expense statistics for a given period
- * @param period - Statistics period (daily, weekly, monthly)
- * @returns Expense statistics
- */
 export const getExpenseStats = async (
   period: "daily" | "weekly" | "monthly" = "daily"
 ): Promise<ExpenseStatsResponse> => {
-  try {
-    console.log("🔵 FETCHING EXPENSE STATS:", period);
-
-    safeReactotron.display({
-      name: "FETCH EXPENSE STATS",
-      value: { period },
-      preview: `Fetching ${period} expense stats`,
-    });
-
-    const response = await apiGet(`/expenses/stats?period=${period}`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH EXPENSE STATS ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH EXPENSE STATS ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch expense stats",
-        important: true,
-      });
-
-      throw new Error(`Failed to fetch expense stats: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 EXPENSE STATS FETCHED:", data.totalExpenses);
-
-    safeReactotron.display({
-      name: "EXPENSE STATS FETCHED",
-      value: data,
-      preview: `Fetched ${period} expense stats`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch expense stats:", error);
-    throw error;
+  const response = await apiGet(`/expenses/stats?period=${period}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch expense stats: ${errorText}`);
   }
+  return response.json();
 };
 
-/**
- * Request void for an expense
- * @param expenseId - Expense ID to void
- * @param reason - Reason for voiding
- * @returns Updated expense
- */
 export const requestVoidExpense = async (
   expenseId: string,
   reason: string
 ): Promise<ExpenseResponse> => {
-  try {
-    console.log("🔵 REQUESTING EXPENSE VOID:", expenseId);
-
-    safeReactotron.display({
-      name: "REQUEST EXPENSE VOID",
-      value: { expenseId, reason },
-      preview: `Requesting void for expense ${expenseId}`,
-    });
-
-    const response = await apiPost(`/expenses/${expenseId}/void-request`, {
-      reason,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 EXPENSE VOID REQUEST ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "EXPENSE VOID REQUEST ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Expense void request failed",
-        important: true,
-      });
-
-      throw new Error(`Failed to request expense void: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 EXPENSE VOID REQUEST SUBMITTED:", data.id);
-
-    safeReactotron.display({
-      name: "EXPENSE VOID REQUEST SUCCESS",
-      value: data,
-      preview: `Void request submitted for expense ${data.id}`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to request expense void:", error);
-    throw error;
+  const response = await apiPost(`/expenses/${expenseId}/void-request`, { reason });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to request expense void: ${errorText}`);
   }
+  return response.json();
 };

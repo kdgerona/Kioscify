@@ -11,24 +11,28 @@ import {
   Platform,
   Keyboard,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter, Href } from "expo-router";
-import { useState, useEffect, useCallback } from "react";
+import AppSafeAreaView from "../components/AppSafeAreaView";
+import { useRouter, Href, useFocusEffect } from "expo-router";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useSync } from "../contexts/SyncContext";
 import {
   getTransactions,
   updateTransactionRemarks,
   requestVoidTransaction,
   TransactionResponse,
 } from "../services/transactionService";
+import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paymentMethod";
+import { formatUserName } from "../utils/formatUserName";
 
 export default function Transactions() {
   const router = useRouter();
-  const { tenant } = useTenant();
+  const { tenant, brand } = useTenant();
   const { user } = useAuth();
-  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const { pendingCount } = useSync();
+  const [transactions, setTransactions] = useState<(TransactionResponse & { pendingSync?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +86,9 @@ export default function Transactions() {
     };
   };
 
+  const lastFetchedDate = useRef<string | null>(null);
+  const fetchRef = useRef<() => void>(() => {});
+
   const fetchTransactionsCallback = useCallback(async () => {
     try {
       setError(null);
@@ -89,22 +96,46 @@ export default function Transactions() {
       const data = await getTransactions({ startDate, endDate });
       setTransactions(data);
     } catch (err) {
-      console.error("Failed to fetch transactions:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load transactions"
-      );
+      setError(err instanceof Error ? err.message : "Failed to load transactions");
     } finally {
       setLoading(false);
     }
   }, []);
 
+  fetchRef.current = fetchTransactionsCallback;
+
+  // Ref always holds whether any pending items are currently visible.
+  // Used by the pendingCount effect without creating a stale-closure dependency.
+  const hasPendingRef = useRef(false);
+  hasPendingRef.current = transactions.some((t) => (t as any).pendingSync);
+
+  // Re-fetch whenever the sync engine finishes work and we're showing pending items.
+  // This clears stale "Pending sync" badges without requiring a manual pull-to-refresh.
+  useEffect(() => {
+    if (hasPendingRef.current) {
+      fetchRef.current();
+    }
+  }, [pendingCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!tenant || !user) {
+      lastFetchedDate.current = null;
       router.replace("/");
       return;
     }
-    fetchTransactionsCallback();
-  }, [tenant, user, router, fetchTransactionsCallback]);
+    lastFetchedDate.current = null;
+    fetchRef.current();
+  }, [tenant, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useFocusEffect(
+    useCallback(() => {
+      const today = new Date().toISOString().split("T")[0];
+      if (lastFetchedDate.current !== today) {
+        lastFetchedDate.current = today;
+        fetchRef.current();
+      }
+    }, []),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -116,9 +147,9 @@ export default function Transactions() {
     return null;
   }
 
-  const primaryColor = tenant.themeColors?.primary || "#ea580c";
-  const textColor = tenant.themeColors?.text || "#1f2937";
-  const backgroundColor = tenant.themeColors?.background || "#ffffff";
+  const primaryColor = brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
+  const backgroundColor = brand?.themeColors?.background ?? tenant.themeColors?.background ?? "#ffffff";
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -248,7 +279,7 @@ export default function Transactions() {
   };
 
   return (
-    <SafeAreaView className="w-full h-full bg-gray-50">
+    <AppSafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"
@@ -264,11 +295,11 @@ export default function Transactions() {
         </View>
         <TouchableOpacity
           className="flex-row items-center rounded-lg px-3 py-2"
-          style={{ backgroundColor: "#000000" }}
+          style={{ backgroundColor: primaryColor }}
           onPress={handleGenerateReport}
         >
-          <Ionicons name="document-text" size={18} color="#ffffff" />
-          <Text className="font-semibold text-white ml-1.5">Report</Text>
+          <Ionicons name="document-text" size={18} color="#000000" />
+          <Text className="font-semibold text-black ml-1.5">Report</Text>
         </TouchableOpacity>
       </View>
 
@@ -283,7 +314,8 @@ export default function Transactions() {
           <View className="flex-1 justify-center items-center">
             <Text className="text-red-600 text-center mb-4">{error}</Text>
             <TouchableOpacity
-              className="bg-gray-800 rounded-lg px-6 py-3"
+              className="rounded-lg px-6 py-3"
+              style={{ backgroundColor: primaryColor }}
               onPress={fetchTransactionsCallback}
             >
               <Text className="text-white font-semibold">Retry</Text>
@@ -321,31 +353,39 @@ export default function Transactions() {
                         {formatDate(transaction.timestamp)}
                       </Text>
                       <Text className="text-sm text-gray-600">
-                        Cashier: {transaction.user.email}
+                        Cashier: {formatUserName(transaction.user)}
                       </Text>
                     </View>
                     <View className="items-end">
+                      {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                        <Text className="text-xs text-gray-400 line-through">
+                          {formatCurrency(transaction.subtotal)}
+                        </Text>
+                      )}
                       <Text
                         className="text-xl font-bold"
                         style={{ color: textColor }}
                       >
                         {formatCurrency(transaction.total)}
                       </Text>
-                      <View className="flex-row items-center mt-1">
+                      <View className="flex-row items-center mt-1 flex-wrap gap-1">
                         <View
                           className="px-3 py-1 rounded-full"
-                          style={{
-                            backgroundColor:
-                              transaction.paymentMethod === "CASH"
-                                ? "#86efac"
-                                : "#93c5fd",
-                          }}
+                          style={{ backgroundColor: getPaymentMethodBadgeStyle(transaction.paymentMethod).backgroundColor }}
                         >
-                          <Text className="text-xs font-semibold text-gray-800">
-                            {transaction.paymentMethod}
+                          <Text
+                            className="text-xs font-semibold"
+                            style={{ color: getPaymentMethodBadgeStyle(transaction.paymentMethod).textColor }}
+                          >
+                            {getPaymentMethodLabel(transaction.paymentMethod)}
                           </Text>
                         </View>
                         {getVoidStatusBadge(transaction.voidStatus)}
+                        {(transaction as any).pendingSync && (
+                          <View className="px-2 py-1 rounded-full bg-yellow-100 border border-yellow-300">
+                            <Text className="text-xs text-yellow-700 font-medium">Pending sync</Text>
+                          </View>
+                        )}
                       </View>
                     </View>
                   </View>
@@ -383,6 +423,30 @@ export default function Transactions() {
                       </View>
                     ))}
                   </View>
+
+                  {/* Financial breakdown — only when a discount was applied */}
+                  {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                    <View className="border-t border-gray-200 pt-3 mt-2">
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-sm text-gray-500">Subtotal:</Text>
+                        <Text className="text-sm text-gray-500">
+                          {formatCurrency(transaction.subtotal)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-sm text-red-500">Discount:</Text>
+                        <Text className="text-sm text-red-500">
+                          -{formatCurrency(transaction.discountAmount)}
+                        </Text>
+                      </View>
+                      <View className="flex-row justify-between mt-1">
+                        <Text className="text-sm font-semibold" style={{ color: textColor }}>Total:</Text>
+                        <Text className="text-sm font-semibold" style={{ color: textColor }}>
+                          {formatCurrency(transaction.total)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
 
                   {/* Payment Details */}
                   {transaction.paymentMethod === "CASH" &&
@@ -453,7 +517,7 @@ export default function Transactions() {
                           )}
                           {transaction.voidRequester && (
                             <Text className="text-xs text-gray-600">
-                              Requested by: {transaction.voidRequester.email}
+                              Requested by: {formatUserName(transaction.voidRequester)}
                             </Text>
                           )}
                           {transaction.voidRequestedAt && (
@@ -464,7 +528,7 @@ export default function Transactions() {
                           )}
                           {transaction.voidReviewer && (
                             <Text className="text-xs text-gray-600 mt-1">
-                              Reviewed by: {transaction.voidReviewer.email}
+                              Reviewed by: {formatUserName(transaction.voidReviewer)}
                             </Text>
                           )}
                           {transaction.voidReviewedAt && (
@@ -578,7 +642,7 @@ export default function Transactions() {
               {/* Modal Header */}
               <View
                 className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: backgroundColor }}
               >
                 <Text
                   className="text-xl font-bold"
@@ -682,7 +746,7 @@ export default function Transactions() {
               {/* Modal Header */}
               <View
                 className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-                style={{ backgroundColor: "#fee2e2" }}
+                style={{ backgroundColor: backgroundColor }}
               >
                 <Text
                   className="text-xl font-bold"
@@ -766,7 +830,7 @@ export default function Transactions() {
                     style={{
                       backgroundColor:
                         voidReason.trim().length >= 10 && !isSubmittingVoid
-                          ? "#ef4444"
+                          ? primaryColor
                           : "#d1d5db",
                     }}
                     disabled={voidReason.trim().length < 10 || isSubmittingVoid}
@@ -785,6 +849,6 @@ export default function Transactions() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }

@@ -1,10 +1,12 @@
 {
-  "name": "kioskly",
+  "name": "kioscify",
   "version": "1.0.0",
   "private": true,
   "workspaces": [
     "kioskly-api",
-    "kioskly-admin"
+    "kioskly-admin",
+    "kioscify-company",
+    "kioscify-platform"
   ],
   "scripts": {
     "build": "turbo run build",
@@ -14,12 +16,23 @@
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
     "api:dev": "npm run start:dev --workspace=kioskly-api",
+    "store:dev": "PORT=3100 npm run dev --workspace=kioskly-admin",
+    "admin:dev": "PORT=3100 npm run dev --workspace=kioskly-admin",
+    "company:dev": "npm run dev --workspace=kioscify-company",
+    "platform:dev": "npm run dev --workspace=kioscify-platform",
     "app:dev": "cd kioskly-app && npm start",
     "app:android": "cd kioskly-app && npm run android",
-    "admin:dev": "npm run dev --workspace=kioskly-admin",
     "api:build": "npm run build --workspace=kioskly-api",
+    "store:build": "npm run build --workspace=kioskly-admin",
+    "admin:build": "npm run build --workspace=kioskly-admin",
+    "company:build": "npm run build --workspace=kioscify-company",
+    "platform:build": "npm run build --workspace=kioscify-platform",
     "app:build": "cd kioskly-app && npm run build",
-    "admin:build": "npm run build --workspace=kioskly-admin"
+    "local:up": "docker compose -f docker-compose.local.yml up -d",
+    "local:down": "docker compose -f docker-compose.local.yml down",
+    "local:logs": "docker compose -f docker-compose.local.yml logs -f nginx",
+    "migrate:hierarchy": "npx ts-node kioskly-api/prisma/migrate-to-hierarchy.ts",
+    "platform:bootstrap": "dotenv -e kioskly-api/.env -- npx ts-node kioskly-api/prisma/create-platform-admin.ts"
   },
   "devDependencies": {
     "turbo": "2.6.0"

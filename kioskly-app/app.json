@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kioskly.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan store QR codes for device setup."
+      }
     },
     "android": {
       "package": "com.kioskly.app",
@@ -27,6 +31,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-camera",
       [
         "expo-splash-screen",
         {
@@ -38,7 +43,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true

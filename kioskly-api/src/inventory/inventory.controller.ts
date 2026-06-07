@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,18 +18,19 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { InventoryService } from './inventory.service';
-import {
-  CreateInventoryItemDto,
-  InventoryCategory,
-} from './dto/create-inventory-item.dto';
+import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
+import { UpdateStoreConfigDto } from './dto/update-store-config.dto';
 import {
   CreateInventoryRecordDto,
   BulkCreateInventoryRecordDto,
 } from './dto/create-inventory-record.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { TenantId } from '../common/decorators/tenant.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { TenantId, BrandId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('inventory')
 @Controller('inventory')
@@ -37,14 +39,58 @@ import { TenantId } from '../common/decorators/tenant.decorator';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-  // Inventory Items Endpoints
+  // ─── Brand-level inventory templates (COMPANY_ADMIN) ─────────────────────
+
+  @Post('brand-templates')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Create brand inventory template (fans out to all stores)' })
+  @ApiQuery({ name: 'brandId', required: true })
+  createBrandTemplate(
+    @Body() createDto: CreateInventoryItemDto,
+    @Query('brandId') brandId: string,
+  ) {
+    if (!brandId) throw new BadRequestException('brandId query param is required');
+    return this.inventoryService.createBrandTemplate(createDto, brandId);
+  }
+
+  @Patch('brand-templates/:id')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Update a brand inventory template' })
+  updateBrandTemplate(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateInventoryItemDto,
+  ) {
+    return this.inventoryService.updateBrandTemplate(id, updateDto);
+  }
+
+  @Delete('brand-templates/:id')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Delete a brand inventory template (removes all store copies)' })
+  removeBrandTemplate(@Param('id') id: string) {
+    return this.inventoryService.removeBrandTemplate(id);
+  }
+
+  @Get('brand-templates')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Get all brand inventory templates' })
+  @ApiQuery({ name: 'brandId', required: true })
+  findBrandTemplates(
+    @Query('brandId') brandId: string,
+    @Query('category') category?: string,
+  ) {
+    if (!brandId) throw new BadRequestException('brandId query param is required');
+    return this.inventoryService.findBrandTemplates(brandId, category);
+  }
+
+  // ─── Store-level inventory items (STORE_ADMIN / CASHIER) ─────────────────
+
   @Post('items')
-  @ApiOperation({ summary: 'Create a new inventory item' })
-  @ApiResponse({
-    status: 201,
-    description: 'Inventory item created successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiOperation({ summary: 'Create a store inventory item (store-level only)' })
+  @ApiResponse({ status: 201, description: 'Inventory item created successfully' })
   createItem(
     @Body() createDto: CreateInventoryItemDto,
     @TenantId() tenantId: string,
@@ -54,18 +100,13 @@ export class InventoryController {
 
   @Get('items')
   @ApiOperation({ summary: 'Get all inventory items' })
-  @ApiQuery({
-    name: 'category',
-    required: false,
-    enum: InventoryCategory,
-    description: 'Filter by inventory category',
-  })
+  @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
   @ApiResponse({
     status: 200,
     description: 'Inventory items retrieved successfully',
   })
   findAllItems(
-    @Query('category') category?: InventoryCategory,
+    @Query('category') category?: string,
     @TenantId() tenantId?: string,
   ) {
     return this.inventoryService.findAllItems(tenantId!, category);
@@ -80,6 +121,16 @@ export class InventoryController {
   @ApiResponse({ status: 404, description: 'Inventory item not found' })
   findOneItem(@Param('id') id: string, @TenantId() tenantId: string) {
     return this.inventoryService.findOneItem(id, tenantId);
+  }
+
+  @Patch('items/:id/store-config')
+  @ApiOperation({ summary: 'Update store-specific thresholds (minStockLevel, expirationWarningDays) — STORE_ADMIN only' })
+  updateStoreConfig(
+    @Param('id') id: string,
+    @Body() dto: UpdateStoreConfigDto,
+    @TenantId() tenantId: string,
+  ) {
+    return this.inventoryService.updateStoreConfig(id, tenantId, dto);
   }
 
   @Patch('items/:id')
@@ -109,6 +160,7 @@ export class InventoryController {
   }
 
   // Inventory Records Endpoints
+  @SkipThrottle()
   @Post('records')
   @ApiOperation({ summary: 'Record a single inventory count' })
   @ApiResponse({
@@ -128,6 +180,7 @@ export class InventoryController {
     );
   }
 
+  @SkipThrottle()
   @Post('records/bulk')
   @ApiOperation({ summary: 'Record multiple inventory counts at once' })
   @ApiResponse({
@@ -204,8 +257,7 @@ export class InventoryController {
     @Query('date') date?: string,
     @TenantId() tenantId?: string,
   ) {
-    const targetDate = date ? new Date(date) : undefined;
-    return this.inventoryService.getLatestInventory(tenantId!, targetDate);
+    return this.inventoryService.getLatestInventory(tenantId!);
   }
 
   @Get('stats')

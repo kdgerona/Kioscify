@@ -29,7 +29,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { TenantId } from '../common/decorators/tenant.decorator';
+import { BrandId } from '../common/decorators/tenant.decorator';
 
 // Interface for uploaded file
 interface MulterFile {
@@ -51,16 +51,18 @@ export class ProductsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new product (admin only)' })
   @ApiResponse({ status: 201, description: 'Product created successfully' })
   @ApiResponse({ status: 409, description: 'Product already exists' })
+  @ApiQuery({ name: 'brandId', required: false })
   create(
     @Body() createProductDto: CreateProductDto,
-    @TenantId() tenantId: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
   ) {
-    return this.productsService.create(createProductDto, tenantId);
+    return this.productsService.create(createProductDto, queryBrandId || jwtBrandId);
   }
 
   @Get()
@@ -71,39 +73,48 @@ export class ProductsController {
     description: 'Filter by category ID',
   })
   @ApiResponse({ status: 200, description: 'Products retrieved successfully' })
+  @ApiQuery({ name: 'brandId', required: false })
   findAll(
-    @TenantId() tenantId: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
     @Query('categoryId') categoryId?: string,
   ) {
-    return this.productsService.findAll(tenantId, categoryId);
+    return this.productsService.findAll(queryBrandId || jwtBrandId, categoryId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single product by ID with sizes and addons' })
   @ApiResponse({ status: 200, description: 'Product retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Product not found' })
-  findOne(@Param('id') id: string, @TenantId() tenantId: string) {
-    return this.productsService.findOne(id, tenantId);
+  @ApiQuery({ name: 'brandId', required: false })
+  findOne(
+    @Param('id') id: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.productsService.findOne(id, queryBrandId || jwtBrandId);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a product (admin only)' })
   @ApiResponse({ status: 200, description: 'Product updated successfully' })
   @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiQuery({ name: 'brandId', required: false })
   update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
-    @TenantId() tenantId: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
   ) {
-    return this.productsService.update(id, updateProductDto, tenantId);
+    return this.productsService.update(id, updateProductDto, queryBrandId || jwtBrandId);
   }
 
   @Post(':id/image')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Upload product image (admin only)' })
   @ApiResponse({ status: 200, description: 'Image uploaded successfully' })
@@ -143,9 +154,11 @@ export class ProductsController {
       },
     }),
   )
+  @ApiQuery({ name: 'brandId', required: false })
   async uploadImage(
     @Param('id') id: string,
-    @TenantId() tenantId: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
     @UploadedFile() file?: MulterFile,
   ) {
     if (!file) {
@@ -153,17 +166,22 @@ export class ProductsController {
     }
 
     const imageUrl = `/uploads/products/${file.filename}`;
-    return this.productsService.updateImage(id, imageUrl, tenantId);
+    return this.productsService.updateImage(id, imageUrl, queryBrandId || jwtBrandId);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a product (admin only)' })
   @ApiResponse({ status: 200, description: 'Product deleted successfully' })
   @ApiResponse({ status: 404, description: 'Product not found' })
-  remove(@Param('id') id: string, @TenantId() tenantId: string) {
-    return this.productsService.remove(id, tenantId);
+  @ApiQuery({ name: 'brandId', required: false })
+  remove(
+    @Param('id') id: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.productsService.remove(id, queryBrandId || jwtBrandId);
   }
 }

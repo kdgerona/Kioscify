@@ -8,60 +8,46 @@ import { randomUUID } from 'crypto';
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCategoryDto: CreateCategoryDto, tenantId: string) {
-    const { name, description, sequenceNo } = createCategoryDto;
-
+  async create(dto: CreateCategoryDto, brandId: string) {
     return this.prisma.category.create({
       data: {
         id: randomUUID(),
-        name,
-        description,
-        tenantId,
-        sequenceNo: sequenceNo ?? 0,
+        name: dto.name,
+        description: dto.description,
+        brandId,
+        sequenceNo: dto.sequenceNo ?? 0,
+        type: dto.type ?? 'PRODUCT',
       },
     });
   }
 
-  async findAll(tenantId: string) {
+  async findAll(brandId: string, type?: 'PRODUCT' | 'INVENTORY') {
+    const typeFilter = type === 'INVENTORY'
+      ? { type: 'INVENTORY' as const }
+      : { NOT: { type: 'INVENTORY' as const } };  // null + PRODUCT = legacy-safe
+
     return this.prisma.category.findMany({
-      where: { tenantId },
+      where: { brandId, tombstone: { not: 1 }, ...typeFilter },
       orderBy: { sequenceNo: 'asc' },
     });
   }
 
-  async findOne(id: string, tenantId: string) {
+  async findOne(id: string, brandId?: string) {
     const category = await this.prisma.category.findFirst({
-      where: { id, tenantId },
-      include: {
-        products: true,
-      },
+      where: { id, ...(brandId ? { brandId } : {}), tombstone: { not: 1 } },
+      include: { products: true },
     });
-
-    if (!category) {
-      throw new NotFoundException(`Category with ID ${id} not found`);
-    }
-
+    if (!category) throw new NotFoundException(`Category ${id} not found`);
     return category;
   }
 
-  async update(
-    id: string,
-    updateCategoryDto: UpdateCategoryDto,
-    tenantId: string,
-  ) {
-    await this.findOne(id, tenantId); // Check if exists
-
-    return this.prisma.category.update({
-      where: { id },
-      data: updateCategoryDto,
-    });
+  async update(id: string, dto: UpdateCategoryDto, brandId?: string) {
+    await this.findOne(id, brandId);
+    return this.prisma.category.update({ where: { id }, data: dto });
   }
 
-  async remove(id: string, tenantId: string) {
-    await this.findOne(id, tenantId); // Check if exists
-
-    return this.prisma.category.delete({
-      where: { id },
-    });
+  async remove(id: string, brandId?: string) {
+    await this.findOne(id, brandId);
+    return this.prisma.category.update({ where: { id }, data: { tombstone: 1 } });
   }
 }

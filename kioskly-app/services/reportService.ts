@@ -49,51 +49,14 @@ export interface DailyReportResponse {
 export const getDailyReport = async (
   date?: string
 ): Promise<DailyReportResponse> => {
-  try {
-    const params = new URLSearchParams();
-    if (date) params.append("date", date);
+  const params = new URLSearchParams();
+  if (date) params.append("date", date);
+  const queryString = params.toString();
+  const endpoint = `/reports/daily${queryString ? `?${queryString}` : ""}`;
 
-    const queryString = params.toString();
-    const endpoint = `/reports/daily${queryString ? `?${queryString}` : ""}`;
-
-    console.log("🔵 FETCHING DAILY REPORT:", endpoint);
-
-    safeReactotron.display({
-      name: "FETCH DAILY REPORT",
-      value: { endpoint, date },
-      preview: "Fetching daily report from API",
-    });
-
-    const response = await apiGet(endpoint);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH REPORT ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH REPORT ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch daily report",
-        important: true,
-      });
-
-      throw new Error(`Failed to fetch daily report: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 DAILY REPORT FETCHED:", data);
-
-    safeReactotron.display({
-      name: "DAILY REPORT FETCHED",
-      value: data,
-      preview: `Report for ${data.date} fetched successfully`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch daily report:", error);
-    throw error;
-  }
+  const response = await apiGet(endpoint);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
 };
 
 export interface SubmitReportData {
@@ -121,53 +84,19 @@ export interface SubmitReportData {
   transactionIds: string[];
   expenseIds: string[];
   notes?: string;
+  submittedAt?: string;
 }
 
 /**
  * Submit a daily report to the backend
  */
-export const submitReport = async (
-  data: SubmitReportData
-): Promise<any> => {
-  try {
-    console.log("🔵 SUBMITTING REPORT:", data);
-
-    safeReactotron.display({
-      name: "SUBMIT REPORT",
-      value: data,
-      preview: `Submitting report for ${data.reportDate}`,
-    });
-
-    const response = await apiPost("/submitted-reports", data);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 SUBMIT REPORT ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "SUBMIT REPORT ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to submit report",
-        important: true,
-      });
-
-      throw new Error(`Failed to submit report: ${errorText}`);
-    }
-
-    const result = await response.json();
-    console.log("🟢 REPORT SUBMITTED:", result);
-
-    safeReactotron.display({
-      name: "REPORT SUBMITTED",
-      value: result,
-      preview: "Report submitted successfully",
-    });
-
-    return result;
-  } catch (error) {
-    console.error("Failed to submit report:", error);
-    throw error;
+export const submitReport = async (data: SubmitReportData): Promise<any> => {
+  const response = await apiPost("/submitted-reports", data);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to submit report: ${errorText}`);
   }
+  return response.json();
 };
 
 export interface DailyReportStats {
@@ -183,44 +112,13 @@ export interface DailyReportStats {
  * Get daily report statistics including last submission
  * @returns Daily report statistics
  */
-export const getDailyReportStats = async (): Promise<DailyReportStats> => {
+export const getDailyReportStats = async (): Promise<DailyReportStats | null> => {
   try {
-    console.log("🔵 FETCHING DAILY REPORT STATS");
-
-    safeReactotron.display({
-      name: "FETCH DAILY REPORT STATS",
-      value: {},
-      preview: "Fetching daily report stats from API",
-    });
-
     const response = await apiGet("/submitted-reports/stats");
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH STATS ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH STATS ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch daily report stats",
-        important: true,
-      });
-
-      throw new Error(`Failed to fetch daily report stats: ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("🟢 DAILY REPORT STATS FETCHED:", data);
-
-    safeReactotron.display({
-      name: "DAILY REPORT STATS FETCHED",
-      value: data,
-      preview: "Fetched daily report stats",
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch daily report stats:", error);
-    throw error;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  } catch {
+    // Supplementary data — silently return null when offline or on any error.
+    return null;
   }
 };

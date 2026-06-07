@@ -16,6 +16,12 @@ export class RolesGuard implements CanActivate {
     }
 
     const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.some((role) => user?.role === role);
+
+    // Support both single role match and hierarchy-aware checks
+    // ADMIN is the legacy value — treat as STORE_ADMIN for backwards compat
+    const effectiveRole =
+      user?.role === 'ADMIN' ? 'STORE_ADMIN' : user?.role;
+
+    return requiredRoles.some((role) => effectiveRole === role);
   }
 }

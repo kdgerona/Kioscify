@@ -1,16 +1,22 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { safeReactotron } from "../utils/reactotron";
 
-const TOKEN_KEY = "@kioskly:auth_token";
-const USER_KEY = "@kioskly:user";
+const TOKEN_KEY = "@kioscify:auth_token";
+const USER_KEY = "@kioscify:user";
 
 export interface User {
   id: string;
-  tenantId: string;
+  tenantId?: string;
+  brandId?: string;
+  companyId?: string;
   username: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
-  role: "ADMIN" | "CASHIER";
+  role: "STORE_ADMIN" | "CASHIER" | "ADMIN";
+  isFirstLogin?: boolean;
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {
@@ -19,10 +25,12 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   initializing: boolean;
-  login: (username: string, password: string, tenantId: string) => Promise<void>;
+  mustChangePassword: boolean;
+  login: (username: string, password: string, storeSlug: string) => Promise<{ mustChangePassword: boolean; stores: any[] }>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   clearError: () => void;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,9 +43,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
+  const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
 
   const login = useCallback(
-    async (username: string, password: string, tenantId: string) => {
+    async (username: string, password: string, storeSlug: string) => {
       setLoading(true);
       setError(null);
 
@@ -52,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const requestBody = {
           username,
           password,
-          tenantId,
+          storeSlug,
         };
 
         console.log("🔵 LOGIN REQUEST:");
@@ -105,8 +114,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         await AsyncStorage.setItem(TOKEN_KEY, data.accessToken);
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user));
 
+        // Persist accessible stores for store switcher
+        if (data.stores && data.stores.length > 0) {
+          await AsyncStorage.setItem("@kioscify:accessible_stores", JSON.stringify(data.stores));
+        }
+
         setToken(data.accessToken);
         setUser(data.user);
+        setMustChangePassword(!!data.mustChangePassword);
+        return { mustChangePassword: !!data.mustChangePassword, stores: data.stores ?? [] };
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "An unexpected error occurred";
@@ -154,6 +170,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
   }, []);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+    if (!apiUrl) throw new Error('API URL not configured');
+    const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
+    const response = await fetch(`${apiUrl}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${storedToken}` },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data?.message || 'Failed to change password');
+    }
+    // Update stored user — clear first-login flag
+    if (user) {
+      const updated = { ...user, isFirstLogin: false, mustChangePassword: false };
+      setUser(updated);
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(updated));
+    }
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -162,10 +199,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         loading,
         error,
         initializing,
+        mustChangePassword,
         login,
         logout,
         loadStoredAuth,
         clearError,
+        changePassword,
       }}
     >
       {children}

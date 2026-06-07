@@ -12,7 +12,7 @@ type OrderItem = {
   selectedAddons: Addon[];
 };
 
-type PaymentMethodType = "cash" | "card" | "gcash" | "paymaya" | "online";
+type PaymentMethodType = "cash" | "gcash" | "paymaya" | "online" | "foodpanda" | "grab";
 
 type TransactionData = {
   transactionId: string;
@@ -67,9 +67,9 @@ export default function TransactionSummary({
   transaction,
   onNewOrder,
 }: TransactionSummaryProps) {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#ea580c";
-  const textColor = tenant?.themeColors?.text || "#1f2937";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
 
   if (!transaction) return null;
 
@@ -285,11 +285,12 @@ export default function TransactionSummary({
                     Payment Method:
                   </Text>
                   <Text className="text-sm font-bold text-gray-900">
-                    {transaction.paymentMethod === "cash" && "💵 Cash Payment"}
-                    {transaction.paymentMethod === "card" && "💳 Card Payment"}
-                    {transaction.paymentMethod === "gcash" && "📱 GCash"}
-                    {transaction.paymentMethod === "paymaya" && "📱 PayMaya"}
-                    {transaction.paymentMethod === "online" && "🌐 Online Transaction"}
+                    {transaction.paymentMethod === "cash" && "Cash Payment"}
+                    {transaction.paymentMethod === "gcash" && "GCash"}
+                    {transaction.paymentMethod === "paymaya" && "Maya"}
+                    {transaction.paymentMethod === "online" && "Online Transaction"}
+                    {transaction.paymentMethod === "foodpanda" && "FoodPanda"}
+                    {transaction.paymentMethod === "grab" && "Grab"}
                   </Text>
                 </View>
 
@@ -319,9 +320,10 @@ export default function TransactionSummary({
                 {transaction.paymentMethod !== "cash" && (
                   <View className="bg-blue-50 rounded-lg p-2 mt-2 border border-blue-200">
                     <Text className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">
-                      {transaction.paymentMethod === "card" && "Authorization Number"}
                       {transaction.paymentMethod === "gcash" && "GCash Reference Number"}
-                      {transaction.paymentMethod === "paymaya" && "PayMaya Reference Number"}
+                      {transaction.paymentMethod === "paymaya" && "Maya Reference Number"}
+                      {transaction.paymentMethod === "foodpanda" && "FoodPanda Order Number"}
+                      {transaction.paymentMethod === "grab" && "Grab Order Number"}
                       {transaction.paymentMethod === "online" && "Reference Number"}
                     </Text>
                     <Text className="text-sm font-bold text-blue-900">

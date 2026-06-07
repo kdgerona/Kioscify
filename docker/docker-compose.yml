@@ -3,6 +3,13 @@ version: '3.7'
 name: mongo-database-kioscify
 
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data-kioscify:/data
+
   mongo:
     build: ./mongodb_rs
     # restart: always
@@ -26,5 +33,7 @@ services:
 #     external: true
 
 volumes:
+  redis-data-kioscify:
+    driver: local
   mongo-data-kioscify:
     driver: local

@@ -130,12 +130,15 @@ export class SubmittedInventoryReportsService {
         reportDate: createDto.reportDate,
         inventorySnapshot: createDto.inventorySnapshot as any,
         notes: createDto.notes,
+        ...(createDto.submittedAt && { submittedAt: new Date(createDto.submittedAt) }),
       },
       include: {
         user: {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -172,6 +175,8 @@ export class SubmittedInventoryReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -191,6 +196,8 @@ export class SubmittedInventoryReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },

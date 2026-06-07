@@ -47,3 +47,7 @@ docker/nginx/ssl/
 # MongoDB
 mongo-dump
 backups/
+
+# Load tests
+load-tests/.env.test
+load-tests/results/

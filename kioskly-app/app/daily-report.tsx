@@ -4,10 +4,12 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter } from "expo-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -20,17 +22,84 @@ import {
 } from "../services/reportService";
 import {
   getTransactions,
+  getPendingTransactions,
   TransactionResponse,
 } from "../services/transactionService";
 import {
   getExpenses,
+  getPendingExpenses,
   ExpenseResponse,
 } from "../services/expenseService";
+import { enqueue } from "../services/syncEngine";
+import { useSync } from "../contexts/SyncContext";
+import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paymentMethod";
+import { formatUserName } from "../utils/formatUserName";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
+
+// Build a DailyReportResponse from locally cached transactions and expenses.
+// Used when the API is unreachable so staff can still view and submit the report.
+function computeLocalReport(
+  txns: (TransactionResponse & { pendingSync?: boolean })[],
+  exps: (ExpenseResponse & { pendingSync?: boolean })[],
+  date: string,
+  startDate: string,
+  endDate: string,
+): DailyReportResponse {
+  const activeTxns = txns.filter((t) => t.voidStatus !== "APPROVED");
+  const totalSales = activeTxns.reduce((s, t) => s + t.total, 0);
+  const txnCount = activeTxns.length;
+  const totalItemsSold = activeTxns.reduce(
+    (s, t) => s + (t.items ?? []).reduce((si, i) => si + i.quantity, 0),
+    0,
+  );
+  const paymentBreakdown: Record<string, { total: number; count: number }> = {};
+  activeTxns.forEach((t) => {
+    const m = t.paymentMethod;
+    if (!paymentBreakdown[m]) paymentBreakdown[m] = { total: 0, count: 0 };
+    paymentBreakdown[m].total += t.total;
+    paymentBreakdown[m].count += 1;
+  });
+
+  const activeExps = exps.filter((e) => e.voidStatus !== "APPROVED");
+  const totalExpenses = activeExps.reduce((s, e) => s + e.amount, 0);
+  const expCount = activeExps.length;
+  const categoryBreakdown: Record<string, { total: number; count: number }> = {};
+  activeExps.forEach((e) => {
+    const c = e.category as string;
+    if (!categoryBreakdown[c]) categoryBreakdown[c] = { total: 0, count: 0 };
+    categoryBreakdown[c].total += e.amount;
+    categoryBreakdown[c].count += 1;
+  });
+
+  const grossProfit = totalSales - totalExpenses;
+  return {
+    date,
+    period: { start: startDate, end: endDate },
+    sales: {
+      totalAmount: totalSales,
+      transactionCount: txnCount,
+      averageTransaction: txnCount > 0 ? totalSales / txnCount : 0,
+      totalItemsSold,
+      paymentMethodBreakdown: paymentBreakdown,
+    },
+    expenses: {
+      totalAmount: totalExpenses,
+      expenseCount: expCount,
+      averageExpense: expCount > 0 ? totalExpenses / expCount : 0,
+      categoryBreakdown,
+    },
+    summary: {
+      grossProfit,
+      profitMargin: totalSales > 0 ? (grossProfit / totalSales) * 100 : 0,
+      netRevenue: totalSales,
+    },
+  };
+}
 
 export default function DailyReport() {
   const router = useRouter();
-  const { tenant } = useTenant();
+  const { tenant, brand } = useTenant();
+  const { isOnline, triggerSync } = useSync();
   const { user } = useAuth();
   const [reportData, setReportData] = useState<DailyReportResponse | null>(
     null
@@ -68,56 +137,96 @@ export default function DailyReport() {
     };
   };
 
-  useEffect(() => {
-    const fetchReportData = async () => {
-      if (!tenant || !user) {
-        router.replace("/");
-        return;
-      }
+  // Tracks the calendar date of the last data load.
+  const lastFetchedDate = useRef<string | null>(null);
 
-      setIsLoading(true);
-      setError(null);
+  // Always points to the latest version of the fetch fn so useFocusEffect
+  // doesn't need to re-subscribe when dependencies change (avoids stale closures).
+  const fetchRef = useRef<() => void>(() => {});
 
+  const fetchReportData = async () => {
+    if (!tenant || !user) {
+      router.replace("/");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const { startDate, endDate } = getTodayDateRange();
+
+      const [txns, exps, stats] = await Promise.all([
+        getTransactions({ startDate, endDate }),
+        getExpenses({ startDate, endDate }),
+        getDailyReportStats(),
+      ]);
+
+      setTransactions(txns);
+      setExpenses(exps);
+      setReportStats(stats);
+
+      let report: DailyReportResponse;
       try {
-        const today = new Date().toISOString().split("T")[0];
-        const { startDate, endDate } = getTodayDateRange();
-
-        // Fetch report data, transactions, expenses, and stats in parallel
-        const [report, txns, exps, stats] = await Promise.all([
-          getDailyReport(today),
-          getTransactions({ startDate, endDate }),
-          getExpenses({ startDate, endDate }),
-          getDailyReportStats().catch((err) => {
-            console.warn("Failed to fetch stats:", err);
-            return null; // Non-blocking
-          }),
-        ]);
-
-        setReportData(report);
-        setTransactions(txns);
-        setExpenses(exps);
-        setReportStats(stats);
+        report = await getDailyReport(today);
       } catch (err) {
-        console.error("Failed to fetch report data:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load report"
-        );
-      } finally {
-        setIsLoading(false);
-        setStatsLoading(false);
+        if (!isOnline) {
+          const [pendingTxns, pendingExps] = await Promise.all([
+            getPendingTransactions(),
+            getPendingExpenses(),
+          ]);
+          const txnIds = new Set(txns.map((t) => t.id));
+          const expIds = new Set(exps.map((e) => e.id));
+          const allTxns = [...pendingTxns.filter((t) => !txnIds.has(t.id)), ...txns];
+          const allExps = [...pendingExps.filter((e) => !expIds.has(e.id)), ...exps];
+          report = computeLocalReport(allTxns, allExps, today, startDate, endDate);
+        } else {
+          throw err;
+        }
       }
-    };
+      setReportData(report);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load report");
+    } finally {
+      setIsLoading(false);
+      setStatsLoading(false);
+    }
+  };
 
-    fetchReportData();
-  }, [tenant, user, router]);
+  // Keep ref current on every render so useFocusEffect always calls latest version.
+  fetchRef.current = fetchReportData;
+
+  // Re-fetch when auth changes (login/logout).
+  useEffect(() => {
+    if (!tenant || !user) {
+      lastFetchedDate.current = null; // force re-fetch on next login
+      return;
+    }
+    lastFetchedDate.current = null; // force re-fetch when user/tenant changes
+    fetchRef.current();
+  }, [tenant, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-refresh when screen comes into focus AND the calendar date has changed.
+  // This handles the overnight edge case: if the app is left open past midnight
+  // the data updates automatically the next time the user visits this screen.
+  useFocusEffect(
+    useCallback(() => {
+      const today = new Date().toISOString().split("T")[0];
+      if (lastFetchedDate.current !== today) {
+        lastFetchedDate.current = today;
+        fetchRef.current();
+      }
+    }, []),
+  );
 
   if (!tenant || !user) {
     return null;
   }
 
-  const primaryColor = tenant.themeColors?.primary || "#ea580c";
-  const textColor = tenant.themeColors?.text || "#1f2937";
-  const backgroundColor = tenant.themeColors?.background || "#ffffff";
+  const primaryColor = brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
+  const backgroundColor = brand?.themeColors?.background ?? tenant.themeColors?.background ?? "#ffffff";
 
   const formatCurrency = (amount: number) => {
     return `₱${amount.toFixed(2)}`;
@@ -144,51 +253,112 @@ export default function DailyReport() {
   const handleSubmitReport = async () => {
     if (!reportData || !user) return;
 
+    // Capture submission time immediately — preserved through the offline queue.
+    const submittedAt = new Date().toISOString();
+
     setIsSubmitting(true);
     setSubmitError(null);
     setSubmitSuccess(false);
 
-    try {
-      const submitData = {
-        reportDate: reportData.date,
-        periodStart: reportData.period.start,
-        periodEnd: reportData.period.end,
-        salesSnapshot: {
-          totalAmount: reportData.sales.totalAmount,
-          transactionCount: reportData.sales.transactionCount,
-          averageTransaction: reportData.sales.averageTransaction,
-          totalItemsSold: reportData.sales.totalItemsSold,
-          paymentMethodBreakdown: reportData.sales.paymentMethodBreakdown,
-        },
-        expensesSnapshot: {
-          totalAmount: reportData.expenses.totalAmount,
-          expenseCount: reportData.expenses.expenseCount,
-          averageExpense: reportData.expenses.averageExpense,
-          categoryBreakdown: reportData.expenses.categoryBreakdown,
-        },
-        summarySnapshot: {
-          grossProfit: reportData.summary.grossProfit,
-          profitMargin: reportData.summary.profitMargin,
-          netRevenue: reportData.summary.netRevenue,
-        },
-        transactionIds: transactions.map((t) => t.id),
-        expenseIds: expenses.map((e) => e.id),
-      };
+    let workingTransactions = transactions;
+    let workingExpenses = expenses;
+    let workingReport = reportData;
 
-      await submitReport(submitData);
+    const pendingTxns = transactions.filter((t) => (t as any).pendingSync);
+    const pendingExps = expenses.filter((e) => (e as any).pendingSync);
 
-      // Refresh stats to show updated last submission
-      const updatedStats = await getDailyReportStats().catch(() => null);
-      if (updatedStats) {
-        setReportStats(updatedStats);
+    // Online with pending items: push them to the server first so the submitted
+    // report captures every transaction the staff recorded today.
+    if (isOnline && (pendingTxns.length > 0 || pendingExps.length > 0)) {
+      await triggerSync();
+      const today = new Date().toISOString().split("T")[0];
+      const { startDate, endDate } = getTodayDateRange();
+      const [freshTxns, freshExps] = await Promise.all([
+        getTransactions({ startDate, endDate }),
+        getExpenses({ startDate, endDate }),
+      ]);
+      workingTransactions = freshTxns;
+      workingExpenses = freshExps;
+      setTransactions(freshTxns);
+      setExpenses(freshExps);
+      try {
+        workingReport = await getDailyReport(today);
+        setReportData(workingReport);
+      } catch {
+        // Server report unavailable after sync — compute locally from fresh data
+        const { startDate: sd, endDate: ed } = getTodayDateRange();
+        workingReport = computeLocalReport(freshTxns, freshExps, today, sd, ed);
       }
+    }
 
+    // Separate synced items (have server IDs) from any that still couldn't sync.
+    // Pending clientIds are stored in the queue payload so the sync engine can
+    // resolve them to real server IDs when the report eventually goes online.
+    const syncedTransactionIds = workingTransactions
+      .filter((t) => !(t as any).pendingSync)
+      .map((t) => t.id);
+    const pendingTransactionClientIds = workingTransactions
+      .filter((t) => (t as any).pendingSync)
+      .map((t) => t.id);
+    const syncedExpenseIds = workingExpenses
+      .filter((e) => !(e as any).pendingSync)
+      .map((e) => e.id);
+    const pendingExpenseClientIds = workingExpenses
+      .filter((e) => (e as any).pendingSync)
+      .map((e) => e.id);
+
+    // workingReport already counts all transactions correctly:
+    //   online path  → fresh server report (all transactions synced)
+    //   offline path → computeLocalReport (includes pending in totals)
+    const submitData = {
+      reportDate: workingReport.date,
+      periodStart: workingReport.period.start,
+      periodEnd: workingReport.period.end,
+      salesSnapshot: {
+        totalAmount: workingReport.sales.totalAmount,
+        transactionCount: workingReport.sales.transactionCount,
+        averageTransaction: workingReport.sales.averageTransaction,
+        totalItemsSold: workingReport.sales.totalItemsSold,
+        paymentMethodBreakdown: workingReport.sales.paymentMethodBreakdown,
+      },
+      expensesSnapshot: {
+        totalAmount: workingReport.expenses.totalAmount,
+        expenseCount: workingReport.expenses.expenseCount,
+        averageExpense: workingReport.expenses.averageExpense,
+        categoryBreakdown: workingReport.expenses.categoryBreakdown,
+      },
+      summarySnapshot: {
+        grossProfit: workingReport.summary.grossProfit,
+        profitMargin: workingReport.summary.profitMargin,
+        netRevenue: workingReport.summary.netRevenue,
+      },
+      transactionIds: syncedTransactionIds,
+      expenseIds: syncedExpenseIds,
+      submittedAt,
+    };
+
+    try {
+      await submitReport(submitData);
+      const updatedStats = await getDailyReportStats();
+      if (updatedStats) setReportStats(updatedStats);
       setSubmitSuccess(true);
       setTimeout(() => setSubmitSuccess(false), 3000);
-    } catch (err) {
-      console.error("Failed to submit report:", err);
-      setSubmitError(
-        err instanceof Error ? err.message : "Failed to submit report"
+    } catch {
+      // Network failure — queue for later. Include pending clientIds so the
+      // sync engine can resolve them to server IDs at the time of sync.
+      await enqueue(
+        "submitted_report",
+        "/submitted-reports",
+        {
+          ...submitData,
+          ...(pendingTransactionClientIds.length > 0 && { pendingTransactionClientIds }),
+          ...(pendingExpenseClientIds.length > 0 && { pendingExpenseClientIds }),
+        } as unknown as Record<string, unknown>,
+      );
+      Alert.alert(
+        "Report Saved",
+        "You're offline. The report has been saved and will sync automatically once you're back online.",
+        [{ text: "OK" }],
       );
     } finally {
       setIsSubmitting(false);
@@ -196,7 +366,7 @@ export default function DailyReport() {
   };
 
   return (
-    <SafeAreaView className="w-full h-full bg-gray-50">
+    <AppSafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"
@@ -218,13 +388,13 @@ export default function DailyReport() {
           </View>
         </View>
         {/* Submit Button */}
-        {!isLoading && !error && reportData && (
+        {!isLoading && reportData && (
           <TouchableOpacity
             onPress={handleSubmitReport}
             disabled={isSubmitting}
             className="ml-2 px-4 py-2 rounded-lg"
             style={{
-              backgroundColor: isSubmitting ? "#9ca3af" : "#000000",
+              backgroundColor: isSubmitting ? "#9ca3af" : primaryColor,
               opacity: isSubmitting ? 0.7 : 1,
             }}
           >
@@ -232,8 +402,8 @@ export default function DailyReport() {
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
               <View className="flex-row items-center">
-                <Ionicons name="cloud-upload" size={20} color="#ffffff" />
-                <Text className="text-white font-semibold ml-2">Submit Report</Text>
+                <Ionicons name="cloud-upload" size={20} color="#000000" />
+                <Text className="text-black font-semibold ml-2">Submit Report</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -250,7 +420,7 @@ export default function DailyReport() {
           textColor={textColor}
         />
 
-        {/* Success/Error Toast */}
+        {/* Success/Queued/Error Toast */}
         {submitSuccess && (
           <View className="mb-4 bg-green-100 border-2 border-green-500 rounded-lg p-4 flex-row items-center">
             <Ionicons name="checkmark-circle" size={24} color="#10b981" />
@@ -289,7 +459,8 @@ export default function DailyReport() {
             <Ionicons name="alert-circle" size={48} color="#ef4444" />
             <Text className="mt-4 text-red-600 text-center">{error}</Text>
             <TouchableOpacity
-              className="mt-4 bg-gray-800 rounded-lg px-6 py-3"
+              className="mt-4 rounded-lg px-6 py-3"
+              style={{ backgroundColor: primaryColor }}
               onPress={() => router.back()}
             >
               <Text className="text-white font-semibold">Go Back</Text>
@@ -499,10 +670,15 @@ export default function DailyReport() {
                               {formatTransactionTime(transaction.timestamp)}
                             </Text>
                             <Text className="text-xs text-gray-500">
-                              {transaction.user.email}
+                              {formatUserName(transaction.user)}
                             </Text>
                           </View>
                           <View className="items-end">
+                            {(transaction as any).discountAmount != null && (transaction as any).discountAmount > 0 && (
+                              <Text className="text-xs text-gray-400 line-through">
+                                {formatCurrency(transaction.subtotal)}
+                              </Text>
+                            )}
                             <Text
                               className="text-lg font-bold"
                               style={{ color: textColor }}
@@ -511,15 +687,13 @@ export default function DailyReport() {
                             </Text>
                             <View
                               className="px-2 py-1 rounded-full mt-1"
-                              style={{
-                                backgroundColor:
-                                  transaction.paymentMethod === "CASH"
-                                    ? "#86efac"
-                                    : "#93c5fd",
-                              }}
+                              style={{ backgroundColor: getPaymentMethodBadgeStyle(transaction.paymentMethod).backgroundColor }}
                             >
-                              <Text className="text-xs font-semibold text-gray-800">
-                                {transaction.paymentMethod}
+                              <Text
+                                className="text-xs font-semibold"
+                                style={{ color: getPaymentMethodBadgeStyle(transaction.paymentMethod).textColor }}
+                              >
+                                {getPaymentMethodLabel(transaction.paymentMethod)}
                               </Text>
                             </View>
                           </View>
@@ -549,6 +723,24 @@ export default function DailyReport() {
                             </View>
                           ))}
                         </View>
+
+                        {/* Discount breakdown — only when a discount was applied */}
+                        {(transaction as any).discountAmount != null && (transaction as any).discountAmount > 0 && (
+                          <View className="mt-2 bg-gray-50 rounded-lg px-3 py-2">
+                            <View className="flex-row justify-between">
+                              <Text className="text-xs text-gray-500">Subtotal:</Text>
+                              <Text className="text-xs text-gray-500">{formatCurrency(transaction.subtotal)}</Text>
+                            </View>
+                            <View className="flex-row justify-between mt-0.5">
+                              <Text className="text-xs text-red-500">Discount:</Text>
+                              <Text className="text-xs text-red-500">-{formatCurrency((transaction as any).discountAmount)}</Text>
+                            </View>
+                            <View className="flex-row justify-between mt-0.5 border-t border-gray-200 pt-1">
+                              <Text className="text-xs font-semibold text-gray-700">Total:</Text>
+                              <Text className="text-xs font-semibold text-gray-700">{formatCurrency(transaction.total)}</Text>
+                            </View>
+                          </View>
+                        )}
 
                         {/* Remarks if present */}
                         {transaction.remarks && (
@@ -607,7 +799,7 @@ export default function DailyReport() {
                               </View>
                             </View>
                             <Text className="text-xs text-gray-500 mt-1">
-                              Recorded by: {expense.user.email}
+                              Recorded by: {formatUserName(expense.user)}
                             </Text>
                           </View>
                           <View className="items-end">
@@ -655,6 +847,6 @@ export default function DailyReport() {
           </View>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }

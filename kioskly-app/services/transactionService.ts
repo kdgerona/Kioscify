@@ -1,22 +1,83 @@
 import { apiPost, apiGet, apiPatch } from "../utils/api";
 import { safeReactotron } from "../utils/reactotron";
+import { enqueue, generateClientId } from "./syncEngine";
+import { cacheTransactions, getCachedTransactions, getPendingByType } from "../lib/localCache";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+async function getStoredUser(): Promise<{ id: string; username: string; firstName?: string; lastName?: string; email: string; role: string } | null> {
+  try {
+    const raw = await AsyncStorage.getItem("@kioscify:user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildLocalTransaction(clientId: string, payload: Record<string, unknown>, user: { id: string; username: string; firstName?: string; lastName?: string; email: string; role: string } | null): TransactionResponse & { pendingSync: true } {
+  // Use the timestamp captured at sale time so pending transactions always
+  // display when the sale happened, not when this function is called.
+  const saleTime = (payload.timestamp as string | undefined) ?? new Date().toISOString();
+
+  // Reconstruct display items from the names embedded in the payload at checkout.
+  // productName / sizeName / addonName are stripped before the API call but kept
+  // in the SQLite queue so pending transactions can show what was ordered.
+  const payloadItems = (payload.items as any[] | undefined) ?? [];
+  const items: TransactionItemResponse[] = payloadItems.map((item: any) => ({
+    id: item.productId,
+    productId: item.productId,
+    product: { id: item.productId, name: item.productName ?? item.productId, price: 0 },
+    quantity: item.quantity,
+    sizeId: item.sizeId,
+    size: item.sizeName ? { id: item.sizeId ?? "", name: item.sizeName, priceModifier: 0 } : undefined,
+    subtotal: item.subtotal,
+    addons: (item.addons as any[] | undefined)
+      ?.filter((a: any) => a.addonName)
+      .map((a: any) => ({ id: a.addonId, name: a.addonName, price: 0 })) ?? [],
+  }));
+
+  return {
+    id: clientId,
+    transactionId: (payload.transactionId as string) ?? clientId,
+    tenantId: "",
+    userId: user?.id ?? "",
+    user: user ?? { id: "", username: "Offline", email: "", role: "" },
+    subtotal: (payload.subtotal as number) ?? 0,
+    discountAmount: (payload.discountAmount as number | undefined) ?? null,
+    total: (payload.total as number) ?? 0,
+    paymentMethod: (payload.paymentMethod as string) ?? "CASH",
+    cashReceived: payload.cashReceived as number | undefined,
+    change: payload.change as number | undefined,
+    referenceNumber: payload.referenceNumber as string | undefined,
+    remarks: payload.remarks as string | undefined,
+    timestamp: saleTime,
+    createdAt: saleTime,
+    updatedAt: saleTime,
+    items,
+    voidStatus: "NONE",
+    pendingSync: true,
+  } as TransactionResponse & { pendingSync: true };
+}
 
 interface TransactionItemAddon {
   addonId: string;
+  addonName?: string; // display-only: stored in queue, stripped before API call
 }
 
 interface TransactionItem {
   productId: string;
+  productName?: string; // display-only: stored in queue, stripped before API call
   quantity: number;
   sizeId?: string;
+  sizeName?: string;  // display-only: stored in queue, stripped before API call
   subtotal: number;
   addons?: TransactionItemAddon[];
 }
 
-export type PaymentMethodType = "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE";
+export type PaymentMethodType = "CASH" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA" | "GRAB";
 
 interface CreateTransactionPayload {
   transactionId: string;
+  timestamp?: string; // ISO string captured at sale time; preserved through offline queue
   subtotal: number;
   total: number;
   paymentMethod: PaymentMethodType;
@@ -24,6 +85,7 @@ interface CreateTransactionPayload {
   change?: number;
   referenceNumber?: string;
   remarks?: string;
+  discountAmount?: number;
   items: TransactionItem[];
 }
 
@@ -58,10 +120,13 @@ export interface TransactionResponse {
   user: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
   subtotal: number;
+  discountAmount?: number | null;
   total: number;
   paymentMethod: string;
   cashReceived?: number;
@@ -82,19 +147,73 @@ export interface TransactionResponse {
   voidRequester?: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
   voidReviewer?: {
     id: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
     role: string;
   };
 }
 
 /**
- * Create a new transaction on the backend
+ * Create a transaction — offline-first. Tries network; falls back to local queue.
+ * The clientId ensures no duplicates when the queue syncs later.
+ */
+export const createTransactionOffline = async (
+  transactionData: CreateTransactionPayload
+): Promise<{ transaction: TransactionResponse | null; queued: boolean; clientId: string }> => {
+  const clientId = await generateClientId();
+  const payload = { ...transactionData, clientId };
+
+  // Strip display-only fields (productName, sizeName, addonName) before sending
+  // to the API — the server DTO rejects unknown fields (forbidNonWhitelisted).
+  // These fields are kept in `payload` so the SQLite queue has them for display.
+  const apiPayload = {
+    ...payload,
+    items: payload.items.map(({ productName: _pn, sizeName: _sn, ...item }) => ({
+      ...item,
+      addons: item.addons?.map(({ addonName: _an, ...addon }) => addon),
+    })),
+  };
+
+  try {
+    const response = await apiPost("/transactions", apiPayload);
+
+    if (response.ok) {
+      const data: TransactionResponse = await response.json();
+      // Append to local cache so the transaction is visible offline
+      // even if the user never visits the transactions/daily-report screen.
+      const cached = (await getCachedTransactions()) ?? [];
+      await cacheTransactions([data, ...cached.filter((t: TransactionResponse) => t.id !== data.id)]);
+      return { transaction: data, queued: false, clientId };
+    }
+
+    if (response.status === 409) {
+      // Already exists — treat as success
+      const data = await response.json().catch(() => ({}));
+      return { transaction: data as TransactionResponse, queued: false, clientId };
+    }
+
+    // Non-network error (4xx) — don't queue, surface to user
+    const errorText = await response.text();
+    throw new Error(`Failed to create transaction: ${errorText}`);
+  } catch (networkError: any) {
+    if (networkError.message?.includes("Failed to create")) throw networkError;
+    // Network failure — queue for later
+    await enqueue("transaction", "/transactions", payload as unknown as Record<string, unknown>, clientId);
+    return { transaction: null, queued: true, clientId };
+  }
+};
+
+/**
+ * Create a new transaction on the backend (original — direct only, no queue)
  * @param transactionData - Transaction data to send to the API
  * @returns Created transaction response
  */
@@ -151,59 +270,67 @@ export const createTransaction = async (
  * @param filters - Optional filters (startDate, endDate, paymentMethod)
  * @returns List of transactions
  */
+/**
+ * Returns all pending (unsynced) transactions from the local queue,
+ * shaped as TransactionResponse so they can be used in report computations.
+ */
+export async function getPendingTransactions(): Promise<(TransactionResponse & { pendingSync: true })[]> {
+  const pending = await getPendingByType("transaction");
+  const user = await getStoredUser();
+  return pending.map((item) => buildLocalTransaction(item.clientId, item.payload, user));
+}
+
 export const getTransactions = async (
   filters?: {
     startDate?: string;
     endDate?: string;
     paymentMethod?: PaymentMethodType;
   }
-): Promise<TransactionResponse[]> => {
+): Promise<(TransactionResponse & { pendingSync?: boolean })[]> => {
+  const params = new URLSearchParams();
+  if (filters?.startDate) params.append("startDate", filters.startDate);
+  if (filters?.endDate) params.append("endDate", filters.endDate);
+  if (filters?.paymentMethod) params.append("paymentMethod", filters.paymentMethod);
+  const queryString = params.toString();
+  const endpoint = `/transactions${queryString ? `?${queryString}` : ""}`;
+
+  const getPending = async () => {
+    const pending = await getPendingByType("transaction");
+    const user = await getStoredUser();
+    return pending.map((item) => buildLocalTransaction(item.clientId, item.payload, user));
+  };
+
   try {
-    const params = new URLSearchParams();
-    if (filters?.startDate) params.append("startDate", filters.startDate);
-    if (filters?.endDate) params.append("endDate", filters.endDate);
-    if (filters?.paymentMethod) params.append("paymentMethod", filters.paymentMethod);
-
-    const queryString = params.toString();
-    const endpoint = `/transactions${queryString ? `?${queryString}` : ""}`;
-
-    console.log("🔵 FETCHING TRANSACTIONS:", endpoint);
-
-    safeReactotron.display({
-      name: "FETCH TRANSACTIONS",
-      value: { endpoint, filters },
-      preview: "Fetching transactions from API",
-    });
-
     const response = await apiGet(endpoint);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log("🔴 FETCH TRANSACTIONS ERROR:", errorText);
-
-      safeReactotron.display({
-        name: "FETCH TRANSACTIONS ERROR",
-        value: { status: response.status, error: errorText },
-        preview: "Failed to fetch transactions",
-        important: true,
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data: TransactionResponse[] = await response.json();
+    await cacheTransactions(data);
+    const pending = await getPending();
+    // De-duplicate by transactionId (the TXN… string) — both server responses and
+    // pending items carry the same transactionId, unlike id (MongoDB ObjectId) vs
+    // clientId (UUID) which are different types and never match.
+    const serverTxnIds = new Set(data.map((t) => t.transactionId));
+    const newPending = pending.filter((p) => !serverTxnIds.has(p.transactionId));
+    return [...newPending, ...data].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+  } catch {
+    let cached = (await getCachedTransactions()) ?? [];
+    // Apply date filter offline so yesterday's cache doesn't bleed into today's report
+    if (filters?.startDate || filters?.endDate) {
+      const start = filters.startDate ? new Date(filters.startDate).getTime() : -Infinity;
+      const end = filters.endDate ? new Date(filters.endDate).getTime() : Infinity;
+      cached = cached.filter((t: TransactionResponse) => {
+        const ts = new Date(t.timestamp).getTime();
+        return ts >= start && ts <= end;
       });
-
-      throw new Error(`Failed to fetch transactions: ${errorText}`);
     }
-
-    const data = await response.json();
-    console.log("🟢 TRANSACTIONS FETCHED:", data.length, "transactions");
-
-    safeReactotron.display({
-      name: "TRANSACTIONS FETCHED",
-      value: { count: data.length },
-      preview: `Fetched ${data.length} transactions`,
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch transactions:", error);
-    throw error;
+    const pending = await getPending();
+    const cachedTxnIds = new Set(cached.map((t: TransactionResponse) => t.transactionId));
+    const newPending = pending.filter((p) => !cachedTxnIds.has(p.transactionId));
+    return [...newPending, ...cached].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
   }
 };
 

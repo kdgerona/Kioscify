@@ -13,8 +13,13 @@ import type {
   InventoryRecord,
   LatestInventoryItem,
   InventoryStats,
+  User,
+  StoreUserCreatePayload,
+  TimeOfDayData,
   SubmittedReport,
   Expense,
+  AssignableUser,
+  StoreAccess,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -55,11 +60,14 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError<ApiError>) => {
-        if (error.response?.status === 401) {
-          // Unauthorized - clear token and redirect to login
+        const isAuthEndpoint = error.config?.url?.includes('/auth/');
+        if (error.response?.status === 401 && !isAuthEndpoint) {
           this.clearToken();
           if (typeof window !== "undefined") {
-            window.location.href = "/login";
+            const companySlug = localStorage.getItem("kioscify_portal_company_slug");
+            const brandSlug = localStorage.getItem("kioscify_portal_brand_slug");
+            window.location.href =
+              companySlug && brandSlug ? `/${companySlug}/${brandSlug}` : "/login";
           }
         }
         return Promise.reject(error);
@@ -101,18 +109,36 @@ class ApiClient {
 
   // Auth endpoints
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const { data } = await this.client.post<AuthResponse>(
-      "/auth/login",
-      credentials
-    );
+    const { data } = await this.client.post<AuthResponse>("/auth/login", credentials);
     this.setToken(data.accessToken);
+    if (typeof window !== "undefined" && data.user) {
+      localStorage.setItem("user", JSON.stringify(data.user));
+      // Persist accessible stores list for sidebar switcher
+      const stores = (data as any).stores;
+      if (stores) localStorage.setItem("kioscify_accessible_stores", JSON.stringify(stores));
+    }
+    return data;
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    const { data } = await this.client.post("/auth/change-password", { currentPassword, newPassword });
+    return data;
+  }
+
+  async switchStore(targetStoreId: string): Promise<{ accessToken: string; activeStore: { id: string; name: string; slug: string } }> {
+    const { data } = await this.client.post("/auth/switch-store", { targetStoreId });
     return data;
   }
 
   logout() {
     this.clearToken();
     if (typeof window !== "undefined") {
-      window.location.href = "/login";
+      localStorage.removeItem("user");
+      localStorage.removeItem("kioscify_accessible_stores");
+      const companySlug = localStorage.getItem("kioscify_portal_company_slug");
+      const brandSlug = localStorage.getItem("kioscify_portal_brand_slug");
+      window.location.href =
+        companySlug && brandSlug ? `/${companySlug}/${brandSlug}` : "/login";
     }
   }
 
@@ -122,7 +148,7 @@ class ApiClient {
     endDate?: string;
     paymentMethod?: string;
     paymentStatus?: string;
-    transactionId?: string;
+    search?: string;
   }): Promise<Transaction[]> {
     const { data } = await this.client.get<Transaction[]>("/transactions", {
       params,
@@ -604,6 +630,77 @@ class ApiClient {
     const { data } = await this.client.get(
       "/submitted-inventory-reports/stats"
     );
+    return data;
+  }
+  // ─── Store assignment (multi-store) ───────────────────────────────────────
+
+  async getMyStoreAccess(userId: string): Promise<StoreAccess[]> {
+    const { data } = await this.client.get<StoreAccess[]>(`/users/${userId}/stores`);
+    return data;
+  }
+
+  async getAssignablePool(storeId: string, q?: string): Promise<AssignableUser[]> {
+    const { data } = await this.client.get<AssignableUser[]>(`/users/stores/${storeId}/assignable-pool`, {
+      params: q ? { q } : undefined,
+    });
+    return data;
+  }
+
+  async assignUserToStore(storeId: string, payload: { username: string; role: 'STORE_ADMIN' | 'CASHIER' }): Promise<void> {
+    await this.client.post(`/users/stores/${storeId}/assign`, payload);
+  }
+
+  async revokeStoreAccess(storeId: string, userId: string): Promise<void> {
+    await this.client.delete(`/users/stores/${storeId}/${userId}/access`);
+  }
+
+  async searchUsersInCompany(query: string): Promise<User[]> {
+    const { data } = await this.client.get<User[]>('/users/search', { params: { q: query } });
+    return data;
+  }
+
+  // ─── User management (store-level) ────────────────────────────────────────
+
+  async getStoreUsers(storeId: string): Promise<User[]> {
+    const { data } = await this.client.get<User[]>(`/users/stores/${storeId}`);
+    return data;
+  }
+
+  async createStoreUser(storeId: string, payload: StoreUserCreatePayload): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/users/stores/${storeId}`, payload);
+    return data;
+  }
+
+  async updateStoreUser(storeId: string, userId: string, payload: Partial<StoreUserCreatePayload & { isActive: boolean }>): Promise<User> {
+    const { data } = await this.client.patch<User>(`/users/stores/${storeId}/${userId}`, payload);
+    return data;
+  }
+
+  async deactivateStoreUser(storeId: string, userId: string): Promise<User> {
+    const { data } = await this.client.delete<User>(`/users/stores/${storeId}/${userId}`);
+    return data;
+  }
+
+  // ─── Reports — time of day ─────────────────────────────────────────────────
+
+  async getTimeOfDayTrends(startDate: string, endDate: string): Promise<{ period: { start: string; end: string }; hourlyBreakdown: TimeOfDayData[] }> {
+    const { data } = await this.client.get("/reports/time-of-day", {
+      params: { startDate, endDate },
+    });
+    return data;
+  }
+
+  // ─── Store inventory items (brand copies) ─────────────────────────────────
+
+  async getStoreInventoryItems(category?: string): Promise<InventoryItem[]> {
+    const { data } = await this.client.get<InventoryItem[]>("/inventory/items", {
+      params: category ? { category } : undefined,
+    });
+    return data;
+  }
+
+  async updateStoreInventoryItem(id: string, payload: Partial<{ minStockLevel: number; expirationWarningDays: number }>): Promise<InventoryItem> {
+    const { data } = await this.client.patch<InventoryItem>(`/inventory/items/${id}/store-config`, payload);
     return data;
   }
 }

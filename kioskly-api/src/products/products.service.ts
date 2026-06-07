@@ -37,14 +37,14 @@ export class ProductsService {
     this.baseUrl = this.configService.get<string>(appConstants.base_url) || '';
   }
 
-  async create(createProductDto: CreateProductDto, tenantId: string) {
-    const { id, name, price, categoryId, image, sizeIds, addonIds } =
+  async create(createProductDto: CreateProductDto, brandId: string) {
+    const { id, name, price, foodpandaPrice, grabPrice, categoryId, image, sizeIds, addonIds } =
       createProductDto;
 
     // Generate ID from product name if not provided
     let productId = id;
     if (!productId) {
-      productId = await this.generateProductId(name, tenantId);
+      productId = await this.generateProductId(name);
     } else {
       // Check if manually provided ID already exists
       const existingProduct = await this.prisma.product.findUnique({
@@ -62,9 +62,11 @@ export class ProductsService {
         id: productId,
         name,
         price,
+        foodpandaPrice,
+        grabPrice,
         categoryId,
         image,
-        tenantId,
+        brandId,
         productSizes: sizeIds
           ? {
               create: sizeIds.map((sizeId) => ({
@@ -98,40 +100,34 @@ export class ProductsService {
     return this.formatProduct(product);
   }
 
-  private async generateProductId(
-    name: string,
-    tenantId: string,
-  ): Promise<string> {
+  private async generateProductId(name: string): Promise<string> {
     // Create slug from product name
     const baseSlug = name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    // Check if slug already exists for this tenant
+    // Check if slug already exists globally — _id is unique across all brands in MongoDB
     let slug = baseSlug;
     let counter = 1;
 
     while (true) {
-      const existing = await this.prisma.product.findFirst({
-        where: {
-          id: slug,
-          tenantId,
-        },
+      const existing = await this.prisma.product.findUnique({
+        where: { id: slug },
+        select: { id: true },
       });
 
       if (!existing) {
         return slug;
       }
 
-      // Add counter suffix if slug exists
       counter++;
       slug = `${baseSlug}-${counter}`;
     }
   }
 
-  async findAll(tenantId: string, categoryId?: string) {
-    const where: Prisma.ProductWhereInput = { tenantId };
+  async findAll(brandId: string, categoryId?: string) {
+    const where: Prisma.ProductWhereInput = { brandId, tombstone: { not: 1 } };
     if (categoryId) {
       where.categoryId = categoryId;
     }
@@ -157,9 +153,9 @@ export class ProductsService {
     return products.map((product) => this.formatProduct(product));
   }
 
-  async findOne(id: string, tenantId: string) {
+  async findOne(id: string, brandId?: string) {
     const product = await this.prisma.product.findFirst({
-      where: { id, tenantId },
+      where: { id, ...(brandId ? { brandId } : {}), tombstone: { not: 1 } },
       include: {
         category: true,
         productSizes: {
@@ -185,9 +181,9 @@ export class ProductsService {
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
-    tenantId: string,
+    brandId: string,
   ) {
-    await this.findOne(id, tenantId); // Check if exists
+    await this.findOne(id, brandId); // Check if exists
 
     const { sizeIds, addonIds, ...productData } = updateProductDto;
 
@@ -231,8 +227,8 @@ export class ProductsService {
     return this.formatProduct(product);
   }
 
-  async updateImage(id: string, imageUrl: string, tenantId: string) {
-    await this.findOne(id, tenantId); // Check if exists
+  async updateImage(id: string, imageUrl: string, brandId: string) {
+    await this.findOne(id, brandId); // Check if exists
 
     const product = await this.prisma.product.update({
       where: { id },
@@ -255,11 +251,12 @@ export class ProductsService {
     return this.formatProduct(product);
   }
 
-  async remove(id: string, tenantId: string) {
-    await this.findOne(id, tenantId); // Check if exists
+  async remove(id: string, brandId: string) {
+    await this.findOne(id, brandId); // Check if exists
 
-    return this.prisma.product.delete({
+    return this.prisma.product.update({
       where: { id },
+      data: { tombstone: 1 },
     });
   }
 
@@ -274,13 +271,17 @@ export class ProductsService {
       id: product.id,
       name: product.name,
       price: product.price,
+      foodpandaPrice: product.foodpandaPrice ?? null,
+      grabPrice: product.grabPrice ?? null,
       categoryId: product.categoryId,
       image: imageUrl,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
       category: product.category,
-      sizes: product.productSizes?.map((ps) => ps.size) || [],
-      addons: product.productAddons?.map((pa) => pa.addon) || [],
+      sizes: (product.productSizes?.map((ps) => ps.size) || [])
+        .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
+      addons: (product.productAddons?.map((pa) => pa.addon) || [])
+        .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
     };
   }
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import {
   formatCurrency,
   formatDateTime,
+  formatUserName,
   getPaymentMethodLabel,
   getPaymentStatusLabel,
   getPaymentStatusColor,
@@ -21,6 +22,13 @@ import {
 import type { Transaction } from "@/types";
 import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -40,8 +48,9 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function TransactionsPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const activeTabColor = "#1f2937";
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
@@ -68,6 +77,7 @@ export default function TransactionsPage() {
 
   // Debounce search term to avoid too many API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const isFirstTransactionLoad = useRef(true);
 
   const clearDates = () => {
     setStartDate(undefined);
@@ -84,7 +94,7 @@ export default function TransactionsPage() {
         }
 
         const params: {
-          transactionId?: string;
+          search?: string;
           paymentStatus?: string;
           paymentMethod?: string;
           startDate?: string;
@@ -92,7 +102,7 @@ export default function TransactionsPage() {
         } = {};
 
         if (debouncedSearchTerm) {
-          params.transactionId = debouncedSearchTerm;
+          params.search = debouncedSearchTerm;
         }
         if (filterStatus !== "ALL") {
           params.paymentStatus = filterStatus;
@@ -125,25 +135,12 @@ export default function TransactionsPage() {
     [debouncedSearchTerm, filterStatus, filterMethod, startDate, endDate]
   );
 
-  // Initial load
+  // First call shows full skeleton; subsequent filter/search changes use the subtle indicator
   useEffect(() => {
-    loadTransactions(true);
+    const isInitial = isFirstTransactionLoad.current;
+    isFirstTransactionLoad.current = false;
+    loadTransactions(isInitial);
   }, [loadTransactions]);
-
-  // Filter changes - don't show full skeleton
-  useEffect(() => {
-    if (!initialLoading) {
-      loadTransactions(false);
-    }
-  }, [
-    debouncedSearchTerm,
-    filterStatus,
-    filterMethod,
-    startDate,
-    endDate,
-    initialLoading,
-    loadTransactions,
-  ]);
 
   // Load void requests
   const loadVoidRequests = useCallback(async () => {
@@ -253,7 +250,7 @@ export default function TransactionsPage() {
     const rows = transactions.map((t) => [
       t.transactionId,
       formatDateTime(t.timestamp),
-      t.user?.email || t.user?.username || "N/A",
+      formatUserName(t.user),
       t.total,
       t.paymentMethod,
       t.paymentStatus || "COMPLETED",
@@ -301,9 +298,10 @@ export default function TransactionsPage() {
             onClick={() => setShowVoidRequests(false)}
             className={`pb-4 px-2 border-b-2 font-medium transition-colors ${
               !showVoidRequests
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-current"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
+            style={!showVoidRequests ? { color: activeTabColor, borderColor: primaryColor } : undefined}
           >
             All Transactions
           </button>
@@ -311,9 +309,10 @@ export default function TransactionsPage() {
             onClick={() => setShowVoidRequests(true)}
             className={`pb-4 px-2 border-b-2 font-medium transition-colors relative ${
               showVoidRequests
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-current"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
+            style={showVoidRequests ? { color: activeTabColor, borderColor: primaryColor } : undefined}
           >
             Void Requests
             {voidRequests.filter((r) => r.voidStatus === "PENDING").length >
@@ -377,67 +376,33 @@ export default function TransactionsPage() {
             {/* Filters row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Status Filter */}
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
-                >
-                  <option value="ALL">All Status</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="FAILED">Failed</option>
-                </select>
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger style={{ color: activeTabColor }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': activeTabColor } as React.CSSProperties}>
+                  <SelectItem value="ALL">All Status</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="FAILED">Failed</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Payment Method Filter */}
-              <div className="relative">
-                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                <select
-                  value={filterMethod}
-                  onChange={(e) => setFilterMethod(e.target.value)}
-                  className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
-                >
-                  <option value="ALL">All Methods</option>
-                  <option value="CASH">Cash</option>
-                  <option value="CARD">Card</option>
-                  <option value="GCASH">GCash</option>
-                  <option value="PAYMAYA">PayMaya</option>
-                  <option value="ONLINE">Online</option>
-                  <option value="FOODPANDA">FoodPanda</option>
-                </select>
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg
-                    className="w-4 h-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </div>
-              </div>
+              <Select value={filterMethod} onValueChange={setFilterMethod}>
+                <SelectTrigger style={{ color: activeTabColor }}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': activeTabColor } as React.CSSProperties}>
+                  <SelectItem value="ALL">All Methods</SelectItem>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="GCASH">GCash</SelectItem>
+                  <SelectItem value="PAYMAYA">Maya</SelectItem>
+                  <SelectItem value="ONLINE">Online</SelectItem>
+                  <SelectItem value="FOODPANDA">FoodPanda</SelectItem>
+                  <SelectItem value="GRAB">Grab</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Action Buttons */}
@@ -467,7 +432,7 @@ export default function TransactionsPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
           {isFiltering && (
             <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
             </div>
           )}
           {transactions.length > 0 ? (
@@ -516,9 +481,7 @@ export default function TransactionsPage() {
                         {formatDateTime(transaction.timestamp)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {transaction.user?.email ||
-                          transaction.user?.username ||
-                          "N/A"}
+                        {formatUserName(transaction.user)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-bold text-gray-900">
@@ -567,33 +530,21 @@ export default function TransactionsPage() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 flex-1">
                 <label className="font-medium text-gray-700">Status:</label>
-                <div className="relative flex-1 max-w-xs">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                  <select
+                <div className="flex-1 max-w-xs">
+                  <Select
                     value={voidStatusFilter}
-                    onChange={(e) => setVoidStatusFilter(e.target.value as "PENDING" | "APPROVED" | "REJECTED" | "ALL")}
-                    className="w-full pl-9 sm:pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none appearance-none bg-white text-gray-900 cursor-pointer text-sm sm:text-base"
+                    onValueChange={(v) => setVoidStatusFilter(v as "PENDING" | "APPROVED" | "REJECTED" | "ALL")}
                   >
-                    <option value="PENDING">Pending</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="REJECTED">Rejected</option>
-                    <option value="ALL">All</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <svg
-                      className="w-4 h-4 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </div>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': activeTabColor } as React.CSSProperties}>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="APPROVED">Approved</SelectItem>
+                      <SelectItem value="REJECTED">Rejected</SelectItem>
+                      <SelectItem value="ALL">All</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <button
@@ -613,7 +564,7 @@ export default function TransactionsPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
             {loadingVoidRequests && (
               <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
               </div>
             )}
             {voidRequests.length > 0 ? (
@@ -659,7 +610,7 @@ export default function TransactionsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-gray-900">
-                            {request.voidRequester?.email || "N/A"}
+                            {formatUserName(request.voidRequester)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -701,7 +652,7 @@ export default function TransactionsPage() {
                           {request.voidStatus !== "PENDING" && (
                             <button
                               onClick={() => setSelectedTransaction(request)}
-                              className="text-indigo-600 hover:text-indigo-900"
+                              className="text-gray-700 hover:text-gray-900"
                               title="View details"
                             >
                               <Eye className="w-5 h-5" />
@@ -818,9 +769,7 @@ export default function TransactionsPage() {
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">Cashier</p>
                     <p className="text-xs sm:text-sm text-gray-900 truncate">
-                      {selectedTransaction.user?.email ||
-                        selectedTransaction.user?.username ||
-                        "N/A"}
+                      {formatUserName(selectedTransaction.user)}
                     </p>
                   </div>
                   <div>
@@ -870,14 +819,10 @@ export default function TransactionsPage() {
 
                           {/* Price breakdown */}
                           <div className="ml-2 sm:ml-4 space-y-1 mt-2">
-                            {/* Base price */}
+                            {/* Unit price */}
                             <div className="flex justify-between items-center gap-2 text-xs sm:text-sm text-gray-600">
-                              <span className="truncate">Base price × {item.quantity}</span>
-                              <span className="flex-shrink-0">
-                                {formatCurrency(
-                                  (item.product?.price || 0) * item.quantity
-                                )}
-                              </span>
+                              <span className="truncate">Unit price × {item.quantity}</span>
+                              <span className="flex-shrink-0">{formatCurrency(item.subtotal)}</span>
                             </div>
 
                             {/* Size modifier */}
@@ -939,6 +884,14 @@ export default function TransactionsPage() {
                       {formatCurrency(selectedTransaction.subtotal)}
                     </span>
                   </div>
+                  {selectedTransaction.discountAmount != null && selectedTransaction.discountAmount > 0 && (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-xs sm:text-sm text-red-600">Discount</span>
+                      <span className="text-xs sm:text-sm font-medium text-red-600">
+                        -{formatCurrency(selectedTransaction.discountAmount)}
+                      </span>
+                    </div>
+                  )}
                   <div className="border-t border-gray-200 pt-2 flex justify-between items-center gap-2">
                     <span className="text-sm sm:text-base font-bold text-gray-900">
                       Total
@@ -1055,8 +1008,7 @@ export default function TransactionsPage() {
                               Requested By
                             </p>
                             <p className="text-xs sm:text-sm text-gray-900 truncate">
-                              {selectedTransaction.voidRequester.email ||
-                                selectedTransaction.voidRequester.username}
+                              {formatUserName(selectedTransaction.voidRequester)}
                             </p>
                           </div>
                           {selectedTransaction.voidRequestedAt && (
@@ -1081,8 +1033,7 @@ export default function TransactionsPage() {
                               Reviewed By
                             </p>
                             <p className="text-xs sm:text-sm text-gray-900 truncate">
-                              {selectedTransaction.voidReviewer.email ||
-                                selectedTransaction.voidReviewer.username}
+                              {formatUserName(selectedTransaction.voidReviewer)}
                             </p>
                           </div>
                           {selectedTransaction.voidReviewedAt && (

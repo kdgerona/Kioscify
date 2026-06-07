@@ -50,9 +50,10 @@ export default function ExpenseModal({
   const [validationError, setValidationError] = useState("");
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#ea580c";
-  const textColor = tenant?.themeColors?.text || "#1f2937";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+  const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
 
   // Reset form when modal is closed
   useEffect(() => {
@@ -113,6 +114,7 @@ export default function ExpenseModal({
       amount: parsedAmount,
       category,
       notes: notes.trim() || undefined,
+      date: new Date().toISOString(),
     };
 
     try {
@@ -143,7 +145,7 @@ export default function ExpenseModal({
             {/* Modal Header */}
             <View
               className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-              style={{ backgroundColor: primaryColor }}
+              style={{ backgroundColor: backgroundColor }}
             >
               <Text className="text-xl font-bold" style={{ color: textColor }}>
                 Add Expense

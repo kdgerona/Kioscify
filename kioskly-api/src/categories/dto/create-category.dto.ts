@@ -1,5 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsInt, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, IsOptional, IsEnum } from 'class-validator';
+
+export enum CategoryType {
+  PRODUCT = 'PRODUCT',
+  INVENTORY = 'INVENTORY',
+}
 
 export class CreateCategoryDto {
   @ApiProperty({ example: 'Lemonade' })
@@ -16,4 +21,9 @@ export class CreateCategoryDto {
   @IsInt()
   @IsOptional()
   sequenceNo?: number;
+
+  @ApiProperty({ enum: CategoryType, default: CategoryType.PRODUCT, required: false })
+  @IsEnum(CategoryType)
+  @IsOptional()
+  type?: CategoryType;
 }

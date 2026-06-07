@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
       // Production - Specific domain (more secure than wildcard)
       {
         protocol: 'https',
-        hostname: 'kioscify.kdgerona.com',
+        hostname: 'kioscify.com',
         pathname: '/uploads/**',
       },
       // Fallback for other HTTPS domains (can be removed for tighter security)

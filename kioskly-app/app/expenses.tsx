@@ -11,12 +11,13 @@ import {
   Platform,
   Keyboard,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useEffect } from "react";
-import { router } from "expo-router";
+import AppSafeAreaView from "../components/AppSafeAreaView";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "@/contexts/TenantContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSync } from "@/contexts/SyncContext";
 import {
   createExpense,
   getExpenses,
@@ -26,9 +27,10 @@ import {
   ExpenseCategory,
 } from "@/services/expenseService";
 import ExpenseModal from "@/components/ExpenseModal";
+import { formatUserName } from "@/utils/formatUserName";
 
 export default function ExpensesScreen() {
-  const [expenses, setExpenses] = useState<ExpenseResponse[]>([]);
+  const [expenses, setExpenses] = useState<(ExpenseResponse & { pendingSync?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -56,19 +58,37 @@ export default function ExpensesScreen() {
     };
   }, []);
 
-  const { tenant } = useTenant();
+  const { tenant, brand } = useTenant();
   const { user } = useAuth();
-  const primaryColor = tenant?.themeColors?.primary || "#ea580c";
-  const textColor = tenant?.themeColors?.text || "#1f2937";
-  const backgroundColor = tenant?.themeColors?.background || "#ffffff";
+  const { pendingCount } = useSync();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+  const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
+
+  const lastFetchedDate = useRef<string | null>(null);
+  const fetchRef = useRef<() => void>(() => {});
+  const hasPendingRef = useRef(false);
+  hasPendingRef.current = expenses.some((e) => (e as any).pendingSync);
 
   useEffect(() => {
     if (!tenant || !user) {
+      lastFetchedDate.current = null;
       router.replace("/");
       return;
     }
-    loadExpenses();
-  }, [tenant, user, router]);
+    lastFetchedDate.current = null;
+    fetchRef.current();
+  }, [tenant, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useFocusEffect(
+    useCallback(() => {
+      const today = new Date().toISOString().split("T")[0];
+      if (lastFetchedDate.current !== today) {
+        lastFetchedDate.current = today;
+        fetchRef.current();
+      }
+    }, []),
+  );
 
   const getTodayDateRange = () => {
     const today = new Date();
@@ -94,6 +114,15 @@ export default function ExpensesScreen() {
       setLoading(false);
     }
   };
+  // Keep fetchRef current so useFocusEffect always calls the latest version.
+  fetchRef.current = loadExpenses;
+
+  // Re-fetch whenever the sync engine finishes work and we're showing pending items.
+  useEffect(() => {
+    if (hasPendingRef.current) {
+      fetchRef.current();
+    }
+  }, [pendingCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -110,9 +139,9 @@ export default function ExpensesScreen() {
       setIsSubmitting(true);
       await createExpense(expenseData);
       setIsModalVisible(false);
-      await loadExpenses(); // Reload the list
+      await loadExpenses(); // Reload to include newly queued/created expense
     } catch (err) {
-      throw err; // Let the modal handle the error display
+      throw err;
     } finally {
       setIsSubmitting(false);
     }
@@ -213,7 +242,7 @@ export default function ExpensesScreen() {
   };
 
   return (
-    <SafeAreaView className="w-full h-full bg-gray-50">
+    <AppSafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"
@@ -232,10 +261,11 @@ export default function ExpensesScreen() {
         </View>
         <TouchableOpacity
           onPress={() => setIsModalVisible(true)}
-          className="bg-gray-800 px-3 py-2 rounded-lg flex-row items-center"
+          className="px-3 py-2 rounded-lg flex-row items-center"
+          style={{ backgroundColor: primaryColor }}
         >
-          <Ionicons name="add-circle-outline" size={18} color="white" />
-          <Text className="text-white font-semibold ml-1.5">Add</Text>
+          <Ionicons name="add-circle-outline" size={18} color="black" />
+          <Text className="text-black font-semibold ml-1.5">Add</Text>
         </TouchableOpacity>
       </View>
 
@@ -250,7 +280,8 @@ export default function ExpensesScreen() {
           <View className="flex-1 justify-center items-center">
             <Text className="text-red-600 text-center mb-4">{error}</Text>
             <TouchableOpacity
-              className="bg-gray-800 rounded-lg px-6 py-3"
+              className="rounded-lg px-6 py-3"
+              style={{ backgroundColor: primaryColor }}
               onPress={loadExpenses}
             >
               <Text className="text-white font-semibold">Retry</Text>
@@ -287,7 +318,7 @@ export default function ExpensesScreen() {
                       {formatDate(expense.date)}
                     </Text>
                     <Text className="text-sm text-gray-600">
-                      Added by: {expense.user.username}
+                      Added by: {formatUserName(expense.user)}
                     </Text>
                   </View>
                   <View className="items-end">
@@ -306,6 +337,11 @@ export default function ExpensesScreen() {
                         </Text>
                       </View>
                       {getVoidStatusBadge(expense.voidStatus)}
+                      {(expense as any).pendingSync && (
+                        <View className="px-2 py-1 rounded-full bg-yellow-100 border border-yellow-300 ml-1">
+                          <Text className="text-xs text-yellow-700 font-medium">Pending sync</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -344,7 +380,7 @@ export default function ExpensesScreen() {
                         )}
                         {expense.voidRequester && (
                           <Text className="text-xs text-gray-600">
-                            Requested by: {expense.voidRequester.email}
+                            Requested by: {formatUserName(expense.voidRequester)}
                           </Text>
                         )}
                         {expense.voidRequestedAt && (
@@ -355,7 +391,7 @@ export default function ExpensesScreen() {
                         )}
                         {expense.voidReviewer && (
                           <Text className="text-xs text-gray-600 mt-1">
-                            Reviewed by: {expense.voidReviewer.email}
+                            Reviewed by: {formatUserName(expense.voidReviewer)}
                           </Text>
                         )}
                         {expense.voidReviewedAt && (
@@ -442,7 +478,7 @@ export default function ExpensesScreen() {
               {/* Modal Header */}
               <View
                 className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-                style={{ backgroundColor: "#fee2e2" }}
+                style={{ backgroundColor: backgroundColor }}
               >
                 <Text
                   className="text-xl font-bold"
@@ -526,7 +562,7 @@ export default function ExpensesScreen() {
                     style={{
                       backgroundColor:
                         voidReason.trim().length >= 10 && !isSubmittingVoid
-                          ? "#ef4444"
+                          ? primaryColor
                           : "#d1d5db",
                     }}
                     disabled={voidReason.trim().length < 10 || isSubmittingVoid}
@@ -545,6 +581,6 @@ export default function ExpensesScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }

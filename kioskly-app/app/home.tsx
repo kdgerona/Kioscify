@@ -7,8 +7,9 @@ import {
   Image,
   Animated,
   ActivityIndicator,
+  Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter, Href } from "expo-router";
 import { useState, useEffect, useRef } from "react";
 import { useTenant } from "../contexts/TenantContext";
@@ -16,7 +17,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { apiGet } from "../utils/api";
 import CheckoutModal from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
-import { createTransaction } from "../services/transactionService";
+import { createTransactionOffline } from "../services/transactionService";
+import { cacheCategories, getCachedCategories, cacheProducts, getCachedProducts } from "../lib/localCache";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -24,6 +26,8 @@ type Size = {
   id: string;
   name: string;
   priceModifier: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   volume?: string;
 };
 
@@ -31,17 +35,23 @@ type Addon = {
   id: string;
   name: string;
   price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
 };
 
 type Product = {
   id: string;
   name: string;
   price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   categoryId: string;
   image?: string;
   sizes?: Size[];
   addons?: Addon[];
 };
+
+type OrderType = 'regular' | 'foodpanda' | 'grab';
 
 type Category = {
   id: string;
@@ -57,7 +67,13 @@ type OrderItem = {
   selectedAddons: Addon[];
 };
 
-type PaymentMethodType = "cash" | "card" | "gcash" | "paymaya" | "online" | "foodpanda";
+type PaymentMethodType =
+  | "cash"
+  | "gcash"
+  | "paymaya"
+  | "online"
+  | "foodpanda"
+  | "grab";
 
 type TransactionData = {
   transactionId: string;
@@ -81,7 +97,7 @@ const generateTransactionId = (): string => {
 
 export default function Home() {
   const router = useRouter();
-  const { tenant } = useTenant();
+  const { tenant, brand } = useTenant();
   const { user, logout } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -98,39 +114,47 @@ export default function Home() {
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
+  const [showQueuedConfirm, setShowQueuedConfirm] = useState(false);
+  const [orderType, setOrderType] = useState<OrderType>('regular');
 
-  // Fetch categories and products from API
+  // Fetch categories and products from API, fall back to local cache when offline
   useEffect(() => {
     const fetchData = async () => {
       if (!tenant) return;
-      
       setIsLoadingData(true);
       try {
-        // Fetch categories
-        const categoriesResponse = await apiGet("/categories");
-        if (categoriesResponse.ok) {
-          const categoriesData: Category[] = await categoriesResponse.json();
+        const [categoriesResponse, productsResponse] = await Promise.all([
+          apiGet("/categories"),
+          apiGet("/products"),
+        ]);
+        const categoriesData: Category[] = categoriesResponse.ok ? await categoriesResponse.json() : [];
+        const productsData: Product[] = productsResponse.ok ? await productsResponse.json() : [];
+        if (categoriesData.length > 0) {
+          await cacheCategories(categoriesData);
           setCategories(categoriesData);
-          if (categoriesData.length > 0 && !selectedCategory) {
-            setSelectedCategory(categoriesData[0].id);
-          }
+          if (!selectedCategory) setSelectedCategory(categoriesData[0].id);
         }
-
-        // Fetch products
-        const productsResponse = await apiGet("/products");
-        if (productsResponse.ok) {
-          const productsData = await productsResponse.json();
+        if (productsData.length > 0) {
+          await cacheProducts(productsData);
           setProducts(productsData);
         }
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
+      } catch {
+        // Network failure — load from local cache
+        const [cachedCats, cachedProds] = await Promise.all([
+          getCachedCategories(),
+          getCachedProducts(),
+        ]);
+        if (cachedCats && cachedProds) {
+          setCategories(cachedCats);
+          if (!selectedCategory && cachedCats.length > 0) setSelectedCategory(cachedCats[0].id);
+          setProducts(cachedProds);
+        }
       } finally {
         setIsLoadingData(false);
       }
     };
-
     fetchData();
-  }, [tenant]);
+  }, [tenant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // If no tenant is set, redirect to tenant setup
@@ -163,10 +187,36 @@ export default function Home() {
     return null; // Will redirect to login or tenant-setup
   }
 
-  const primaryColor = tenant.themeColors?.primary || "#ea580c";
-  const textColor = tenant.themeColors?.text || "#1f2937";
-  const logoUri = tenant.logoUrl || null;
-  const backgroundColor = tenant.themeColors?.background || "#ffffff";
+  // Brand theme takes priority over store theme
+  const primaryColor =
+    brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
+  const textColor =
+    brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
+  const backgroundColor =
+    brand?.themeColors?.background ??
+    tenant.themeColors?.background ??
+    "#ffffff";
+
+  const enabledPlatforms = brand?.enabledDeliveryPlatforms ?? [];
+  const hasFoodPanda = enabledPlatforms.includes('FOODPANDA');
+  const hasGrab = enabledPlatforms.includes('GRAB');
+  const showOrderTypeSelector = hasFoodPanda || hasGrab;
+
+  // Resolve logo URL using the app's apiBase — strips any mismatched host from
+  // server-formatted URLs (BASE_URL may differ from the client's EXPO_PUBLIC_API_URL)
+  const apiBase =
+    process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") ||
+    "http://localhost:3000";
+  const resolveLogoUrl = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    try {
+      const path = raw.startsWith("http") ? new URL(raw).pathname : raw;
+      return `${apiBase}${path}`;
+    } catch {
+      return raw;
+    }
+  };
+  const logoUri = resolveLogoUrl(brand?.logoUrl ?? tenant?.logoUrl ?? null);
 
   const openCustomizeModal = (product: Product) => {
     setSelectedProduct(product);
@@ -215,40 +265,58 @@ export default function Home() {
     } else {
       setOrders(
         orders.map((item) =>
-          item.id === orderId ? { ...item, quantity: newQuantity } : item
-        )
+          item.id === orderId ? { ...item, quantity: newQuantity } : item,
+        ),
       );
     }
   };
 
   const filteredProducts = products.filter(
-    (p) => p.categoryId === selectedCategory
+    (p) => p.categoryId === selectedCategory,
   );
 
+  const getEffectiveProductPrice = (product: Product): number => {
+    if (orderType === 'foodpanda' && product.foodpandaPrice != null) return product.foodpandaPrice;
+    if (orderType === 'grab' && product.grabPrice != null) return product.grabPrice;
+    return product.price;
+  };
+
+  const getEffectiveAddonPrice = (addon: Addon): number => {
+    if (orderType === 'foodpanda' && addon.foodpandaPrice != null) return addon.foodpandaPrice;
+    if (orderType === 'grab' && addon.grabPrice != null) return addon.grabPrice;
+    return addon.price;
+  };
+
+  const getEffectiveSizeModifier = (size: Size): number => {
+    if (orderType === 'foodpanda' && size.foodpandaPrice != null) return size.foodpandaPrice;
+    if (orderType === 'grab' && size.grabPrice != null) return size.grabPrice;
+    return size.priceModifier;
+  };
+
   const calculateItemPrice = (item: OrderItem): number => {
-    let price = item.product.price;
+    let price = getEffectiveProductPrice(item.product);
     if (item.selectedSize) {
-      price += item.selectedSize.priceModifier;
+      price += getEffectiveSizeModifier(item.selectedSize);
     }
     item.selectedAddons.forEach((addon) => {
-      price += addon.price;
+      price += getEffectiveAddonPrice(addon);
     });
     return price;
   };
 
   const totalAmount = orders.reduce(
     (sum, item) => sum + calculateItemPrice(item) * item.quantity,
-    0
+    0,
   );
 
   const getCurrentCustomizationPrice = (): number => {
     if (!selectedProduct) return 0;
-    let price = selectedProduct.price;
+    let price = getEffectiveProductPrice(selectedProduct);
     if (selectedSize) {
-      price += selectedSize.priceModifier;
+      price += getEffectiveSizeModifier(selectedSize);
     }
     selectedAddons.forEach((addon) => {
-      price += addon.price;
+      price += getEffectiveAddonPrice(addon);
     });
     return price;
   };
@@ -272,7 +340,7 @@ export default function Home() {
 
     const renderRightActions = (
       progress: Animated.AnimatedInterpolation<number>,
-      dragX: Animated.AnimatedInterpolation<number>
+      dragX: Animated.AnimatedInterpolation<number>,
     ) => {
       const opacity = dragX.interpolate({
         inputRange: [-70, 0],
@@ -394,7 +462,7 @@ export default function Home() {
 
   const handleCheckoutComplete = async (
     paymentMethod: PaymentMethodType | null,
-    details: any
+    details: any,
   ) => {
     if (!paymentMethod) return;
 
@@ -407,20 +475,35 @@ export default function Home() {
       // Map frontend OrderItems to backend TransactionItems format
       const backendItems = orders.map((item) => ({
         productId: item.product.id,
+        productName: item.product.name,
         quantity: item.quantity,
         sizeId: item.selectedSize?.id,
+        sizeName: item.selectedSize?.name,
         subtotal: calculateItemPrice(item) * item.quantity,
         addons: item.selectedAddons.map((addon) => ({
           addonId: addon.id,
+          addonName: addon.name,
         })),
       }));
+
+      // Capture the actual sale time now — if the transaction ends up in the
+      // offline queue, this timestamp is sent to the server on sync so the
+      // record reflects when the sale happened, not when it was uploaded.
+      const saleTimestamp = new Date().toISOString();
 
       // Create transaction payload for backend
       const transactionPayload = {
         transactionId,
+        timestamp: saleTimestamp,
         subtotal: totalAmount,
-        total: totalAmount,
-        paymentMethod: paymentMethod.toUpperCase() as "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA",
+        total: totalAmount - (details.discountAmount ?? 0),
+        paymentMethod: paymentMethod.toUpperCase() as
+          | "CASH"
+          | "GCASH"
+          | "PAYMAYA"
+          | "ONLINE"
+          | "FOODPANDA"
+          | "GRAB",
         ...(paymentMethod === "cash" && {
           cashReceived: details.cashReceived,
           change: details.change,
@@ -431,41 +514,48 @@ export default function Home() {
         ...(details.remarks && {
           remarks: details.remarks,
         }),
+        ...(details.discountAmount && details.discountAmount > 0 && {
+          discountAmount: details.discountAmount,
+        }),
         items: backendItems,
       };
 
-      // Save transaction to backend
-      const savedTransaction = await createTransaction(transactionPayload);
+      // Save transaction — offline-first (queues if network unavailable)
+      const result = await createTransactionOffline(transactionPayload);
 
-      console.log("🟢 Transaction saved to backend:", savedTransaction);
-
-      // Create transaction data for local display
-      const transaction: TransactionData = {
-        transactionId,
-        timestamp: new Date(),
-        items: [...orders],
-        subtotal: totalAmount,
-        total: totalAmount,
-        paymentMethod,
-        ...(paymentMethod === "cash" && {
-          cashReceived: details.cashReceived,
-          change: details.change,
-        }),
-        ...(paymentMethod !== "cash" && {
-          referenceNumber: details.referenceNumber,
-        }),
-      };
-
-      setCurrentTransaction(transaction);
       setShowCheckoutModal(false);
-      setShowTransactionSummary(true);
-      setTransactionError(null); // Clear any previous errors
+      setTransactionError(null);
+
+      if (result.queued) {
+        // Offline: show confirmation instead of receipt, then clear order
+        setShowQueuedConfirm(true);
+        setOrders([]);
+      } else {
+        // Online: show receipt as normal
+        const transaction: TransactionData = {
+          transactionId,
+          timestamp: new Date(),
+          items: [...orders],
+          subtotal: totalAmount,
+          total: totalAmount,
+          paymentMethod,
+          ...(paymentMethod === "cash" && {
+            cashReceived: details.cashReceived,
+            change: details.change,
+          }),
+          ...(paymentMethod !== "cash" && {
+            referenceNumber: details.referenceNumber,
+          }),
+        };
+        setCurrentTransaction(transaction);
+        setShowTransactionSummary(true);
+      }
     } catch (error) {
       console.error("Failed to create transaction:", error);
       setTransactionError(
         error instanceof Error
           ? error.message
-          : "Failed to create transaction. Please try again."
+          : "Failed to create transaction. Please try again.",
       );
       // Keep checkout modal open so user can retry
     } finally {
@@ -480,7 +570,27 @@ export default function Home() {
   };
 
   return (
-    <SafeAreaView className="w-full h-full bg-gray-50">
+    <AppSafeAreaView className="w-full h-full bg-gray-50">
+      {/* Transaction queued confirmation modal */}
+      <Modal visible={showQueuedConfirm} transparent animationType="fade">
+        <View className="flex-1 justify-center items-center bg-black/50 px-6">
+          <View className="bg-white rounded-2xl p-6 w-full max-w-sm items-center">
+            <Ionicons name="checkmark-circle" size={48} color="#16a34a" />
+            <Text className="text-gray-900 font-bold text-lg mt-3 text-center">Transaction Saved</Text>
+            <Text className="text-gray-500 text-sm mt-2 text-center">
+              {"You're offline. The transaction has been saved locally and will sync automatically when you reconnect."}
+            </Text>
+            <TouchableOpacity
+              className="mt-5 w-full py-3 rounded-xl items-center"
+              style={{ backgroundColor: primaryColor }}
+              onPress={() => setShowQueuedConfirm(false)}
+            >
+              <Text className="text-white font-semibold">OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Header */}
       <View
         className="px-6 py-4 flex-row justify-between items-center"
@@ -494,37 +604,40 @@ export default function Home() {
               resizeMode="contain"
             />
           )}
-          <Text className="text-2xl font-bold" style={{ color: textColor }}>
-            {tenant.name}
-          </Text>
+          <View>
+            <Text className="text-2xl font-bold" style={{ color: textColor }}>
+              {tenant.name}
+            </Text>
+          </View>
         </View>
         <View className="flex-row gap-6">
           <TouchableOpacity
-            className="rounded-lg p-2"
-            style={{ backgroundColor: primaryColor }}
+            className="p-2"
             onPress={() => router.push("/transactions" as Href)}
           >
             <Ionicons name="receipt-outline" size={24} color={textColor} />
           </TouchableOpacity>
           <TouchableOpacity
-            className="rounded-lg p-2"
-            style={{ backgroundColor: primaryColor }}
+            className="p-2"
             onPress={() => router.push("/expenses" as Href)}
           >
             <Ionicons name="wallet-outline" size={24} color={textColor} />
           </TouchableOpacity>
           <TouchableOpacity
-            className="rounded-lg p-2"
-            style={{ backgroundColor: primaryColor }}
+            className="p-2"
             onPress={() => router.push("/inventory" as Href)}
           >
             <Ionicons name="cube-outline" size={24} color={textColor} />
           </TouchableOpacity>
-          <View className="w-px bg-black self-stretch mx-2" />
+          <View className="w-px bg-black self-stretch" />
           <TouchableOpacity
-            className="rounded-lg p-2"
-            onPress={handleLogout}
+            className="p-2"
+            onPress={() => router.push("/settings" as Href)}
           >
+            <Ionicons name="settings-outline" size={24} color={textColor} />
+          </TouchableOpacity>
+          <View className="w-px bg-black self-stretch mx-2" />
+          <TouchableOpacity className="p-2" onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={24} color={textColor} />
           </TouchableOpacity>
         </View>
@@ -534,10 +647,51 @@ export default function Home() {
       <View className="flex-1 flex-row">
         {/* Category Panel */}
         <View className="w-1/5 bg-white border-r border-gray-200 p-4">
-          <Text className="text-lg font-bold mb-4" style={{ color: textColor }}>
+          {/* Order Type Selector */}
+          {showOrderTypeSelector && (
+            <>
+              <Text className="text-base font-bold mb-4" style={{ color: textColor }}>
+                Order Type
+              </Text>
+              {([
+                { value: 'regular' as OrderType, label: 'In-store', color: primaryColor, selectedTextColor: '#000000' },
+                ...(hasFoodPanda ? [{ value: 'foodpanda' as OrderType, label: 'FoodPanda', color: '#ec4899', selectedTextColor: '#ffffff' }] : []),
+                ...(hasGrab ? [{ value: 'grab' as OrderType, label: 'Grab', color: '#00B14F', selectedTextColor: '#ffffff' }] : []),
+              ]).map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  className="p-3 rounded-lg mb-2"
+                  style={{ backgroundColor: orderType === opt.value ? opt.color : '#f3f4f6' }}
+                  onPress={() => {
+                    if (orders.length > 0) {
+                      Alert.alert(
+                        'Switch Order Type',
+                        'Switching order type will clear the current cart. Continue?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Switch', style: 'destructive', onPress: () => { setOrders([]); setOrderType(opt.value); } },
+                        ]
+                      );
+                    } else {
+                      setOrderType(opt.value);
+                    }
+                  }}
+                >
+                  <Text
+                    className="font-semibold"
+                    style={{ color: orderType === opt.value ? opt.selectedTextColor : textColor }}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <View style={{ borderTopWidth: 1, borderTopColor: '#e5e7eb', marginTop: 8, marginBottom: 12 }} />
+            </>
+          )}
+          <Text className="text-base font-bold mb-4" style={{ color: textColor }}>
             Categories
           </Text>
-          <ScrollView>
+          <ScrollView style={{ flex: 1 }}>
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.id}
@@ -560,6 +714,30 @@ export default function Home() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+          <View
+            style={{
+              paddingTop: 12,
+              marginTop: 8,
+              borderTopWidth: 1,
+              borderTopColor: "#f3f4f6",
+              alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 6,
+            }}
+          >
+            <Image
+              source={require("../assets/images/logo-with-appname.png")}
+              style={{ width: 20, height: 20 }}
+              resizeMode="contain"
+            />
+            <Text style={{ fontSize: 11, color: "#9ca3af" }}>
+              Powered by{" "}
+              <Text style={{ fontWeight: "600", color: "#4b5563" }}>
+                Kioscify
+              </Text>
+            </Text>
+          </View>
         </View>
 
         {/* Products Panel */}
@@ -573,56 +751,70 @@ export default function Home() {
               <Text className="mt-2 text-gray-500">Loading products...</Text>
             </View>
           ) : (
-          <ScrollView>
-            <View className="flex-row flex-wrap">
-              {filteredProducts.map((product) => {
-                // Use image URL directly from API (already transformed to absolute URL)
-                const imageUri = product.image || null;
-                return (
-                  <TouchableOpacity
-                    key={product.id}
-                    className={orders.length > 0 ? "w-1/2 p-2" : "w-1/3 p-2"}
-                    onPress={() => openCustomizeModal(product)}
-                  >
-                    <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-64">
-                      <View className="h-40 mb-3 justify-center items-center bg-gray-100 rounded-lg overflow-hidden">
-                        {imageUri ? (
-                          <Image
-                            source={{ uri: imageUri }}
-                            className="w-full h-full"
-                            resizeMode="contain"
-                          />
-                        ) : (
-                          <Text className="text-gray-500 text-xs">No Image</Text>
-                        )}
-                      </View>
-                      <View className="flex-1">
-                        <View className="flex flex-row justify-between">
+            <ScrollView>
+              <View className="flex-row flex-wrap">
+                {filteredProducts.map((product) => {
+                  const imageUri = (() => {
+                    if (!product.image) return null;
+                    try {
+                      const path = product.image.startsWith("http")
+                        ? new URL(product.image).pathname
+                        : product.image;
+                      return `${apiBase}${path}`;
+                    } catch {
+                      return product.image;
+                    }
+                  })();
+                  return (
+                    <TouchableOpacity
+                      key={product.id}
+                      className={orders.length > 0 ? "w-1/2 p-2" : "w-1/3 p-2"}
+                      onPress={() => openCustomizeModal(product)}
+                    >
+                      <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-64">
+                        <View className="h-40 mb-3 justify-center items-center bg-gray-100 rounded-lg overflow-hidden">
+                          {imageUri ? (
+                            <Image
+                              source={{ uri: imageUri }}
+                              className="w-full h-full"
+                              resizeMode="contain"
+                            />
+                          ) : (
+                            <Text className="text-gray-500 text-xs">
+                              No Image
+                            </Text>
+                          )}
+                        </View>
+                        <View className="flex-1">
+                          <View className="flex flex-row justify-between">
+                            <Text
+                              className="font-semibold text-base flex-1 mr-2"
+                              style={{ color: textColor }}
+                              numberOfLines={1}
+                            >
+                              {product.name}
+                            </Text>
+                            <Text
+                              className="font-bold"
+                              style={{ color: textColor }}
+                            >
+                              ₱{getEffectiveProductPrice(product).toFixed(2)}
+                            </Text>
+                          </View>
                           <Text
-                            className="font-semibold text-base flex-1 mr-2"
+                            className="text-xs font-medium"
                             style={{ color: textColor }}
                             numberOfLines={1}
                           >
-                            {product.name}
-                          </Text>
-                          <Text className="font-bold" style={{ color: textColor }}>
-                            ₱{product.price.toFixed(2)}
+                            {getCategoryName(product.categoryId)}
                           </Text>
                         </View>
-                        <Text
-                          className="text-xs font-medium"
-                          style={{ color: textColor }}
-                          numberOfLines={1}
-                        >
-                          {getCategoryName(product.categoryId)}
-                        </Text>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </ScrollView>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
           )}
         </View>
 
@@ -765,8 +957,8 @@ export default function Home() {
                             color: textColor,
                           }}
                         >
-                          {size.priceModifier > 0
-                            ? `+₱${size.priceModifier.toFixed(2)}`
+                          {getEffectiveSizeModifier(size) > 0
+                            ? `+₱${getEffectiveSizeModifier(size).toFixed(2)}`
                             : "Base"}
                         </Text>
                         {size.volume && (
@@ -794,7 +986,7 @@ export default function Home() {
                   </Text>
                   {selectedProduct.addons.map((addon) => {
                     const isSelected = selectedAddons.find(
-                      (a) => a.id === addon.id
+                      (a) => a.id === addon.id,
                     );
                     return (
                       <TouchableOpacity
@@ -825,7 +1017,7 @@ export default function Home() {
                             color: `${textColor}B3`,
                           }}
                         >
-                          +₱{addon.price.toFixed(2)}
+                          +₱{getEffectiveAddonPrice(addon).toFixed(2)}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -878,14 +1070,27 @@ export default function Home() {
         onCheckoutComplete={handleCheckoutComplete}
         isLoading={isCreatingTransaction}
         error={transactionError}
+        initialPaymentMethod={
+          orderType === 'foodpanda' ? 'foodpanda' :
+          orderType === 'grab' ? 'grab' :
+          null
+        }
+        hiddenPaymentMethods={
+          orderType === 'regular'
+            ? [
+                ...(hasFoodPanda ? ['foodpanda' as const] : []),
+                ...(hasGrab ? ['grab' as const] : []),
+              ]
+            : []
+        }
       />
 
       {/* Transaction Summary Modal */}
       <TransactionSummary
         visible={showTransactionSummary}
-        transaction={currentTransaction}
+        transaction={currentTransaction as any}
         onNewOrder={handleNewOrder}
       />
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }

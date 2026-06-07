@@ -135,4 +135,14 @@ export class CreateSubmittedReportDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Device-generated UUID for offline deduplication' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @ApiPropertyOptional({ description: 'Actual submission time captured on-device (preserves time for offline sync)' })
+  @IsOptional()
+  @IsDateString()
+  submittedAt?: string;
 }

@@ -15,11 +15,11 @@ import { useTenant } from "@/contexts/TenantContext";
 
 export type PaymentMethod =
   | "cash"
-  | "card"
   | "gcash"
   | "paymaya"
   | "online"
   | "foodpanda"
+  | "grab"
   | null;
 
 type CheckoutModalProps = {
@@ -32,6 +32,8 @@ type CheckoutModalProps = {
   ) => void;
   isLoading?: boolean;
   error?: string | null;
+  initialPaymentMethod?: PaymentMethod;
+  hiddenPaymentMethods?: PaymentMethod[];
 };
 
 type PaymentDetails = {
@@ -40,7 +42,10 @@ type PaymentDetails = {
   change?: number;
   referenceNumber?: string;
   remarks?: string;
+  discountAmount?: number;
 };
+
+const DISCOUNT_PERCENTAGES = [5, 10, 15, 20, 25, 50];
 
 export default function CheckoutModal({
   visible,
@@ -49,28 +54,37 @@ export default function CheckoutModal({
   onCheckoutComplete,
   isLoading = false,
   error = null,
+  initialPaymentMethod = null,
+  hiddenPaymentMethods = [],
 }: CheckoutModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initialPaymentMethod);
   const [cashReceived, setCashReceived] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [remarks, setRemarks] = useState("");
   const [validationError, setValidationError] = useState("");
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [discountPercentage, setDiscountPercentage] = useState<number | null>(null);
+  const [customDiscountAmount, setCustomDiscountAmount] = useState("");
+  const [discountMode, setDiscountMode] = useState<"percentage" | "amount" | null>(null);
 
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#ea580c";
-  const textColor = tenant?.themeColors?.text || "#1f2937";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+  const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
 
   // Reset form when modal is closed (visible changes to false)
   useEffect(() => {
     if (!visible) {
-      setPaymentMethod(null);
+      setPaymentMethod(initialPaymentMethod);
       setCashReceived("");
       setReferenceNumber("");
       setRemarks("");
       setValidationError("");
+      setDiscountPercentage(null);
+      setCustomDiscountAmount("");
+      setDiscountMode(null);
     }
-  }, [visible]);
+  }, [visible, initialPaymentMethod]);
 
   // Listen to keyboard show/hide events
   useEffect(() => {
@@ -88,12 +102,27 @@ export default function CheckoutModal({
   }, []);
 
   const resetForm = () => {
-    setPaymentMethod(null);
+    setPaymentMethod(initialPaymentMethod);
     setCashReceived("");
     setReferenceNumber("");
     setRemarks("");
     setValidationError("");
+    setDiscountPercentage(null);
+    setCustomDiscountAmount("");
+    setDiscountMode(null);
   };
+
+  const computedDiscount = (): number => {
+    if (discountMode === "percentage" && discountPercentage !== null) {
+      return totalAmount * discountPercentage / 100;
+    }
+    if (discountMode === "amount") {
+      return Math.min(parseFloat(customDiscountAmount) || 0, totalAmount);
+    }
+    return 0;
+  };
+
+  const finalTotal = totalAmount - computedDiscount();
 
   const handleClose = () => {
     resetForm();
@@ -108,7 +137,37 @@ export default function CheckoutModal({
   const calculateChange = (): number => {
     const received = parseFloat(cashReceived);
     if (isNaN(received)) return 0;
-    return Math.max(0, received - totalAmount);
+    return Math.max(0, received - finalTotal);
+  };
+
+  const handlePercentageChipPress = (pct: number) => {
+    setDiscountMode("percentage");
+    setDiscountPercentage(pct);
+    setCustomDiscountAmount("");
+  };
+
+  const handleAmountInput = (text: string) => {
+    setDiscountMode("amount");
+    setCustomDiscountAmount(text);
+    setDiscountPercentage(null);
+  };
+
+  const handleClearDiscount = () => {
+    setDiscountMode(null);
+    setDiscountPercentage(null);
+    setCustomDiscountAmount("");
+  };
+
+  const isDiscountActive = computedDiscount() > 0;
+
+  const discountLabel = (): string => {
+    if (discountMode === "percentage" && discountPercentage !== null) {
+      return `${discountPercentage}%`;
+    }
+    if (discountMode === "amount") {
+      return `₱${(parseFloat(customDiscountAmount) || 0).toFixed(2)}`;
+    }
+    return "";
   };
 
   const validateAndSubmit = () => {
@@ -119,6 +178,8 @@ export default function CheckoutModal({
       return;
     }
 
+    const discount = computedDiscount();
+
     if (paymentMethod === "cash") {
       const received = parseFloat(cashReceived);
 
@@ -127,20 +188,21 @@ export default function CheckoutModal({
         return;
       }
 
-      if (received < totalAmount) {
+      if (received < finalTotal) {
         setValidationError("Cash received is less than the total amount");
         return;
       }
 
-      const change = calculateChange();
+      const change = received - finalTotal;
       onCheckoutComplete(paymentMethod, {
         method: "cash",
         cashReceived: received,
         change,
         remarks: remarks.trim() || undefined,
+        ...(discount > 0 && { discountAmount: discount }),
       });
     } else {
-      // card, gcash, paymaya, online - all require reference number
+      // gcash, paymaya, online, foodpanda, grab - all require reference number
       if (!referenceNumber.trim()) {
         setValidationError("Please enter the transaction reference number");
         return;
@@ -150,6 +212,7 @@ export default function CheckoutModal({
         method: paymentMethod,
         referenceNumber: referenceNumber.trim(),
         remarks: remarks.trim() || undefined,
+        ...(discount > 0 && { discountAmount: discount }),
       });
     }
 
@@ -183,10 +246,10 @@ export default function CheckoutModal({
             {/* Modal Header */}
             <View
               className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
-              style={{ backgroundColor: primaryColor }}
+              style={{ backgroundColor: backgroundColor }}
             >
               <View className="flex flex-row items-center justify-center">
-                {paymentMethod && (
+                {paymentMethod && !initialPaymentMethod && (
                   <TouchableOpacity onPress={handleBack} className="mr-3">
                     <Text className="text-black text-2xl font-bold mb-3">
                       ←
@@ -229,21 +292,148 @@ export default function CheckoutModal({
                   borderColor: `${primaryColor}80`,
                 }}
               >
-                <View className="flex-row justify-between items-center">
-                  <Text
-                    className="text-lg font-semibold"
-                    style={{ color: textColor }}
-                  >
-                    Total Due:
+                {isDiscountActive ? (
+                  <>
+                    <View className="flex-row justify-between items-center mb-1">
+                      <Text
+                        className="text-base font-medium"
+                        style={{ color: textColor }}
+                      >
+                        Subtotal:
+                      </Text>
+                      <Text
+                        className="text-base font-medium"
+                        style={{ color: textColor }}
+                      >
+                        ₱{totalAmount.toFixed(2)}
+                      </Text>
+                    </View>
+                    <View className="flex-row justify-between items-center mb-2">
+                      <Text className="text-base font-medium text-red-600">
+                        Discount ({discountLabel()}):
+                      </Text>
+                      <Text className="text-base font-medium text-red-600">
+                        -₱{computedDiscount().toFixed(2)}
+                      </Text>
+                    </View>
+                    <View
+                      className="border-t mb-2"
+                      style={{ borderColor: `${primaryColor}40` }}
+                    />
+                    <View className="flex-row justify-between items-center">
+                      <Text
+                        className="text-lg font-bold"
+                        style={{ color: textColor }}
+                      >
+                        Total Due:
+                      </Text>
+                      <Text
+                        className="text-2xl font-bold"
+                        style={{ color: textColor }}
+                      >
+                        ₱{finalTotal.toFixed(2)}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <View className="flex-row justify-between items-center">
+                    <Text
+                      className="text-lg font-semibold"
+                      style={{ color: textColor }}
+                    >
+                      Total Due:
+                    </Text>
+                    <Text
+                      className="text-2xl font-bold"
+                      style={{ color: textColor }}
+                    >
+                      ₱{finalTotal.toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Discount Section — editable before payment method is selected */}
+              {!paymentMethod && (
+                <View className="mb-4">
+                  <Text className="text-sm font-semibold text-gray-700 mb-2">
+                    Discount
                   </Text>
-                  <Text
-                    className="text-2xl font-bold"
-                    style={{ color: textColor }}
-                  >
-                    ₱{totalAmount.toFixed(2)}
+
+                  {/* Percentage chips + inline amount input in one wrapping row */}
+                  <View className="flex-row flex-wrap items-center">
+                    {DISCOUNT_PERCENTAGES.map((pct) => {
+                      const isActive = discountMode === "percentage" && discountPercentage === pct;
+                      return (
+                        <TouchableOpacity
+                          key={pct}
+                          className="mr-2 mb-2 px-3 py-1.5 rounded-full border"
+                          style={{
+                            backgroundColor: isActive ? primaryColor : "#f3f4f6",
+                            borderColor: isActive ? primaryColor : "#e5e7eb",
+                          }}
+                          onPress={() => handlePercentageChipPress(pct)}
+                        >
+                          <Text
+                            className="text-sm font-semibold"
+                            style={{ color: isActive ? "#ffffff" : textColor }}
+                          >
+                            {pct}%
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+
+                    {/* Inline manual amount — styled like a chip */}
+                    <View
+                      className="mr-2 mb-2 px-3 rounded-full border flex-row items-center"
+                      style={{
+                        backgroundColor: discountMode === "amount" ? `${primaryColor}15` : "#f3f4f6",
+                        borderColor: discountMode === "amount" ? primaryColor : "#e5e7eb",
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Text
+                        className="text-sm font-semibold"
+                        style={{ color: discountMode === "amount" ? primaryColor : "#9ca3af" }}
+                      >
+                        ₱
+                      </Text>
+                      <TextInput
+                        style={{
+                          width: 64,
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: discountMode === "amount" ? textColor : "#6b7280",
+                          padding: 0,
+                          marginLeft: 2,
+                        }}
+                        placeholder="0.00"
+                        placeholderTextColor="#9ca3af"
+                        value={customDiscountAmount}
+                        onChangeText={handleAmountInput}
+                        keyboardType="decimal-pad"
+                      />
+                    </View>
+
+                    {/* Clear — only when discount is active */}
+                    {isDiscountActive && (
+                      <TouchableOpacity className="mb-2" onPress={handleClearDiscount}>
+                        <Text className="text-sm text-red-500 font-medium">Clear</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* Locked discount summary — shown after payment method selected, only if discount active */}
+              {paymentMethod && isDiscountActive && (
+                <View className="mb-3">
+                  <Text className="text-xs text-gray-500">
+                    Discount applied: -₱{computedDiscount().toFixed(2)} ({discountLabel()})
                   </Text>
                 </View>
-              </View>
+              )}
 
               {/* Payment Method Selection */}
               {!paymentMethod && (
@@ -259,52 +449,10 @@ export default function CheckoutModal({
                         onPress={() => handlePaymentMethodSelect("cash")}
                       >
                         <Text className="text-white text-xl font-bold mb-1">
-                          💵 Cash
+                          Cash
                         </Text>
                         <Text className="text-green-50 text-xs text-center">
                           Receive cash
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <View className="w-1/2 px-1.5 mb-2.5">
-                      <TouchableOpacity
-                        className="bg-purple-500 rounded-lg py-4 px-3 items-center shadow-sm"
-                        onPress={() => handlePaymentMethodSelect("card")}
-                      >
-                        <Text className="text-white text-xl font-bold mb-1">
-                          💳 Card
-                        </Text>
-                        <Text className="text-purple-50 text-xs text-center">
-                          Credit/Debit
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <View className="w-1/2 px-1.5 mb-2.5">
-                      <TouchableOpacity
-                        className="bg-blue-600 rounded-lg py-4 px-3 items-center shadow-sm"
-                        onPress={() => handlePaymentMethodSelect("gcash")}
-                      >
-                        <Text className="text-white text-xl font-bold mb-1">
-                          📱 GCash
-                        </Text>
-                        <Text className="text-blue-50 text-xs text-center">
-                          Mobile wallet
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <View className="w-1/2 px-1.5 mb-2.5">
-                      <TouchableOpacity
-                        className="bg-green-600 rounded-lg py-4 px-3 items-center shadow-sm"
-                        onPress={() => handlePaymentMethodSelect("paymaya")}
-                      >
-                        <Text className="text-white text-xl font-bold mb-1">
-                          📱 PayMaya
-                        </Text>
-                        <Text className="text-green-50 text-xs text-center">
-                          Maya wallet
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -315,9 +463,9 @@ export default function CheckoutModal({
                         onPress={() => handlePaymentMethodSelect("online")}
                       >
                         <Text className="text-white text-xl font-bold mb-1">
-                          🌐 Online
+                          Online
                         </Text>
-                        <Text className="text-gray-50 text-xs text-center">
+                        <Text className="text-gray-200 text-xs text-center">
                           Bank/E-wallet
                         </Text>
                       </TouchableOpacity>
@@ -325,17 +473,65 @@ export default function CheckoutModal({
 
                     <View className="w-1/2 px-1.5 mb-2.5">
                       <TouchableOpacity
-                        className="bg-pink-500 rounded-lg py-4 px-3 items-center shadow-sm"
-                        onPress={() => handlePaymentMethodSelect("foodpanda")}
+                        className="bg-blue-600 rounded-lg py-4 px-3 items-center shadow-sm"
+                        onPress={() => handlePaymentMethodSelect("gcash")}
                       >
                         <Text className="text-white text-xl font-bold mb-1">
-                          🛵 FoodPanda
+                          GCash
                         </Text>
-                        <Text className="text-pink-50 text-xs text-center">
-                          Delivery order
+                        <Text className="text-blue-100 text-xs text-center">
+                          Mobile wallet
                         </Text>
                       </TouchableOpacity>
                     </View>
+
+                    <View className="w-1/2 px-1.5 mb-2.5">
+                      <TouchableOpacity
+                        className="rounded-lg py-4 px-3 items-center shadow-sm"
+                        style={{ backgroundColor: "#202122" }}
+                        onPress={() => handlePaymentMethodSelect("paymaya")}
+                      >
+                        <Text className="text-xl font-bold mb-1" style={{ color: "#50B16B" }}>
+                          Maya
+                        </Text>
+                        <Text className="text-white text-xs text-center opacity-80">
+                          Maya wallet
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {!hiddenPaymentMethods.includes("foodpanda") && (
+                      <View className="w-1/2 px-1.5 mb-2.5">
+                        <TouchableOpacity
+                          className="bg-pink-500 rounded-lg py-4 px-3 items-center shadow-sm"
+                          onPress={() => handlePaymentMethodSelect("foodpanda")}
+                        >
+                          <Text className="text-white text-xl font-bold mb-1">
+                            FoodPanda
+                          </Text>
+                          <Text className="text-pink-100 text-xs text-center">
+                            Delivery order
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {!hiddenPaymentMethods.includes("grab") && (
+                      <View className="w-1/2 px-1.5 mb-2.5">
+                        <TouchableOpacity
+                          className="rounded-lg py-4 px-3 items-center shadow-sm"
+                          style={{ backgroundColor: "#00B14F" }}
+                          onPress={() => handlePaymentMethodSelect("grab")}
+                        >
+                          <Text className="text-white text-xl font-bold mb-1">
+                            Grab
+                          </Text>
+                          <Text className="text-white text-xs text-center opacity-80">
+                            Delivery order
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </View>
                 </View>
               )}
@@ -393,7 +589,7 @@ export default function CheckoutModal({
                       <TouchableOpacity
                         className="rounded-lg px-4 py-2 mb-2"
                         style={{ backgroundColor: `${primaryColor}50` }}
-                        onPress={() => setCashReceived(totalAmount.toString())}
+                        onPress={() => setCashReceived(finalTotal.toString())}
                       >
                         <Text
                           className="font-semibold"
@@ -411,7 +607,7 @@ export default function CheckoutModal({
                       <View className="flex-row justify-between items-center mb-2">
                         <Text className="text-gray-700 font-medium">Due:</Text>
                         <Text className="text-gray-900 font-semibold">
-                          ₱{totalAmount.toFixed(2)}
+                          ₱{finalTotal.toFixed(2)}
                         </Text>
                       </View>
                       <View className="flex-row justify-between items-center mb-2">
@@ -443,32 +639,32 @@ export default function CheckoutModal({
                 </View>
               )}
 
-              {/* Non-Cash Payment Form (Card, GCash, PayMaya, Online, FoodPanda) */}
+              {/* Non-Cash Payment Form */}
               {paymentMethod && paymentMethod !== "cash" && (
                 <View>
                   <Text className="text-lg font-bold mb-4 text-gray-800">
-                    {paymentMethod === "card" && "Card Payment"}
                     {paymentMethod === "gcash" && "GCash Payment"}
-                    {paymentMethod === "paymaya" && "PayMaya Payment"}
+                    {paymentMethod === "paymaya" && "Maya Payment"}
                     {paymentMethod === "online" && "Online Transaction"}
                     {paymentMethod === "foodpanda" && "FoodPanda Delivery"}
+                    {paymentMethod === "grab" && "Grab Delivery"}
                   </Text>
 
                   <View className="mb-4">
                     <Text className="text-sm font-semibold text-gray-700 mb-2">
-                      Reference / Authorization Number
+                      Reference / Order Number
                     </Text>
                     <TextInput
                       className="bg-gray-100 rounded-lg px-4 py-4 text-lg border-2 border-gray-200"
                       placeholder={
-                        paymentMethod === "card"
-                          ? "Enter card authorization number"
-                          : paymentMethod === "gcash"
-                            ? "Enter GCash reference number"
-                            : paymentMethod === "paymaya"
-                              ? "Enter PayMaya reference number"
-                              : paymentMethod === "foodpanda"
-                                ? "Enter FoodPanda order number"
+                        paymentMethod === "gcash"
+                          ? "Enter GCash reference number"
+                          : paymentMethod === "paymaya"
+                            ? "Enter Maya reference number"
+                            : paymentMethod === "foodpanda"
+                              ? "Enter FoodPanda order number"
+                              : paymentMethod === "grab"
+                                ? "Enter Grab order number"
                                 : "Enter transaction reference number"
                       }
                       value={referenceNumber}
@@ -486,11 +682,6 @@ export default function CheckoutModal({
                       Please ensure you have received the payment confirmation
                       before proceeding.
                     </Text>
-                    {paymentMethod === "card" && (
-                      <Text className="text-xs text-gray-600">
-                        Enter the authorization code from the card terminal.
-                      </Text>
-                    )}
                     {paymentMethod === "gcash" && (
                       <Text className="text-xs text-gray-600">
                         Enter the GCash reference number from the payment
@@ -499,13 +690,18 @@ export default function CheckoutModal({
                     )}
                     {paymentMethod === "paymaya" && (
                       <Text className="text-xs text-gray-600">
-                        Enter the PayMaya/Maya reference number from the payment
+                        Enter the Maya reference number from the payment
                         confirmation.
                       </Text>
                     )}
                     {paymentMethod === "foodpanda" && (
                       <Text className="text-xs text-gray-600">
                         Enter the FoodPanda order number for delivery tracking.
+                      </Text>
+                    )}
+                    {paymentMethod === "grab" && (
+                      <Text className="text-xs text-gray-600">
+                        Enter the Grab order number for delivery tracking.
                       </Text>
                     )}
                     {paymentMethod === "online" && (

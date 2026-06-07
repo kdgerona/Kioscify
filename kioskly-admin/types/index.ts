@@ -1,27 +1,84 @@
-export interface Tenant {
+export interface ThemeColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  text: string;
+}
+
+export interface Brand {
+  id: string;
+  companyId: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  themeColors?: ThemeColors;
+  isActive: boolean;
+}
+
+export interface Company {
   id: string;
   name: string;
   slug: string;
   logoUrl?: string;
-  themeColors: {
-    primary: string;
-    secondary: string;
-    accent: string;
-    background: string;
-    text: string;
-  };
+}
+
+export interface Tenant {
+  id: string;
+  brandId?: string;
+  companyId?: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  themeColors?: ThemeColors;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  brand?: Brand;
+  company?: Company;
+}
+
+export interface StoreRef {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 export interface User {
   id: string;
-  tenantId: string;
+  tenantId?: string;
+  companyId?: string;
+  brandId?: string;
   username: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
-  role: "ADMIN" | "CASHIER";
+  role: "STORE_ADMIN" | "CASHIER" | "ADMIN" | "COMPANY_ADMIN" | "PLATFORM_ADMIN";
+  isActive?: boolean;
+  isFirstLogin?: boolean;
   createdAt: string;
   updatedAt: string;
+  isAssigned?: boolean;
+  assignedRole?: "STORE_ADMIN" | "CASHIER";
+  primaryStore?: StoreRef;
+}
+
+export interface AssignableUser {
+  id: string;
+  username: string;
+  firstName?: string;
+  lastName?: string;
+  role: "STORE_ADMIN" | "CASHIER" | "ADMIN";
+  primaryStore?: StoreRef;
+  brandName?: string;
+}
+
+export interface StoreAccess {
+  id: string;
+  tenantId: string;
+  role: "STORE_ADMIN" | "CASHIER";
+  isActive: boolean;
+  tenant: StoreRef;
 }
 
 export interface Category {
@@ -39,6 +96,8 @@ export interface Size {
   tenantId: string;
   name: string;
   priceModifier: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   volume?: string;
   createdAt: string;
   updatedAt: string;
@@ -49,6 +108,8 @@ export interface Addon {
   tenantId: string;
   name: string;
   price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +120,8 @@ export interface Product {
   categoryId: string;
   name: string;
   price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
   image?: string;
   category?: Category;
   sizes?: Size[];
@@ -85,8 +148,9 @@ export interface Transaction {
   tenantId: string;
   userId: string;
   subtotal: number;
+  discountAmount?: number | null;
   total: number;
-  paymentMethod: "CASH" | "CARD" | "GCASH" | "PAYMAYA" | "ONLINE";
+  paymentMethod: "CASH" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA" | "GRAB";
   cashReceived?: number | null;
   change?: number | null;
   referenceNumber?: string | null;
@@ -117,7 +181,22 @@ export interface AuthResponse {
 export interface LoginCredentials {
   username: string;
   password: string;
-  tenantId?: string;
+  storeSlug: string;
+  companySlug?: string;
+}
+
+export interface StoreUserCreatePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  username: string;
+  role: "STORE_ADMIN" | "CASHIER";
+}
+
+export interface TimeOfDayData {
+  hour: number;
+  count: number;
+  totalRevenue: number;
 }
 
 export interface ApiError {
@@ -130,13 +209,16 @@ export interface ApiError {
 export interface InventoryItem {
   id: string;
   tenantId: string;
+  templateId?: string;
   name: string;
   category: string;
   unit: string;
   description?: string;
   minStockLevel?: number;
+  minStockLevelCustomized?: boolean;
   requiresExpirationDate?: boolean;
   expirationWarningDays?: number;
+  expirationWarningDaysCustomized?: boolean;
   createdAt: string;
   updatedAt: string;
 }

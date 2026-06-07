@@ -14,6 +14,14 @@ export class ReportsService {
     startDate?: string,
     endDate?: string,
   ): { start: Date; end: Date } {
+    // Frontend always sends client-local ISO strings for every period.
+    // Trust them directly — do NOT re-apply setHours() which would shift
+    // the boundary to server local time and break cross-timezone deployments.
+    if (startDate && endDate) {
+      return { start: new Date(startDate), end: new Date(endDate) };
+    }
+
+    // Server-side fallback (reached only when no dates are provided)
     const now = new Date();
     let start: Date;
     let end: Date = new Date(
@@ -28,36 +36,12 @@ export class ReportsService {
 
     switch (period) {
       case TimePeriod.DAILY:
-        start = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-          0,
-          0,
-          0,
-          0,
-        );
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         break;
 
       case TimePeriod.YESTERDAY:
-        start = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() - 1,
-          0,
-          0,
-          0,
-          0,
-        );
-        end = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() - 1,
-          23,
-          59,
-          59,
-          999,
-        );
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
         break;
 
       case TimePeriod.WEEKLY: {
@@ -77,19 +61,8 @@ export class ReportsService {
         start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
         break;
 
-      case TimePeriod.OVERALL:
-        start = new Date(0);
-        break;
-
       case TimePeriod.CUSTOM:
-        if (!startDate || !endDate) {
-          throw new Error('Start and end dates are required for custom period');
-        }
-        start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        break;
+        throw new Error('Start and end dates are required for custom period');
 
       default:
         start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
@@ -439,5 +412,53 @@ export class ReportsService {
         a.date.localeCompare(b.date),
       ),
     };
+  }
+
+  // ─── Time of Day Trends ────────────────────────────────────────────────────
+
+  async getTimeOfDayTrends(tenantId: string, startDate: Date, endDate: Date) {
+    // Enforce 2-year max range
+    const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+    if (endDate.getTime() - startDate.getTime() > TWO_YEARS_MS) {
+      const { BadRequestException } = await import('@nestjs/common');
+      throw new BadRequestException('Date range cannot exceed 2 years');
+    }
+
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        tenantId,
+        timestamp: { gte: startDate, lte: endDate },
+        voidStatus: { not: 'APPROVED' } as any,
+      },
+      select: { timestamp: true, total: true },
+    });
+
+    // Aggregate by hour (0-23)
+    const hourlyData: Record<number, { hour: number; count: number; totalRevenue: number }> = {};
+    for (let h = 0; h < 24; h++) {
+      hourlyData[h] = { hour: h, count: 0, totalRevenue: 0 };
+    }
+
+    for (const tx of transactions) {
+      const hour = new Date(tx.timestamp).getHours();
+      hourlyData[hour].count += 1;
+      hourlyData[hour].totalRevenue += tx.total;
+    }
+
+    return {
+      period: { start: startDate.toISOString(), end: endDate.toISOString() },
+      hourlyBreakdown: Object.values(hourlyData),
+    };
+  }
+
+  // ─── 2-year limit enforcement ──────────────────────────────────────────────
+
+  validateDateRange(startDate?: Date, endDate?: Date) {
+    if (!startDate || !endDate) return;
+    const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+    if (endDate.getTime() - startDate.getTime() > TWO_YEARS_MS) {
+      const { BadRequestException } = require('@nestjs/common');
+      throw new BadRequestException('Date range cannot exceed 2 years');
+    }
   }
 }

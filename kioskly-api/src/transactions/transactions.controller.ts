@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
@@ -34,6 +35,7 @@ import { TenantId } from '../common/decorators/tenant.decorator';
 export class TransactionsController {
   constructor(private transactionsService: TransactionsService) {}
 
+  @SkipThrottle()
   @Post()
   @ApiOperation({ summary: 'Create a new transaction' })
   @ApiResponse({ status: 201, description: 'Transaction created successfully' })
@@ -71,9 +73,9 @@ export class TransactionsController {
     description: 'Filter by payment status',
   })
   @ApiQuery({
-    name: 'transactionId',
+    name: 'search',
     required: false,
-    description: 'Search by transaction ID (partial match)',
+    description: 'Search by transaction ID or cashier name (partial match)',
   })
   @ApiResponse({
     status: 200,
@@ -85,7 +87,7 @@ export class TransactionsController {
     @Query('paymentMethod')
     paymentMethod?: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE',
     @Query('paymentStatus') paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED',
-    @Query('transactionId') transactionId?: string,
+    @Query('search') search?: string,
     @Request() req?,
   ) {
     const filters: any = {};
@@ -93,7 +95,7 @@ export class TransactionsController {
     if (endDate) filters.endDate = new Date(endDate);
     if (paymentMethod) filters.paymentMethod = paymentMethod;
     if (paymentStatus) filters.paymentStatus = paymentStatus;
-    if (transactionId) filters.transactionId = transactionId;
+    if (search) filters.search = search;
 
     return this.transactionsService.findAll(req.user.tenantId, filters);
   }
@@ -124,7 +126,7 @@ export class TransactionsController {
   @ApiQuery({ name: 'endDate', required: false })
   @ApiResponse({ status: 200, description: 'Void requests retrieved successfully' })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STORE_ADMIN')
   getVoidRequests(
     @Query() filters: VoidFiltersDto,
     @TenantId() tenantId: string,
@@ -168,7 +170,7 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   @ApiResponse({ status: 400, description: 'Invalid void request' })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'CASHIER')
+  @Roles('ADMIN', 'STORE_ADMIN', 'CASHIER')
   requestVoid(
     @Param('id') id: string,
     @Body() requestVoidDto: RequestVoidDto,
@@ -188,7 +190,7 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   @ApiResponse({ status: 400, description: 'Invalid void request status' })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STORE_ADMIN')
   approveVoid(@Param('id') id: string, @Request() req) {
     return this.transactionsService.approveVoid(
       id,
@@ -203,7 +205,7 @@ export class TransactionsController {
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   @ApiResponse({ status: 400, description: 'Invalid void request status' })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'STORE_ADMIN')
   rejectVoid(
     @Param('id') id: string,
     @Body() reviewVoidDto: ReviewVoidDto,

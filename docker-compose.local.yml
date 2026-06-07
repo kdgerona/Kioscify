@@ -1,0 +1,114 @@
+# ================================
+# Kioscify — Local Development Gateway
+# ================================
+#
+# This compose file runs ONLY MongoDB + Nginx in Docker.
+# All app services (API, portals) run natively on your host via npm run *:dev
+#
+# Usage:
+#   docker compose -f docker-compose.local.yml up -d
+#   docker compose -f docker-compose.local.yml down
+#
+# Start app services (separate terminals):
+#   npm run api:dev          → http://localhost:3000  (NestJS API)
+#   npm run store:dev        → http://localhost:3100  (Store Portal)
+#   npm run company:dev      → http://localhost:3001  (Company Portal)
+#   npm run platform:dev     → http://localhost:3002  (Platform Admin)
+#
+# DNS setup — pick one:
+#   [Option A — dnsmasq, handles all subdomains automatically, recommended]
+#     brew install dnsmasq
+#     echo 'address=/.kioscify.localhost/127.0.0.1' | sudo tee -a $(brew --prefix)/etc/dnsmasq.conf
+#     sudo brew services start dnsmasq
+#     sudo mkdir -p /etc/resolver
+#     echo 'nameserver 127.0.0.1' | sudo tee /etc/resolver/localhost
+#
+#   [Option B — /etc/hosts, manual per subdomain]
+#     sudo sh -c 'echo "127.0.0.1 kioscify.localhost" >> /etc/hosts'
+#     sudo sh -c 'echo "127.0.0.1 platform.kioscify.localhost" >> /etc/hosts'
+#     sudo sh -c 'echo "127.0.0.1 <your-company-slug>.kioscify.localhost" >> /etc/hosts'
+#
+# Access:
+#   Store Portal:    http://kioscify.localhost
+#   Platform Admin:  http://platform.kioscify.localhost
+#   Company Portal:  http://<company-slug>.kioscify.localhost
+#   API (direct):    http://localhost:3000/api/v1
+#   Prisma Studio:   npm run prisma:studio --workspace=kioskly-api
+#   MongoDB:         mongodb://admin:admin123@localhost:27017/kioscify?authSource=admin&replicaSet=rs0
+
+name: kioscify-local
+
+services:
+  # ================================
+  # Redis (JWT token blacklist)
+  # ================================
+  redis:
+    image: redis:7-alpine
+    container_name: kioscify-redis-local
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data-local:/data
+    networks:
+      - kioscify-local
+
+  # ================================
+  # MongoDB with Replica Set
+  # ================================
+  mongo:
+    build:
+      context: ./docker/mongodb_rs
+      dockerfile: dockerfile
+    container_name: kioscify-mongo-local
+    restart: unless-stopped
+    ports:
+      - "27017:27017"  # Exposed for Prisma Studio, mongosh, direct access
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: s3cr3t
+      MONGO_INITDB_DATABASE: kioscify
+      MONGO_REPLICA_HOST: localhost
+      MONGO_REPLICA_PORT: 27017
+    command: mongod --auth --replSet rs0 --bind_ip_all --quiet
+    volumes:
+      - mongo-data-local:/data/db
+      - mongo-config-local:/data/configdb
+    networks:
+      - kioscify-local
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping')\" || mongosh admin -u root -p s3cr3t --quiet --eval \"db.adminCommand('ping')\""]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ================================
+  # Nginx Local Gateway
+  # ================================
+  nginx:
+    image: nginx:alpine
+    container_name: kioscify-nginx-local
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/local.conf:/etc/nginx/conf.d/kioscify-local.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Required on Linux; macOS/Windows auto-resolves
+    networks:
+      - kioscify-local
+    depends_on:
+      - mongo
+
+networks:
+  kioscify-local:
+    driver: bridge
+
+volumes:
+  redis-data-local:
+    driver: local
+  mongo-data-local:
+    driver: local
+  mongo-config-local:
+    driver: local

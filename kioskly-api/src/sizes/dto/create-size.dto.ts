@@ -1,11 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateSizeDto {
-  @ApiProperty({ example: 'regular-16oz' })
+  @ApiProperty({ example: 'regular-16oz', required: false })
   @IsString()
-  @IsNotEmpty()
-  id: string;
+  @IsOptional()
+  id?: string;
 
   @ApiProperty({ example: 'Regular' })
   @IsString()
@@ -15,6 +15,16 @@ export class CreateSizeDto {
   @ApiProperty({ example: 0 })
   @IsNumber()
   priceModifier: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsNumber()
+  @IsOptional()
+  foodpandaPrice?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsNumber()
+  @IsOptional()
+  grabPrice?: number;
 
   @ApiProperty({ example: '16oz', required: false })
   @IsString()

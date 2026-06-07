@@ -13,3 +13,8 @@ export const auth = {
   jwt_secret: 'JWT_SECRET',
   jwt_expires_in: 'JWT_EXPIRES_IN',
 };
+
+export const redis = {
+  host: 'REDIS_HOST',
+  port: 'REDIS_PORT',
+};

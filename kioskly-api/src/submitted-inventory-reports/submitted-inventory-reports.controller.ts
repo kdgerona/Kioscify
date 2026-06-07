@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { SubmittedInventoryReportsService } from './submitted-inventory-reports.service';
 import { CreateSubmittedInventoryReportDto } from './dto/create-submitted-inventory-report.dto';
 import { SubmittedInventoryReportFiltersDto } from './dto/submitted-inventory-report-filters.dto';
@@ -24,6 +25,7 @@ export class SubmittedInventoryReportsController {
     private readonly submittedInventoryReportsService: SubmittedInventoryReportsService,
   ) {}
 
+  @SkipThrottle()
   @Post()
   @ApiOperation({ summary: 'Submit inventory report' })
   create(

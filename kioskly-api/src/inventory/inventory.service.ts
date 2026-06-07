@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
+import { UpdateStoreConfigDto } from './dto/update-store-config.dto';
 import {
   CreateInventoryRecordDto,
   BulkCreateInventoryRecordDto,
@@ -11,14 +12,7 @@ import { Prisma } from '@prisma/client';
 type InventoryRecordWithRelations = Prisma.InventoryRecordGetPayload<{
   include: {
     inventoryItem: true;
-    user: {
-      select: {
-        id: true;
-        username: true;
-        email: true;
-        role: true;
-      };
-    };
+    user: { select: { id: true; username: true; firstName: true; lastName: true; email: true; role: true } };
   };
 }>;
 
@@ -26,23 +20,98 @@ type InventoryRecordWithRelations = Prisma.InventoryRecordGetPayload<{
 export class InventoryService {
   constructor(private prisma: PrismaService) {}
 
-  // Inventory Items Management
-  async createItem(createDto: CreateInventoryItemDto, tenantId: string) {
+  // ─── Brand templates (COMPANY_ADMIN manages these) ────────────────────────
+
+  async createBrandTemplate(dto: CreateInventoryItemDto, brandId: string) {
+    const template = await this.prisma.inventoryItem.create({
+      data: { ...dto, brandId, isTemplate: true },
+    });
+
+    // Fan out to all stores under this brand, linking via templateId
+    const stores = await this.prisma.tenant.findMany({ where: { brandId }, select: { id: true } });
+    for (const store of stores) {
+      await this.prisma.inventoryItem.create({
+        data: {
+          tenantId: store.id,
+          brandId,
+          templateId: template.id,
+          isTemplate: false,
+          name: dto.name,
+          category: dto.category,
+          unit: dto.unit,
+          description: dto.description,
+          minStockLevel: dto.minStockLevel,
+          requiresExpirationDate: dto.requiresExpirationDate ?? false,
+          expirationWarningDays: dto.expirationWarningDays ?? 7,
+        },
+      });
+    }
+
+    return template;
+  }
+
+  async updateBrandTemplate(id: string, dto: UpdateInventoryItemDto) {
+    const template = await this.prisma.inventoryItem.findFirst({ where: { id, isTemplate: true, tombstone: { not: 1 } } });
+    if (!template) throw new NotFoundException(`Inventory template ${id} not found`);
+
+    const updated = await this.prisma.inventoryItem.update({ where: { id }, data: dto });
+
+    // Propagate to all store copies linked via templateId
+    const storeCopies = await this.prisma.inventoryItem.findMany({
+      where: { templateId: id, isTemplate: false, tombstone: { not: 1 } },
+    });
+
+    for (const copy of storeCopies) {
+      const propagated: Record<string, any> = {};
+      if (dto.name !== undefined) propagated.name = dto.name;
+      if (dto.category !== undefined) propagated.category = dto.category;
+      if (dto.unit !== undefined) propagated.unit = dto.unit;
+      if (dto.description !== undefined) propagated.description = dto.description;
+      if (dto.requiresExpirationDate !== undefined) propagated.requiresExpirationDate = dto.requiresExpirationDate;
+      // Only propagate threshold fields if the store hasn't customized them
+      if (dto.minStockLevel !== undefined && !copy.minStockLevelCustomized) {
+        propagated.minStockLevel = dto.minStockLevel;
+      }
+      if (dto.expirationWarningDays !== undefined && !copy.expirationWarningDaysCustomized) {
+        propagated.expirationWarningDays = dto.expirationWarningDays;
+      }
+      if (Object.keys(propagated).length > 0) {
+        await this.prisma.inventoryItem.update({ where: { id: copy.id }, data: propagated });
+      }
+    }
+
+    return updated;
+  }
+
+  async removeBrandTemplate(id: string) {
+    const template = await this.prisma.inventoryItem.findFirst({ where: { id, isTemplate: true, tombstone: { not: 1 } } });
+    if (!template) throw new NotFoundException(`Inventory template ${id} not found`);
+    // Soft-delete all store copies linked via templateId
+    await this.prisma.inventoryItem.updateMany({ where: { templateId: id, isTemplate: false }, data: { tombstone: 1 } });
+    await this.prisma.inventoryItem.update({ where: { id }, data: { tombstone: 1 } });
+    return { message: 'Inventory template deleted' };
+  }
+
+  async findBrandTemplates(brandId: string, category?: string) {
+    const where: Prisma.InventoryItemWhereInput = { brandId, isTemplate: true, tombstone: { not: 1 } };
+    if (category) where.category = category as any;
+    return this.prisma.inventoryItem.findMany({
+      where,
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  // ─── Store copies (STORE_ADMIN views/configures their own) ───────────────
+
+  async createItem(dto: CreateInventoryItemDto, tenantId: string) {
     return this.prisma.inventoryItem.create({
-      data: {
-        ...createDto,
-        tenantId,
-      },
+      data: { ...dto, tenantId, isTemplate: false },
     });
   }
 
   async findAllItems(tenantId: string, category?: string) {
-    const where: Prisma.InventoryItemWhereInput = { tenantId };
-
-    if (category) {
-      where.category = category as any;
-    }
-
+    const where: Prisma.InventoryItemWhereInput = { tenantId, isTemplate: false, tombstone: { not: 1 } };
+    if (category) where.category = category as any;
     return this.prisma.inventoryItem.findMany({
       where,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
@@ -50,212 +119,168 @@ export class InventoryService {
   }
 
   async findOneItem(id: string, tenantId: string) {
-    const item = await this.prisma.inventoryItem.findFirst({
-      where: { id, tenantId },
-    });
-
-    if (!item) {
-      throw new NotFoundException(`Inventory item with ID ${id} not found`);
-    }
-
+    const item = await this.prisma.inventoryItem.findFirst({ where: { id, tenantId, tombstone: { not: 1 } } });
+    if (!item) throw new NotFoundException(`Inventory item ${id} not found`);
     return item;
   }
 
-  async updateItem(
-    id: string,
-    tenantId: string,
-    updateDto: UpdateInventoryItemDto,
-  ) {
+  async updateItem(id: string, tenantId: string, dto: UpdateInventoryItemDto) {
     const item = await this.findOneItem(id, tenantId);
-
-    return this.prisma.inventoryItem.update({
-      where: { id: item.id },
-      data: updateDto,
-    });
+    return this.prisma.inventoryItem.update({ where: { id: item.id }, data: dto });
   }
 
   async removeItem(id: string, tenantId: string) {
-    const item = await this.findOneItem(id, tenantId);
-
-    await this.prisma.inventoryItem.delete({
-      where: { id: item.id },
-    });
-
+    await this.findOneItem(id, tenantId);
+    await this.prisma.inventoryItem.update({ where: { id }, data: { tombstone: 1 } });
     return { message: 'Inventory item deleted successfully' };
   }
 
-  // Inventory Records Management
-  async createRecord(
-    createDto: CreateInventoryRecordDto,
-    userId: string,
-    tenantId: string,
-  ) {
-    // Verify inventory item exists and belongs to tenant
-    await this.findOneItem(createDto.inventoryItemId, tenantId);
+  async updateStoreConfig(id: string, tenantId: string, dto: UpdateStoreConfigDto) {
+    const item = await this.findOneItem(id, tenantId);
+    return this.prisma.inventoryItem.update({
+      where: { id: item.id },
+      data: {
+        ...(dto.minStockLevel !== undefined && {
+          minStockLevel: dto.minStockLevel,
+          minStockLevelCustomized: true,
+        }),
+        ...(dto.expirationWarningDays !== undefined && {
+          expirationWarningDays: dto.expirationWarningDays,
+          expirationWarningDaysCustomized: true,
+        }),
+      },
+    });
+  }
+
+  // ─── Inventory Records (store-level, offline-safe) ────────────────────────
+
+  async createRecord(dto: CreateInventoryRecordDto, userId: string, tenantId: string) {
+    await this.findOneItem(dto.inventoryItemId, tenantId);
+
+    // Idempotent: if clientId already exists, return existing record
+    if (dto.clientId) {
+      const existing = await this.prisma.inventoryRecord.findFirst({
+        where: { tenantId, clientId: dto.clientId },
+      });
+      if (existing) {
+        throw new ConflictException({ message: 'Record already synced', id: existing.id });
+      }
+    }
 
     const record = await this.prisma.inventoryRecord.create({
       data: {
-        inventoryItemId: createDto.inventoryItemId,
-        quantity: createDto.quantity,
-        date: createDto.date ? new Date(createDto.date) : new Date(),
-        notes: createDto.notes,
+        inventoryItemId: dto.inventoryItemId,
+        quantity: dto.quantity,
+        date: dto.date ? new Date(dto.date) : new Date(),
+        notes: dto.notes,
         userId,
         tenantId,
+        clientId: dto.clientId,
       },
       include: {
         inventoryItem: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-          },
-        },
+        user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
       },
     });
 
     return this.formatRecord(record);
   }
 
-  async bulkCreateRecords(
-    bulkDto: BulkCreateInventoryRecordDto,
-    userId: string,
-    tenantId: string,
-  ) {
-    // Verify all inventory items exist and belong to tenant
-    const itemIds = bulkDto.records.map((r) => r.inventoryItemId);
+  async bulkCreateRecords(dto: BulkCreateInventoryRecordDto, userId: string, tenantId: string) {
+    const itemIds = dto.records.map((r) => r.inventoryItemId);
     const items = await this.prisma.inventoryItem.findMany({
-      where: {
-        id: { in: itemIds },
-        tenantId,
-      },
+      where: { id: { in: itemIds }, tenantId, tombstone: { not: 1 } },
     });
-
     if (items.length !== itemIds.length) {
       throw new NotFoundException('One or more inventory items not found');
     }
 
-    // Create all records in a transaction
-    const records = await this.prisma.$transaction(
-      bulkDto.records.map((recordDto) =>
-        this.prisma.inventoryRecord.create({
-          data: {
-            inventoryItemId: recordDto.inventoryItemId,
-            quantity: recordDto.quantity,
-            date: recordDto.date ? new Date(recordDto.date) : new Date(),
-            notes: recordDto.notes,
-            userId,
-            tenantId,
-          },
-          include: {
-            inventoryItem: true,
-            user: {
-              select: {
-                id: true,
-                username: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-        }),
-      ),
-    );
+    // Pre-flight deduplication: skip records with clientIds already in DB
+    const clientIds = dto.records.map((r) => r.clientId).filter((id): id is string => !!id);
+    const existingRecords = clientIds.length
+      ? await this.prisma.inventoryRecord.findMany({ where: { tenantId, clientId: { in: clientIds } } })
+      : [];
+    const syncedClientIds = new Set(existingRecords.map((r) => r.clientId));
+    const toCreate = dto.records.filter((r) => !r.clientId || !syncedClientIds.has(r.clientId));
 
-    return records.map((r) => this.formatRecord(r));
+    const newRecords = toCreate.length
+      ? await this.prisma.$transaction(
+          toCreate.map((r) =>
+            this.prisma.inventoryRecord.create({
+              data: {
+                inventoryItemId: r.inventoryItemId,
+                quantity: r.quantity,
+                date: r.date ? new Date(r.date) : new Date(),
+                notes: r.notes,
+                userId,
+                tenantId,
+                clientId: r.clientId,
+              },
+              include: {
+                inventoryItem: true,
+                user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
+              },
+            }),
+          ),
+        )
+      : [];
+
+    return newRecords.map((r) => this.formatRecord(r));
   }
 
-  async findAllRecords(
-    tenantId: string,
-    filters?: {
-      startDate?: Date;
-      endDate?: Date;
-      inventoryItemId?: string;
-    },
-  ) {
+  async findAllRecords(tenantId: string, filters?: { startDate?: Date; endDate?: Date; inventoryItemId?: string }) {
     const where: Prisma.InventoryRecordWhereInput = { tenantId };
-
     if (filters?.startDate || filters?.endDate) {
       where.date = {};
-      if (filters.startDate) where.date.gte = filters.startDate;
-      if (filters.endDate) where.date.lte = filters.endDate;
+      if (filters.startDate) (where.date as any).gte = filters.startDate;
+      if (filters.endDate) (where.date as any).lte = filters.endDate;
     }
-
-    if (filters?.inventoryItemId) {
-      where.inventoryItemId = filters.inventoryItemId;
-    }
+    if (filters?.inventoryItemId) where.inventoryItemId = filters.inventoryItemId;
 
     const records = await this.prisma.inventoryRecord.findMany({
       where,
       include: {
         inventoryItem: true,
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            role: true,
-          },
-        },
+        user: { select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true } },
       },
       orderBy: { date: 'desc' },
     });
-
     return records.map((r) => this.formatRecord(r));
   }
 
-  async getLatestInventory(tenantId: string, date?: Date) {
-    // Get all inventory items for this tenant
+  async getLatestInventory(tenantId: string) {
     const items = await this.prisma.inventoryItem.findMany({
-      where: { tenantId },
+      where: { tenantId, isTemplate: false, tombstone: { not: 1 } },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
 
-    // Get the two most recent submitted inventory reports
     const recentReports = await this.prisma.submittedInventoryReport.findMany({
       where: { tenantId },
       orderBy: { submittedAt: 'desc' },
       take: 2,
-      select: {
-        inventorySnapshot: true,
-        submittedAt: true,
-      },
+      select: { inventorySnapshot: true, submittedAt: true },
     });
 
     const latestReport = recentReports[0];
     const previousReport = recentReports[1];
+    const latestMap = new Map<string, { quantity: number; date: Date }>();
+    const previousMap = new Map<string, number>();
 
-    // Create maps for latest and previous quantities
-    const latestQuantityMap = new Map<string, { quantity: number; date: Date }>();
-    const previousQuantityMap = new Map<string, number>();
-
-    if (latestReport && latestReport.inventorySnapshot) {
+    if (latestReport?.inventorySnapshot) {
       const snapshot = latestReport.inventorySnapshot as any;
-      if (snapshot.items && Array.isArray(snapshot.items)) {
-        snapshot.items.forEach((snapshotItem: any) => {
-          latestQuantityMap.set(snapshotItem.inventoryItemId, {
-            quantity: snapshotItem.quantity,
-            date: latestReport.submittedAt,
-          });
-        });
-      }
+      snapshot.items?.forEach((item: any) => {
+        latestMap.set(item.inventoryItemId, { quantity: item.quantity, date: latestReport.submittedAt });
+      });
     }
-
-    if (previousReport && previousReport.inventorySnapshot) {
+    if (previousReport?.inventorySnapshot) {
       const snapshot = previousReport.inventorySnapshot as any;
-      if (snapshot.items && Array.isArray(snapshot.items)) {
-        snapshot.items.forEach((snapshotItem: any) => {
-          previousQuantityMap.set(snapshotItem.inventoryItemId, snapshotItem.quantity);
-        });
-      }
+      snapshot.items?.forEach((item: any) => {
+        previousMap.set(item.inventoryItemId, item.quantity);
+      });
     }
 
-    // Map items with their latest and previous quantities
     return items.map((item) => {
-      const latestData = latestQuantityMap.get(item.id);
-      const previousQuantity = previousQuantityMap.get(item.id);
-
+      const latest = latestMap.get(item.id);
       return {
         id: item.id,
         name: item.name,
@@ -265,32 +290,25 @@ export class InventoryService {
         minStockLevel: item.minStockLevel,
         requiresExpirationDate: item.requiresExpirationDate,
         expirationWarningDays: item.expirationWarningDays,
-        latestQuantity: latestData?.quantity ?? null,
-        latestRecordDate: latestData?.date ?? null,
-        previousQuantity: previousQuantity ?? null,
+        latestQuantity: latest?.quantity ?? null,
+        latestRecordDate: latest?.date ?? null,
+        previousQuantity: previousMap.get(item.id) ?? null,
       };
     });
   }
 
   async getInventoryStats(tenantId: string) {
     const items = await this.prisma.inventoryItem.findMany({
-      where: { tenantId },
+      where: { tenantId, isTemplate: false, tombstone: { not: 1 } },
       include: {
-        inventoryRecords: {
-          orderBy: { date: 'desc' },
-          take: 1,
-        },
+        inventoryRecords: { orderBy: { date: 'desc' }, take: 1 },
       },
     });
 
     const totalItems = items.length;
-    const itemsWithRecords = items.filter(
-      (item) => item.inventoryRecords.length > 0,
-    ).length;
+    const itemsWithRecords = items.filter((item) => item.inventoryRecords.length > 0).length;
     const lowStockItems = items.filter(
-      (item) =>
-        item.minStockLevel &&
-        item.inventoryRecords[0]?.quantity < item.minStockLevel,
+      (item) => item.minStockLevel && (item.inventoryRecords[0]?.quantity ?? Infinity) < item.minStockLevel,
     );
 
     return {
@@ -323,6 +341,7 @@ export class InventoryService {
       notes: record.notes,
       userId: record.userId,
       user: record.user,
+      clientId: record.clientId,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     };

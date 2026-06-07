@@ -1,15 +1,27 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { CacheModule } from '@nestjs/cache-manager';
+import KeyvRedis from '@keyv/redis';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { CompaniesModule } from './companies/companies.module';
+import { BrandsModule } from './brands/brands.module';
+import { StoresModule } from './stores/stores.module';
+import { UsersModule } from './users/users.module';
+import { PlatformModule } from './platform/platform.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { SizesModule } from './sizes/sizes.module';
 import { AddonsModule } from './addons/addons.module';
 import { TransactionsModule } from './transactions/transactions.module';
-import { TenantsModule } from './tenants/tenants.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ReportsModule } from './reports/reports.module';
 import { InventoryModule } from './inventory/inventory.module';
@@ -18,24 +30,74 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
+    ConfigModule.forRoot({ isGlobal: true }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const isProduction = config.get<string>('NODE_ENV') === 'production';
+        return {
+          pinoHttp: {
+            level: isProduction ? 'info' : 'debug',
+            redact: ['req.headers.authorization'],
+            ...(isProduction
+              ? {}
+              : {
+                  transport: {
+                    target: 'pino-pretty',
+                    options: { colorize: true, singleLine: true },
+                  },
+                }),
+          },
+        };
+      },
     }),
+
+    // Global rate limiting — fully configurable via env vars
+    // Defaults: 100 req/min globally, 20 login attempts per 15 min
+    ThrottlerModule.forRoot([{
+      ttl:   parseInt(process.env.THROTTLE_GLOBAL_TTL  ?? '60000'),
+      limit: parseInt(process.env.THROTTLE_GLOBAL_LIMIT ?? '100'),
+    }]),
+
+    // Redis-backed cache — used for JWT token blacklist (logout/revocation)
+    CacheModule.register({
+      isGlobal: true,
+      stores: [new KeyvRedis(`redis://${process.env.REDIS_HOST ?? 'localhost'}:${process.env.REDIS_PORT ?? '6379'}`)],
+    }),
+
     PrismaModule,
     AuthModule,
-    TenantsModule,
+
+    // New hierarchy modules
+    CompaniesModule,
+    BrandsModule,
+    StoresModule,
+    UsersModule,
+    PlatformModule,
+    AnalyticsModule,
+
+    // Catalog (brand-scoped)
     CategoriesModule,
     ProductsModule,
     SizesModule,
     AddonsModule,
+
+    // Store operations
     TransactionsModule,
     ExpensesModule,
     ReportsModule,
     InventoryModule,
     SubmittedReportsModule,
     SubmittedInventoryReportsModule,
+
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Global guard order: throttle → JWT auth → roles
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}

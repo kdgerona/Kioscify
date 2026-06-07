@@ -7,8 +7,6 @@ import {
   LayoutDashboard,
   Receipt,
   BarChart3,
-  Package,
-  FolderOpen,
   Settings,
   LogOut,
   Store,
@@ -23,14 +21,15 @@ import {
   X,
   PanelLeftOpen,
   PanelRightOpen,
-  Ruler,
-  Sparkles,
   Wallet,
+  Users,
+  ChevronsUpDown,
+  Check,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
-import { cn } from "@/lib/utils";
+import { cn, getContrastColor, resolveLogoUrl } from "@/lib/utils";
 import * as Popover from "@radix-ui/react-popover";
 
 interface NavigationItem {
@@ -61,19 +60,37 @@ const navigation: NavigationItem[] = [
       { name: "Alerts", href: "/inventory-alerts", icon: AlertTriangle },
     ],
   },
-  { name: "Products", href: "/products", icon: Package },
-  { name: "Categories", href: "/categories", icon: FolderOpen },
-  { name: "Sizes", href: "/sizes", icon: Ruler },
-  { name: "Addons", href: "/addons", icon: Sparkles },
+  { name: "Users", href: "/users", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
+interface AccessibleStore {
+  id: string;
+  name: string;
+  slug: string;
+  brand?: { name: string; slug?: string; logoUrl?: string; themeColors?: { primary: string } } | null;
+  company?: { name: string; slug?: string; logoUrl?: string } | null;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
-  const { tenant } = useTenant();
+  const { tenant, brand, company, fetchTenantBySlug } = useTenant();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false); // For desktop minimized state
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [accessibleStores, setAccessibleStores] = useState<AccessibleStore[]>(
+    [],
+  );
+  const [showStoreSwitcher, setShowStoreSwitcher] = useState(false);
+  const [switching, setSwitching] = useState(false);
+
+  useEffect(() => {
+    const raw =
+      typeof window !== "undefined"
+        ? localStorage.getItem("kioscify_accessible_stores")
+        : null;
+    if (raw) setAccessibleStores(JSON.parse(raw));
+  }, []);
 
   // Auto-expand parent menu when submenu item is active
   useEffect(() => {
@@ -82,7 +99,7 @@ export default function Sidebar() {
         const hasActiveSubItem = item.subItems.some(
           (subItem) =>
             pathname === subItem.href ||
-            pathname?.startsWith(subItem.href + "/")
+            pathname?.startsWith(subItem.href + "/"),
         );
         if (hasActiveSubItem && !expandedItems.includes(item.name)) {
           setExpandedItems((prev) => [...prev, item.name]);
@@ -102,10 +119,59 @@ export default function Sidebar() {
     api.logout();
   };
 
-  // Get tenant theme colors with fallbacks
-  const primaryColor = tenant?.themeColors?.primary || "#ea580c";
-  const backgroundColor = tenant?.themeColors?.background || "#ffffff";
-  const textColor = tenant?.themeColors?.text || "#1f2937";
+  const handleSwitchStore = async (store: AccessibleStore) => {
+    if (store.id === tenant?.id) {
+      setShowStoreSwitcher(false);
+      return;
+    }
+    setSwitching(true);
+    try {
+      const result = await api.switchStore(store.id);
+      api.setToken(result.accessToken);
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        user.tenantId = store.id;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+      // Update portal brand/company slugs so logout redirects to the correct brand
+      const prevCompanySlug = localStorage.getItem("kioscify_portal_company_slug");
+      const prevBrandSlug = localStorage.getItem("kioscify_portal_brand_slug");
+      const newCompanySlug = store.company?.slug ?? prevCompanySlug;
+      const newBrandSlug = store.brand?.slug ?? prevBrandSlug;
+      if (newCompanySlug) localStorage.setItem("kioscify_portal_company_slug", newCompanySlug);
+      if (newBrandSlug) localStorage.setItem("kioscify_portal_brand_slug", newBrandSlug);
+      if (newCompanySlug && newBrandSlug) {
+        localStorage.setItem(`kioscify_store_slug_${newCompanySlug}_${newBrandSlug}`, store.slug);
+      }
+      await fetchTenantBySlug(store.slug);
+      setShowStoreSwitcher(false);
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error("Failed to switch store:", err);
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  // Brand theme takes priority over store theme
+  const primaryColor =
+    brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const secondaryColor =
+    brand?.themeColors?.secondary ??
+    tenant?.themeColors?.secondary ??
+    "#fb923c";
+  const backgroundColor =
+    brand?.themeColors?.background ??
+    tenant?.themeColors?.background ??
+    "#ffffff";
+  const textColor =
+    brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
+
+  const adaptiveNavText = getContrastColor(backgroundColor);
+  const borderColor = adaptiveNavText === "#ffffff" ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)";
+
+  const logoSrc = resolveLogoUrl(brand?.logoUrl ?? company?.logoUrl ?? tenant?.logoUrl);
 
   return (
     <>
@@ -135,7 +201,7 @@ export default function Sidebar() {
       {/* Sidebar */}
       <div
         className={cn(
-          "flex flex-col h-full border-r shadow-sm transition-all duration-300 ease-in-out",
+          "flex flex-col h-full shadow-sm transition-all duration-300 ease-in-out",
           // Mobile: fixed with slide animation
           "fixed lg:relative inset-y-0 left-0 z-40",
           "lg:transform-none",
@@ -146,11 +212,12 @@ export default function Sidebar() {
           // Desktop width behavior
           isCollapsed ? "lg:w-20" : "lg:w-64",
           // Mobile always full width when open
-          "w-64"
+          "w-64",
         )}
         style={{
           backgroundColor: backgroundColor,
           color: textColor,
+          borderRight: `1px solid ${borderColor}`,
         }}
       >
         {/* Mobile Close Button */}
@@ -171,15 +238,15 @@ export default function Sidebar() {
         <div
           className={cn(
             "hidden lg:flex items-center border-b",
-            isCollapsed ? "justify-center p-2" : "justify-end px-4 py-2"
+            isCollapsed ? "justify-center p-2" : "justify-end px-4 py-2",
           )}
-          style={{ borderColor: `${primaryColor}20` }}
+          style={{ borderColor }}
         >
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="p-2 rounded-lg transition-all duration-200 hover:bg-gray-100"
             style={{
-              color: textColor,
+              color: adaptiveNavText,
             }}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -197,30 +264,31 @@ export default function Sidebar() {
             isCollapsed && "lg:p-3",
             {
               "pt-14": isMobileMenuOpen,
-            }
+            },
           )}
-          style={{ borderColor: `${primaryColor}20` }}
+          style={{ borderColor }}
         >
           <div
             className={cn(
               "flex items-center",
               isCollapsed
                 ? "lg:justify-center lg:flex-col lg:space-x-0"
-                : "space-x-3"
+                : "space-x-3",
             )}
           >
-            {tenant?.logoUrl ? (
+            {logoSrc ? (
               <div
                 className={cn(
                   "relative flex-shrink-0",
-                  isCollapsed ? "lg:w-8 lg:h-8" : "w-10 h-10"
+                  isCollapsed ? "lg:w-8 lg:h-8" : "w-10 h-10",
                 )}
               >
                 <Image
-                  src={tenant.logoUrl}
-                  alt={tenant.name}
+                  src={logoSrc}
+                  alt={brand?.name ?? tenant?.name ?? ""}
                   fill
-                  className="object-contain border-2 border-white rounded-full"
+                  className="object-contain rounded-lg"
+                  unoptimized
                 />
               </div>
             ) : (
@@ -235,11 +303,16 @@ export default function Sidebar() {
               </div>
             )}
             {!isCollapsed && (
-              <div className="lg:block">
-                <h2 className="text-xl font-bold" style={{ color: textColor }}>
-                  {tenant?.name || "Kioskly"}
+              <div className="lg:block flex-1 min-w-0">
+                <h2
+                  className="text-lg font-bold truncate"
+                  style={{ color: textColor }}
+                >
+                  {tenant?.name ?? "Store Portal"}
                 </h2>
-                <p className="text-xs opacity-60">Admin Panel</p>
+                {brand?.name && (
+                  <p className="text-xs opacity-60 truncate">{brand.name}</p>
+                )}
               </div>
             )}
           </div>
@@ -248,7 +321,7 @@ export default function Sidebar() {
         <nav
           className={cn(
             "flex-1 p-4 space-y-2 overflow-y-auto",
-            isCollapsed && "lg:p-2"
+            isCollapsed && "lg:p-2",
           )}
         >
           {navigation.map((item) => {
@@ -261,7 +334,7 @@ export default function Sidebar() {
               item.subItems?.some(
                 (subItem) =>
                   pathname === subItem.href ||
-                  pathname?.startsWith(subItem.href + "/")
+                  pathname?.startsWith(subItem.href + "/"),
               );
 
             const toggleExpanded = (e: React.MouseEvent) => {
@@ -270,7 +343,7 @@ export default function Sidebar() {
                 setExpandedItems((prev) =>
                   prev.includes(item.name)
                     ? prev.filter((name) => name !== item.name)
-                    : [...prev, item.name]
+                    : [...prev, item.name],
                 );
               }
             };
@@ -287,17 +360,17 @@ export default function Sidebar() {
                             className={cn(
                               "flex items-center w-full rounded-lg transition-all duration-200",
                               "lg:justify-center lg:px-2 lg:py-3",
-                              isSubItemActive ? "shadow-md" : ""
+                              isSubItemActive ? "shadow-md" : "",
                             )}
                             style={
                               isSubItemActive
                                 ? {
                                     backgroundColor: "#ffffff",
                                     color: "#000000",
-                                    borderLeft: `3px solid ${primaryColor}`,
+                                    borderLeft: `3px solid ${secondaryColor}`,
                                   }
                                 : {
-                                    color: "#000000",
+                                    color: adaptiveNavText,
                                     opacity: 0.7,
                                   }
                             }
@@ -339,7 +412,7 @@ export default function Sidebar() {
                                       "flex items-center space-x-3 px-3 py-2 rounded-md transition-all duration-200 text-sm",
                                       isSubActive
                                         ? "bg-gray-100 font-semibold"
-                                        : "hover:bg-gray-50"
+                                        : "hover:bg-gray-50",
                                     )}
                                     style={{
                                       color: "#000000",
@@ -362,17 +435,17 @@ export default function Sidebar() {
                           className={cn(
                             "flex items-center w-full rounded-lg transition-all duration-200",
                             "justify-between px-4 py-3",
-                            isSubItemActive ? "shadow-md" : ""
+                            isSubItemActive ? "shadow-md" : "",
                           )}
                           style={
                             isSubItemActive
                               ? {
                                   backgroundColor: "#ffffff",
                                   color: "#000000",
-                                  borderLeft: `3px solid ${primaryColor}`,
+                                  borderLeft: `3px solid ${secondaryColor}`,
                                 }
                               : {
-                                  color: "#000000",
+                                  color: adaptiveNavText,
                                   opacity: 0.7,
                                 }
                           }
@@ -410,7 +483,7 @@ export default function Sidebar() {
                                   href={subItem.href}
                                   className={cn(
                                     "flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200",
-                                    isSubActive ? "shadow-sm" : ""
+                                    isSubActive ? "shadow-sm" : "",
                                   )}
                                   style={
                                     isSubActive
@@ -418,10 +491,10 @@ export default function Sidebar() {
                                           backgroundColor: "#ffffff",
                                           color: "#000000",
                                           fontWeight: "600",
-                                          borderLeft: `3px solid ${primaryColor}`,
+                                          borderLeft: `3px solid ${secondaryColor}`,
                                         }
                                       : {
-                                          color: "#000000",
+                                          color: adaptiveNavText,
                                           opacity: 0.6,
                                         }
                                   }
@@ -459,17 +532,17 @@ export default function Sidebar() {
                       isCollapsed
                         ? "lg:justify-center lg:px-2 lg:py-3"
                         : "space-x-3 px-4 py-3",
-                      isActive ? "shadow-md" : ""
+                      isActive ? "shadow-md" : "",
                     )}
                     style={
                       isActive
                         ? {
                             backgroundColor: "#ffffff",
                             color: "#000000",
-                            borderLeft: `3px solid ${primaryColor}`,
+                            borderLeft: `3px solid ${secondaryColor}`,
                           }
                         : {
-                            color: "#000000",
+                            color: adaptiveNavText,
                             opacity: 0.7,
                           }
                     }
@@ -500,17 +573,167 @@ export default function Sidebar() {
 
         <div
           className={cn("p-4 border-t", isCollapsed && "lg:p-2")}
-          style={{ borderColor: `${primaryColor}20` }}
+          style={{ borderColor }}
         >
+          {/* Store Switcher — shown only if user has 2+ stores */}
+          {accessibleStores.length > 1 && (
+            isCollapsed ? (
+              /* Collapsed: icon button opens a popover to the right */
+              <div className="mb-2 flex justify-center">
+                <Popover.Root>
+                  <Popover.Trigger asChild>
+                    <button
+                      disabled={switching}
+                      className="flex items-center justify-center w-full rounded-lg px-2 py-3 transition disabled:opacity-50 hover:bg-gray-100"
+                      style={{ color: textColor }}
+                      title="Switch Store"
+                    >
+                      <Store className="w-5 h-5" />
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Portal>
+                    <Popover.Content
+                      side="right"
+                      sideOffset={8}
+                      className="z-50 min-w-[220px] rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden"
+                    >
+                      <div className="px-3 py-2 border-b border-gray-100">
+                        <p className="text-xs font-semibold text-black uppercase tracking-wider">Switch Store</p>
+                      </div>
+                      {accessibleStores.map((store) => {
+                        const isActive = store.id === tenant?.id;
+                        const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
+                        const storeLogoSrc = resolveLogoUrl(store.brand?.logoUrl ?? store.company?.logoUrl);
+                        return (
+                          <button
+                            key={store.id}
+                            onClick={() => handleSwitchStore(store)}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition",
+                              isActive ? "bg-gray-50" : "hover:bg-gray-50",
+                            )}
+                          >
+                            {storeLogoSrc ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={storeLogoSrc}
+                                alt={store.brand?.name ? `${store.name} – ${store.brand.name}` : store.name}
+                                className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow-sm"
+                              />
+                            ) : (
+                              <div
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
+                                style={{ backgroundColor: avatarColor }}
+                              >
+                                {store.name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <span className={cn("truncate", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
+                                {store.name}
+                              </span>
+                              {store.brand?.name && (
+                                <span className="truncate text-xs text-gray-400">{store.brand.name}</span>
+                              )}
+                            </div>
+                            {isActive && (
+                              <Check className="ml-auto w-4 h-4 text-emerald-500 flex-shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </Popover.Content>
+                  </Popover.Portal>
+                </Popover.Root>
+              </div>
+            ) : (
+              /* Expanded: inline dropdown */
+              <div className="relative mb-2">
+                <button
+                  onClick={() => setShowStoreSwitcher((v) => !v)}
+                  disabled={switching}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg transition disabled:opacity-50"
+                  style={{ color: adaptiveNavText, opacity: 0.7 }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${primaryColor}10`;
+                    e.currentTarget.style.opacity = "1";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.opacity = "0.7";
+                  }}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Store className="w-5 h-5 flex-shrink-0" />
+                    <span className="truncate font-medium">
+                      {tenant?.name ?? "Select store"}
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="w-4 h-4 flex-shrink-0 opacity-50" />
+                </button>
+
+                {showStoreSwitcher && (
+                  <div className="absolute left-0 right-0 bottom-full mb-2 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-black uppercase tracking-wider">Switch Store</p>
+                    </div>
+                    {accessibleStores.map((store) => {
+                      const isActive = store.id === tenant?.id;
+                      const avatarColor = store.brand?.themeColors?.primary ?? primaryColor;
+                      const storeLogoSrc = resolveLogoUrl(store.brand?.logoUrl ?? store.company?.logoUrl);
+                      return (
+                        <button
+                          key={store.id}
+                          onClick={() => handleSwitchStore(store)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition",
+                            isActive ? "bg-gray-50" : "hover:bg-gray-50",
+                          )}
+                        >
+                          {storeLogoSrc ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={storeLogoSrc}
+                              alt={store.brand?.name ? `${store.name} – ${store.brand.name}` : store.name}
+                              className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow-sm"
+                            />
+                          ) : (
+                            <div
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-white shadow-sm"
+                              style={{ backgroundColor: avatarColor }}
+                            >
+                              {store.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className={cn("truncate", isActive ? "font-semibold text-gray-900" : "text-gray-700")}>
+                              {store.name}
+                            </span>
+                            {store.brand?.name && (
+                              <span className="truncate text-xs text-gray-400">{store.brand.name}</span>
+                            )}
+                          </div>
+                          {isActive && (
+                            <Check className="ml-auto w-4 h-4 text-emerald-500 flex-shrink-0" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          )}
+
           <button
             onClick={handleLogout}
             className={cn(
               "flex items-center rounded-lg w-full transition-all duration-200",
               isCollapsed
                 ? "lg:justify-center lg:px-2 lg:py-3"
-                : "space-x-3 px-4 py-3"
+                : "space-x-3 px-4 py-3",
             )}
-            style={{ color: "#000000", opacity: 0.7 }}
+            style={{ color: adaptiveNavText, opacity: 0.7 }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = `${primaryColor}10`;
               e.currentTarget.style.opacity = "1";
@@ -524,6 +747,43 @@ export default function Sidebar() {
             <LogOut className="w-5 h-5 flex-shrink-0" />
             {!isCollapsed && <span className="font-medium">Logout</span>}
           </button>
+
+          <div
+            className={cn(
+              "flex justify-center mt-3 pt-3 border-t",
+              isCollapsed && "lg:pt-2 lg:mt-2",
+            )}
+            style={{ borderColor }}
+          >
+            {isCollapsed ? (
+              <div className="lg:flex hidden justify-center">
+                <div
+                  className="bg-white rounded-lg p-1 shadow-sm border border-gray-100"
+                  title="Powered by Kioscify"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/logo-full.png"
+                    alt="Kioscify"
+                    className="w-7 h-7 object-contain"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-white rounded-full px-3 py-1.5 shadow-sm border border-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/logo-full.png"
+                  alt="Kioscify"
+                  className="w-8 h-8 object-contain"
+                />
+                <span className="text-[11px] text-gray-400 whitespace-nowrap">
+                  Powered by{" "}
+                  <span className="font-semibold text-gray-600">Kioscify</span>
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>

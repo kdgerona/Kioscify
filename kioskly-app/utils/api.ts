@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const TOKEN_KEY = "@kioskly:auth_token";
+const TOKEN_KEY = "@kioscify:auth_token";
 
 export const getApiUrl = (): string => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL;

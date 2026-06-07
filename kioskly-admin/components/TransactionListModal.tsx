@@ -1,8 +1,9 @@
 "use client";
 
+import React from "react";
 import { X } from "lucide-react";
 import { Transaction } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getPaymentMethodLabel, formatUserName } from "@/lib/utils";
 
 interface TransactionListModalProps {
   isOpen: boolean;
@@ -33,15 +34,19 @@ export default function TransactionListModal({
   };
 
   const getPaymentMethodColor = (method: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       CASH: "bg-green-100 text-green-800",
-      CARD: "bg-purple-100 text-purple-800",
       GCASH: "bg-blue-100 text-blue-800",
-      PAYMAYA: "bg-amber-100 text-amber-800",
       ONLINE: "bg-gray-100 text-gray-800",
       FOODPANDA: "bg-pink-100 text-pink-800",
     };
-    return colors[method as keyof typeof colors] || "bg-gray-100 text-gray-800";
+    return colors[method] ?? "bg-gray-100 text-gray-800";
+  };
+
+  const getPaymentMethodBadgeStyle = (method: string): React.CSSProperties | undefined => {
+    if (method === "PAYMAYA") return { backgroundColor: "#202122", color: "#50B16B" };
+    if (method === "GRAB") return { backgroundColor: "rgba(0,177,79,0.12)", color: "#007835" };
+    return undefined;
   };
 
   return (
@@ -90,7 +95,7 @@ export default function TransactionListModal({
                       </p>
                       {transaction.user && (
                         <p className="text-xs text-gray-500 mt-1 truncate">
-                          Cashier: {transaction.user.email}
+                          Cashier: {formatUserName(transaction.user)}
                         </p>
                       )}
                     </div>
@@ -99,11 +104,10 @@ export default function TransactionListModal({
                         {formatCurrency(transaction.total)}
                       </p>
                       <span
-                        className={`inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-bold mt-2 ${getPaymentMethodColor(
-                          transaction.paymentMethod
-                        )}`}
+                        className={`inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-bold mt-2 ${getPaymentMethodColor(transaction.paymentMethod)}`}
+                        style={getPaymentMethodBadgeStyle(transaction.paymentMethod)}
                       >
-                        {transaction.paymentMethod}
+                        {getPaymentMethodLabel(transaction.paymentMethod)}
                       </span>
                     </div>
                   </div>
@@ -141,14 +145,10 @@ export default function TransactionListModal({
 
                             {/* Price breakdown */}
                             <div className="ml-2 sm:ml-4 space-y-0.5">
-                              {/* Base product price */}
+                              {/* Unit price */}
                               <div className="flex justify-between items-center gap-2 text-xs text-gray-600">
-                                <span className="truncate">Base price × {item.quantity}</span>
-                                <span className="flex-shrink-0">
-                                  {formatCurrency(
-                                    (item.product?.price || 0) * item.quantity
-                                  )}
-                                </span>
+                                <span className="truncate">Unit price × {item.quantity}</span>
+                                <span className="flex-shrink-0">{formatCurrency(item.subtotal)}</span>
                               </div>
 
                               {/* Size modifier */}
@@ -197,7 +197,7 @@ export default function TransactionListModal({
                           </div>
                         ))}
                       </div>
-                      <div className="border-t border-gray-300 mt-2 sm:mt-3 pt-2 sm:pt-3">
+                      <div className="border-t border-gray-300 mt-2 sm:mt-3 pt-2 sm:pt-3 space-y-1">
                         <div className="flex justify-between items-center gap-2">
                           <span className="text-xs sm:text-sm font-semibold text-gray-700">
                             Subtotal:
@@ -206,6 +206,26 @@ export default function TransactionListModal({
                             {formatCurrency(transaction.subtotal)}
                           </span>
                         </div>
+                        {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                          <div className="flex justify-between items-center gap-2">
+                            <span className="text-xs sm:text-sm text-red-600">
+                              Discount:
+                            </span>
+                            <span className="text-xs sm:text-sm font-medium text-red-600">
+                              -{formatCurrency(transaction.discountAmount)}
+                            </span>
+                          </div>
+                        )}
+                        {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                          <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-200">
+                            <span className="text-xs sm:text-sm font-bold text-gray-900">
+                              Total:
+                            </span>
+                            <span className="text-xs sm:text-sm font-bold text-gray-900">
+                              {formatCurrency(transaction.total)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { formatUserName } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
 import { FileText, Calendar, User, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 export default function InventoryReportsPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || '#4f46e5';
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? '#ea580c';
 
   const [reports, setReports] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -183,7 +184,7 @@ export default function InventoryReportsPage() {
                           {formatDateTime(report.submittedAt)}
                         </td>
                         <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
-                          {report.user.username}
+                          {formatUserName(report.user)}
                         </td>
                         <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
                           {report.inventorySnapshot.totalItems} items

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getPaymentMethodLabel } from "@/lib/utils";
 import {
   Bar,
   LineChart,
@@ -23,7 +23,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import DateRangeSelector, { TimePeriod } from "@/components/DateRangeSelector";
 import TransactionListModal from "@/components/TransactionListModal";
 import ExpenseListModal from "@/components/ExpenseListModal";
-import { Transaction, Expense } from "@/types";
+import { Transaction, Expense, TimeOfDayData } from "@/types";
 
 interface AnalyticsData {
   period: {
@@ -65,10 +65,11 @@ interface AnalyticsData {
 }
 
 export default function ReportsPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const isInitialLoad = useRef(true);
   const [period, setPeriod] = useState<TimePeriod>("daily");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
@@ -76,6 +77,7 @@ export default function ReportsPage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [hourlyData, setHourlyData] = useState<TimeOfDayData[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
@@ -86,25 +88,108 @@ export default function ReportsPage() {
     loadReportData();
   }, [period, startDate, endDate]);
 
+  const dayStart = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+  const dayEnd = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+  const computeDateRange = (
+    p: TimePeriod
+  ): { startDate: string; endDate: string } => {
+    const now = new Date();
+    switch (p) {
+      case "daily":
+        return {
+          startDate: dayStart(now).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+      case "yesterday": {
+        const y = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - 1
+        );
+        return {
+          startDate: dayStart(y).toISOString(),
+          endDate: dayEnd(y).toISOString(),
+        };
+      }
+      case "weekly": {
+        const dow = now.getDay();
+        const diff = dow === 0 ? 6 : dow - 1;
+        const mon = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - diff
+        );
+        return {
+          startDate: dayStart(mon).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+      }
+      case "monthly": {
+        const first = new Date(now.getFullYear(), now.getMonth(), 1);
+        return {
+          startDate: dayStart(first).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+      }
+      case "yearly": {
+        const jan1 = new Date(now.getFullYear(), 0, 1);
+        return {
+          startDate: dayStart(jan1).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+      }
+      default:
+        return {
+          startDate: dayStart(now).toISOString(),
+          endDate: dayEnd(now).toISOString(),
+        };
+    }
+  };
+
   const loadReportData = async () => {
     try {
       setLoading(true);
+
+      if (period === "custom" && (!startDate || !endDate)) {
+        setLoading(false);
+        return;
+      }
+
       const params: {
         period?: TimePeriod;
         startDate?: string;
         endDate?: string;
       } = { period };
 
-      if (period === "custom" && startDate && endDate) {
-        // Convert YYYY-MM-DD to full datetime with start/end of day
-        const start = new Date(startDate + "T00:00:00");
-        const end = new Date(endDate + "T23:59:59.999");
-        params.startDate = start.toISOString();
-        params.endDate = end.toISOString();
+      if (period === "custom") {
+        params.startDate = dayStart(
+          new Date(startDate + "T00:00:00")
+        ).toISOString();
+        params.endDate = dayEnd(
+          new Date(endDate + "T00:00:00")
+        ).toISOString();
+      } else {
+        const range = computeDateRange(period);
+        params.startDate = range.startDate;
+        params.endDate = range.endDate;
       }
 
       const data = await api.getAnalytics(params);
       setAnalytics(data);
+      isInitialLoad.current = false;
+
+      try {
+        const hourly = await api.getTimeOfDayTrends(
+          data.period.start,
+          data.period.end
+        );
+        setHourlyData(hourly.hourlyBreakdown);
+      } catch {
+        setHourlyData([]);
+      }
     } catch (error) {
       console.error("Failed to load report data:", error);
     } finally {
@@ -118,16 +203,16 @@ export default function ReportsPage() {
 
     const colors = {
       CASH: "#10b981",
-      CARD: "#3b82f6",
-      GCASH: "#8b5cf6",
-      PAYMAYA: "#f59e0b",
+      GCASH: "#2563eb",
+      PAYMAYA: "#202122",
       FOODPANDA: "#ec4899",
       ONLINE: "#6b7280",
+      GRAB: "#00B14F",
     };
 
     return Object.entries(analytics.sales.paymentMethodBreakdown).map(
       ([method, data]) => ({
-        name: method,
+        name: getPaymentMethodLabel(method),
         value: data.count,
         color: colors[method as keyof typeof colors] || "#6b7280",
       })
@@ -155,6 +240,20 @@ export default function ReportsPage() {
       })
     );
   };
+
+  const formatHour = (h: number) => {
+    if (h === 0) return "12am";
+    if (h < 12) return `${h}am`;
+    if (h === 12) return "12pm";
+    return `${h - 12}pm`;
+  };
+
+  const getHourlyChartData = () =>
+    hourlyData.map((h) => ({
+      hour: formatHour(h.hour),
+      revenue: h.totalRevenue,
+      count: h.count,
+    }));
 
   // Prepare sales by day for charts
   const getSalesByDay = () => {
@@ -404,7 +503,7 @@ export default function ReportsPage() {
     }
   };
 
-  if (loading) {
+  if (loading && isInitialLoad.current) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4">
@@ -429,6 +528,11 @@ export default function ReportsPage() {
   const salesByDay = getSalesByDay();
   const paymentMethodData = getPaymentMethodData();
   const expenseCategoryData = getExpenseCategoryData();
+  const hourlyChartData = getHourlyChartData();
+  const peakHour = hourlyChartData.reduce(
+    (max, h) => (h.revenue > max.revenue ? h : max),
+    { hour: "", revenue: 0, count: 0 }
+  );
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -444,10 +548,11 @@ export default function ReportsPage() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={loadReportData}
-            className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+            disabled={loading}
+            className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition disabled:opacity-50"
             title="Refresh report data"
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
           </button>
           <button
             onClick={exportReport}
@@ -475,7 +580,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6 sm:mb-8">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-blue-100 text-sm mb-2">Total Sales</p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics.sales.totalAmount)}
           </p>
           <p className="text-sm text-blue-100 mt-2">
@@ -493,7 +598,7 @@ export default function ReportsPage() {
             Transactions{" "}
             {loadingTransactions ? "(Loading...)" : "(Click to view all)"}
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold">
             {analytics.sales.transactionCount}
           </p>
           <p className="text-sm text-green-100 mt-2">Completed orders</p>
@@ -501,7 +606,7 @@ export default function ReportsPage() {
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-purple-100 text-sm mb-2">Avg. Order Value</p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics.sales.averageTransaction)}
           </p>
           <p className="text-sm text-purple-100 mt-2">Per transaction</p>
@@ -509,7 +614,7 @@ export default function ReportsPage() {
 
         <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
           <p className="text-orange-100 text-sm mb-2">Gross Profit</p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics.summary.grossProfit)}
           </p>
           <p className="text-sm text-orange-100 mt-2">
@@ -522,10 +627,11 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 sm:mb-8">
         {/* Sales Trend */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-1">
             <h2 className="text-xl font-bold text-gray-900">Sales Trend</h2>
             <Calendar className="w-5 h-5 text-gray-400" />
           </div>
+          <p className="text-sm text-gray-500 mb-6">Daily revenue totals over the selected period.</p>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={salesByDay}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -559,12 +665,13 @@ export default function ReportsPage() {
 
         {/* Payment Methods Distribution */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-1">
             <h2 className="text-xl font-bold text-gray-900">
               Payment Methods Distribution
             </h2>
             <TrendingUp className="w-5 h-5 text-gray-400" />
           </div>
+          <p className="text-sm text-gray-500 mb-6">Share of transaction count by payment type.</p>
           {paymentMethodData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -597,55 +704,39 @@ export default function ReportsPage() {
 
       {/* Payment Method Breakdown */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-1">
           Sales by Payment Method
         </h2>
+        <p className="text-sm text-gray-500 mb-6">Revenue and transaction count per payment channel. Click any card to filter transactions.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Object.entries(analytics.sales.paymentMethodBreakdown).map(
             ([method, data]) => {
-              const colors = {
-                CASH: {
-                  bg: "bg-green-50",
-                  border: "border-green-200",
-                  text: "text-green-700",
-                  badge: "bg-green-100",
-                },
-                CARD: {
-                  bg: "bg-blue-50",
-                  border: "border-blue-200",
-                  text: "text-blue-700",
-                  badge: "bg-blue-100",
-                },
-                GCASH: {
-                  bg: "bg-purple-50",
-                  border: "border-purple-200",
-                  text: "text-purple-700",
-                  badge: "bg-purple-100",
-                },
+              type CardColors = {
+                bg: string; border: string; text: string; badge: string;
+                cardStyle?: React.CSSProperties;
+                textStyle?: React.CSSProperties;
+                badgeStyle?: React.CSSProperties;
+              };
+              const colors: Record<string, CardColors> = {
+                CASH: { bg: "bg-green-50", border: "border-green-200", text: "text-green-700", badge: "bg-green-100" },
+                GCASH: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100" },
                 PAYMAYA: {
-                  bg: "bg-amber-50",
-                  border: "border-amber-200",
-                  text: "text-amber-700",
-                  badge: "bg-amber-100",
+                  bg: "", border: "", text: "", badge: "",
+                  cardStyle: { backgroundColor: "#202122", borderColor: "#3a3b3c" },
+                  textStyle: { color: "#50B16B" },
+                  badgeStyle: { backgroundColor: "#2d2f30", color: "#50B16B" },
                 },
-                ONLINE: {
-                  bg: "bg-indigo-50",
-                  border: "border-indigo-200",
-                  text: "text-indigo-700",
-                  badge: "bg-indigo-100",
-                },
-                FOODPANDA: {
-                  bg: "bg-pink-50",
-                  border: "border-pink-200",
-                  text: "text-pink-700",
-                  badge: "bg-pink-100",
+                ONLINE: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", badge: "bg-gray-100" },
+                FOODPANDA: { bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700", badge: "bg-pink-100" },
+                GRAB: {
+                  bg: "", border: "", text: "", badge: "",
+                  cardStyle: { backgroundColor: "rgba(0,177,79,0.08)", borderColor: "#00B14F" },
+                  textStyle: { color: "#007835" },
+                  badgeStyle: { backgroundColor: "rgba(0,177,79,0.18)", color: "#007835" },
                 },
               };
-              const color = colors[method as keyof typeof colors] || {
-                bg: "bg-gray-50",
-                border: "border-gray-200",
-                text: "text-gray-700",
-                badge: "bg-gray-100",
+              const color: CardColors = colors[method] ?? {
+                bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", badge: "bg-gray-100",
               };
               const percentage =
                 analytics.sales.totalAmount > 0
@@ -658,16 +749,18 @@ export default function ReportsPage() {
                   onClick={() => loadTransactionsByPaymentMethod(method)}
                   disabled={loadingTransactions}
                   className={`${color.bg} border ${color.border} p-4 rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer`}
+                  style={color.cardStyle}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`text-sm font-semibold ${color.text}`}>
-                      {method}{" "}
+                    <span className={`text-sm font-semibold ${color.text}`} style={color.textStyle}>
+                      {getPaymentMethodLabel(method)}{" "}
                       {loadingTransactions && selectedPaymentMethod === method
                         ? "(Loading...)"
                         : "(Click to view)"}
                     </span>
                     <span
                       className={`${color.badge} ${color.text} text-xs px-2 py-1 rounded-full font-medium`}
+                      style={color.badgeStyle}
                     >
                       {percentage.toFixed(1)}%
                     </span>
@@ -675,19 +768,19 @@ export default function ReportsPage() {
                   <div className="space-y-2">
                     <div>
                       <p className="text-xs text-gray-600 mb-1">Total Amount</p>
-                      <p className={`text-2xl font-bold ${color.text}`}>
+                      <p className={`text-2xl font-bold ${color.text}`} style={color.textStyle}>
                         {formatCurrency(data.total)}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-600">Transactions</p>
-                      <p className={`text-lg font-semibold ${color.text}`}>
+                      <p className={`text-lg font-semibold ${color.text}`} style={color.textStyle}>
                         {data.count}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-600">Average</p>
-                      <p className={`text-sm font-medium ${color.text}`}>
+                      <p className={`text-sm font-medium ${color.text}`} style={color.textStyle}>
                         {formatCurrency(
                           data.count > 0 ? data.total / data.count : 0
                         )}
@@ -703,9 +796,10 @@ export default function ReportsPage() {
 
       {/* Top Products Section */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-1">
           Top Selling Products
         </h2>
+        <p className="text-sm text-gray-500 mb-6">Ranked by revenue within the selected period.</p>
         {analytics.topProducts.length > 0 ? (
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             <table className="w-full">
@@ -832,7 +926,8 @@ export default function ReportsPage() {
 
       {/* Expenses Section */}
       <div className="mb-6 sm:mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Expenses</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">Expenses</h2>
+        <p className="text-sm text-gray-500 mb-6">Total outflows logged for the selected period.</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           {/* Total Expenses Card */}
           <button
@@ -873,9 +968,10 @@ export default function ReportsPage() {
 
         {/* Expense Breakdown Chart */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-1">
             Expense Breakdown by Category
           </h3>
+          <p className="text-sm text-gray-500 mb-6">Total spend distributed across expense categories.</p>
           {expenseCategoryData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -908,9 +1004,10 @@ export default function ReportsPage() {
 
       {/* Daily Sales Bar Chart */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-1">
           Daily Sales & Quantity Overview
         </h2>
+        <p className="text-sm text-gray-500 mb-6">Revenue bars show daily totals; the line tracks number of items sold.</p>
         <ResponsiveContainer width="100%" height={400}>
           <ComposedChart data={salesByDay}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -968,6 +1065,85 @@ export default function ReportsPage() {
             />
           </ComposedChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Sales by Time of Day */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6 sm:mt-8">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-bold text-gray-900">Sales by Time of Day</h2>
+          <TrendingUp className="w-5 h-5 text-gray-400" />
+        </div>
+        {peakHour.revenue > 0 && (
+          <p className="text-sm text-gray-500 mb-6">
+            Peak hour:{" "}
+            <span className="font-semibold text-black">
+              {peakHour.hour}
+            </span>{" "}
+            — {formatCurrency(peakHour.revenue)} across {peakHour.count} transaction{peakHour.count !== 1 ? "s" : ""}
+          </p>
+        )}
+        {hourlyChartData.some((h) => h.revenue > 0) ? (
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={hourlyChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="hour"
+                stroke="#6b7280"
+                style={{ fontSize: "11px" }}
+                interval={0}
+                tick={{ fontSize: 11 }}
+              />
+              <YAxis
+                yAxisId="left"
+                stroke="#6b7280"
+                style={{ fontSize: "11px" }}
+                tickFormatter={(v) => formatCurrency(v)}
+                width={72}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#6b7280"
+                style={{ fontSize: "11px" }}
+                allowDecimals={false}
+                width={36}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                }}
+                labelStyle={{ color: "#000", fontWeight: 600 }}
+                formatter={(value: number, name: string) =>
+                  name === "Revenue" ? formatCurrency(value) : `${value} txn`
+                }
+              />
+              <Legend />
+              <Bar
+                yAxisId="left"
+                dataKey="revenue"
+                name="Revenue"
+                radius={[4, 4, 0, 0]}
+                fill={primaryColor}
+                opacity={0.85}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="count"
+                name="Transactions"
+                stroke="#6b7280"
+                strokeWidth={2}
+                dot={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-[320px] flex items-center justify-center text-gray-500">
+            No sales data available for this period
+          </div>
+        )}
       </div>
 
       {/* Transaction List Modal */}

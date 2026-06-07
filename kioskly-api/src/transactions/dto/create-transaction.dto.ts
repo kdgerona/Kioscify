@@ -8,6 +8,7 @@ import {
   IsArray,
   ValidateNested,
   IsInt,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -63,11 +64,11 @@ export class CreateTransactionDto {
   total: number;
 
   @ApiProperty({
-    enum: ['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA'],
+    enum: ['CASH', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA', 'GRAB'],
     example: 'CASH',
   })
-  @IsEnum(['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA'])
-  paymentMethod: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE' | 'FOODPANDA';
+  @IsEnum(['CASH', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA', 'GRAB'])
+  paymentMethod: 'CASH' | 'GCASH' | 'PAYMAYA' | 'ONLINE' | 'FOODPANDA' | 'GRAB';
 
   @ApiProperty({ example: 200, required: false })
   @IsNumber()
@@ -93,9 +94,28 @@ export class CreateTransactionDto {
   @IsOptional()
   remarks?: string;
 
+  @ApiProperty({ example: 10, required: false, description: 'Discount amount applied to the transaction' })
+  @IsNumber()
+  @IsOptional()
+  discountAmount?: number;
+
   @ApiProperty({ type: [TransactionItemDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => TransactionItemDto)
   items: TransactionItemDto[];
+
+  @ApiProperty({ example: 'uuid-v4-here', required: false, description: 'Device UUID for offline deduplication' })
+  @IsString()
+  @IsOptional()
+  clientId?: string;
+
+  @ApiProperty({
+    example: '2024-01-15T10:30:00.000Z',
+    required: false,
+    description: 'Actual transaction time captured on-device (preserves creation time for offline sync)',
+  })
+  @IsDateString()
+  @IsOptional()
+  timestamp?: string;
 }

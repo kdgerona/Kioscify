@@ -170,4 +170,21 @@ export class ReportsController {
       query.endDate,
     );
   }
+
+  @Get('time-of-day')
+  @ApiOperation({ summary: 'Get transaction trends by hour of day (0-23)' })
+  @ApiQuery({ name: 'startDate', required: true, example: '2025-01-01' })
+  @ApiQuery({ name: 'endDate', required: true, example: '2025-12-31' })
+  @ApiResponse({ status: 200, description: 'Time-of-day trends' })
+  getTimeOfDayTrends(
+    @TenantId() tenantId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportsService.getTimeOfDayTrends(
+      tenantId,
+      new Date(startDate),
+      new Date(endDate),
+    );
+  }
 }

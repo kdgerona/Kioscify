@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDateTime, formatRole, formatUserName, getPaymentMethodLabel } from "@/lib/utils";
 import {
   FileText,
   Search,
@@ -17,8 +17,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import type { SubmittedReport } from "@/types";
 
 export default function SubmittedReportsPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const [reports, setReports] = useState<SubmittedReport[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
@@ -28,6 +28,7 @@ export default function SubmittedReportsPage() {
     null
   );
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const isFirstMount = useRef(true);
 
   const clearFilters = () => {
     setStartDate(undefined);
@@ -84,7 +85,9 @@ export default function SubmittedReportsPage() {
   );
 
   useEffect(() => {
-    loadReports(true);
+    const isInitial = isFirstMount.current;
+    isFirstMount.current = false;
+    loadReports(isInitial);
   }, [loadReports]);
 
   if (initialLoading) {
@@ -130,10 +133,11 @@ export default function SubmittedReportsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => loadReports(false)}
-              className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition"
+              disabled={isFiltering}
+              className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition disabled:opacity-50"
               title="Refresh reports"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className={`w-5 h-5 ${isFiltering ? "animate-spin" : ""}`} />
             </button>
             {(startDate || endDate) && (
               <button
@@ -152,7 +156,7 @@ export default function SubmittedReportsPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
         {isFiltering && (
           <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
           </div>
         )}
         {reports.length > 0 ? (
@@ -195,7 +199,7 @@ export default function SubmittedReportsPage() {
                       {formatDateTime(report.submittedAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {report.user?.email || report.user?.username || "N/A"}
+                      {formatUserName(report.user)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-bold text-gray-900">
@@ -285,9 +289,8 @@ export default function SubmittedReportsPage() {
                       Submitted By
                     </p>
                     <p className="text-xs sm:text-sm text-gray-900 break-words">
-                      {selectedReport.user?.email ||
-                        selectedReport.user?.username}{" "}
-                      ({selectedReport.user?.role})
+                      {formatUserName(selectedReport.user)}{" "}
+                      ({formatRole(selectedReport.user?.role)})
                     </p>
                   </div>
                   <div>
@@ -503,11 +506,21 @@ export default function SubmittedReportsPage() {
                               </p>
                             </div>
                             <div className="text-right flex-shrink-0">
+                              {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                                <p className="text-xs text-gray-400 line-through">
+                                  {formatCurrency(transaction.subtotal)}
+                                </p>
+                              )}
                               <p className="text-base sm:text-lg font-bold text-gray-900">
                                 {formatCurrency(transaction.total)}
                               </p>
+                              {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                                <p className="text-xs text-red-500">
+                                  -{formatCurrency(transaction.discountAmount)} off
+                                </p>
+                              )}
                               <p className="text-xs text-gray-600">
-                                {transaction.paymentMethod}
+                                {getPaymentMethodLabel(transaction.paymentMethod)}
                               </p>
                             </div>
                           </div>
@@ -642,8 +655,7 @@ export default function SubmittedReportsPage() {
                                 {expense.user && (
                                   <span className="text-xs text-gray-500 truncate">
                                     by{" "}
-                                    {expense.user.username ||
-                                      expense.user.email}
+                                    {formatUserName(expense.user)}
                                   </span>
                                 )}
                               </div>

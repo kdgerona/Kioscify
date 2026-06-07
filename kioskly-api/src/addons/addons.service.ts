@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAddonDto } from './dto/create-addon.dto';
 import { UpdateAddonDto } from './dto/update-addon.dto';
@@ -11,55 +12,42 @@ import { UpdateAddonDto } from './dto/update-addon.dto';
 export class AddonsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createAddonDto: CreateAddonDto, tenantId: string) {
-    const { id, name, price } = createAddonDto;
+  async create(createAddonDto: CreateAddonDto, brandId: string) {
+    const { id: providedId, name, price, foodpandaPrice, grabPrice } = createAddonDto;
+    const id = providedId || randomUUID();
 
-    const existingAddon = await this.prisma.addon.findUnique({
-      where: { id },
-    });
-
-    if (existingAddon) {
-      throw new ConflictException('Addon with this ID already exists');
+    if (providedId) {
+      const existing = await this.prisma.addon.findUnique({ where: { id } });
+      if (existing) throw new ConflictException('Addon with this ID already exists');
     }
 
     return this.prisma.addon.create({
-      data: { id, name, price, tenantId },
+      data: { id, name, price, foodpandaPrice, grabPrice, brandId },
     });
   }
 
-  async findAll(tenantId: string) {
+  async findAll(brandId: string) {
     return this.prisma.addon.findMany({
-      where: { tenantId },
-      orderBy: { name: 'asc' },
+      where: { brandId, tombstone: { not: 1 } },
+      orderBy: { sequenceNo: 'asc' },
     });
   }
 
-  async findOne(id: string, tenantId: string) {
+  async findOne(id: string, brandId?: string) {
     const addon = await this.prisma.addon.findFirst({
-      where: { id, tenantId },
+      where: { id, ...(brandId ? { brandId } : {}), tombstone: { not: 1 } },
     });
-
-    if (!addon) {
-      throw new NotFoundException(`Addon with ID ${id} not found`);
-    }
-
+    if (!addon) throw new NotFoundException(`Addon with ID ${id} not found`);
     return addon;
   }
 
-  async update(id: string, updateAddonDto: UpdateAddonDto, tenantId: string) {
-    await this.findOne(id, tenantId); // Check if exists
-
-    return this.prisma.addon.update({
-      where: { id },
-      data: updateAddonDto,
-    });
+  async update(id: string, updateAddonDto: UpdateAddonDto, brandId?: string) {
+    await this.findOne(id, brandId);
+    return this.prisma.addon.update({ where: { id }, data: updateAddonDto });
   }
 
-  async remove(id: string, tenantId: string) {
-    await this.findOne(id, tenantId); // Check if exists
-
-    return this.prisma.addon.delete({
-      where: { id },
-    });
+  async remove(id: string, brandId?: string) {
+    await this.findOne(id, brandId);
+    return this.prisma.addon.update({ where: { id }, data: { tombstone: 1 } });
   }
 }

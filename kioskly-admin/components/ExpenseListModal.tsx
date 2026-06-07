@@ -2,7 +2,7 @@
 
 import { X, Receipt } from 'lucide-react';
 import { Expense } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatUserName } from '@/lib/utils';
 
 interface ExpenseListModalProps {
   isOpen: boolean;
@@ -112,7 +112,7 @@ export default function ExpenseListModal({
                     <div className="bg-white rounded-lg p-2 sm:p-3 border border-red-200 mb-2 sm:mb-3">
                       <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                         <span className="font-semibold">Recorded by:</span>
-                        <span className="truncate">{expense.user.email}</span>
+                        <span className="truncate">{formatUserName(expense.user)}</span>
                       </div>
                     </div>
                   )}

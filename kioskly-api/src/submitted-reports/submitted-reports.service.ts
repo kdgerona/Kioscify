@@ -25,12 +25,15 @@ export class SubmittedReportsService {
         transactionIds: createDto.transactionIds,
         expenseIds: createDto.expenseIds,
         notes: createDto.notes,
+        ...(createDto.submittedAt && { submittedAt: new Date(createDto.submittedAt) }),
       },
       include: {
         user: {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -67,6 +70,8 @@ export class SubmittedReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },
@@ -86,6 +91,8 @@ export class SubmittedReportsService {
           select: {
             id: true,
             username: true,
+            firstName: true,
+            lastName: true,
             email: true,
             role: true,
           },

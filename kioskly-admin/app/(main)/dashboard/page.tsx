@@ -51,8 +51,8 @@ interface AnalyticsData {
 }
 
 export default function DashboardPage() {
-  const { tenant } = useTenant();
-  const primaryColor = tenant?.themeColors?.primary || "#4f46e5";
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [dailyAnalytics, setDailyAnalytics] = useState<AnalyticsData | null>(
     null
@@ -185,7 +185,7 @@ export default function DashboardPage() {
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-          Welcome back! 👋
+          {tenant?.name || "Dashboard"}
         </h1>
         <p className="text-sm sm:text-base text-gray-600 mt-2">
           {tenant?.name || "Your Business"} - Overview and statistics
@@ -208,7 +208,7 @@ export default function DashboardPage() {
               Today&apos;s Sales{" "}
               {loadingTransactions ? "(Loading...)" : "(Click to view)"}
             </p>
-            <p className="text-2xl sm:text-3xl font-bold">
+            <p className="text-xl lg:text-2xl font-bold break-all">
               {formatCurrency(dailyAnalytics?.sales?.totalAmount || 0)}
             </p>
             <p className="text-xs sm:text-sm text-cyan-100 mt-2">
@@ -226,7 +226,7 @@ export default function DashboardPage() {
               Today&apos;s Expenses{" "}
               {loadingExpenses ? "(Loading...)" : "(Click to view)"}
             </p>
-            <p className="text-2xl sm:text-3xl font-bold">
+            <p className="text-xl lg:text-2xl font-bold break-all">
               {formatCurrency(dailyAnalytics?.expenses?.totalAmount || 0)}
             </p>
             <p className="text-xs sm:text-sm text-rose-100 mt-2">
@@ -239,7 +239,7 @@ export default function DashboardPage() {
             <p className="text-teal-100 text-xs sm:text-sm mb-2">
               Today&apos;s Net Revenue
             </p>
-            <p className="text-2xl sm:text-3xl font-bold">
+            <p className="text-xl lg:text-2xl font-bold break-all">
               {formatCurrency(dailyAnalytics?.summary?.netRevenue || 0)}
             </p>
             <p className="text-xs sm:text-sm text-teal-100 mt-2">
@@ -259,7 +259,7 @@ export default function DashboardPage() {
         {/* Monthly Total Sales */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
           <p className="text-blue-100 text-xs sm:text-sm mb-2">Monthly Sales</p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.sales?.totalAmount || 0)}
           </p>
           <p className="text-xs sm:text-sm text-blue-100 mt-2">
@@ -278,7 +278,7 @@ export default function DashboardPage() {
             Transactions{" "}
             {loadingTransactions ? "(Loading...)" : "(Click to view all)"}
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold">
             {analytics?.sales?.transactionCount || 0}
           </p>
           <p className="text-xs sm:text-sm text-green-100 mt-2">This month</p>
@@ -289,7 +289,7 @@ export default function DashboardPage() {
           <p className="text-purple-100 text-xs sm:text-sm mb-2">
             Avg. Order Value
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.sales?.averageTransaction || 0)}
           </p>
           <p className="text-xs sm:text-sm text-purple-100 mt-2">
@@ -302,7 +302,7 @@ export default function DashboardPage() {
           <p className="text-orange-100 text-xs sm:text-sm mb-2">
             Products Sold
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold">
             {analytics?.sales?.totalItemsSold || 0}
           </p>
           <p className="text-xs sm:text-sm text-orange-100 mt-2">This month</p>
@@ -326,7 +326,7 @@ export default function DashboardPage() {
             Monthly Expenses{" "}
             {loadingExpenses ? "(Loading...)" : "(Click to view all)"}
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.expenses?.totalAmount || 0)}
           </p>
           <p className="text-xs sm:text-sm text-red-100 mt-2">
@@ -339,7 +339,7 @@ export default function DashboardPage() {
           <p className="text-emerald-100 text-xs sm:text-sm mb-2">
             Monthly Gross Profit
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.summary?.grossProfit || 0)}
           </p>
           <p className="text-xs sm:text-sm text-emerald-100 mt-2">
@@ -352,7 +352,7 @@ export default function DashboardPage() {
           <p className="text-indigo-100 text-xs sm:text-sm mb-2">
             Monthly Net Revenue
           </p>
-          <p className="text-2xl sm:text-3xl font-bold">
+          <p className="text-xl lg:text-2xl font-bold break-all">
             {formatCurrency(analytics?.summary?.netRevenue || 0)}
           </p>
           <p className="text-xs sm:text-sm text-indigo-100 mt-2">
@@ -363,9 +363,10 @@ export default function DashboardPage() {
 
       {/* Top Products */}
       <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
           Top Selling Products
         </h2>
+        <p className="text-sm text-gray-500 mb-4 sm:mb-6">Ranked by revenue for the current month.</p>
 
         {analytics?.topProducts && analytics.topProducts.length > 0 ? (
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto -mx-4 sm:mx-0">
