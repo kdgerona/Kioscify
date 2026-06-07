@@ -1,22 +1,22 @@
 {
   "expo": {
     "name": "Kioscify",
-    "slug": "kioskly-app",
+    "slug": "kioscify-app",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/app-icons/appstore.png",
-    "scheme": "kiosklyapp",
+    "scheme": "kioscifyapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kioskly.app",
+      "bundleIdentifier": "com.kioscify.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to scan store QR codes for device setup."
       }
     },
     "android": {
-      "package": "com.kioskly.app",
+      "package": "com.kioscify.app",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/app-icons/playstore.png"
