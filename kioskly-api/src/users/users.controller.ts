@@ -102,9 +102,10 @@ export class UsersController {
   resetStoreUserPassword(
     @Param('storeId') storeId: string,
     @Param('userId') userId: string,
+    @TenantId() tenantId: string,
     @Request() req,
   ) {
-    return this.usersService.resetStoreUserPassword(storeId, userId, req.user.id, req.user.role);
+    return this.usersService.resetStoreUserPassword(storeId, userId, req.user.id, tenantId, req.user.role);
   }
 
   // ─── Company users (COMPANY_ADMIN manages their own company) ─────────────

@@ -517,15 +517,20 @@ export class UsersService {
     storeId: string,
     userId: string,
     requestingUserId: string,
+    requestingTenantId: string,
     requestingRole?: string,
   ) {
     if (requestingRole !== 'PLATFORM_ADMIN' && requestingUserId === userId) {
       throw new ForbiddenException('Cannot reset your own password via this endpoint');
     }
 
+    if (requestingRole !== 'PLATFORM_ADMIN' && storeId !== requestingTenantId) {
+      throw new ForbiddenException('Access denied');
+    }
+
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenantId: storeId },
-      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true, isFirstLogin: true },
     });
     if (!user) throw new NotFoundException(`User not found in this store`);
 
@@ -540,7 +545,7 @@ export class UsersService {
     return {
       user,
       temporaryPassword: password,
-      note: 'User will be required to change this password on next login.',
+      note: 'Share this password via a secure channel. User will be required to change it on first login.',
     };
   }
 
