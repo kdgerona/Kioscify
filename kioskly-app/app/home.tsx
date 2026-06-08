@@ -879,15 +879,23 @@ export default function Home() {
         onRequestClose={closeCustomizeModal}
       >
         <View className="flex-1 bg-black/50 justify-center items-center">
-          <View className="bg-white rounded-lg w-11/12 max-w-lg max-h-5/6">
+          <View className="bg-white rounded-lg w-11/12 max-w-lg" style={{ height: '90%' }}>
             {/* Modal Header */}
             <View
               className="px-6 py-4 rounded-t-lg flex-row justify-between items-center"
               style={{ backgroundColor: primaryColor }}
             >
-              <Text className="text-xl font-bold" style={{ color: textColor }}>
-                {selectedProduct?.name}
-              </Text>
+              <View className="flex-1 mr-3">
+                <Text className="text-xl font-bold" style={{ color: textColor }}>
+                  {selectedProduct?.name}
+                </Text>
+                <Text
+                  className="text-sm mt-0.5"
+                  style={{ color: `${textColor}CC` }}
+                >
+                  {getCategoryName(selectedProduct?.categoryId || "")}
+                </Text>
+              </View>
               <TouchableOpacity
                 onPress={closeCustomizeModal}
                 className="w-11 h-11 items-center justify-center rounded-full"
@@ -903,22 +911,11 @@ export default function Home() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView className="px-6 py-4">
-              <View className="flex flex-row justify-between">
-                <Text
-                  className="text-lg font-bold mb-3"
-                  style={{ color: textColor }}
-                >
-                  Category:{" "}
-                  <Text className="font-normal" style={{ color: textColor }}>
-                    {getCategoryName(selectedProduct?.categoryId || "")}
-                  </Text>
-                </Text>
-              </View>
+            <ScrollView className="px-6 py-4" style={{ flex: 1 }}>
 
               {/* Sizes Section */}
               {selectedProduct?.sizes && selectedProduct.sizes.length > 0 && (
-                <View className="mb-6">
+                <View className="mb-2">
                   <Text
                     className="text-lg font-bold mb-3"
                     style={{ color: textColor }}
@@ -984,44 +981,43 @@ export default function Home() {
                   >
                     Add-ons (Optional)
                   </Text>
-                  {selectedProduct.addons.map((addon) => {
-                    const isSelected = selectedAddons.find(
-                      (a) => a.id === addon.id,
-                    );
-                    return (
-                      <TouchableOpacity
-                        key={addon.id}
-                        className="p-4 rounded-lg mb-2 flex-row justify-between items-center"
-                        style={{
-                          backgroundColor: isSelected
-                            ? `${primaryColor}15`
-                            : "#f3f4f6",
-                          borderWidth: isSelected ? 2 : 0,
-                          borderColor: isSelected
-                            ? primaryColor
-                            : "transparent",
-                        }}
-                        onPress={() => toggleAddon(addon)}
-                      >
-                        <Text
-                          className="font-semibold"
+                  <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+                    {selectedProduct.addons.map((addon) => {
+                      const isSelected = selectedAddons.find(
+                        (a) => a.id === addon.id,
+                      );
+                      return (
+                        <TouchableOpacity
+                          key={addon.id}
+                          className="p-3 rounded-lg"
                           style={{
-                            color: textColor,
+                            width: '48.5%',
+                            backgroundColor: isSelected
+                              ? `${primaryColor}15`
+                              : "#f3f4f6",
+                            borderWidth: isSelected ? 2 : 0,
+                            borderColor: isSelected
+                              ? primaryColor
+                              : "transparent",
                           }}
+                          onPress={() => toggleAddon(addon)}
                         >
-                          {addon.name}
-                        </Text>
-                        <Text
-                          className="font-semibold"
-                          style={{
-                            color: `${textColor}B3`,
-                          }}
-                        >
-                          +₱{getEffectiveAddonPrice(addon).toFixed(2)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                          <Text
+                            className="font-semibold text-sm mb-1"
+                            style={{ color: textColor }}
+                          >
+                            {addon.name}
+                          </Text>
+                          <Text
+                            className="text-xs font-semibold"
+                            style={{ color: `${textColor}B3` }}
+                          >
+                            +₱{getEffectiveAddonPrice(addon).toFixed(2)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
               )}
             </ScrollView>
