@@ -298,7 +298,17 @@ export class UsersService {
     };
   }
 
-  async updateCompanyUser(companyId: string, userId: string, requestingUserId: string, dto: UpdateCompanyUserDto) {
+  async updateCompanyUser(
+    companyId: string,
+    userId: string,
+    requestingCompanyId: string,
+    requestingRole: string,
+    requestingUserId: string,
+    dto: UpdateCompanyUserDto,
+  ) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) {
+      throw new ForbiddenException('Access denied');
+    }
     if (requestingUserId === userId) throw new ForbiddenException('Cannot modify your own account');
     const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } });
     if (!user) throw new NotFoundException('User not found in this company');
@@ -309,7 +319,16 @@ export class UsersService {
     });
   }
 
-  async deleteCompanyUser(companyId: string, userId: string, requestingUserId: string) {
+  async deleteCompanyUser(
+    companyId: string,
+    userId: string,
+    requestingCompanyId: string,
+    requestingRole: string,
+    requestingUserId: string,
+  ) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) {
+      throw new ForbiddenException('Access denied');
+    }
     if (requestingUserId === userId) throw new ForbiddenException('Cannot remove your own account');
     const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } });
     if (!user) throw new NotFoundException('User not found in this company');
@@ -317,7 +336,16 @@ export class UsersService {
     return { message: 'User removed' };
   }
 
-  async resetCompanyUserPassword(companyId: string, userId: string, requestingUserId: string) {
+  async resetCompanyUserPassword(
+    companyId: string,
+    userId: string,
+    requestingCompanyId: string,
+    requestingRole: string,
+    requestingUserId: string,
+  ) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) {
+      throw new ForbiddenException('Access denied');
+    }
     if (requestingUserId === userId) throw new ForbiddenException('Cannot reset your own password via this endpoint');
     const user = await this.prisma.user.findFirst({
       where: { id: userId, companyId },

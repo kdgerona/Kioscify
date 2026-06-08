@@ -161,9 +161,10 @@ export class UsersController {
     @Param('companyId') companyId: string,
     @Param('userId') userId: string,
     @Body() dto: UpdateCompanyUserDto,
+    @CompanyId() requestingCompanyId: string,
     @Request() req,
   ) {
-    return this.usersService.updateCompanyUser(companyId, userId, req.user.id, dto);
+    return this.usersService.updateCompanyUser(companyId, userId, requestingCompanyId, req.user.role, req.user.id, dto);
   }
 
   @Delete('companies/:companyId/:userId')
@@ -174,9 +175,10 @@ export class UsersController {
   deleteCompanyUser(
     @Param('companyId') companyId: string,
     @Param('userId') userId: string,
+    @CompanyId() requestingCompanyId: string,
     @Request() req,
   ) {
-    return this.usersService.deleteCompanyUser(companyId, userId, req.user.id);
+    return this.usersService.deleteCompanyUser(companyId, userId, requestingCompanyId, req.user.role, req.user.id);
   }
 
   @Post('companies/:companyId/:userId/reset-password')
@@ -186,9 +188,10 @@ export class UsersController {
   resetCompanyUserPassword(
     @Param('companyId') companyId: string,
     @Param('userId') userId: string,
+    @CompanyId() requestingCompanyId: string,
     @Request() req,
   ) {
-    return this.usersService.resetCompanyUserPassword(companyId, userId, req.user.id);
+    return this.usersService.resetCompanyUserPassword(companyId, userId, requestingCompanyId, req.user.role, req.user.id);
   }
 
   @Delete(':userId')
