@@ -772,7 +772,7 @@ export default function Home() {
                       onPress={() => openCustomizeModal(product)}
                     >
                       <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-64">
-                        <View className="h-40 mb-3 justify-center items-center bg-gray-100 rounded-lg overflow-hidden">
+                        <View className={`h-40 mb-3 justify-center items-center rounded-lg overflow-hidden${imageUri ? '' : ' bg-gray-100'}`}>
                           {imageUri ? (
                             <Image
                               source={{ uri: imageUri }}
