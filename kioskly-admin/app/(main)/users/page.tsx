@@ -117,8 +117,7 @@ export default function UsersPage() {
             {isStoreAdmin && isMultiStoreAdmin && (
               <button
                 onClick={() => setShowAssignModal(true)}
-                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-                style={{ borderColor: primaryColor, color: primaryColor }}
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400"
               >
                 <UserCheck className="h-4 w-4" />
                 Assign Existing User

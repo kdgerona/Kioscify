@@ -95,6 +95,18 @@ export class UsersController {
     return this.usersService.deleteStoreUser(storeId, userId, tenantId, req.user.id);
   }
 
+  @Post('stores/:storeId/:userId/reset-password')
+  @UseGuards(RolesGuard)
+  @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Reset a store user\'s password (generates new temporary password)' })
+  resetStoreUserPassword(
+    @Param('storeId') storeId: string,
+    @Param('userId') userId: string,
+    @Request() req,
+  ) {
+    return this.usersService.resetStoreUserPassword(storeId, userId, req.user.id, req.user.role);
+  }
+
   // ─── Company users (COMPANY_ADMIN manages their own company) ─────────────
 
   @Get('companies/:companyId')

@@ -513,6 +513,37 @@ export class UsersService {
     };
   }
 
+  async resetStoreUserPassword(
+    storeId: string,
+    userId: string,
+    requestingUserId: string,
+    requestingRole?: string,
+  ) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && requestingUserId === userId) {
+      throw new ForbiddenException('Cannot reset your own password via this endpoint');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId: storeId },
+      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+    });
+    if (!user) throw new NotFoundException(`User not found in this store`);
+
+    const password = this.authService.generateSecurePassword();
+    const hashed = await bcrypt.hash(password, 12);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed, isFirstLogin: true },
+    });
+
+    return {
+      user,
+      temporaryPassword: password,
+      note: 'User will be required to change this password on next login.',
+    };
+  }
+
   private async assertStoreUserExists(userId: string, storeId: string) {
     const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId: storeId } });
     if (!user) throw new NotFoundException(`User ${userId} not found in this store`);
