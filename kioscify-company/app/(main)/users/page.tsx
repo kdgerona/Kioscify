@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { User, Company } from '@/types';
-import { Plus, X, Copy, Check, UserCheck, UserX } from 'lucide-react';
+import { Plus, X, Copy, KeyRound, Trash2, UserCheck, UserX } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -12,7 +13,6 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [newPassword, setNewPassword] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   // Form state
   const [firstName, setFirstName] = useState('');
@@ -21,6 +21,10 @@ export default function UsersPage() {
   const [username, setUsername] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const currentUser = typeof window !== 'undefined'
+    ? (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })()
+    : null;
 
   useEffect(() => {
     loadData();
@@ -78,11 +82,39 @@ export default function UsersPage() {
     }
   };
 
-  const copyPassword = () => {
-    if (newPassword) {
-      navigator.clipboard.writeText(newPassword);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.setAttribute('readonly', '');
+      el.style.cssText = 'position:absolute;left:-9999px';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    toast.success('Password copied to clipboard!');
+  };
+
+  const handleRemoveUser = async (user: User) => {
+    if (!company) return;
+    try {
+      await api.deactivateCompanyUser(company.id, user.id);
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+    } catch {
+      // silent
+    }
+  };
+
+  const handleResetPassword = async (user: User) => {
+    if (!company) return;
+    try {
+      const result = await api.resetCompanyUserPassword(company.id, user.id);
+      setNewPassword(result.temporaryPassword);
+    } catch {
+      // silent
     }
   };
 
@@ -129,11 +161,11 @@ export default function UsersPage() {
           <div className="flex items-center gap-2 bg-white rounded border border-green-200 px-3 py-2">
             <code className="text-sm font-mono flex-1">{newPassword}</code>
             <button
-              onClick={copyPassword}
+              onClick={() => copyToClipboard(newPassword!)}
               className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs"
             >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? 'Copied' : 'Copy'}
+              <Copy className="w-3.5 h-3.5" />
+              Copy
             </button>
           </div>
         </div>
@@ -211,23 +243,44 @@ export default function UsersPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    user.isActive
-                      ? 'bg-green-50 text-green-700'
-                      : 'bg-gray-100 text-gray-500'
+                    user.isFirstLogin
+                      ? 'bg-amber-50 text-amber-700'
+                      : user.isActive
+                        ? 'bg-green-50 text-green-700'
+                        : 'bg-gray-100 text-gray-500'
                   }`}>
-                    {user.isActive ? 'Active' : 'Inactive'}
+                    {user.isFirstLogin ? 'Pending setup' : user.isActive ? 'Active' : 'Inactive'}
                   </span>
-                  <button
-                    onClick={() => handleToggleActive(user)}
-                    title={user.isActive ? 'Deactivate' : 'Activate'}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
-                  >
-                    {user.isActive ? (
-                      <UserX className="w-4 h-4" />
-                    ) : (
-                      <UserCheck className="w-4 h-4" />
-                    )}
-                  </button>
+                  {currentUser?.id !== user.id && (
+                    <div className="flex items-center gap-2">
+                      {user.isFirstLogin ? (
+                        <button
+                          onClick={() => handleRemoveUser(user)}
+                          title="Remove pending user"
+                          className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleToggleActive(user)}
+                            title={user.isActive ? 'Deactivate' : 'Activate'}
+                            className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                          >
+                            {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => handleResetPassword(user)}
+                            title="Reset password"
+                            className="p-1.5 text-gray-400 hover:text-amber-500 rounded"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

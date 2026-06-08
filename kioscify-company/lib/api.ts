@@ -428,6 +428,11 @@ class ApiClient {
     return data;
   }
 
+  async resetCompanyUserPassword(companyId: string, userId: string): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/users/companies/${companyId}/${userId}/reset-password`);
+    return data;
+  }
+
   // ─── Store user assignment (multi-store) ──────────────────────────────────
 
   async getStores(brandId: string): Promise<any[]> {
