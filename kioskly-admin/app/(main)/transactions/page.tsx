@@ -737,8 +737,8 @@ export default function TransactionsPage() {
       {/* Transaction Details Modal */}
       {selectedTransaction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-gray-200">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                   Transaction Details
@@ -752,7 +752,7 @@ export default function TransactionsPage() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto">
               {/* Basic Information */}
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">
