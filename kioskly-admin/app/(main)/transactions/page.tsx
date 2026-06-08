@@ -591,6 +591,9 @@ export default function TransactionsPage() {
                         Status
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Review
+                      </th>
+                      <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -631,7 +634,7 @@ export default function TransactionsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {request.voidStatus === "PENDING" && (
+                          {request.voidStatus === "PENDING" ? (
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleApproveVoid(request)}
@@ -648,16 +651,18 @@ export default function TransactionsPage() {
                                 Reject
                               </button>
                             </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">—</span>
                           )}
-                          {request.voidStatus !== "PENDING" && (
-                            <button
-                              onClick={() => setSelectedTransaction(request)}
-                              className="text-gray-700 hover:text-gray-900"
-                              title="View details"
-                            >
-                              <Eye className="w-5 h-5" />
-                            </button>
-                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => setSelectedTransaction(request)}
+                            className="text-gray-700 hover:text-gray-900"
+                            title="View details"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
                         </td>
                       </tr>
                     ))}
