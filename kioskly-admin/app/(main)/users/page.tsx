@@ -5,7 +5,8 @@ import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
 import { formatRole } from '@/lib/utils';
 import type { User, StoreUserCreatePayload } from '@/types';
-import { UserPlus, Eye, EyeOff, UserCheck, UserX, KeyRound } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, UserCheck, UserX, KeyRound, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -41,6 +42,7 @@ export default function UsersPage() {
   });
   const [formLoading, setFormLoading] = useState(false);
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
@@ -121,7 +123,21 @@ export default function UsersPage() {
       document.body.removeChild(el);
     }
     setCopied(true);
+    toast.success('Password copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRemoveUser = async (user: User) => {
+    if (!tenant?.id) return;
+    setRemovingUserId(user.id);
+    try {
+      await api.deactivateStoreUser(tenant.id, user.id);
+      await fetchUsers();
+    } catch (err) {
+      console.error('Failed to remove user:', err);
+    } finally {
+      setRemovingUserId(null);
+    }
   };
 
   const handleResetPassword = async (user: User) => {
@@ -360,21 +376,36 @@ export default function UsersPage() {
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-2">
-                          <div className="relative group inline-block">
-                            <button
-                              onClick={() => handleToggleActive(user)}
-                              className="text-gray-400 hover:text-gray-600"
-                            >
-                              {user.isActive ? (
-                                <UserX className="h-4 w-4" />
-                              ) : (
-                                <UserCheck className="h-4 w-4" />
-                              )}
-                            </button>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                              {user.isActive ? 'Disable account' : 'Enable account'}
+                          {user.isFirstLogin ? (
+                            <div className="relative group inline-block">
+                              <button
+                                onClick={() => handleRemoveUser(user)}
+                                disabled={removingUserId === user.id}
+                                className="text-gray-400 hover:text-red-500 disabled:opacity-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                Remove pending user
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="relative group inline-block">
+                              <button
+                                onClick={() => handleToggleActive(user)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                {user.isActive ? (
+                                  <UserX className="h-4 w-4" />
+                                ) : (
+                                  <UserCheck className="h-4 w-4" />
+                                )}
+                              </button>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                {user.isActive ? 'Disable account' : 'Enable account'}
+                              </div>
+                            </div>
+                          )}
                           <div className="relative group inline-block">
                             <button
                               onClick={() => handleResetPassword(user)}
