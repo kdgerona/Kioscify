@@ -29,6 +29,8 @@ function buildLocalTransaction(clientId: string, payload: Record<string, unknown
     quantity: item.quantity,
     sizeId: item.sizeId,
     size: item.sizeName ? { id: item.sizeId ?? "", name: item.sizeName, priceModifier: 0 } : undefined,
+    preferenceId: item.preferenceId,
+    preference: item.preferenceName ? { id: item.preferenceId ?? "", name: item.preferenceName } : undefined,
     subtotal: item.subtotal,
     addons: (item.addons as any[] | undefined)
       ?.filter((a: any) => a.addonName)
@@ -69,6 +71,8 @@ interface TransactionItem {
   quantity: number;
   sizeId?: string;
   sizeName?: string;  // display-only: stored in queue, stripped before API call
+  preferenceId?: string;
+  preferenceName?: string; // display-only: stored in queue, stripped before API call
   subtotal: number;
   addons?: TransactionItemAddon[];
 }
@@ -103,6 +107,11 @@ export interface TransactionItemResponse {
     id: string;
     name: string;
     priceModifier: number;
+  };
+  preferenceId?: string;
+  preference?: {
+    id: string;
+    name: string;
   };
   subtotal: number;
   addons?: Array<{
@@ -177,7 +186,7 @@ export const createTransactionOffline = async (
   // These fields are kept in `payload` so the SQLite queue has them for display.
   const apiPayload = {
     ...payload,
-    items: payload.items.map(({ productName: _pn, sizeName: _sn, ...item }) => ({
+    items: payload.items.map(({ productName: _pn, sizeName: _sn, preferenceName: _pfn, ...item }) => ({
       ...item,
       addons: item.addons?.map(({ addonName: _an, ...addon }) => addon),
     })),

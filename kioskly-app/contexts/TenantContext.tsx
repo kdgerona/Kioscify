@@ -23,6 +23,7 @@ export interface Brand {
   themeColors?: ThemeColors;
   isActive: boolean;
   enabledDeliveryPlatforms?: string[];
+  preferenceLabel?: string;
 }
 
 export interface Company {

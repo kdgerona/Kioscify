@@ -47,6 +47,7 @@ export interface Brand {
     text?: string;
   };
   enabledDeliveryPlatforms?: string[];
+  preferenceLabel?: string;
   isActive: boolean;
   storeCount?: number;
   productCount?: number;
@@ -90,6 +91,7 @@ export interface Product {
   image?: string;
   sizes?: Size[];
   addons?: Addon[];
+  preferences?: Preference[];
   brandId?: string;
   tenantId?: string;
   isAvailable: boolean;
@@ -116,6 +118,17 @@ export interface Addon {
   price: number;
   foodpandaPrice?: number | null;
   grabPrice?: number | null;
+  brandId?: string;
+  tenantId?: string;
+  sequenceNo?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Preference {
+  id: string;
+  name: string;
+  isDefault?: boolean;
   brandId?: string;
   tenantId?: string;
   sequenceNo?: number;

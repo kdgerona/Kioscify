@@ -21,6 +21,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { SizesModule } from './sizes/sizes.module';
 import { AddonsModule } from './addons/addons.module';
+import { PreferencesModule } from './preferences/preferences.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { ReportsModule } from './reports/reports.module';
@@ -81,6 +82,7 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
     ProductsModule,
     SizesModule,
     AddonsModule,
+    PreferencesModule,
 
     // Store operations
     TransactionsModule,

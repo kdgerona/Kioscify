@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import type { Brand, Store, Category, Product, Size, Addon, InventoryBrandTemplate } from '@/types';
-import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown, Truck } from 'lucide-react';
+import type { Brand, Store, Category, Product, Size, Addon, Preference, InventoryBrandTemplate } from '@/types';
+import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown, Truck, Star } from 'lucide-react';
 import StoreQRModal from '@/components/StoreQRModal';
 import {
   Select,
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'inventory' | 'stores' | 'settings';
+type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'preferences' | 'inventory' | 'stores' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -22,6 +22,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'categories', label: 'Categories' },
   { id: 'sizes', label: 'Sizes' },
   { id: 'addons', label: 'Add-ons' },
+  { id: 'preferences', label: 'Preferences' },
   { id: 'inventory', label: 'Inventory Items' },
   { id: 'stores', label: 'Stores' },
   { id: 'settings', label: 'Settings' },
@@ -128,6 +129,8 @@ function ReorderRow({
   onMoveDown,
   onEdit,
   onDelete,
+  isDefault,
+  onSetDefault,
 }: {
   label: string;
   sublabel?: string;
@@ -137,6 +140,8 @@ function ReorderRow({
   onMoveDown: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  isDefault?: boolean;
+  onSetDefault?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-2">
@@ -162,6 +167,15 @@ function ReorderRow({
         {sublabel && <p className="text-xs text-gray-400 truncate">{sublabel}</p>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {onSetDefault && (
+          <button
+            onClick={onSetDefault}
+            title={isDefault ? 'Default preference' : 'Set as default'}
+            className={`p-1.5 rounded ${isDefault ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
+          >
+            <Star className="w-3.5 h-3.5" fill={isDefault ? 'currentColor' : 'none'} />
+          </button>
+        )}
         <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-orange-600 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
@@ -267,6 +281,7 @@ export default function BrandDetailPage() {
   const [enableGrab, setEnableGrab] = useState(
     brand?.enabledDeliveryPlatforms?.includes('GRAB') ?? false
   );
+  const [settingsPreferenceLabel, setSettingsPreferenceLabel] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -277,6 +292,7 @@ export default function BrandDetailPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [sizes, setSizes] = useState<Size[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
+  const [preferences, setPreferences] = useState<Preference[]>([]);
   const [invItems, setInvItems] = useState<InventoryBrandTemplate[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
@@ -313,6 +329,7 @@ export default function BrandDetailPage() {
         setSettingsThemeHex(b.themeColors || {});
         setEnableFoodPanda(b.enabledDeliveryPlatforms?.includes('FOODPANDA') ?? false);
         setEnableGrab(b.enabledDeliveryPlatforms?.includes('GRAB') ?? false);
+        setSettingsPreferenceLabel(b.preferenceLabel || '');
       })
       .catch(() => setError('Failed to load brand'))
       .finally(() => setLoading(false));
@@ -353,6 +370,7 @@ export default function BrandDetailPage() {
           ...(enableFoodPanda ? ['FOODPANDA'] : []),
           ...(enableGrab ? ['GRAB'] : []),
         ],
+        preferenceLabel: settingsPreferenceLabel || undefined,
       });
       setBrand(updated);
       setSettingsSuccess(true);
@@ -394,19 +412,22 @@ export default function BrandDetailPage() {
           setInvCategories(ic);
         }
         if (tab === 'products') {
-          const [cats, prods, szs, ads] = await Promise.all([
+          const [cats, prods, szs, ads, prefs] = await Promise.all([
             api.getCategories(brandId, 'PRODUCT'),
             api.getProducts(brandId),
             api.getSizes(brandId),
             api.getAddons(brandId),
+            api.getPreferences(brandId),
           ]);
           setProductCategories(cats);
           setProducts(prods);
           setSizes(szs);
           setAddons(ads);
+          setPreferences(prefs);
         }
         if (tab === 'sizes') setSizes(await api.getSizes(brandId));
         if (tab === 'addons') setAddons(await api.getAddons(brandId));
+        if (tab === 'preferences') setPreferences(await api.getPreferences(brandId));
         if (tab === 'inventory') {
           const [items, ic] = await Promise.all([
             api.getInventoryBrandTemplates(brandId),
@@ -665,6 +686,41 @@ export default function BrandDetailPage() {
                     if (!confirm(`Delete "${addon.name}"?`)) return;
                     await api.deleteAddon(addon.id);
                     setAddons(prev => prev.filter(a => a.id !== addon.id));
+                  }}
+                />
+              ))
+            )}
+          </TabSection>
+        )}
+
+        {/* Preferences */}
+        {activeTab === 'preferences' && !tabLoading && (
+          <TabSection
+            title="Preferences"
+            onAdd={() => setModal({ type: 'preferences', mode: 'create' })}
+          >
+            {preferences.length === 0 ? (
+              <EmptyState message="No preference options yet" />
+            ) : (
+              preferences.map((pref, i) => (
+                <ReorderRow
+                  key={pref.id}
+                  label={pref.name}
+                  sublabel={pref.isDefault ? 'Default' : undefined}
+                  index={i}
+                  total={preferences.length}
+                  isDefault={pref.isDefault}
+                  onSetDefault={async () => {
+                    const updated = await api.updatePreference(pref.id, { isDefault: true });
+                    setPreferences(prev => prev.map(p => ({ ...p, isDefault: p.id === updated.id })));
+                  }}
+                  onMoveUp={() => reorderItem(preferences, setPreferences, i, 'up', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
+                  onMoveDown={() => reorderItem(preferences, setPreferences, i, 'down', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
+                  onEdit={() => setModal({ type: 'preferences', mode: 'edit', item: pref })}
+                  onDelete={async () => {
+                    if (!confirm(`Delete "${pref.name}"?`)) return;
+                    await api.deletePreference(pref.id);
+                    setPreferences(prev => prev.filter(p => p.id !== pref.id));
                   }}
                 />
               ))
@@ -949,6 +1005,21 @@ export default function BrandDetailPage() {
                   </div>
                 </div>
 
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Preference Label</h4>
+                  <p className="text-xs text-gray-500 mb-3">
+                    The heading shown to customers when selecting a preference in the app (e.g., &quot;Sugar Level&quot;). Defaults to &quot;Preference&quot; if left blank.
+                  </p>
+                  <input
+                    type="text"
+                    value={settingsPreferenceLabel}
+                    onChange={e => setSettingsPreferenceLabel(e.target.value)}
+                    placeholder="e.g. Sugar Level"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                    style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                  />
+                </div>
+
                 <button
                   type="submit"
                   disabled={settingsSaving}
@@ -1023,6 +1094,7 @@ export default function BrandDetailPage() {
           categories={productCategories}
           sizes={sizes}
           addons={addons}
+          preferences={preferences}
           onClose={closeModal}
           onSave={prod => {
             if (modal.mode === 'create') {
@@ -1065,6 +1137,23 @@ export default function BrandDetailPage() {
               setAddons(prev => [...prev, addon]);
             } else {
               setAddons(prev => prev.map(a => (a.id === addon.id ? addon : a)));
+            }
+            closeModal();
+          }}
+        />
+      )}
+
+      {modal.type === 'preferences' && (
+        <PreferenceModal
+          mode={modal.mode}
+          item={modal.item as Preference | undefined}
+          brandId={brandId}
+          onClose={closeModal}
+          onSave={pref => {
+            if (modal.mode === 'create') {
+              setPreferences(prev => [...prev, pref]);
+            } else {
+              setPreferences(prev => prev.map(p => (p.id === pref.id ? pref : p)));
             }
             closeModal();
           }}
@@ -1232,6 +1321,7 @@ function ProductModal({
   categories,
   sizes,
   addons,
+  preferences,
   onClose,
   onSave,
 }: {
@@ -1242,6 +1332,7 @@ function ProductModal({
   categories: Category[];
   sizes: Size[];
   addons: Addon[];
+  preferences: Preference[];
   onClose: () => void;
   onSave: (prod: Product) => void;
 }) {
@@ -1256,6 +1347,7 @@ function ProductModal({
   const [categoryId, setCategoryId] = useState(item?.categoryId || '');
   const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(item?.sizes?.map(s => s.id) ?? []);
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(item?.addons?.map(a => a.id) ?? []);
+  const [selectedPreferenceIds, setSelectedPreferenceIds] = useState<string[]>(item?.preferences?.map(p => p.id) ?? []);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(resolveUrl(item?.image));
   const [loading, setLoading] = useState(false);
@@ -1281,9 +1373,9 @@ function ProductModal({
     try {
       let result: Product;
       if (mode === 'create') {
-        result = await api.createProduct({ name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, brandId, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
+        result = await api.createProduct({ name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, preferenceIds: selectedPreferenceIds, brandId, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
       } else {
-        result = await api.updateProduct(item!.id, { name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
+        result = await api.updateProduct(item!.id, { name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, preferenceIds: selectedPreferenceIds, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
       }
       if (imageFile) {
         result = await api.uploadProductImage(result.id, brandId, imageFile);
@@ -1441,6 +1533,26 @@ function ProductModal({
                   />
                   <span className="text-sm text-gray-800 flex-1">{a.name}</span>
                   <span className="text-xs text-gray-400">+₱{a.price}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Preferences */}
+        {preferences.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Preferences</label>
+            <div className="border border-gray-200 rounded-lg divide-y max-h-40 overflow-y-auto">
+              {preferences.map(p => (
+                <label key={p.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedPreferenceIds.includes(p.id)}
+                    onChange={() => toggleId(selectedPreferenceIds, setSelectedPreferenceIds, p.id)}
+                    className="rounded border-gray-300 text-orange-600"
+                  />
+                  <span className="text-sm text-gray-800">{p.name}</span>
                 </label>
               ))}
             </div>
@@ -1682,6 +1794,70 @@ function AddonModal({
             )}
           </div>
         )}
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function PreferenceModal({
+  mode,
+  item,
+  brandId,
+  onClose,
+  onSave,
+}: {
+  mode: 'create' | 'edit';
+  item?: Preference;
+  brandId: string;
+  onClose: () => void;
+  onSave: (pref: Preference) => void;
+}) {
+  const [name, setName] = useState(item?.name || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      let result: Preference;
+      if (mode === 'create') {
+        result = await api.createPreference({ name, brandId });
+      } else {
+        result = await api.updatePreference(item!.id, { name });
+      }
+      onSave(result);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr?.response?.data?.message || 'Failed to save');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title={mode === 'create' ? 'New Preference' : 'Edit Preference'} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+            placeholder="e.g. Light Sweet (50%)"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+          />
+        </div>
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
           <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">

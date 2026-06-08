@@ -46,6 +46,7 @@ model Brand {
   themeColors              ThemeColors?
   isActive                 Boolean           @default(true)
   enabledDeliveryPlatforms DeliveryPlatform[] @default([])
+  preferenceLabel          String?
   tombstone                Int               @default(0)
   createdAt                DateTime          @default(now())
   updatedAt                DateTime          @updatedAt
@@ -56,6 +57,7 @@ model Brand {
   products       Product[]
   sizes          Size[]
   addons         Addon[]
+  preferences    Preference[]
   inventoryItems InventoryItem[]
   users          User[]
 
@@ -100,10 +102,11 @@ model Tenant {
   submittedInventoryReports SubmittedInventoryReport[]
 
   // Catalog relations kept during migration period (will be removed once catalog fully moves to Brand)
-  categories Category[]
-  products   Product[]
-  sizes      Size[]
-  addons     Addon[]
+  categories  Category[]
+  products    Product[]
+  sizes       Size[]
+  addons      Addon[]
+  preferences Preference[]
 
   @@map("tenants")
 }
@@ -254,6 +257,26 @@ model Addon {
   @@map("addons")
 }
 
+model Preference {
+  id         String   @id @map("_id")
+  tenantId   String?  @db.ObjectId
+  brandId    String?  @db.ObjectId
+  name       String
+  isDefault  Boolean  @default(false)
+  sequenceNo Int      @default(0)
+  tombstone  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant             Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand              Brand?              @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  productPreferences ProductPreference[]
+  transactionItems   TransactionItem[]
+
+  @@unique([tenantId, name])
+  @@map("preferences")
+}
+
 model Product {
   id         String   @id @map("_id")
   tenantId   String?  @db.ObjectId
@@ -271,9 +294,10 @@ model Product {
   tenant           Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   brand            Brand?            @relation(fields: [brandId], references: [id], onDelete: Cascade)
   category         Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  productSizes     ProductSize[]
-  productAddons    ProductAddon[]
-  transactionItems TransactionItem[]
+  productSizes       ProductSize[]
+  productAddons      ProductAddon[]
+  productPreferences ProductPreference[]
+  transactionItems   TransactionItem[]
 
   @@unique([tenantId, name])
   @@map("products")
@@ -301,6 +325,18 @@ model ProductAddon {
 
   @@unique([productId, addonId])
   @@map("product_addons")
+}
+
+model ProductPreference {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  productId    String
+  preferenceId String
+  createdAt    DateTime   @default(now())
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  preference   Preference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, preferenceId])
+  @@map("product_preferences")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -353,12 +389,14 @@ model TransactionItem {
   productId     String
   quantity      Int
   sizeId        String?
+  preferenceId  String?
   subtotal      Float
   createdAt     DateTime @default(now())
 
   transaction Transaction          @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   product     Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
   size        Size?                 @relation(fields: [sizeId], references: [id], onDelete: Restrict)
+  preference  Preference?           @relation(fields: [preferenceId], references: [id], onDelete: Restrict)
   addons      TransactionItemAddon[]
 
   @@index([transactionId])

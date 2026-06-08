@@ -39,6 +39,13 @@ type Addon = {
   grabPrice?: number | null;
 };
 
+type Preference = {
+  id: string;
+  name: string;
+  isDefault?: boolean;
+  sequenceNo?: number;
+};
+
 type Product = {
   id: string;
   name: string;
@@ -49,6 +56,7 @@ type Product = {
   image?: string;
   sizes?: Size[];
   addons?: Addon[];
+  preferences?: Preference[];
 };
 
 type OrderType = 'regular' | 'foodpanda' | 'grab';
@@ -65,6 +73,7 @@ type OrderItem = {
   quantity: number;
   selectedSize?: Size;
   selectedAddons: Addon[];
+  selectedPreference?: Preference;
 };
 
 type PaymentMethodType =
@@ -112,6 +121,7 @@ export default function Home() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
+  const [selectedPreference, setSelectedPreference] = useState<Preference | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [showQueuedConfirm, setShowQueuedConfirm] = useState(false);
@@ -222,6 +232,7 @@ export default function Home() {
     setSelectedProduct(product);
     setSelectedSize(product.sizes ? product.sizes[0] : null);
     setSelectedAddons([]);
+    setSelectedPreference(product.preferences?.find(p => p.isDefault) ?? null);
     setShowCustomizeModal(true);
   };
 
@@ -230,6 +241,7 @@ export default function Home() {
     setSelectedProduct(null);
     setSelectedSize(null);
     setSelectedAddons([]);
+    setSelectedPreference(null);
   };
 
   const toggleAddon = (addon: Addon) => {
@@ -249,6 +261,7 @@ export default function Home() {
       quantity: 1,
       selectedSize: selectedSize || undefined,
       selectedAddons: [...selectedAddons],
+      selectedPreference: selectedPreference || undefined,
     };
 
     setOrders([...orders, newItem]);
@@ -416,6 +429,11 @@ export default function Home() {
                 +{item.selectedAddons.map((a) => a.name).join(", ")}
               </Text>
             )}
+            {item.selectedPreference && (
+              <Text className="text-xs" style={{ color: `${textColor}80` }}>
+                {brand?.preferenceLabel ?? 'Preferences'}: {item.selectedPreference.name}
+              </Text>
+            )}
             <Text className="font-semibold mt-1" style={{ color: textColor }}>
               ₱{calculateItemPrice(item).toFixed(2)}
             </Text>
@@ -479,6 +497,8 @@ export default function Home() {
         quantity: item.quantity,
         sizeId: item.selectedSize?.id,
         sizeName: item.selectedSize?.name,
+        preferenceId: item.selectedPreference?.id,
+        preferenceName: item.selectedPreference?.name,
         subtotal: calculateItemPrice(item) * item.quantity,
         addons: item.selectedAddons.map((addon) => ({
           addonId: addon.id,
@@ -1018,6 +1038,55 @@ export default function Home() {
                       );
                     })}
                   </View>
+                </View>
+              )}
+
+              {/* Preferences Section */}
+              {selectedProduct?.preferences && selectedProduct.preferences.length > 0 && (
+                <View className="mb-6">
+                  <Text
+                    className="text-lg font-bold"
+                    style={{ color: textColor }}
+                  >
+                    {brand?.preferenceLabel ?? 'Preferences'}
+                  </Text>
+                  <Text
+                    className="text-xs mb-3"
+                    style={{ color: `${textColor}80` }}
+                  >
+                    Optional · Defaults to {selectedProduct.preferences.find(p => p.isDefault)?.name ?? selectedProduct.preferences[0].name}
+                  </Text>
+                  {[...selectedProduct.preferences]
+                    .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0))
+                    .map((pref) => (
+                    <TouchableOpacity
+                      key={pref.id}
+                      className="p-4 rounded-lg mb-2"
+                      style={{
+                        backgroundColor:
+                          selectedPreference?.id === pref.id
+                            ? `${primaryColor}15`
+                            : "#f3f4f6",
+                        borderWidth: selectedPreference?.id === pref.id ? 2 : 0,
+                        borderColor:
+                          selectedPreference?.id === pref.id
+                            ? primaryColor
+                            : "transparent",
+                      }}
+                      onPress={() =>
+                        setSelectedPreference(
+                          selectedPreference?.id === pref.id ? null : pref,
+                        )
+                      }
+                    >
+                      <Text
+                        className="font-semibold"
+                        style={{ color: textColor }}
+                      >
+                        {pref.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
             </ScrollView>

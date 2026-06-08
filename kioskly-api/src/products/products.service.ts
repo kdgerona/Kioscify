@@ -23,6 +23,11 @@ type ProductWithRelations = Prisma.ProductGetPayload<{
         addon: true;
       };
     };
+    productPreferences: {
+      include: {
+        preference: true;
+      };
+    };
   };
 }>;
 
@@ -38,7 +43,7 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto, brandId: string) {
-    const { id, name, price, foodpandaPrice, grabPrice, categoryId, image, sizeIds, addonIds } =
+    const { id, name, price, foodpandaPrice, grabPrice, categoryId, image, sizeIds, addonIds, preferenceIds } =
       createProductDto;
 
     // Generate ID from product name if not provided
@@ -81,6 +86,13 @@ export class ProductsService {
               })),
             }
           : undefined,
+        productPreferences: preferenceIds
+          ? {
+              create: preferenceIds.map((preferenceId) => ({
+                preference: { connect: { id: preferenceId } },
+              })),
+            }
+          : undefined,
       },
       include: {
         category: true,
@@ -92,6 +104,11 @@ export class ProductsService {
         productAddons: {
           include: {
             addon: true,
+          },
+        },
+        productPreferences: {
+          include: {
+            preference: true,
           },
         },
       },
@@ -146,6 +163,11 @@ export class ProductsService {
             addon: true,
           },
         },
+        productPreferences: {
+          include: {
+            preference: true,
+          },
+        },
       },
       orderBy: { name: 'asc' },
     });
@@ -168,6 +190,11 @@ export class ProductsService {
             addon: true,
           },
         },
+        productPreferences: {
+          include: {
+            preference: true,
+          },
+        },
       },
     });
 
@@ -185,7 +212,7 @@ export class ProductsService {
   ) {
     await this.findOne(id, brandId); // Check if exists
 
-    const { sizeIds, addonIds, ...productData } = updateProductDto;
+    const { sizeIds, addonIds, preferenceIds, ...productData } = updateProductDto;
 
     // Update product and its relations
     const product = await this.prisma.product.update({
@@ -208,6 +235,14 @@ export class ProductsService {
             })),
           },
         }),
+        ...(preferenceIds !== undefined && {
+          productPreferences: {
+            deleteMany: {},
+            create: preferenceIds.map((preferenceId) => ({
+              preference: { connect: { id: preferenceId } },
+            })),
+          },
+        }),
       },
       include: {
         category: true,
@@ -219,6 +254,11 @@ export class ProductsService {
         productAddons: {
           include: {
             addon: true,
+          },
+        },
+        productPreferences: {
+          include: {
+            preference: true,
           },
         },
       },
@@ -243,6 +283,11 @@ export class ProductsService {
         productAddons: {
           include: {
             addon: true,
+          },
+        },
+        productPreferences: {
+          include: {
+            preference: true,
           },
         },
       },
@@ -281,6 +326,8 @@ export class ProductsService {
       sizes: (product.productSizes?.map((ps) => ps.size) || [])
         .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
       addons: (product.productAddons?.map((pa) => pa.addon) || [])
+        .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
+      preferences: (product.productPreferences?.map((pp) => pp.preference) || [])
         .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
     };
   }

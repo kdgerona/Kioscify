@@ -10,6 +10,7 @@ type OrderItem = {
   quantity: number;
   selectedSize?: Size;
   selectedAddons: Addon[];
+  selectedPreference?: { id: string; name: string };
 };
 
 type PaymentMethodType = "cash" | "gcash" | "paymaya" | "online" | "foodpanda" | "grab";
@@ -162,6 +163,11 @@ export default function TransactionSummary({
                               {item.selectedAddons
                                 .map((a) => a.name)
                                 .join(", ")}
+                            </Text>
+                          )}
+                          {item.selectedPreference && (
+                            <Text className="text-sm text-gray-600">
+                              {brand?.preferenceLabel ?? 'Preferences'}: {item.selectedPreference.name}
                             </Text>
                           )}
                         </View>

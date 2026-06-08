@@ -61,7 +61,7 @@ export class StoresService {
     const store = await this.prisma.tenant.findFirst({
       where: { id, tombstone: { not: 1 } },
       include: {
-        brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true, enabledDeliveryPlatforms: true } },
+        brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true, enabledDeliveryPlatforms: true, preferenceLabel: true } },
         company: { select: { id: true, name: true, slug: true, logoUrl: true } },
         _count: { select: { users: true, transactions: true } },
       },
@@ -78,7 +78,7 @@ export class StoresService {
     const store = await this.prisma.tenant.findFirst({
       where,
       include: {
-        brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true, enabledDeliveryPlatforms: true } },
+        brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true, enabledDeliveryPlatforms: true, preferenceLabel: true } },
         company: { select: { id: true, name: true, slug: true, logoUrl: true } },
       },
     });
