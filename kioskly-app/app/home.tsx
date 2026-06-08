@@ -197,7 +197,7 @@ export default function Home() {
     tenant.themeColors?.background ??
     "#ffffff";
 
-  const enabledPlatforms = brand?.enabledDeliveryPlatforms ?? [];
+  const enabledPlatforms = tenant?.enabledDeliveryPlatforms ?? [];
   const hasFoodPanda = enabledPlatforms.includes('FOODPANDA');
   const hasGrab = enabledPlatforms.includes('GRAB');
   const showOrderTypeSelector = hasFoodPanda || hasGrab;
@@ -1075,14 +1075,7 @@ export default function Home() {
           orderType === 'grab' ? 'grab' :
           null
         }
-        hiddenPaymentMethods={
-          orderType === 'regular'
-            ? [
-                ...(hasFoodPanda ? ['foodpanda' as const] : []),
-                ...(hasGrab ? ['grab' as const] : []),
-              ]
-            : []
-        }
+        hiddenPaymentMethods={['foodpanda', 'grab']}
       />
 
       {/* Transaction Summary Modal */}

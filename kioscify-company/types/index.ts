@@ -62,6 +62,7 @@ export interface Store {
   brandId: string;
   companyId: string;
   isActive: boolean;
+  enabledDeliveryPlatforms?: string[];
   createdAt: string;
   updatedAt: string;
 }

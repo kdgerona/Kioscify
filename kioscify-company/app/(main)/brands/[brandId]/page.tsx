@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import type { Brand, Category, Product, Size, Addon, InventoryBrandTemplate } from '@/types';
-import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown } from 'lucide-react';
+import type { Brand, Store, Category, Product, Size, Addon, InventoryBrandTemplate } from '@/types';
+import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown, Truck } from 'lucide-react';
 import StoreQRModal from '@/components/StoreQRModal';
 import {
   Select,
@@ -278,9 +278,11 @@ export default function BrandDetailPage() {
   const [sizes, setSizes] = useState<Size[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [invItems, setInvItems] = useState<InventoryBrandTemplate[]>([]);
-  const [stores, setStores] = useState<any[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [editingStoreName, setEditingStoreName] = useState('');
+  const [deliveryModalStore, setDeliveryModalStore] = useState<Store | null>(null);
+  const [deliveryToggles, setDeliveryToggles] = useState<Record<string, boolean>>({});
   const [qrStore, setQrStore] = useState<{
     storeName: string;
     companySlug: string;
@@ -433,6 +435,29 @@ export default function BrandDetailPage() {
       const updated = await api.updateStore(storeId, { name: editingStoreName.trim() });
       setStores(prev => prev.map(s => s.id === storeId ? { ...s, name: updated.name } : s));
       setEditingStoreId(null);
+    } catch { /* silent */ }
+  };
+
+  const openDeliveryModal = (store: Store) => {
+    const current = store.enabledDeliveryPlatforms ?? [];
+    setDeliveryToggles({
+      FOODPANDA: current.includes('FOODPANDA'),
+      GRAB: current.includes('GRAB'),
+    });
+    setDeliveryModalStore(store);
+  };
+
+  const handleSaveDelivery = async () => {
+    if (!deliveryModalStore) return;
+    const platforms = Object.entries(deliveryToggles)
+      .filter(([, on]) => on)
+      .map(([p]) => p);
+    try {
+      await api.updateStore(deliveryModalStore.id, { enabledDeliveryPlatforms: platforms });
+      setStores(prev => prev.map(s =>
+        s.id === deliveryModalStore.id ? { ...s, enabledDeliveryPlatforms: platforms } : s
+      ));
+      setDeliveryModalStore(null);
     } catch { /* silent */ }
   };
 
@@ -687,6 +712,13 @@ export default function BrandDetailPage() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <button
+                          onClick={() => openDeliveryModal(store)}
+                          title="Delivery Platforms"
+                          className="text-gray-400 hover:text-orange-600 transition-colors"
+                        >
+                          <Truck className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => setQrStore({
                             storeName: store.name,
                             companySlug: brand?.company?.slug ?? '',
@@ -717,6 +749,62 @@ export default function BrandDetailPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Delivery Platforms Modal */}
+        {deliveryModalStore && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+              <h3 className="font-semibold text-gray-900 mb-1">{deliveryModalStore.name}</h3>
+              <p className="text-xs text-gray-500 mb-4">Delivery Platforms</p>
+
+              {(brand?.enabledDeliveryPlatforms ?? []).length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  No delivery platforms configured for this brand. Enable them in Brand Settings first.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={deliveryToggles['FOODPANDA'] ?? false}
+                        onChange={e => setDeliveryToggles(t => ({ ...t, FOODPANDA: e.target.checked }))}
+                        className="rounded border-gray-300 text-pink-500 focus:ring-pink-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">FoodPanda</span>
+                    </label>
+                  )}
+                  {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={deliveryToggles['GRAB'] ?? false}
+                        onChange={e => setDeliveryToggles(t => ({ ...t, GRAB: e.target.checked }))}
+                        className="rounded border-gray-300 text-green-500 focus:ring-green-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Grab</span>
+                    </label>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setDeliveryModalStore(null)}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveDelivery}
+                  className="text-sm text-white bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-lg font-medium"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

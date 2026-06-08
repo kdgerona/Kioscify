@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -120,7 +121,14 @@ export class StoresService {
   }
 
   async update(id: string, dto: UpdateStoreDto) {
-    await this.findOne(id);
+    const store = await this.findOne(id);
+    if (dto.enabledDeliveryPlatforms !== undefined) {
+      const brandPlatforms = (store as any).brand?.enabledDeliveryPlatforms ?? [];
+      const invalid = dto.enabledDeliveryPlatforms.filter(p => !brandPlatforms.includes(p));
+      if (invalid.length > 0) {
+        throw new BadRequestException(`Platform(s) not enabled on this brand: ${invalid.join(', ')}`);
+      }
+    }
     const updated = await this.prisma.tenant.update({ where: { id }, data: dto });
     return this.formatLogoUrl(updated);
   }

@@ -408,7 +408,7 @@ class ApiClient {
     return data;
   }
 
-  async updateStore(storeId: string, payload: { name: string }): Promise<any> {
+  async updateStore(storeId: string, payload: { name?: string; enabledDeliveryPlatforms?: string[] }): Promise<any> {
     const { data } = await this.client.patch(`/stores/${storeId}`, payload);
     return data;
   }
