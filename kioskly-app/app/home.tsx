@@ -620,7 +620,7 @@ export default function Home() {
           {logoUri && (
             <Image
               source={{ uri: logoUri }}
-              className="w-10 h-10 mr-3 border-2 border-white rounded-full p-6"
+              className="w-12 h-12 mr-3 rounded-lg"
               resizeMode="contain"
             />
           )}
