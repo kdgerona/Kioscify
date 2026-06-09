@@ -350,6 +350,43 @@ class ApiClient {
     const { data } = await this.client.delete(`/users/${userId}`);
     return data;
   }
+
+  // ─── Platform admin management ────────────────────────────────────────────
+
+  async getPlatformAdmins(): Promise<User[]> {
+    const { data } = await this.client.get<User[]>('/platform/admins');
+    return data;
+  }
+
+  async createPlatformAdmin(payload: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+  }): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post('/platform/admins', payload);
+    return data;
+  }
+
+  async updatePlatformAdmin(
+    id: string,
+    payload: { isActive: boolean }
+  ): Promise<User> {
+    const { data } = await this.client.patch<User>(`/platform/admins/${id}`, payload);
+    return data;
+  }
+
+  async resetPlatformAdminPassword(
+    id: string
+  ): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/platform/admins/${id}/reset-password`);
+    return data;
+  }
+
+  async deletePlatformAdmin(id: string): Promise<{ message: string }> {
+    const { data } = await this.client.delete(`/platform/admins/${id}`);
+    return data;
+  }
 }
 
 export const api = new ApiClient();
