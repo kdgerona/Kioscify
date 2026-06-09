@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { User } from '@/types';
-import { Plus, RotateCcw, Trash2, Copy, Check } from 'lucide-react';
+import { Plus, KeyRound, Trash2, Copy, Check, UserX, UserCheck } from 'lucide-react';
 
 function TempPasswordModal({
   password,
@@ -274,13 +274,13 @@ export default function UsersPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg border overflow-hidden">
+      <div className="bg-white rounded-lg border overflow-x-auto">
         {loading ? (
           <div className="px-6 py-8 text-center text-sm text-gray-400">Loading...</div>
         ) : admins.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-gray-400">No platform admins found.</div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[800px] text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
@@ -318,33 +318,44 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 justify-end">
-                        {!isSelf && (
+                        {!isSelf && !admin.isActive && (
                           <button
                             onClick={() => handleToggleActive(admin)}
                             disabled={togglingId === admin.id}
-                            className="text-xs px-2.5 py-1 rounded border text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                            title="Enable account"
+                            aria-label="Enable account"
+                            className="p-1.5 text-gray-400 hover:text-green-600 rounded transition-colors disabled:opacity-50"
                           >
-                            {togglingId === admin.id
-                              ? '...'
-                              : admin.isActive
-                              ? 'Disable'
-                              : 'Enable'}
+                            <UserCheck className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {!isSelf && admin.isActive && (
+                          <button
+                            onClick={() => handleToggleActive(admin)}
+                            disabled={togglingId === admin.id}
+                            title="Disable account"
+                            aria-label="Disable account"
+                            className="p-1.5 text-gray-400 hover:text-gray-600 rounded transition-colors disabled:opacity-50"
+                          >
+                            <UserX className="w-3.5 h-3.5" />
                           </button>
                         )}
                         <button
                           onClick={() => setConfirmReset(admin)}
                           title="Reset password"
-                          className="p-1.5 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-amber-600 border border-gray-200 hover:border-amber-300 rounded px-2.5 py-1.5 transition-colors"
                         >
-                          <RotateCcw className="w-4 h-4" />
+                          <KeyRound className="w-3.5 h-3.5" />
+                          Reset Password
                         </button>
                         {!isSelf && (
                           <button
                             onClick={() => setConfirmDelete(admin)}
                             title="Delete admin"
-                            className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            aria-label="Delete admin"
+                            className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
