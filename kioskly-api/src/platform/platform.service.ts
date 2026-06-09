@@ -180,4 +180,33 @@ export class PlatformService {
       note: 'Share this password via a secure channel. User will be required to change it on first login.',
     };
   }
+
+  async updatePlatformAdmin(
+    requestingUserId: string,
+    targetId: string,
+    dto: { isActive: boolean },
+  ) {
+    if (requestingUserId === targetId) {
+      throw new ForbiddenException('Cannot modify your own account');
+    }
+    const user = await this.prisma.user.findFirst({
+      where: { id: targetId, role: 'PLATFORM_ADMIN' },
+    });
+    if (!user) throw new NotFoundException('Platform admin not found');
+
+    return this.prisma.user.update({
+      where: { id: targetId },
+      data: { isActive: dto.isActive },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        isActive: true,
+        isFirstLogin: true,
+        createdAt: true,
+      },
+    });
+  }
 }

@@ -109,4 +109,34 @@ describe('PlatformService — admin management', () => {
       expect(result.user).toEqual(created);
     });
   });
+
+  describe('updatePlatformAdmin', () => {
+    it('throws ForbiddenException if admin tries to update themselves', async () => {
+      await expect(
+        service.updatePlatformAdmin('admin-1', 'admin-1', { isActive: false }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws NotFoundException if target user not found', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      await expect(
+        service.updatePlatformAdmin('admin-1', 'admin-2', { isActive: false }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('updates isActive and returns updated user', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(mockAdmin);
+      const updated = { ...mockAdmin, isActive: false };
+      mockPrisma.user.update.mockResolvedValue(updated);
+
+      const result = await service.updatePlatformAdmin('admin-1', 'admin-2', { isActive: false });
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'admin-2' },
+        data: { isActive: false },
+        select: expect.any(Object),
+      });
+      expect(result.isActive).toBe(false);
+    });
+  });
 });
