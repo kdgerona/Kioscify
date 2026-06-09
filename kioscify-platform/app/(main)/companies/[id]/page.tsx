@@ -711,7 +711,28 @@ export default function CompanyDetailPage() {
         </a>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{company.name}</h1>
-          <p className="text-sm text-gray-500">{company.slug}.kioscify.com</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm text-gray-500">{company.slug}.kioscify.com</p>
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(`https://${company.slug}.kioscify.com`).catch(() => {
+                  const el = document.createElement('textarea');
+                  el.value = `https://${company.slug}.kioscify.com`;
+                  el.setAttribute('readonly', '');
+                  el.style.cssText = 'position:absolute;left:-9999px';
+                  document.body.appendChild(el);
+                  el.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(el);
+                });
+                toast.success('Company URL copied!');
+              }}
+              title="Copy company URL"
+              className="text-gray-400 hover:text-indigo-600 transition-colors"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
