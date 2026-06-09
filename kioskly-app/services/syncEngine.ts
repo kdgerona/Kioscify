@@ -225,7 +225,7 @@ export async function syncAll(
           const parsed = JSON.parse(body) as Record<string, unknown>;
           if (Array.isArray(parsed.items)) {
             parsed.items = (parsed.items as any[]).map(
-              ({ productName: _pn, sizeName: _sn, ...item }: any) => ({
+              ({ productName: _pn, sizeName: _sn, preferenceName: _pfn, ...item }: any) => ({
                 ...item,
                 addons: Array.isArray(item.addons)
                   ? item.addons.map(({ addonName: _an, ...addon }: any) => addon)

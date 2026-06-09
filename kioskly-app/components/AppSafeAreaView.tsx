@@ -17,10 +17,11 @@ interface Props {
  * edge when the offline banner is visible (the banner consumes that space).
  */
 export default function AppSafeAreaView({ children, style, className }: Props) {
-  const { isOnline } = useSync();
+  const { isOnline, pendingCount, failedCount } = useSync();
+  const bannerVisible = !isOnline || pendingCount > 0 || failedCount > 0;
   return (
     <SafeAreaView
-      edges={isOnline ? ALL_EDGES : NO_TOP_EDGES}
+      edges={bannerVisible ? NO_TOP_EDGES : ALL_EDGES}
       style={style}
       className={className}
     >
