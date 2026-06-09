@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Brand, Store, Category, Product, Size, Addon, Preference, InventoryBrandTemplate } from '@/types';
-import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown, Truck, Star } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown, Truck, Star, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
 import {
   Select,
@@ -468,6 +469,24 @@ export default function BrandDetailPage() {
     setDeliveryModalStore(store);
   };
 
+  const copyStoreLink = async (store: Store) => {
+    const base = process.env.NEXT_PUBLIC_STORE_PORTAL_BASE_URL ?? '';
+    const url = `${base}/${brand?.company?.slug ?? ''}/${brand?.slug ?? ''}/${store.slug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = url;
+      el.setAttribute('readonly', '');
+      el.style.cssText = 'position:absolute;left:-9999px';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    toast.success('Store portal link copied!');
+  };
+
   const handleSaveDelivery = async () => {
     if (!deliveryModalStore) return;
     const platforms = Object.entries(deliveryToggles)
@@ -785,6 +804,13 @@ export default function BrandDetailPage() {
                           className="text-gray-400 hover:text-orange-600 transition-colors"
                         >
                           <QrCode className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => copyStoreLink(store)}
+                          title="Copy store portal link"
+                          className="text-gray-400 hover:text-orange-600 transition-colors"
+                        >
+                          <Copy className="w-4 h-4" />
                         </button>
                         {editingStoreId === store.id ? (
                           <div className="flex gap-3">

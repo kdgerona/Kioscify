@@ -24,16 +24,19 @@ export default function LoginForm({
   companySlug,
   brandSlug,
   brand,
+  preSelectedStoreSlug,
 }: {
   companySlug: string;
   brandSlug: string;
   brand: BrandInfo | null;
+  preSelectedStoreSlug?: string;
 }) {
   const router = useRouter();
   const { fetchTenantBySlug } = useTenant();
   const storeSlugKey = `kioscify_store_slug_${companySlug}_${brandSlug}`;
-  const [storeSlug, setStoreSlug] = useState("");
+  const [storeSlug, setStoreSlug] = useState(preSelectedStoreSlug ?? "");
   const [rememberedSlug, setRememberedSlug] = useState(false);
+  const [preFilledLocked, setPreFilledLocked] = useState(!!preSelectedStoreSlug);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -42,12 +45,20 @@ export default function LoginForm({
 
   useEffect(() => {
     if (api.getToken()) {
-      router.replace('/dashboard');
+      if (preSelectedStoreSlug) {
+        fetchTenantBySlug(preSelectedStoreSlug)
+          .then(() => router.replace('/dashboard'))
+          .catch(() => { /* invalid pre-selected slug — stay on login so user can correct it */ });
+      } else {
+        router.replace('/dashboard');
+      }
       return;
     }
-    const saved = localStorage.getItem(storeSlugKey);
-    if (saved) { setStoreSlug(saved); setRememberedSlug(true); }
-  }, [router, storeSlugKey]);
+    if (!preSelectedStoreSlug) {
+      const saved = localStorage.getItem(storeSlugKey);
+      if (saved) { setStoreSlug(saved); setRememberedSlug(true); }
+    }
+  }, [router, storeSlugKey, fetchTenantBySlug, preSelectedStoreSlug]);
 
   const primaryColor    = brand?.themeColors?.primary || "#ea580c";
   // On the white right panel, only use primaryColor as a text/link color if it's dark enough to read on white.
@@ -91,7 +102,7 @@ export default function LoginForm({
       }
 
       const stores = (response as any).stores ?? [];
-      if (stores.length > 1) {
+      if (stores.length > 1 && !preSelectedStoreSlug) {
         sessionStorage.setItem("accessible_stores", JSON.stringify(stores));
         router.push("/store-picker");
         return;
@@ -220,13 +231,16 @@ export default function LoginForm({
                 <label className="block text-sm font-medium text-gray-700">
                   Store ID
                 </label>
-                {rememberedSlug && (
+                {(rememberedSlug || preFilledLocked) && (
                   <button
                     type="button"
                     onClick={() => {
-                      setStoreSlug("");
-                      setRememberedSlug(false);
-                      localStorage.removeItem(storeSlugKey);
+                      if (rememberedSlug) {
+                        setStoreSlug("");
+                        setRememberedSlug(false);
+                        localStorage.removeItem(storeSlugKey);
+                      }
+                      setPreFilledLocked(false);
                     }}
                     className="text-xs font-medium hover:underline"
                     style={{ color: rightPanelAccent }}
@@ -240,11 +254,11 @@ export default function LoginForm({
                 value={storeSlug}
                 onChange={(e) => setStoreSlug(e.target.value)}
                 required
-                readOnly={rememberedSlug}
+                readOnly={rememberedSlug || preFilledLocked}
                 autoCapitalize="none"
                 autoCorrect="off"
                 className={`w-full px-4 py-3 border rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent ${
-                  rememberedSlug
+                  rememberedSlug || preFilledLocked
                     ? "bg-gray-50 border-gray-200 cursor-default"
                     : "border-gray-200 bg-white hover:border-gray-300"
                 }`}
