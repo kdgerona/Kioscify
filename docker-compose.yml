@@ -178,6 +178,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://kioscify.com/api/v1}
         NEXT_PUBLIC_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:-kioscify.com}
+        NEXT_PUBLIC_STORE_PORTAL_BASE_URL: ${NEXT_PUBLIC_STORE_PORTAL_BASE_URL:-https://store.kioscify.com}
     container_name: kioscify-company
     restart: unless-stopped
     environment:
