@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { UpdateMaintenanceStatusDto } from './dto/update-maintenance-status.dto';
+import { CreatePlatformAdminDto } from './dto/create-platform-admin.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -134,16 +135,14 @@ export class PlatformService {
     });
   }
 
-  async createPlatformAdmin(dto: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    username: string;
-  }) {
+  async createPlatformAdmin(dto: CreatePlatformAdminDto) {
     const existing = await this.prisma.user.findFirst({
-      where: { username: dto.username, role: 'PLATFORM_ADMIN' },
+      where: {
+        role: 'PLATFORM_ADMIN',
+        OR: [{ username: dto.username }, { email: dto.email }],
+      },
     });
-    if (existing) throw new ConflictException('Username already exists');
+    if (existing) throw new ConflictException('Username or email already exists');
 
     const password = this.authService.generateSecurePassword();
     const hashed = await bcrypt.hash(password, 12);
@@ -211,8 +210,16 @@ export class PlatformService {
   }
 
   async resetPlatformAdminPassword(targetId: string) {
-    const user = await this.prisma.user.findFirst({
+    const existing = await this.prisma.user.findFirst({
       where: { id: targetId, role: 'PLATFORM_ADMIN' },
+    });
+    if (!existing) throw new NotFoundException('Platform admin not found');
+
+    const password = this.authService.generateSecurePassword();
+    const hashed = await bcrypt.hash(password, 12);
+    const user = await this.prisma.user.update({
+      where: { id: targetId },
+      data: { password: hashed, isFirstLogin: true },
       select: {
         id: true,
         username: true,
@@ -224,14 +231,6 @@ export class PlatformService {
         isFirstLogin: true,
         createdAt: true,
       },
-    });
-    if (!user) throw new NotFoundException('Platform admin not found');
-
-    const password = this.authService.generateSecurePassword();
-    const hashed = await bcrypt.hash(password, 12);
-    await this.prisma.user.update({
-      where: { id: targetId },
-      data: { password: hashed, isFirstLogin: true },
     });
 
     return {

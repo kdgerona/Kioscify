@@ -86,6 +86,11 @@ describe('PlatformService — admin management', () => {
       await expect(service.createPlatformAdmin(dto)).rejects.toThrow(ConflictException);
     });
 
+    it('throws ConflictException if email already exists', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({ ...mockAdmin, username: 'different', email: dto.email });
+      await expect(service.createPlatformAdmin(dto)).rejects.toThrow(ConflictException);
+    });
+
     it('creates a new PLATFORM_ADMIN and returns user + temporaryPassword', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(null);
       const created = { id: 'admin-2', ...dto, role: 'PLATFORM_ADMIN', isActive: true, isFirstLogin: true };
@@ -146,9 +151,10 @@ describe('PlatformService — admin management', () => {
       await expect(service.resetPlatformAdminPassword('admin-99')).rejects.toThrow(NotFoundException);
     });
 
-    it('resets password and sets isFirstLogin: true', async () => {
+    it('resets password and returns updated user with isFirstLogin: true', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockAdmin);
-      mockPrisma.user.update.mockResolvedValue({ ...mockAdmin, isFirstLogin: true });
+      const updated = { ...mockAdmin, isFirstLogin: true };
+      mockPrisma.user.update.mockResolvedValue(updated);
 
       const result = await service.resetPlatformAdminPassword('admin-1');
 
@@ -156,9 +162,11 @@ describe('PlatformService — admin management', () => {
         expect.objectContaining({
           where: { id: 'admin-1' },
           data: expect.objectContaining({ isFirstLogin: true }),
+          select: expect.any(Object),
         }),
       );
       expect(result.temporaryPassword).toBe('TempPass@123');
+      expect(result.user.isFirstLogin).toBe(true);
     });
   });
 
