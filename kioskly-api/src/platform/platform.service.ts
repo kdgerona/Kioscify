@@ -1,10 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthService } from '../auth/auth.service';
 import { UpdateMaintenanceStatusDto } from './dto/update-maintenance-status.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class PlatformService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authService: AuthService,
+  ) {}
 
   async getStats() {
     const now = new Date();
@@ -108,5 +113,24 @@ export class PlatformService {
     ]);
 
     return { recentCompanies, recentStores };
+  }
+
+  // ─── Platform admin CRUD ──────────────────────────────────────────────────
+
+  async getPlatformAdmins() {
+    return this.prisma.user.findMany({
+      where: { role: 'PLATFORM_ADMIN' },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        isActive: true,
+        isFirstLogin: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }
