@@ -180,13 +180,14 @@ export default function ChangePasswordPage() {
                     tabIndex={-1}
                     onClick={toggle}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label={show ? 'Hide password' : 'Show password'}
                   >
                     {show ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 {label === 'New Password' && (
                   <p className="mt-1.5 text-xs text-gray-400">
-                    Min 10 chars · uppercase · lowercase · number · special character
+                    Minimum 10 characters
                   </p>
                 )}
               </div>
@@ -196,7 +197,7 @@ export default function ChangePasswordPage() {
               type="submit"
               disabled={loading}
               className="w-full font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:brightness-90 mt-2"
-              style={{ backgroundColor: PRIMARY, color: getContrastColor(PRIMARY) }}
+              style={{ backgroundColor: PRIMARY, color: panelText }}
             >
               {loading ? 'Saving...' : 'Set New Password'}
             </button>

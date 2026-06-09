@@ -152,6 +152,7 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -161,7 +162,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className="w-full font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:brightness-90 mt-2"
-              style={{ backgroundColor: PRIMARY, color: getContrastColor(PRIMARY) }}
+              style={{ backgroundColor: PRIMARY, color: panelText }}
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
