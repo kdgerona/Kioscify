@@ -261,6 +261,7 @@ export default function CompanyDetailPage() {
   // Create brand form
   const [brandName, setBrandName] = useState('');
   const [brandSlug, setBrandSlug] = useState('');
+  const [brandSlugTouched, setBrandSlugTouched] = useState(false);
   const [brandDescription, setBrandDescription] = useState('');
   const [brandLoading, setBrandLoading] = useState(false);
   const [brandError, setBrandError] = useState<string | null>(null);
@@ -330,6 +331,7 @@ export default function CompanyDetailPage() {
   // Onboard store form
   const [storeNameField, setStoreNameField] = useState('');
   const [storeSlugField, setStoreSlugField] = useState('');
+  const [storeSlugTouched, setStoreSlugTouched] = useState(false);
   const [storeAdminMode, setStoreAdminMode] = useState<'new' | 'existing'>('new');
   const [storeAdminFirst, setStoreAdminFirst] = useState('');
   const [storeAdminLast, setStoreAdminLast] = useState('');
@@ -484,6 +486,7 @@ export default function CompanyDetailPage() {
       setBrands(prev => [...prev, newBrand]);
       setBrandName('');
       setBrandSlug('');
+      setBrandSlugTouched(false);
       setBrandDescription('');
       setShowCreateBrand(false);
     } catch (err: unknown) {
@@ -521,6 +524,7 @@ export default function CompanyDetailPage() {
   const resetStoreForm = () => {
     setStoreNameField('');
     setStoreSlugField('');
+    setStoreSlugTouched(false);
     setStoreAdminMode('new');
     setStoreAdminFirst('');
     setStoreAdminLast('');
@@ -1363,7 +1367,7 @@ export default function CompanyDetailPage() {
 
       {/* Create brand modal */}
       {showCreateBrand && (
-        <Modal title="New Brand" onClose={() => { setShowCreateBrand(false); setBrandError(null); }}>
+        <Modal title="New Brand" onClose={() => { setShowCreateBrand(false); setBrandError(null); setBrandSlugTouched(false); }}>
           <form onSubmit={handleCreateBrand} className="space-y-4">
             {brandError && <p className="text-red-600 text-sm">{brandError}</p>}
             <div>
@@ -1373,7 +1377,7 @@ export default function CompanyDetailPage() {
                 value={brandName}
                 onChange={e => {
                   setBrandName(e.target.value);
-                  if (!brandSlug) {
+                  if (!brandSlugTouched) {
                     setBrandSlug(
                       e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
                     );
@@ -1388,7 +1392,7 @@ export default function CompanyDetailPage() {
               <input
                 type="text"
                 value={brandSlug}
-                onChange={e => setBrandSlug(e.target.value)}
+                onChange={e => { setBrandSlug(e.target.value); setBrandSlugTouched(true); }}
                 required
                 pattern="[a-z0-9-]+"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -1406,7 +1410,7 @@ export default function CompanyDetailPage() {
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => { setShowCreateBrand(false); setBrandError(null); }}
+                onClick={() => { setShowCreateBrand(false); setBrandError(null); setBrandSlugTouched(false); }}
                 className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
               >
                 Cancel
@@ -1463,7 +1467,7 @@ export default function CompanyDetailPage() {
                 value={storeNameField}
                 onChange={e => {
                   setStoreNameField(e.target.value);
-                  if (!storeSlugField) {
+                  if (!storeSlugTouched) {
                     setStoreSlugField(
                       e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
                     );
@@ -1478,7 +1482,7 @@ export default function CompanyDetailPage() {
               <input
                 type="text"
                 value={storeSlugField}
-                onChange={e => setStoreSlugField(e.target.value)}
+                onChange={e => { setStoreSlugField(e.target.value); setStoreSlugTouched(true); }}
                 required
                 pattern="[a-z0-9-]+"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"

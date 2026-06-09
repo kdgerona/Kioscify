@@ -36,13 +36,18 @@ export class CompaniesService {
   }
 
   async findAll() {
-    return this.prisma.company.findMany({
+    const companies = await this.prisma.company.findMany({
       where: { tombstone: { not: 1 } },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: { select: { brands: true, stores: true, users: true } },
       },
     });
+    return companies.map(({ _count, ...company }) => ({
+      ...company,
+      brandCount: _count.brands,
+      storeCount: _count.stores,
+    }));
   }
 
   async findOne(id: string) {

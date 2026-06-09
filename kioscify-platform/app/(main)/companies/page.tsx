@@ -14,6 +14,7 @@ export default function CompaniesPage() {
   // Form state
   const [formName, setFormName] = useState('');
   const [formSlug, setFormSlug] = useState('');
+  const [formSlugTouched, setFormSlugTouched] = useState(false);
   const [formEmail, setFormEmail] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formLoading, setFormLoading] = useState(false);
@@ -49,6 +50,7 @@ export default function CompaniesPage() {
       setCompanies(prev => [...prev, newCompany]);
       setFormName('');
       setFormSlug('');
+      setFormSlugTouched(false);
       setFormEmail('');
       setFormDescription('');
       setShowForm(false);
@@ -62,7 +64,7 @@ export default function CompaniesPage() {
 
   const handleNameChange = (name: string) => {
     setFormName(name);
-    if (!formSlug) {
+    if (!formSlugTouched) {
       setFormSlug(
         name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       );
@@ -106,7 +108,7 @@ export default function CompaniesPage() {
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="font-semibold text-gray-900">New Company</h2>
               <button
-                onClick={() => { setShowForm(false); setFormError(null); }}
+                onClick={() => { setShowForm(false); setFormError(null); setFormSlugTouched(false); }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
@@ -133,7 +135,7 @@ export default function CompaniesPage() {
                 <input
                   type="text"
                   value={formSlug}
-                  onChange={e => setFormSlug(e.target.value)}
+                  onChange={e => { setFormSlug(e.target.value); setFormSlugTouched(true); }}
                   required
                   pattern="[a-z0-9-]+"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -167,7 +169,7 @@ export default function CompaniesPage() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => { setShowForm(false); setFormError(null); }}
+                  onClick={() => { setShowForm(false); setFormError(null); setFormSlugTouched(false); }}
                   className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
                 >
                   Cancel
