@@ -14,10 +14,14 @@ function TempPasswordModal({
 }) {
   const [copied, setCopied] = useState(false);
 
-  function handleCopy() {
-    navigator.clipboard.writeText(password);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard unavailable — do nothing, password still visible
+    }
   }
 
   return (
@@ -198,6 +202,7 @@ export default function UsersPage() {
 
     api.getPlatformAdmins()
       .then(setAdmins)
+      .catch(() => setActionError('Failed to load admins. Please refresh.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -224,7 +229,7 @@ export default function UsersPage() {
     try {
       const result = await api.resetPlatformAdminPassword(admin.id);
       setTempPassword(result.temporaryPassword);
-      refreshAdmins();
+      refreshAdmins().catch(() => {});
     } catch {
       setActionError('Failed to reset password.');
     }
@@ -244,7 +249,7 @@ export default function UsersPage() {
   function handleCreated(password: string) {
     setShowCreate(false);
     setTempPassword(password);
-    refreshAdmins();
+    refreshAdmins().catch(() => {});
   }
 
   return (
@@ -255,7 +260,7 @@ export default function UsersPage() {
           <p className="text-sm text-gray-500 mt-1">Manage platform admin accounts</p>
         </div>
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => { setActionError(''); setShowCreate(true); }}
           className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
