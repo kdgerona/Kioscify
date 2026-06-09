@@ -28,6 +28,7 @@
     "company:build": "npm run build --workspace=kioscify-company",
     "platform:build": "npm run build --workspace=kioscify-platform",
     "app:build": "cd kioskly-app && npm run build",
+    "app:apk": "cd kioskly-app && npm run build:apk",
     "local:up": "docker compose -f docker-compose.local.yml up -d",
     "local:down": "docker compose -f docker-compose.local.yml down",
     "local:logs": "docker compose -f docker-compose.local.yml logs -f nginx",
