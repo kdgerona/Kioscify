@@ -127,15 +127,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <LogOut className="w-4 h-4" />
             Sign Out
           </button>
-          <div className="flex justify-center pt-2 border-t border-gray-700">
-            <div className="flex items-center gap-2 bg-gray-800 rounded-full px-3 py-1.5 border border-gray-700">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-full.png" alt="Kioscify" className="w-8 h-8 object-contain" />
-              <span className="text-[11px] text-gray-400 whitespace-nowrap">
-                Powered by <span className="font-semibold text-gray-300">Kioscify</span>
-              </span>
-            </div>
-          </div>
         </div>
       </aside>
 
