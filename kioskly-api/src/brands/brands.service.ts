@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBrandDto, UpdateBrandDto } from './dto/brand.dto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class BrandsService {
@@ -119,7 +121,14 @@ export class BrandsService {
   }
 
   async uploadLogo(id: string, companyId: string, logoUrl: string) {
-    await this.assertOwnership(id, companyId);
+    const existing = await this.assertOwnership(id, companyId);
+    if (existing.logoUrl) {
+      const relativePath = existing.logoUrl.startsWith('http')
+        ? new URL(existing.logoUrl).pathname
+        : existing.logoUrl;
+      const filePath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
     return this.prisma.brand.update({ where: { id }, data: { logoUrl } });
   }
 

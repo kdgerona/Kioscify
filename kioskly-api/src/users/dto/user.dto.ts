@@ -80,3 +80,10 @@ export class CreateCompanyUserDto {
   @Matches(/^[a-zA-Z0-9_.-]+$/, { message: 'Username must be alphanumeric' })
   username: string;
 }
+
+export class UpdateCompanyUserDto {
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}

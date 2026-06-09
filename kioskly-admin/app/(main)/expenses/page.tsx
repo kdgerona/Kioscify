@@ -609,6 +609,9 @@ export default function ExpensesPage() {
                         Status
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Review
+                      </th>
+                      <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -649,7 +652,7 @@ export default function ExpensesPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {request.voidStatus === "PENDING" && (
+                          {request.voidStatus === "PENDING" ? (
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleApproveVoid(request)}
@@ -666,16 +669,18 @@ export default function ExpensesPage() {
                                 Reject
                               </button>
                             </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">—</span>
                           )}
-                          {request.voidStatus !== "PENDING" && (
-                            <button
-                              onClick={() => setSelectedExpense(request)}
-                              className="text-indigo-600 hover:text-indigo-900"
-                              title="View details"
-                            >
-                              <Eye className="w-5 h-5" />
-                            </button>
-                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => setSelectedExpense(request)}
+                            className="text-gray-700 hover:text-gray-900"
+                            title="View details"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -750,8 +755,8 @@ export default function ExpensesPage() {
       {/* Expense Details Modal */}
       {selectedExpense && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6 border-b border-gray-200">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                   Expense Details
@@ -765,7 +770,7 @@ export default function ExpensesPage() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto">
               {/* Basic Information */}
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">

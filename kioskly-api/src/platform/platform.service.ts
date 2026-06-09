@@ -1,10 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthService } from '../auth/auth.service';
 import { UpdateMaintenanceStatusDto } from './dto/update-maintenance-status.dto';
+import { CreatePlatformAdminDto } from './dto/create-platform-admin.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class PlatformService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authService: AuthService,
+  ) {}
 
   async getStats() {
     const now = new Date();
@@ -108,5 +114,142 @@ export class PlatformService {
     ]);
 
     return { recentCompanies, recentStores };
+  }
+
+  // ─── Platform admin CRUD ──────────────────────────────────────────────────
+
+  async getPlatformAdmins() {
+    return this.prisma.user.findMany({
+      where: { role: 'PLATFORM_ADMIN' },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        isActive: true,
+        isFirstLogin: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createPlatformAdmin(dto: CreatePlatformAdminDto) {
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        role: 'PLATFORM_ADMIN',
+        OR: [{ username: dto.username }, { email: dto.email }],
+      },
+    });
+    if (existing) throw new ConflictException('Username or email already exists');
+
+    const password = this.authService.generateSecurePassword();
+    const hashed = await bcrypt.hash(password, 12);
+
+    const user = await this.prisma.user.create({
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        email: dto.email,
+        username: dto.username,
+        password: hashed,
+        role: 'PLATFORM_ADMIN',
+        isFirstLogin: true,
+        isActive: true,
+        tenantId: null,
+        companyId: null,
+      },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        isFirstLogin: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      user,
+      temporaryPassword: password,
+      note: 'Share this password via a secure channel. User will be required to change it on first login.',
+    };
+  }
+
+  async updatePlatformAdmin(
+    requestingUserId: string,
+    targetId: string,
+    dto: { isActive: boolean },
+  ) {
+    if (requestingUserId === targetId) {
+      throw new ForbiddenException('Cannot modify your own account');
+    }
+    const user = await this.prisma.user.findFirst({
+      where: { id: targetId, role: 'PLATFORM_ADMIN' },
+    });
+    if (!user) throw new NotFoundException('Platform admin not found');
+
+    return this.prisma.user.update({
+      where: { id: targetId },
+      data: { isActive: dto.isActive },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        isActive: true,
+        isFirstLogin: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async resetPlatformAdminPassword(targetId: string) {
+    const existing = await this.prisma.user.findFirst({
+      where: { id: targetId, role: 'PLATFORM_ADMIN' },
+    });
+    if (!existing) throw new NotFoundException('Platform admin not found');
+
+    const password = this.authService.generateSecurePassword();
+    const hashed = await bcrypt.hash(password, 12);
+    const user = await this.prisma.user.update({
+      where: { id: targetId },
+      data: { password: hashed, isFirstLogin: true },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        isFirstLogin: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      user,
+      temporaryPassword: password,
+      note: 'Share this password via a secure channel. User will be required to change it on first login.',
+    };
+  }
+
+  async deletePlatformAdmin(requestingUserId: string, targetId: string) {
+    if (requestingUserId === targetId) {
+      throw new ForbiddenException('Cannot delete your own account');
+    }
+    const user = await this.prisma.user.findFirst({
+      where: { id: targetId, role: 'PLATFORM_ADMIN' },
+    });
+    if (!user) throw new NotFoundException('Platform admin not found');
+
+    await this.prisma.user.delete({ where: { id: targetId } });
+    return { message: 'Platform admin deleted' };
   }
 }

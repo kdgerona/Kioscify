@@ -7,6 +7,7 @@ import type {
   Product,
   Size,
   Addon,
+  Preference,
   InventoryBrandTemplate,
   User,
   CompanyUserCreatePayload,
@@ -140,7 +141,7 @@ class ApiClient {
 
   async updateCompany(
     id: string,
-    payload: Partial<Pick<Company, 'name' | 'contactEmail' | 'description'>>
+    payload: Partial<Pick<Company, 'name' | 'contactEmail' | 'description' | 'themeColors'>>
   ): Promise<Company> {
     const { data } = await this.client.patch<Company>(`/companies/${id}`, payload);
     return data;
@@ -175,6 +176,7 @@ class ApiClient {
       themeColors: Brand['themeColors'];
       isActive: boolean;
       enabledDeliveryPlatforms: string[];
+      preferenceLabel: string;
     }>
   ): Promise<Brand> {
     const { data } = await this.client.patch<Brand>(`/brands/${id}`, payload);
@@ -232,6 +234,7 @@ class ApiClient {
     brandId: string;
     sizeIds?: string[];
     addonIds?: string[];
+    preferenceIds?: string[];
   }): Promise<Product> {
     const { brandId, ...body } = payload;
     const { data } = await this.client.post<Product>('/products', body, { params: { brandId } });
@@ -240,7 +243,7 @@ class ApiClient {
 
   async updateProduct(
     id: string,
-    payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; categoryId: string; sizeIds: string[]; addonIds: string[] }>
+    payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; categoryId: string; sizeIds: string[]; addonIds: string[]; preferenceIds: string[] }>
   ): Promise<Product> {
     const { data } = await this.client.patch<Product>(`/products/${id}`, payload);
     return data;
@@ -251,6 +254,13 @@ class ApiClient {
     formData.append('image', file);
     const { data } = await this.client.post<Product>(`/products/${id}/image`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      params: { brandId },
+    });
+    return data;
+  }
+
+  async removeProductImage(id: string, brandId: string): Promise<Product> {
+    const { data } = await this.client.delete<Product>(`/products/${id}/image`, {
       params: { brandId },
     });
     return data;
@@ -318,6 +328,30 @@ class ApiClient {
 
   async deleteAddon(id: string): Promise<void> {
     await this.client.delete(`/addons/${id}`);
+  }
+
+  // ─── Preferences ──────────────────────────────────────────────────────────
+
+  async getPreferences(brandId: string): Promise<Preference[]> {
+    const { data } = await this.client.get<Preference[]>('/preferences', {
+      params: { brandId },
+    });
+    return data;
+  }
+
+  async createPreference(payload: { name: string; brandId: string }): Promise<Preference> {
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Preference>('/preferences', body, { params: { brandId } });
+    return data;
+  }
+
+  async updatePreference(id: string, payload: Partial<{ name: string; sequenceNo: number; isDefault: boolean }>): Promise<Preference> {
+    const { data } = await this.client.patch<Preference>(`/preferences/${id}`, payload);
+    return data;
+  }
+
+  async deletePreference(id: string): Promise<void> {
+    await this.client.delete(`/preferences/${id}`);
   }
 
   // ─── Inventory brand templates ────────────────────────────────────────────
@@ -401,6 +435,11 @@ class ApiClient {
     return data;
   }
 
+  async resetCompanyUserPassword(companyId: string, userId: string): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/users/companies/${companyId}/${userId}/reset-password`);
+    return data;
+  }
+
   // ─── Store user assignment (multi-store) ──────────────────────────────────
 
   async getStores(brandId: string): Promise<any[]> {
@@ -408,7 +447,7 @@ class ApiClient {
     return data;
   }
 
-  async updateStore(storeId: string, payload: { name: string }): Promise<any> {
+  async updateStore(storeId: string, payload: { name?: string; enabledDeliveryPlatforms?: string[] }): Promise<any> {
     const { data } = await this.client.patch(`/stores/${storeId}`, payload);
     return data;
   }

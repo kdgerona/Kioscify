@@ -10,7 +10,6 @@ import {
   Plus,
   X,
   Copy,
-  Check,
   Save,
   UserPlus,
   Store as StoreIcon,
@@ -18,10 +17,14 @@ import {
   Pencil,
   QrCode,
   KeyRound,
+  Trash2,
   Users,
   ShieldCheck,
   BadgeCheck,
+  UserCheck,
+  UserX,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
 
 type Tab = 'settings' | 'brands' | 'stores' | 'users';
@@ -126,6 +129,24 @@ function AdminFields({
   );
 }
 
+// ─── Clipboard helper ─────────────────────────────────────────────────────
+
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.setAttribute('readonly', '');
+    el.style.cssText = 'position:absolute;left:-9999px';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+  }
+  toast.success('Password copied to clipboard!');
+};
+
 // ─── Password result banner ───────────────────────────────────────────────
 
 function PasswordBanner({
@@ -137,14 +158,6 @@ function PasswordBanner({
   password: string;
   onClose: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const copy = () => {
-    navigator.clipboard.writeText(password);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
       <div className="flex items-center justify-between mb-2">
@@ -157,11 +170,11 @@ function PasswordBanner({
       <div className="flex items-center gap-2 bg-white rounded border border-green-200 px-3 py-2">
         <code className="text-sm font-mono flex-1">{password}</code>
         <button
-          onClick={copy}
+          onClick={() => copyToClipboard(password)}
           className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs"
         >
-          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-          {copied ? 'Copied' : 'Copy'}
+          <Copy className="w-3.5 h-3.5" />
+          Copy
         </button>
       </div>
     </div>
@@ -169,6 +182,9 @@ function PasswordBanner({
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────
+
+const UPLOAD_MAX_SIZE = 5 * 1024 * 1024;
+const UPLOAD_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 export default function CompanyDetailPage() {
   const params = useParams();
@@ -217,6 +233,7 @@ export default function CompanyDetailPage() {
   // Logo upload
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoSuccess, setLogoSuccess] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
   // Users tab
   const [companyAdmins, setCompanyAdmins] = useState<User[]>([]);
@@ -248,9 +265,16 @@ export default function CompanyDetailPage() {
   // Create brand form
   const [brandName, setBrandName] = useState('');
   const [brandSlug, setBrandSlug] = useState('');
+  const [brandSlugTouched, setBrandSlugTouched] = useState(false);
   const [brandDescription, setBrandDescription] = useState('');
   const [brandLoading, setBrandLoading] = useState(false);
   const [brandError, setBrandError] = useState<string | null>(null);
+
+  // Company branding colors
+  const [companyTheme, setCompanyTheme] = useState<ThemeColors>({});
+  const [companyThemeHex, setCompanyThemeHex] = useState<Record<string, string>>({});
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeSuccess, setThemeSuccess] = useState(false);
 
   // Edit brand modal
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
@@ -261,6 +285,7 @@ export default function CompanyDetailPage() {
   const [editBrandLoading, setEditBrandLoading] = useState(false);
   const [editBrandError, setEditBrandError] = useState<string | null>(null);
   const [editBrandLogoUploading, setEditBrandLogoUploading] = useState(false);
+  const [editBrandLogoUploadError, setEditBrandLogoUploadError] = useState<string | null>(null);
 
   const openEditBrand = (brand: Brand) => {
     setEditingBrand(brand);
@@ -295,6 +320,17 @@ export default function CompanyDetailPage() {
   const handleBrandLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingBrand) return;
+    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
+      setEditBrandLogoUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > UPLOAD_MAX_SIZE) {
+      setEditBrandLogoUploadError('File too large. Maximum size is 5 MB.');
+      e.target.value = '';
+      return;
+    }
+    setEditBrandLogoUploadError(null);
     setEditBrandLogoUploading(true);
     try {
       const updated = await api.uploadBrandLogo(editingBrand.id, file);
@@ -311,6 +347,7 @@ export default function CompanyDetailPage() {
   // Onboard store form
   const [storeNameField, setStoreNameField] = useState('');
   const [storeSlugField, setStoreSlugField] = useState('');
+  const [storeSlugTouched, setStoreSlugTouched] = useState(false);
   const [storeAdminMode, setStoreAdminMode] = useState<'new' | 'existing'>('new');
   const [storeAdminFirst, setStoreAdminFirst] = useState('');
   const [storeAdminLast, setStoreAdminLast] = useState('');
@@ -340,6 +377,9 @@ export default function CompanyDetailPage() {
       setCompanyName(companyData.name);
       setContactEmail(companyData.contactEmail || '');
       setIsActive(companyData.isActive);
+      const tc = companyData.themeColors || {};
+      setCompanyTheme(tc);
+      setCompanyThemeHex({ ...tc });
     } catch {
       setError('Failed to load company data');
     } finally {
@@ -389,9 +429,35 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const handleSaveTheme = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setThemeSaving(true);
+    try {
+      const updated = await api.updateCompany(companyId, { themeColors: companyTheme });
+      setCompany(updated);
+      setThemeSuccess(true);
+      setTimeout(() => setThemeSuccess(false), 3000);
+    } catch {
+      // no-op
+    } finally {
+      setThemeSaving(false);
+    }
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
+      setLogoUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > UPLOAD_MAX_SIZE) {
+      setLogoUploadError('File too large. Maximum size is 5 MB.');
+      e.target.value = '';
+      return;
+    }
+    setLogoUploadError(null);
     setLogoUploading(true);
     try {
       const updated = await api.uploadCompanyLogo(companyId, file);
@@ -447,6 +513,7 @@ export default function CompanyDetailPage() {
       setBrands(prev => [...prev, newBrand]);
       setBrandName('');
       setBrandSlug('');
+      setBrandSlugTouched(false);
       setBrandDescription('');
       setShowCreateBrand(false);
     } catch (err: unknown) {
@@ -484,6 +551,7 @@ export default function CompanyDetailPage() {
   const resetStoreForm = () => {
     setStoreNameField('');
     setStoreSlugField('');
+    setStoreSlugTouched(false);
     setStoreAdminMode('new');
     setStoreAdminFirst('');
     setStoreAdminLast('');
@@ -612,6 +680,37 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const currentUserId = (() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw).id : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const handleRemoveUser = async (user: User) => {
+    try {
+      await api.deleteUser(user.id);
+      await loadUsers();
+    } catch (err) {
+      console.error('Failed to remove user:', err);
+      toast.error('Failed to remove user. Please try again.');
+    }
+  };
+
+  const handleToggleUser = async (user: User) => {
+    if (!company?.id) return;
+    try {
+      await api.updateCompanyUser(company.id, user.id, { isActive: !user.isActive });
+      await loadUsers();
+    } catch (err) {
+      console.error('Failed to update user:', err);
+      toast.error('Failed to update user. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-64">
@@ -639,7 +738,28 @@ export default function CompanyDetailPage() {
         </a>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{company.name}</h1>
-          <p className="text-sm text-gray-500">{company.slug}.kioscify.com</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm text-gray-500">{company.slug}.kioscify.com</p>
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(`https://${company.slug}.kioscify.com`).catch(() => {
+                  const el = document.createElement('textarea');
+                  el.value = `https://${company.slug}.kioscify.com`;
+                  el.setAttribute('readonly', '');
+                  el.style.cssText = 'position:absolute;left:-9999px';
+                  document.body.appendChild(el);
+                  el.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(el);
+                });
+                toast.success('Company URL copied!');
+              }}
+              title="Copy company URL"
+              className="text-gray-400 hover:text-indigo-600 transition-colors"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -823,8 +943,68 @@ export default function CompanyDetailPage() {
                   />
                 </label>
                 <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+                {logoUploadError && <p className="text-red-500 text-xs mt-1">{logoUploadError}</p>}
               </div>
             </div>
+          </div>
+
+          {/* Company branding colors */}
+          <div className="bg-white rounded-lg border">
+            <div className="px-6 py-4 border-b">
+              <h2 className="font-semibold text-gray-900">Company Branding</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Colors applied to the company portal interface</p>
+            </div>
+            <form onSubmit={handleSaveTheme} className="p-6 space-y-4">
+              {themeSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+                  Branding colors saved
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-2">
+                {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => {
+                  const defaultColor = key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : key === 'secondary' ? '#fb923c' : key === 'accent' ? '#fdba74' : '#ea580c';
+                  const colorValue = companyTheme[key] || defaultColor;
+                  const hexValue = companyThemeHex[key] ?? colorValue;
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={colorValue}
+                        onChange={e => {
+                          setCompanyTheme(prev => ({ ...prev, [key]: e.target.value }));
+                          setCompanyThemeHex(prev => ({ ...prev, [key]: e.target.value }));
+                        }}
+                        className="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={hexValue}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setCompanyThemeHex(prev => ({ ...prev, [key]: v }));
+                          if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                            setCompanyTheme(prev => ({ ...prev, [key]: v }));
+                          }
+                        }}
+                        maxLength={7}
+                        placeholder={defaultColor}
+                        spellCheck={false}
+                        className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <label className="text-xs text-gray-600 capitalize">{key}</label>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="submit"
+                disabled={themeSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium"
+              >
+                <Save className="w-4 h-4" />
+                {themeSaving ? 'Saving...' : 'Save Branding'}
+              </button>
+            </form>
           </div>
 
           {/* Onboard admin */}
@@ -1005,7 +1185,7 @@ export default function CompanyDetailPage() {
                 ) : (
                   <div className="divide-y">
                     {companyAdmins.map(user => (
-                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
+                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} currentUserId={currentUserId} />
                     ))}
                   </div>
                 )}
@@ -1062,7 +1242,7 @@ export default function CompanyDetailPage() {
                                 ) : (
                                   <div className="divide-y">
                                     {staff.map(user => (
-                                      <UserRow key={`${user.id}-${store.id}`} user={{ ...user, role: user.assignedRole as any }} isAssigned={user.isAssigned} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
+                                      <UserRow key={`${user.id}-${store.id}`} user={{ ...user, role: user.assignedRole as any }} isAssigned={user.isAssigned} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} currentUserId={currentUserId} />
                                     ))}
                                   </div>
                                 )}
@@ -1146,6 +1326,7 @@ export default function CompanyDetailPage() {
                   />
                 </label>
                 <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+                {editBrandLogoUploadError && <p className="text-red-500 text-xs mt-1">{editBrandLogoUploadError}</p>}
               </div>
             </div>
 
@@ -1236,7 +1417,7 @@ export default function CompanyDetailPage() {
 
       {/* Create brand modal */}
       {showCreateBrand && (
-        <Modal title="New Brand" onClose={() => { setShowCreateBrand(false); setBrandError(null); }}>
+        <Modal title="New Brand" onClose={() => { setShowCreateBrand(false); setBrandError(null); setBrandSlugTouched(false); }}>
           <form onSubmit={handleCreateBrand} className="space-y-4">
             {brandError && <p className="text-red-600 text-sm">{brandError}</p>}
             <div>
@@ -1246,7 +1427,7 @@ export default function CompanyDetailPage() {
                 value={brandName}
                 onChange={e => {
                   setBrandName(e.target.value);
-                  if (!brandSlug) {
+                  if (!brandSlugTouched) {
                     setBrandSlug(
                       e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
                     );
@@ -1261,7 +1442,7 @@ export default function CompanyDetailPage() {
               <input
                 type="text"
                 value={brandSlug}
-                onChange={e => setBrandSlug(e.target.value)}
+                onChange={e => { setBrandSlug(e.target.value); setBrandSlugTouched(true); }}
                 required
                 pattern="[a-z0-9-]+"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -1279,7 +1460,7 @@ export default function CompanyDetailPage() {
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => { setShowCreateBrand(false); setBrandError(null); }}
+                onClick={() => { setShowCreateBrand(false); setBrandError(null); setBrandSlugTouched(false); }}
                 className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
               >
                 Cancel
@@ -1336,7 +1517,7 @@ export default function CompanyDetailPage() {
                 value={storeNameField}
                 onChange={e => {
                   setStoreNameField(e.target.value);
-                  if (!storeSlugField) {
+                  if (!storeSlugTouched) {
                     setStoreSlugField(
                       e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
                     );
@@ -1351,7 +1532,7 @@ export default function CompanyDetailPage() {
               <input
                 type="text"
                 value={storeSlugField}
-                onChange={e => setStoreSlugField(e.target.value)}
+                onChange={e => { setStoreSlugField(e.target.value); setStoreSlugTouched(true); }}
                 required
                 pattern="[a-z0-9-]+"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -1684,11 +1865,17 @@ function UserRow({
   isAssigned,
   onReset,
   resetting,
+  onRemove,
+  onToggle,
+  currentUserId,
 }: {
   user: User;
   isAssigned?: boolean;
   onReset: (user: User) => void;
   resetting: boolean;
+  onRemove: (user: User) => void;
+  onToggle: (user: User) => void;
+  currentUserId: string | null;
 }) {
   const roleBadge: Record<string, string> = {
     COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
@@ -1696,6 +1883,8 @@ function UserRow({
     ADMIN: 'bg-blue-100 text-blue-700',
     CASHIER: 'bg-gray-100 text-gray-700',
   };
+
+  const isSelf = user.id === currentUserId;
 
   return (
     <div className="px-5 py-4 flex items-center gap-4">
@@ -1713,26 +1902,57 @@ function UserRow({
         <p className="text-xs text-gray-400 mt-0.5">{user.email}</p>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        {user.isFirstLogin ? (
+        <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${user.isActive ? 'text-green-600 bg-green-50' : 'text-gray-500 bg-gray-100'}`}>
+          {user.isActive ? <BadgeCheck className="w-3 h-3" /> : null}
+          {user.isActive ? 'Active' : 'Inactive'}
+        </span>
+        {user.isFirstLogin && (
           <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-            Pending setup
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">
-            <BadgeCheck className="w-3 h-3" />
-            Active
+            Pending login
           </span>
         )}
-        <button
-          onClick={() => onReset(user)}
-          disabled={resetting}
-          title="Reset password"
-          className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 border border-gray-200 hover:border-indigo-300 rounded px-2.5 py-1.5 transition-colors disabled:opacity-50"
-        >
-          <KeyRound className="w-3.5 h-3.5" />
-          {resetting ? 'Resetting...' : 'Reset Password'}
-        </button>
+        {!isSelf && !user.isActive && (
+          <button
+            onClick={() => onToggle(user)}
+            title="Enable account"
+            aria-label="Enable account"
+            className="p-1.5 text-gray-400 hover:text-green-600 rounded transition-colors"
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!isSelf && user.isActive && user.isFirstLogin && (
+          <button
+            onClick={() => onRemove(user)}
+            title="Remove pending user"
+            aria-label="Remove pending user"
+            className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!isSelf && user.isActive && !user.isFirstLogin && (
+          <button
+            onClick={() => onToggle(user)}
+            title="Disable account"
+            aria-label="Disable account"
+            className="p-1.5 text-gray-400 hover:text-gray-600 rounded transition-colors"
+          >
+            <UserX className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!isSelf && user.isActive && (
+          <button
+            onClick={() => onReset(user)}
+            disabled={resetting}
+            title="Reset password"
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-amber-600 border border-gray-200 hover:border-amber-300 rounded px-2.5 py-1.5 transition-colors disabled:opacity-50"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            {resetting ? 'Resetting...' : 'Reset Password'}
+          </button>
+        )}
       </div>
     </div>
   );

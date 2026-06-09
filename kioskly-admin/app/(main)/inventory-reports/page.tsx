@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatUserName } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
-import { FileText, Calendar, User, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
+import { FileText, Calendar, User, TrendingUp, AlertTriangle, RefreshCw, Eye, X } from 'lucide-react';
 import Link from 'next/link';
 
 export default function InventoryReportsPage() {
@@ -15,6 +15,8 @@ export default function InventoryReportsPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -33,6 +35,18 @@ export default function InventoryReportsPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const loadReportDetails = async (id: string) => {
+    setLoadingDetails(true);
+    try {
+      const report = await api.getSubmittedInventoryReportById(id);
+      setSelectedReport(report);
+    } catch (error) {
+      console.error('Failed to load report details:', error);
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -171,7 +185,7 @@ export default function InventoryReportsPage() {
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Submitted At</th>
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Submitted By</th>
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Items</th>
-                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Notes</th>
+                      <th className="text-center py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -189,14 +203,14 @@ export default function InventoryReportsPage() {
                         <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
                           {report.inventorySnapshot.totalItems} items
                         </td>
-                        <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">
-                          {report.notes ? (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                              Has notes
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
+                        <td className="py-3 px-2 sm:px-4 text-center">
+                          <button
+                            onClick={() => loadReportDetails(report.id)}
+                            className="text-black hover:opacity-70 transition"
+                            disabled={loadingDetails}
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -207,6 +221,94 @@ export default function InventoryReportsPage() {
           )}
         </div>
       </div>
+
+      {/* Detail Modal */}
+      {(selectedReport || loadingDetails) && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Inventory Report Details</h2>
+                <button
+                  onClick={() => setSelectedReport(null)}
+                  className="text-gray-500 hover:text-gray-700 transition"
+                >
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+              </div>
+            </div>
+
+            {loadingDetails && !selectedReport ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
+              </div>
+            ) : selectedReport && (
+              <div className="p-4 sm:p-6 space-y-6">
+                {/* Metadata */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Report Date</p>
+                    <p className="text-sm font-semibold text-gray-900">{formatDate(selectedReport.reportDate)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Submitted At</p>
+                    <p className="text-sm font-semibold text-gray-900">{formatDateTime(selectedReport.submittedAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Submitted By</p>
+                    <p className="text-sm font-semibold text-gray-900">{formatUserName(selectedReport.user)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Items</p>
+                    <p className="text-sm font-semibold text-gray-900">{selectedReport.inventorySnapshot.totalItems} items</p>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {selectedReport.notes && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">Notes</p>
+                    <p className="text-sm text-gray-800">{selectedReport.notes}</p>
+                  </div>
+                )}
+
+                {/* Items Table */}
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 mb-3">Inventory Items</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50">
+                          <th className="text-left py-2 px-3 font-semibold text-gray-600 text-xs uppercase">Item Name</th>
+                          <th className="text-left py-2 px-3 font-semibold text-gray-600 text-xs uppercase">Category</th>
+                          <th className="text-left py-2 px-3 font-semibold text-gray-600 text-xs uppercase">Unit</th>
+                          <th className="text-right py-2 px-3 font-semibold text-gray-600 text-xs uppercase">Quantity</th>
+                          <th className="text-right py-2 px-3 font-semibold text-gray-600 text-xs uppercase">Min Stock</th>
+                          <th className="text-left py-2 px-3 font-semibold text-gray-600 text-xs uppercase">Record Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedReport.inventorySnapshot.items.map((item: any, idx: number) => (
+                          <tr key={item.inventoryItemId ?? idx} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-2 px-3 font-medium text-gray-900">{item.itemName}</td>
+                            <td className="py-2 px-3 text-gray-600">{item.category}</td>
+                            <td className="py-2 px-3 text-gray-600">{item.unit}</td>
+                            <td className="py-2 px-3 text-right text-gray-900 font-medium">{item.quantity}</td>
+                            <td className="py-2 px-3 text-right text-gray-500">
+                              {item.minStockLevel != null ? item.minStockLevel : '-'}
+                            </td>
+                            <td className="py-2 px-3 text-gray-600">{formatDate(item.recordDate)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { CreateStoreUserDto, UpdateStoreUserDto, CreateCompanyUserDto } from './dto/user.dto';
+import { CreateStoreUserDto, UpdateStoreUserDto, CreateCompanyUserDto, UpdateCompanyUserDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -298,6 +298,74 @@ export class UsersService {
     };
   }
 
+  async updateCompanyUser(
+    companyId: string,
+    userId: string,
+    requestingCompanyId: string,
+    requestingRole: string,
+    requestingUserId: string,
+    dto: UpdateCompanyUserDto,
+  ) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) {
+      throw new ForbiddenException('Access denied');
+    }
+    if (requestingUserId === userId) throw new ForbiddenException('Cannot modify your own account');
+    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } });
+    if (!user) throw new NotFoundException('User not found in this company');
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: dto.isActive },
+      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true, isActive: true, isFirstLogin: true },
+    });
+  }
+
+  async deleteCompanyUser(
+    companyId: string,
+    userId: string,
+    requestingCompanyId: string,
+    requestingRole: string,
+    requestingUserId: string,
+  ) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) {
+      throw new ForbiddenException('Access denied');
+    }
+    if (requestingUserId === userId) throw new ForbiddenException('Cannot remove your own account');
+    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } });
+    if (!user) throw new NotFoundException('User not found in this company');
+    await this.prisma.user.update({ where: { id: userId }, data: { isActive: false } });
+    return { message: 'User removed' };
+  }
+
+  async resetCompanyUserPassword(
+    companyId: string,
+    userId: string,
+    requestingCompanyId: string,
+    requestingRole: string,
+    requestingUserId: string,
+  ) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) {
+      throw new ForbiddenException('Access denied');
+    }
+    if (requestingUserId === userId) throw new ForbiddenException('Cannot reset your own password via this endpoint');
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, companyId },
+      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+    });
+    if (!user) throw new NotFoundException('User not found in this company');
+    const password = this.authService.generateSecurePassword();
+    const hashed = await bcrypt.hash(password, 12);
+    await this.prisma.user.update({ where: { id: userId }, data: { password: hashed, isFirstLogin: true } });
+    return { user, temporaryPassword: password, note: 'Share this password via a secure channel. User will be required to change it on first login.' };
+  }
+
+  async deleteUser(userId: string, requestingUserId: string) {
+    if (requestingUserId === userId) throw new ForbiddenException('Cannot remove your own account');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    await this.prisma.user.update({ where: { id: userId }, data: { isActive: false } });
+    return { message: 'User removed' };
+  }
+
   // ─── Multi-store assignment (COMPANY_ADMIN / PLATFORM_ADMIN) ─────────────
 
   async getStoreAccess(userId: string) {
@@ -510,6 +578,42 @@ export class UsersService {
       user,
       temporaryPassword: password,
       note: 'User will be required to change this password on next login.',
+    };
+  }
+
+  async resetStoreUserPassword(
+    storeId: string,
+    userId: string,
+    requestingUserId: string,
+    requestingTenantId: string,
+    requestingRole?: string,
+  ) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && requestingUserId === userId) {
+      throw new ForbiddenException('Cannot reset your own password via this endpoint');
+    }
+
+    if (requestingRole !== 'PLATFORM_ADMIN' && storeId !== requestingTenantId) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId: storeId },
+      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true, isFirstLogin: true },
+    });
+    if (!user) throw new NotFoundException(`User not found in this store`);
+
+    const password = this.authService.generateSecurePassword();
+    const hashed = await bcrypt.hash(password, 12);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed, isFirstLogin: true },
+    });
+
+    return {
+      user,
+      temporaryPassword: password,
+      note: 'Share this password via a secure channel. User will be required to change it on first login.',
     };
   }
 

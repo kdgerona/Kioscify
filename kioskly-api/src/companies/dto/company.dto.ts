@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsEmail, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsEmail, Matches, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ThemeColorsDto } from '../../brands/dto/brand.dto';
 
 export class CreateCompanyDto {
   @ApiProperty({ example: 'GreatServe Food Corp' })
@@ -49,6 +51,12 @@ export class UpdateCompanyDto extends PartialType(CreateCompanyDto) {
   @IsBoolean()
   @IsOptional()
   canOnboardStores?: boolean;
+
+  @ApiPropertyOptional()
+  @ValidateNested()
+  @Type(() => ThemeColorsDto)
+  @IsOptional()
+  themeColors?: ThemeColorsDto;
 }
 
 export class OnboardAdminDto {

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { User, Company } from '@/types';
-import { Plus, X, Copy, Check, UserCheck, UserX } from 'lucide-react';
+import { Plus, X, Copy, KeyRound, Trash2, UserCheck, UserX } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -12,7 +13,6 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [newPassword, setNewPassword] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   // Form state
   const [firstName, setFirstName] = useState('');
@@ -21,6 +21,10 @@ export default function UsersPage() {
   const [username, setUsername] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const currentUser = typeof window !== 'undefined'
+    ? (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })()
+    : null;
 
   useEffect(() => {
     loadData();
@@ -69,27 +73,53 @@ export default function UsersPage() {
   const handleToggleActive = async (user: User) => {
     if (!company) return;
     try {
-      const updated = await api.updateCompanyUser(company.id, user.id, {
-        isActive: !user.isActive,
-      });
-      setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
+      await api.updateCompanyUser(company.id, user.id, { isActive: !user.isActive });
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: !user.isActive } : u));
     } catch {
-      // silent
+      toast.error('Failed to update user. Please try again.');
     }
   };
 
-  const copyPassword = () => {
-    if (newPassword) {
-      navigator.clipboard.writeText(newPassword);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.setAttribute('readonly', '');
+      el.style.cssText = 'position:absolute;left:-9999px';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    toast.success('Password copied to clipboard!');
+  };
+
+  const handleRemoveUser = async (user: User) => {
+    if (!company) return;
+    try {
+      await api.deactivateCompanyUser(company.id, user.id);
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: false } : u));
+    } catch {
+      toast.error('Failed to remove user. Please try again.');
+    }
+  };
+
+  const handleResetPassword = async (user: User) => {
+    if (!company) return;
+    try {
+      const result = await api.resetCompanyUserPassword(company.id, user.id);
+      setNewPassword(result.temporaryPassword);
+    } catch {
+      // silent
     }
   };
 
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: 'var(--company-primary, #ea580c)' }} />
       </div>
     );
   }
@@ -103,7 +133,8 @@ export default function UsersPage() {
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 text-sm font-medium transition-colors"
+          style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
         >
           <Plus className="w-4 h-4" />
           New User
@@ -129,11 +160,11 @@ export default function UsersPage() {
           <div className="flex items-center gap-2 bg-white rounded border border-green-200 px-3 py-2">
             <code className="text-sm font-mono flex-1">{newPassword}</code>
             <button
-              onClick={copyPassword}
+              onClick={() => copyToClipboard(newPassword!)}
               className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs"
             >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? 'Copied' : 'Copy'}
+              <Copy className="w-3.5 h-3.5" />
+              Copy
             </button>
           </div>
         </div>
@@ -160,33 +191,34 @@ export default function UsersPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                   <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} required
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                    style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+                    style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
                   <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} required
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                    style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+                    style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+                  style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
                 <input type="text" value={username} onChange={e => setUsername(e.target.value)} required
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+                  style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
               </div>
               <p className="text-xs text-gray-400">Role will be set to COMPANY_ADMIN. A temporary password will be generated.</p>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => { setShowForm(false); setFormError(null); }}
                   className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={formLoading}
-                  className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+                  className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50"
+                  style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
                   {formLoading ? 'Creating...' : 'Create User'}
                 </button>
               </div>
@@ -210,24 +242,55 @@ export default function UsersPage() {
                   <p className="text-xs text-gray-400">{user.username} · {user.email}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    user.isActive
-                      ? 'bg-green-50 text-green-700'
-                      : 'bg-gray-100 text-gray-500'
-                  }`}>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${user.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                     {user.isActive ? 'Active' : 'Inactive'}
                   </span>
-                  <button
-                    onClick={() => handleToggleActive(user)}
-                    title={user.isActive ? 'Deactivate' : 'Activate'}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
-                  >
-                    {user.isActive ? (
-                      <UserX className="w-4 h-4" />
-                    ) : (
-                      <UserCheck className="w-4 h-4" />
-                    )}
-                  </button>
+                  {user.isFirstLogin && (
+                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-amber-50 text-amber-700">
+                      Pending login
+                    </span>
+                  )}
+                  {currentUser?.id !== user.id && (
+                    <div className="flex items-center gap-2">
+                      {!user.isActive ? (
+                        <button
+                          onClick={() => handleToggleActive(user)}
+                          title="Enable account"
+                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <>
+                          {user.isFirstLogin && (
+                            <button
+                              onClick={() => handleRemoveUser(user)}
+                              title="Remove pending user"
+                              className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {!user.isFirstLogin && (
+                            <button
+                              onClick={() => handleToggleActive(user)}
+                              title="Disable account"
+                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                            >
+                              <UserX className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleResetPassword(user)}
+                            title="Reset password"
+                            className="p-1.5 text-gray-400 hover:text-amber-500 rounded"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

@@ -34,6 +34,7 @@ export default async function LoginPage() {
   const headersList = await headers();
   const companySlug = headersList.get('x-company-slug');
   const brandSlug = headersList.get('x-brand-slug');
+  const preSelectedStoreSlug = headersList.get('x-store-slug') ?? undefined;
 
   // No subdomain context — show generic portal (company + brand slug entry)
   if (!companySlug || !brandSlug) {
@@ -41,5 +42,12 @@ export default async function LoginPage() {
   }
 
   const brand = await fetchBrandInfo(companySlug, brandSlug);
-  return <LoginForm companySlug={companySlug} brandSlug={brandSlug} brand={brand} />;
+  return (
+    <LoginForm
+      companySlug={companySlug}
+      brandSlug={brandSlug}
+      brand={brand}
+      preSelectedStoreSlug={preSelectedStoreSlug}
+    />
+  );
 }

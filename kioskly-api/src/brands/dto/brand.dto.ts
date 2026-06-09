@@ -52,4 +52,9 @@ export class UpdateBrandDto extends PartialType(CreateBrandDto) {
   @IsEnum(DeliveryPlatform, { each: true })
   @IsOptional()
   enabledDeliveryPlatforms?: DeliveryPlatform[];
+
+  @ApiPropertyOptional({ example: 'Sugar Level' })
+  @IsString()
+  @IsOptional()
+  preferenceLabel?: string;
 }

@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatRole } from '@/lib/utils';
-import type { Company, User } from '@/types';
+import { useCompany } from '@/contexts/CompanyContext';
+import type { Company, ThemeColors, User } from '@/types';
 import { Save, KeyRound } from 'lucide-react';
 
 export default function SettingsPage() {
+  const { refetchCompany } = useCompany();
   const [company, setCompany] = useState<Company | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,6 +20,15 @@ export default function SettingsPage() {
   const [name, setName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [description, setDescription] = useState('');
+
+  // Branding colors
+  const [theme, setTheme] = useState<ThemeColors>({});
+  const [themeHex, setThemeHex] = useState<Record<string, string>>({});
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeSuccess, setThemeSuccess] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
+
+  const primaryColor = company?.themeColors?.primary ?? '#ea580c';
 
   // Change password
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -37,6 +48,9 @@ export default function SettingsPage() {
         setName(data.name);
         setContactEmail(data.contactEmail || '');
         setDescription(data.description || '');
+        const tc = data.themeColors || {};
+        setTheme(tc);
+        setThemeHex({ ...tc });
       })
       .catch(() => setError('Failed to load company settings'))
       .finally(() => setLoading(false));
@@ -67,6 +81,25 @@ export default function SettingsPage() {
       setPwError(axiosErr?.response?.data?.message || 'Failed to change password');
     } finally {
       setPwSaving(false);
+    }
+  };
+
+  const handleSaveTheme = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!company) return;
+    setThemeError(null);
+    setThemeSaving(true);
+    try {
+      const updated = await api.updateCompany(company.id, { themeColors: theme });
+      setCompany(updated);
+      await refetchCompany();
+      setThemeSuccess(true);
+      setTimeout(() => setThemeSuccess(false), 3000);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setThemeError(axiosErr?.response?.data?.message || 'Failed to save branding');
+    } finally {
+      setThemeSaving(false);
     }
   };
 
@@ -157,7 +190,7 @@ export default function SettingsPage() {
                   onChange={e => setCurrentPassword(e.target.value)}
                   required
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                  style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
                 />
               </div>
               <div>
@@ -168,7 +201,7 @@ export default function SettingsPage() {
                   onChange={e => setNewPassword(e.target.value)}
                   required
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                  style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
                 />
               </div>
               <div>
@@ -179,7 +212,7 @@ export default function SettingsPage() {
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                  style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
                 />
               </div>
               <div className="flex gap-3 pt-1">
@@ -193,7 +226,8 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={pwSaving}
-                  className="flex-1 py-3 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700 disabled:opacity-50"
+                  className="flex-1 py-3 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+                  style={{ backgroundColor: primaryColor }}
                 >
                   {pwSaving ? 'Saving...' : 'Update Password'}
                 </button>
@@ -217,7 +251,7 @@ export default function SettingsPage() {
               onChange={e => setName(e.target.value)}
               required
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-              style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+              style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
             />
           </div>
           <div>
@@ -227,7 +261,7 @@ export default function SettingsPage() {
               value={contactEmail}
               onChange={e => setContactEmail(e.target.value)}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-              style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+              style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
             />
           </div>
           <div>
@@ -237,13 +271,14 @@ export default function SettingsPage() {
               onChange={e => setDescription(e.target.value)}
               rows={3}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none"
-              style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+              style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
             />
           </div>
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
+            style={{ backgroundColor: primaryColor }}
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save Changes'}
@@ -260,6 +295,72 @@ export default function SettingsPage() {
           <DetailRow label="Slug" value={company?.slug || '—'} />
           <DetailRow label="Status" value={company?.isActive ? 'Active' : 'Inactive'} />
         </div>
+      </div>
+
+      {/* Branding colors */}
+      <div className="bg-white rounded-lg border">
+        <div className="px-6 py-4 border-b">
+          <h2 className="font-semibold text-gray-900">Branding</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Customize your company portal colors</p>
+        </div>
+        <form onSubmit={handleSaveTheme} className="p-6 space-y-4">
+          {themeError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">
+              {themeError}
+            </div>
+          )}
+          {themeSuccess && (
+            <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm">
+              Branding colors saved
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-3">
+            {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => {
+              const defaultColor = key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : key === 'secondary' ? '#fb923c' : key === 'accent' ? '#fdba74' : '#ea580c';
+              const colorValue = theme[key] || defaultColor;
+              const hexValue = themeHex[key] ?? colorValue;
+              return (
+                <div key={key} className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={colorValue}
+                    onChange={e => {
+                      setTheme(prev => ({ ...prev, [key]: e.target.value }));
+                      setThemeHex(prev => ({ ...prev, [key]: e.target.value }));
+                    }}
+                    className="w-9 h-9 rounded-lg cursor-pointer border border-gray-200 p-0.5 shrink-0"
+                  />
+                  <input
+                    type="text"
+                    value={hexValue}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setThemeHex(prev => ({ ...prev, [key]: v }));
+                      if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                        setTheme(prev => ({ ...prev, [key]: v }));
+                      }
+                    }}
+                    maxLength={7}
+                    placeholder={defaultColor}
+                    spellCheck={false}
+                    className="w-28 px-3 py-2 text-sm border border-gray-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:border-transparent"
+                    style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
+                  />
+                  <span className="text-sm text-gray-600 capitalize">{key}</span>
+                </div>
+              );
+            })}
+          </div>
+          <button
+            type="submit"
+            disabled={themeSaving}
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <Save className="w-4 h-4" />
+            {themeSaving ? 'Saving...' : 'Save Branding'}
+          </button>
+        </form>
       </div>
     </div>
   );

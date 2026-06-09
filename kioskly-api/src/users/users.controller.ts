@@ -19,6 +19,7 @@ import {
   CreateStoreUserDto,
   UpdateStoreUserDto,
   CreateCompanyUserDto,
+  UpdateCompanyUserDto,
 } from './dto/user.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -95,6 +96,19 @@ export class UsersController {
     return this.usersService.deleteStoreUser(storeId, userId, tenantId, req.user.id);
   }
 
+  @Post('stores/:storeId/:userId/reset-password')
+  @UseGuards(RolesGuard)
+  @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Reset a store user\'s password (generates new temporary password)' })
+  resetStoreUserPassword(
+    @Param('storeId') storeId: string,
+    @Param('userId') userId: string,
+    @TenantId() tenantId: string,
+    @Request() req,
+  ) {
+    return this.usersService.resetStoreUserPassword(storeId, userId, req.user.id, tenantId, req.user.role);
+  }
+
   // ─── Company users (COMPANY_ADMIN manages their own company) ─────────────
 
   @Get('companies/:companyId')
@@ -137,6 +151,59 @@ export class UsersController {
     @CompanyId() requestingCompanyId: string,
   ) {
     return this.usersService.createCompanyUser(companyId, requestingCompanyId, dto);
+  }
+
+  @Patch('companies/:companyId/:userId')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Update a company user' })
+  updateCompanyUser(
+    @Param('companyId') companyId: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateCompanyUserDto,
+    @CompanyId() requestingCompanyId: string,
+    @Request() req,
+  ) {
+    return this.usersService.updateCompanyUser(companyId, userId, requestingCompanyId, req.user.role, req.user.id, dto);
+  }
+
+  @Delete('companies/:companyId/:userId')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Remove a company user (soft delete)' })
+  deleteCompanyUser(
+    @Param('companyId') companyId: string,
+    @Param('userId') userId: string,
+    @CompanyId() requestingCompanyId: string,
+    @Request() req,
+  ) {
+    return this.usersService.deleteCompanyUser(companyId, userId, requestingCompanyId, req.user.role, req.user.id);
+  }
+
+  @Post('companies/:companyId/:userId/reset-password')
+  @UseGuards(RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiOperation({ summary: "Reset a company user's password" })
+  resetCompanyUserPassword(
+    @Param('companyId') companyId: string,
+    @Param('userId') userId: string,
+    @CompanyId() requestingCompanyId: string,
+    @Request() req,
+  ) {
+    return this.usersService.resetCompanyUserPassword(companyId, userId, requestingCompanyId, req.user.role, req.user.id);
+  }
+
+  @Delete(':userId')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Remove any user (PLATFORM_ADMIN only)' })
+  deleteUser(
+    @Param('userId') userId: string,
+    @Request() req,
+  ) {
+    return this.usersService.deleteUser(userId, req.user.id);
   }
 
   // ─── Multi-store access management ───────────────────────────────────────

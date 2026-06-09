@@ -25,6 +25,7 @@ type TransactionWithIncludes = Prisma.TransactionGetPayload<{
       include: {
         product: true;
         size: true;
+        preference: true;
         addons: {
           include: {
             addon: true;
@@ -82,6 +83,7 @@ export class TransactionsService {
             productId: item.productId,
             quantity: item.quantity,
             sizeId: item.sizeId,
+            preferenceId: item.preferenceId,
             subtotal: item.subtotal,
             addons: item.addons
               ? {
@@ -108,6 +110,7 @@ export class TransactionsService {
           include: {
             product: true,
             size: true,
+            preference: true,
             addons: {
               include: {
                 addon: true,
@@ -199,6 +202,7 @@ export class TransactionsService {
           include: {
             product: true,
             size: true,
+            preference: true,
             addons: {
               include: {
                 addon: true,
@@ -231,6 +235,7 @@ export class TransactionsService {
           include: {
             product: true,
             size: true,
+            preference: true,
             addons: {
               include: {
                 addon: true,
@@ -275,6 +280,7 @@ export class TransactionsService {
           include: {
             product: true,
             size: true,
+            preference: true,
             addons: {
               include: {
                 addon: true,
@@ -399,6 +405,8 @@ export class TransactionsService {
         quantity: item.quantity,
         sizeId: item.sizeId,
         size: item.size,
+        preferenceId: item.preferenceId,
+        preference: item.preference ?? null,
         subtotal: item.subtotal,
         addons: item.addons?.map((a) => a.addon) || [],
       })),
@@ -469,6 +477,7 @@ export class TransactionsService {
           include: {
             product: true,
             size: true,
+            preference: true,
             addons: {
               include: {
                 addon: true,
@@ -545,6 +554,7 @@ export class TransactionsService {
           include: {
             product: true,
             size: true,
+            preference: true,
             addons: {
               include: {
                 addon: true,
@@ -626,6 +636,7 @@ export class TransactionsService {
           include: {
             product: true,
             size: true,
+            preference: true,
             addons: {
               include: {
                 addon: true,
@@ -708,6 +719,7 @@ export class TransactionsService {
           include: {
             product: true,
             size: true,
+            preference: true,
             addons: {
               include: {
                 addon: true,

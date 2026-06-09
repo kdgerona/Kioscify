@@ -5,7 +5,15 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  theme: { extend: {} },
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          DEFAULT: "#ea580c",
+        },
+      },
+    },
+  },
   plugins: [],
 };
 export default config;

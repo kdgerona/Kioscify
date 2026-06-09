@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -141,7 +142,7 @@ export class CompaniesController {
         if (allowed.includes(file.mimetype)) {
           cb(null, true);
         } else {
-          cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed'), false);
+          cb(new BadRequestException('Only JPEG, PNG, WebP, and GIF images are allowed'), false);
         }
       },
       limits: { fileSize: 5 * 1024 * 1024 },

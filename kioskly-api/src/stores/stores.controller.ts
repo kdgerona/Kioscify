@@ -11,6 +11,7 @@ import {
   Request,
   UploadedFile,
   UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -151,7 +152,7 @@ export class StoresController {
         cb(
           allowed.includes(file.mimetype)
             ? null
-            : new Error('Invalid file type'),
+            : new BadRequestException('Only JPEG, PNG, WebP, and GIF images are allowed'),
           allowed.includes(file.mimetype),
         );
       },

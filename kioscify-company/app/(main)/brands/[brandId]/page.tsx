@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import type { Brand, Category, Product, Size, Addon, InventoryBrandTemplate } from '@/types';
-import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown } from 'lucide-react';
+import type { Brand, Store, Category, Product, Size, Addon, Preference, InventoryBrandTemplate } from '@/types';
+import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown, Truck, Star, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
 import {
   Select,
@@ -14,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'inventory' | 'stores' | 'settings';
+type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'preferences' | 'inventory' | 'stores' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -22,6 +23,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'categories', label: 'Categories' },
   { id: 'sizes', label: 'Sizes' },
   { id: 'addons', label: 'Add-ons' },
+  { id: 'preferences', label: 'Preferences' },
   { id: 'inventory', label: 'Inventory Items' },
   { id: 'stores', label: 'Stores' },
   { id: 'settings', label: 'Settings' },
@@ -47,7 +49,7 @@ function CRUDRow({
         {sublabel && <p className="text-xs text-gray-400">{sublabel}</p>}
       </div>
       <div className="flex items-center gap-2">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-orange-600 rounded">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
@@ -106,7 +108,7 @@ function CategoryRow({
 
       {/* Edit / Delete */}
       <div className="flex items-center gap-2 shrink-0">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-orange-600 rounded">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
@@ -128,6 +130,8 @@ function ReorderRow({
   onMoveDown,
   onEdit,
   onDelete,
+  isDefault,
+  onSetDefault,
 }: {
   label: string;
   sublabel?: string;
@@ -137,6 +141,8 @@ function ReorderRow({
   onMoveDown: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  isDefault?: boolean;
+  onSetDefault?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-2">
@@ -162,7 +168,16 @@ function ReorderRow({
         {sublabel && <p className="text-xs text-gray-400 truncate">{sublabel}</p>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-orange-600 rounded">
+        {onSetDefault && (
+          <button
+            onClick={onSetDefault}
+            title={isDefault ? 'Default preference' : 'Set as default'}
+            className={`p-1.5 rounded ${isDefault ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
+          >
+            <Star className="w-3.5 h-3.5" fill={isDefault ? 'currentColor' : 'none'} />
+          </button>
+        )}
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
@@ -208,7 +223,7 @@ function ProductRow({ product, onEdit, onDelete }: { product: Product; onEdit: (
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-orange-600 rounded">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
@@ -247,6 +262,9 @@ function Modal({
 
 // ─── Main Page ────────────────────────────────────────────────────────────
 
+const UPLOAD_MAX_SIZE = 5 * 1024 * 1024;
+const UPLOAD_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
 export default function BrandDetailPage() {
   const params = useParams();
   const brandId = params.brandId as string;
@@ -267,9 +285,11 @@ export default function BrandDetailPage() {
   const [enableGrab, setEnableGrab] = useState(
     brand?.enabledDeliveryPlatforms?.includes('GRAB') ?? false
   );
+  const [settingsPreferenceLabel, setSettingsPreferenceLabel] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
   // Tab data
   const [productCategories, setProductCategories] = useState<Category[]>([]);
@@ -277,10 +297,13 @@ export default function BrandDetailPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [sizes, setSizes] = useState<Size[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
+  const [preferences, setPreferences] = useState<Preference[]>([]);
   const [invItems, setInvItems] = useState<InventoryBrandTemplate[]>([]);
-  const [stores, setStores] = useState<any[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [editingStoreName, setEditingStoreName] = useState('');
+  const [deliveryModalStore, setDeliveryModalStore] = useState<Store | null>(null);
+  const [deliveryToggles, setDeliveryToggles] = useState<Record<string, boolean>>({});
   const [qrStore, setQrStore] = useState<{
     storeName: string;
     companySlug: string;
@@ -311,6 +334,7 @@ export default function BrandDetailPage() {
         setSettingsThemeHex(b.themeColors || {});
         setEnableFoodPanda(b.enabledDeliveryPlatforms?.includes('FOODPANDA') ?? false);
         setEnableGrab(b.enabledDeliveryPlatforms?.includes('GRAB') ?? false);
+        setSettingsPreferenceLabel(b.preferenceLabel || '');
       })
       .catch(() => setError('Failed to load brand'))
       .finally(() => setLoading(false));
@@ -351,6 +375,7 @@ export default function BrandDetailPage() {
           ...(enableFoodPanda ? ['FOODPANDA'] : []),
           ...(enableGrab ? ['GRAB'] : []),
         ],
+        preferenceLabel: settingsPreferenceLabel || undefined,
       });
       setBrand(updated);
       setSettingsSuccess(true);
@@ -365,6 +390,17 @@ export default function BrandDetailPage() {
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !brand) return;
+    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
+      setLogoUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > UPLOAD_MAX_SIZE) {
+      setLogoUploadError('File too large. Maximum size is 5 MB.');
+      e.target.value = '';
+      return;
+    }
+    setLogoUploadError(null);
     setLogoUploading(true);
     try {
       const updated = await api.uploadBrandLogo(brand.id, file);
@@ -392,19 +428,22 @@ export default function BrandDetailPage() {
           setInvCategories(ic);
         }
         if (tab === 'products') {
-          const [cats, prods, szs, ads] = await Promise.all([
+          const [cats, prods, szs, ads, prefs] = await Promise.all([
             api.getCategories(brandId, 'PRODUCT'),
             api.getProducts(brandId),
             api.getSizes(brandId),
             api.getAddons(brandId),
+            api.getPreferences(brandId),
           ]);
           setProductCategories(cats);
           setProducts(prods);
           setSizes(szs);
           setAddons(ads);
+          setPreferences(prefs);
         }
         if (tab === 'sizes') setSizes(await api.getSizes(brandId));
         if (tab === 'addons') setAddons(await api.getAddons(brandId));
+        if (tab === 'preferences') setPreferences(await api.getPreferences(brandId));
         if (tab === 'inventory') {
           const [items, ic] = await Promise.all([
             api.getInventoryBrandTemplates(brandId),
@@ -436,10 +475,51 @@ export default function BrandDetailPage() {
     } catch { /* silent */ }
   };
 
+  const openDeliveryModal = (store: Store) => {
+    const current = store.enabledDeliveryPlatforms ?? [];
+    setDeliveryToggles({
+      FOODPANDA: current.includes('FOODPANDA'),
+      GRAB: current.includes('GRAB'),
+    });
+    setDeliveryModalStore(store);
+  };
+
+  const copyStoreLink = async (store: Store) => {
+    const base = process.env.NEXT_PUBLIC_STORE_PORTAL_BASE_URL ?? '';
+    const url = `${base}/${brand?.company?.slug ?? ''}/${brand?.slug ?? ''}/${store.slug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const el = document.createElement('textarea');
+      el.value = url;
+      el.setAttribute('readonly', '');
+      el.style.cssText = 'position:absolute;left:-9999px';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    toast.success('Store portal link copied!');
+  };
+
+  const handleSaveDelivery = async () => {
+    if (!deliveryModalStore) return;
+    const platforms = Object.entries(deliveryToggles)
+      .filter(([, on]) => on)
+      .map(([p]) => p);
+    try {
+      await api.updateStore(deliveryModalStore.id, { enabledDeliveryPlatforms: platforms });
+      setStores(prev => prev.map(s =>
+        s.id === deliveryModalStore.id ? { ...s, enabledDeliveryPlatforms: platforms } : s
+      ));
+      setDeliveryModalStore(null);
+    } catch { /* silent */ }
+  };
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: 'var(--company-primary, #ea580c)' }} />
       </div>
     );
   }
@@ -476,9 +556,10 @@ export default function BrandDetailPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'border-orange-600 text-orange-600'
+                  ? 'border-current'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
+              style={activeTab === tab.id ? { color: 'var(--company-primary, #ea580c)' } : undefined}
             >
               {tab.label}
             </button>
@@ -490,7 +571,7 @@ export default function BrandDetailPage() {
       <div>
         {tabLoading && activeTab !== 'overview' && (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600" />
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderBottomColor: 'var(--company-primary, #ea580c)' }} />
           </div>
         )}
 
@@ -647,6 +728,41 @@ export default function BrandDetailPage() {
           </TabSection>
         )}
 
+        {/* Preferences */}
+        {activeTab === 'preferences' && !tabLoading && (
+          <TabSection
+            title="Preferences"
+            onAdd={() => setModal({ type: 'preferences', mode: 'create' })}
+          >
+            {preferences.length === 0 ? (
+              <EmptyState message="No preference options yet" />
+            ) : (
+              preferences.map((pref, i) => (
+                <ReorderRow
+                  key={pref.id}
+                  label={pref.name}
+                  sublabel={pref.isDefault ? 'Default' : undefined}
+                  index={i}
+                  total={preferences.length}
+                  isDefault={pref.isDefault}
+                  onSetDefault={async () => {
+                    const updated = await api.updatePreference(pref.id, { isDefault: true });
+                    setPreferences(prev => prev.map(p => ({ ...p, isDefault: p.id === updated.id })));
+                  }}
+                  onMoveUp={() => reorderItem(preferences, setPreferences, i, 'up', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
+                  onMoveDown={() => reorderItem(preferences, setPreferences, i, 'down', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
+                  onEdit={() => setModal({ type: 'preferences', mode: 'edit', item: pref })}
+                  onDelete={async () => {
+                    if (!confirm(`Delete "${pref.name}"?`)) return;
+                    await api.deletePreference(pref.id);
+                    setPreferences(prev => prev.filter(p => p.id !== pref.id));
+                  }}
+                />
+              ))
+            )}
+          </TabSection>
+        )}
+
         {/* Stores */}
         {activeTab === 'stores' && !tabLoading && (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -677,7 +793,7 @@ export default function BrandDetailPage() {
                             if (e.key === 'Escape') setEditingStoreId(null);
                           }}
                           className="px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white w-full max-w-xs"
-                          style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                          style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                         />
                       ) : (
                         <p className="text-sm font-medium text-gray-900">{store.name}</p>
@@ -687,6 +803,13 @@ export default function BrandDetailPage() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <button
+                          onClick={() => openDeliveryModal(store)}
+                          title="Delivery Platforms"
+                          className="text-gray-400 hover:opacity-70 transition-colors"
+                        >
+                          <Truck className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => setQrStore({
                             storeName: store.name,
                             companySlug: brand?.company?.slug ?? '',
@@ -694,13 +817,20 @@ export default function BrandDetailPage() {
                             storeSlug: store.slug,
                           })}
                           title="View QR Code"
-                          className="text-gray-400 hover:text-orange-600 transition-colors"
+                          className="text-gray-400 hover:opacity-70 transition-colors"
                         >
                           <QrCode className="w-4 h-4" />
                         </button>
+                        <button
+                          onClick={() => copyStoreLink(store)}
+                          title="Copy store portal link"
+                          className="text-gray-400 hover:opacity-70 transition-colors"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
                         {editingStoreId === store.id ? (
                           <div className="flex gap-3">
-                            <button onClick={() => handleSaveStoreName(store.id)} className="text-sm text-orange-600 hover:text-orange-800 font-medium">Save</button>
+                            <button onClick={() => handleSaveStoreName(store.id)} className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}>Save</button>
                             <button onClick={() => setEditingStoreId(null)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
                           </div>
                         ) : (
@@ -717,6 +847,62 @@ export default function BrandDetailPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Delivery Platforms Modal */}
+        {deliveryModalStore && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+              <h3 className="font-semibold text-gray-900 mb-1">{deliveryModalStore.name}</h3>
+              <p className="text-xs text-gray-500 mb-4">Delivery Platforms</p>
+
+              {(brand?.enabledDeliveryPlatforms ?? []).length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  No delivery platforms configured for this brand. Enable them in Brand Settings first.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={deliveryToggles['FOODPANDA'] ?? false}
+                        onChange={e => setDeliveryToggles(t => ({ ...t, FOODPANDA: e.target.checked }))}
+                        className="rounded border-gray-300 text-pink-500 focus:ring-pink-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">FoodPanda</span>
+                    </label>
+                  )}
+                  {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={deliveryToggles['GRAB'] ?? false}
+                        onChange={e => setDeliveryToggles(t => ({ ...t, GRAB: e.target.checked }))}
+                        className="rounded border-gray-300 text-green-500 focus:ring-green-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Grab</span>
+                    </label>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setDeliveryModalStore(null)}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveDelivery}
+                  className="text-sm text-white px-4 py-2 rounded-lg font-medium hover:brightness-90" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -742,9 +928,12 @@ export default function BrandDetailPage() {
                   )}
                 </div>
                 <div>
-                  <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-                    logoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-orange-600 text-white hover:bg-orange-700'
-                  }`}>
+                  <label
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                      logoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-white hover:brightness-90'
+                    }`}
+                    style={logoUploading ? undefined : { backgroundColor: 'var(--company-primary, #ea580c)' }}
+                  >
                     <Upload className="w-4 h-4" />
                     {logoUploading ? 'Uploading...' : 'Upload Logo'}
                     <input
@@ -756,6 +945,7 @@ export default function BrandDetailPage() {
                     />
                   </label>
                   <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+                  {logoUploadError && <p className="text-red-500 text-xs mt-1">{logoUploadError}</p>}
                 </div>
               </div>
             </div>
@@ -779,7 +969,7 @@ export default function BrandDetailPage() {
                     onChange={e => setSettingsName(e.target.value)}
                     required
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                    style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                    style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   />
                 </div>
                 <div>
@@ -789,7 +979,7 @@ export default function BrandDetailPage() {
                     onChange={e => setSettingsDescription(e.target.value)}
                     rows={2}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none"
-                    style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                    style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   />
                 </div>
 
@@ -825,7 +1015,7 @@ export default function BrandDetailPage() {
                             maxLength={7}
                             placeholder={defaultColor}
                             spellCheck={false}
-                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                           />
                           <span className="text-sm text-gray-600 capitalize">{key}</span>
                         </div>
@@ -861,10 +1051,25 @@ export default function BrandDetailPage() {
                   </div>
                 </div>
 
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Preference Label</h4>
+                  <p className="text-xs text-gray-500 mb-3">
+                    The heading shown to customers when selecting a preference in the app (e.g., &quot;Sugar Level&quot;). Defaults to &quot;Preference&quot; if left blank.
+                  </p>
+                  <input
+                    type="text"
+                    value={settingsPreferenceLabel}
+                    onChange={e => setSettingsPreferenceLabel(e.target.value)}
+                    placeholder="e.g. Sugar Level"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                    style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
+                  />
+                </div>
+
                 <button
                   type="submit"
                   disabled={settingsSaving}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 disabled:opacity-50 text-sm font-medium" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
                 >
                   <Save className="w-4 h-4" />
                   {settingsSaving ? 'Saving...' : 'Save Settings'}
@@ -935,6 +1140,7 @@ export default function BrandDetailPage() {
           categories={productCategories}
           sizes={sizes}
           addons={addons}
+          preferences={preferences}
           onClose={closeModal}
           onSave={prod => {
             if (modal.mode === 'create') {
@@ -977,6 +1183,23 @@ export default function BrandDetailPage() {
               setAddons(prev => [...prev, addon]);
             } else {
               setAddons(prev => prev.map(a => (a.id === addon.id ? addon : a)));
+            }
+            closeModal();
+          }}
+        />
+      )}
+
+      {modal.type === 'preferences' && (
+        <PreferenceModal
+          mode={modal.mode}
+          item={modal.item as Preference | undefined}
+          brandId={brandId}
+          onClose={closeModal}
+          onSave={pref => {
+            if (modal.mode === 'create') {
+              setPreferences(prev => [...prev, pref]);
+            } else {
+              setPreferences(prev => prev.map(p => (p.id === pref.id ? pref : p)));
             }
             closeModal();
           }}
@@ -1040,7 +1263,7 @@ function TabSection({
         <h2 className="font-semibold text-gray-900 text-sm">{title}</h2>
         <button
           onClick={onAdd}
-          className="flex items-center gap-1.5 text-sm text-orange-600 hover:text-orange-800 font-medium"
+          className="flex items-center gap-1.5 text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}
         >
           <Plus className="w-4 h-4" /> Add
         </button>
@@ -1112,7 +1335,7 @@ function CategoryModal({
             onChange={e => setName(e.target.value)}
             required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
           />
         </div>
         <div>
@@ -1122,12 +1345,12 @@ function CategoryModal({
             value={description}
             onChange={e => setDescription(e.target.value)}
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
           />
         </div>
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>
@@ -1144,6 +1367,7 @@ function ProductModal({
   categories,
   sizes,
   addons,
+  preferences,
   onClose,
   onSave,
 }: {
@@ -1154,6 +1378,7 @@ function ProductModal({
   categories: Category[];
   sizes: Size[];
   addons: Addon[];
+  preferences: Preference[];
   onClose: () => void;
   onSave: (prod: Product) => void;
 }) {
@@ -1168,10 +1393,13 @@ function ProductModal({
   const [categoryId, setCategoryId] = useState(item?.categoryId || '');
   const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(item?.sizes?.map(s => s.id) ?? []);
   const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(item?.addons?.map(a => a.id) ?? []);
+  const [selectedPreferenceIds, setSelectedPreferenceIds] = useState<string[]>(item?.preferences?.map(p => p.id) ?? []);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(resolveUrl(item?.image));
+  const [imageRemoved, setImageRemoved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   const toggleId = (set: string[], setFn: (v: string[]) => void, id: string) =>
     setFn(set.includes(id) ? set.filter(x => x !== id) : [...set, id]);
@@ -1179,8 +1407,20 @@ function ProductModal({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
+      setImageUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > UPLOAD_MAX_SIZE) {
+      setImageUploadError('File too large. Maximum size is 5 MB.');
+      e.target.value = '';
+      return;
+    }
+    setImageUploadError(null);
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+    setImageRemoved(false);
     e.target.value = '';
   };
 
@@ -1193,12 +1433,14 @@ function ProductModal({
     try {
       let result: Product;
       if (mode === 'create') {
-        result = await api.createProduct({ name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, brandId, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
+        result = await api.createProduct({ name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, preferenceIds: selectedPreferenceIds, brandId, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
       } else {
-        result = await api.updateProduct(item!.id, { name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
+        result = await api.updateProduct(item!.id, { name, price: parseFloat(price), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, preferenceIds: selectedPreferenceIds, foodpandaPrice: parseOptionalPrice(foodpandaPrice), grabPrice: parseOptionalPrice(grabPrice) });
       }
       if (imageFile) {
         result = await api.uploadProductImage(result.id, brandId, imageFile);
+      } else if (imageRemoved && item?.image) {
+        result = await api.removeProductImage(result.id, brandId);
       }
       onSave(result);
     } catch (err: unknown) {
@@ -1229,7 +1471,7 @@ function ProductModal({
               )}
             </div>
             <div className="flex-1">
-              <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer bg-orange-600 text-white hover:bg-orange-700 transition-colors">
+              <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-white hover:brightness-90 transition-colors" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
                 <Upload className="w-3.5 h-3.5" />
                 {imagePreview ? 'Change Image' : 'Upload Image'}
                 <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" onChange={handleImageChange} />
@@ -1237,13 +1479,14 @@ function ProductModal({
               {imagePreview && (
                 <button
                   type="button"
-                  onClick={() => { setImageFile(null); setImagePreview(null); }}
+                  onClick={() => { setImageFile(null); setImagePreview(null); setImageRemoved(true); }}
                   className="ml-2 text-xs text-gray-400 hover:text-red-500"
                 >
                   Remove
                 </button>
               )}
               <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+              {imageUploadError && <p className="text-red-500 text-xs mt-1">{imageUploadError}</p>}
             </div>
           </div>
         </div>
@@ -1252,13 +1495,13 @@ function ProductModal({
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
           <input type="text" value={name} onChange={e => setName(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
           <input type="number" value={price} onChange={e => setPrice(e.target.value)} required min="0" step="0.01"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
           brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
@@ -1324,7 +1567,7 @@ function ProductModal({
                     type="checkbox"
                     checked={selectedSizeIds.includes(s.id)}
                     onChange={() => toggleId(selectedSizeIds, setSelectedSizeIds, s.id)}
-                    className="rounded border-gray-300 text-orange-600"
+                    className="rounded border-gray-300" style={{ accentColor: 'var(--company-primary, #ea580c)' }}
                   />
                   <span className="text-sm text-gray-800 flex-1">{s.name}</span>
                   {s.priceModifier !== 0 && (
@@ -1349,7 +1592,7 @@ function ProductModal({
                     type="checkbox"
                     checked={selectedAddonIds.includes(a.id)}
                     onChange={() => toggleId(selectedAddonIds, setSelectedAddonIds, a.id)}
-                    className="rounded border-gray-300 text-orange-600"
+                    className="rounded border-gray-300" style={{ accentColor: 'var(--company-primary, #ea580c)' }}
                   />
                   <span className="text-sm text-gray-800 flex-1">{a.name}</span>
                   <span className="text-xs text-gray-400">+₱{a.price}</span>
@@ -1359,9 +1602,29 @@ function ProductModal({
           </div>
         )}
 
+        {/* Preferences */}
+        {preferences.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Preferences</label>
+            <div className="border border-gray-200 rounded-lg divide-y max-h-40 overflow-y-auto">
+              {preferences.map(p => (
+                <label key={p.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedPreferenceIds.includes(p.id)}
+                    onChange={() => toggleId(selectedPreferenceIds, setSelectedPreferenceIds, p.id)}
+                    className="rounded border-gray-300" style={{ accentColor: 'var(--company-primary, #ea580c)' }}
+                  />
+                  <span className="text-sm text-gray-800">{p.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>
@@ -1438,13 +1701,13 @@ function SizeModal({
           <input type="text" value={name} onChange={e => setName(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
             placeholder="e.g. Small, Medium, Large"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Price Modifier (+₱)</label>
           <input type="number" value={priceModifier} onChange={e => setPriceModifier(e.target.value)} required min="0" step="0.01"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
           brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
@@ -1481,7 +1744,7 @@ function SizeModal({
         )}
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>
@@ -1547,13 +1810,13 @@ function AddonModal({
           <input type="text" value={name} onChange={e => setName(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
             placeholder="e.g. Tapioca, Jelly"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Price (+$)</label>
           <input type="number" value={price} onChange={e => setPrice(e.target.value)} required min="0" step="0.01"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
           brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
@@ -1596,7 +1859,71 @@ function AddonModal({
         )}
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
+            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function PreferenceModal({
+  mode,
+  item,
+  brandId,
+  onClose,
+  onSave,
+}: {
+  mode: 'create' | 'edit';
+  item?: Preference;
+  brandId: string;
+  onClose: () => void;
+  onSave: (pref: Preference) => void;
+}) {
+  const [name, setName] = useState(item?.name || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      let result: Preference;
+      if (mode === 'create') {
+        result = await api.createPreference({ name, brandId });
+      } else {
+        result = await api.updatePreference(item!.id, { name });
+      }
+      onSave(result);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr?.response?.data?.message || 'Failed to save');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title={mode === 'create' ? 'New Preference' : 'Edit Preference'} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+            placeholder="e.g. Light Sweet (50%)"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
+          />
+        </div>
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>
@@ -1667,14 +1994,14 @@ function InventoryModal({
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
           <input type="text" value={name} onChange={e => setName(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
           <input type="text" value={unit} onChange={e => setUnit(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
             placeholder="e.g. kg, liters, bags"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category (optional)</label>
@@ -1694,7 +2021,7 @@ function InventoryModal({
           <label className="block text-sm font-medium text-gray-700 mb-1">Min Stock Level</label>
           <input type="number" value={minStockLevel} onChange={e => setMinStockLevel(e.target.value)} min="0"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1702,7 +2029,7 @@ function InventoryModal({
               type="checkbox"
               checked={requiresExpirationDate}
               onChange={e => setRequiresExpirationDate(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+              className="w-4 h-4 rounded border-gray-300" style={{ accentColor: 'var(--company-primary, #ea580c)' }}
             />
             <span className="text-sm font-medium text-gray-700">Track expiration dates</span>
           </label>
@@ -1714,7 +2041,7 @@ function InventoryModal({
               <input type="number" value={expirationWarningDays} onChange={e => setExpirationWarningDays(e.target.value)} min="1"
                 placeholder="7"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+                style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
               <p className="mt-1 text-xs text-gray-400">
                 How many days before expiry to show a warning. Defaults to 7 days if left blank.
               </p>
@@ -1723,7 +2050,7 @@ function InventoryModal({
         </div>
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>

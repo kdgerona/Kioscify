@@ -49,4 +49,13 @@ export class UpdateProductDto {
   @IsArray()
   @IsOptional()
   addonIds?: string[];
+
+  @ApiProperty({
+    example: ['light-sweet', 'signature-sweetness'],
+    required: false,
+    type: [String]
+  })
+  @IsArray()
+  @IsOptional()
+  preferenceIds?: string[];
 }

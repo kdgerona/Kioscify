@@ -5,7 +5,8 @@ import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
 import { formatRole } from '@/lib/utils';
 import type { User, StoreUserCreatePayload } from '@/types';
-import { UserPlus, Eye, EyeOff, UserCheck, UserX } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, UserCheck, UserX, KeyRound, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ export default function UsersPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [form, setForm] = useState<StoreUserCreatePayload>({
     firstName: '',
     lastName: '',
@@ -39,6 +41,8 @@ export default function UsersPage() {
     role: 'CASHIER',
   });
   const [formLoading, setFormLoading] = useState(false);
+  const [resettingUserId, setResettingUserId] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
@@ -104,6 +108,52 @@ export default function UsersPage() {
     }
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Fallback for tablets/browsers that block navigator.clipboard
+      const el = document.createElement('textarea');
+      el.value = text;
+      el.setAttribute('readonly', '');
+      el.style.cssText = 'position:absolute;left:-9999px';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    setCopied(true);
+    toast.success('Password copied to clipboard!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRemoveUser = async (user: User) => {
+    if (!tenant?.id) return;
+    setRemovingUserId(user.id);
+    try {
+      await api.deactivateStoreUser(tenant.id, user.id);
+      await fetchUsers();
+    } catch (err) {
+      console.error('Failed to remove user:', err);
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
+
+  const handleResetPassword = async (user: User) => {
+    if (!tenant?.id) return;
+    setResettingUserId(user.id);
+    try {
+      const result = await api.resetStoreUserPassword(tenant.id, user.id);
+      setCreatedPassword(result.temporaryPassword);
+      setShowPassword(true);
+      setCopied(false);
+    } catch (err) {
+      console.error('Failed to reset password:', err);
+    } finally {
+      setResettingUserId(null);
+    }
+  };
 
   return (
     <div className="p-6">
@@ -117,8 +167,7 @@ export default function UsersPage() {
             {isStoreAdmin && isMultiStoreAdmin && (
               <button
                 onClick={() => setShowAssignModal(true)}
-                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 transition"
-                style={{ borderColor: primaryColor, color: primaryColor }}
+                className="flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400"
               >
                 <UserCheck className="h-4 w-4" />
                 Assign Existing User
@@ -151,10 +200,10 @@ export default function UsersPage() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
             <button
-              onClick={() => navigator.clipboard.writeText(createdPassword)}
+              onClick={() => copyToClipboard(createdPassword)}
               className="text-xs text-green-700 underline ml-2"
             >
-              Copy
+              {copied ? 'Copied!' : 'Copy'}
             </button>
           </div>
           <button
@@ -326,20 +375,62 @@ export default function UsersPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="relative group inline-block">
-                          <button
-                            onClick={() => handleToggleActive(user)}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            {user.isActive ? (
-                              <UserX className="h-4 w-4" />
-                            ) : (
-                              <UserCheck className="h-4 w-4" />
-                            )}
-                          </button>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                            {user.isActive ? 'Disable account' : 'Enable account'}
-                          </div>
+                        <div className="flex items-center justify-center gap-2">
+                          {!user.isActive ? (
+                            <div className="relative group inline-block">
+                              <button
+                                onClick={() => handleToggleActive(user)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <UserCheck className="h-4 w-4" />
+                              </button>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                Enable account
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {user.isFirstLogin && (
+                                <div className="relative group inline-block">
+                                  <button
+                                    onClick={() => handleRemoveUser(user)}
+                                    disabled={removingUserId === user.id}
+                                    className="text-gray-400 hover:text-red-500 disabled:opacity-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Remove pending user
+                                  </div>
+                                </div>
+                              )}
+                              {!user.isFirstLogin && (
+                                <div className="relative group inline-block">
+                                  <button
+                                    onClick={() => handleToggleActive(user)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                  >
+                                    <UserX className="h-4 w-4" />
+                                  </button>
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Disable account
+                                  </div>
+                                </div>
+                              )}
+                              <div className="relative group inline-block">
+                                <button
+                                  onClick={() => handleResetPassword(user)}
+                                  disabled={resettingUserId === user.id}
+                                  className="text-gray-400 hover:text-amber-500 disabled:opacity-50"
+                                >
+                                  <KeyRound className="h-4 w-4" />
+                                </button>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                  Reset password
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
                       )
                     )}

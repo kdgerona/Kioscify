@@ -169,6 +169,7 @@ class ApiClient {
       canCreateBrands: boolean;
       canOnboardStores: boolean;
       isActive: boolean;
+      themeColors: ThemeColors;
     }>
   ): Promise<Company> {
     const { data } = await this.client.patch<Company>(`/companies/${id}`, payload);
@@ -337,6 +338,53 @@ class ApiClient {
     payload: { firstName: string; lastName: string; email: string; username: string; role: 'STORE_ADMIN' | 'CASHIER' }
   ): Promise<{ user: User; temporaryPassword: string }> {
     const { data } = await this.client.post(`/users/stores/${storeId}`, payload);
+    return data;
+  }
+
+  async updateCompanyUser(companyId: string, userId: string, payload: { isActive: boolean }): Promise<User> {
+    const { data } = await this.client.patch(`/users/companies/${companyId}/${userId}`, payload);
+    return data;
+  }
+
+  async deleteUser(userId: string): Promise<{ message: string }> {
+    const { data } = await this.client.delete(`/users/${userId}`);
+    return data;
+  }
+
+  // ─── Platform admin management ────────────────────────────────────────────
+
+  async getPlatformAdmins(): Promise<User[]> {
+    const { data } = await this.client.get<User[]>('/platform/admins');
+    return data;
+  }
+
+  async createPlatformAdmin(payload: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+  }): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post('/platform/admins', payload);
+    return data;
+  }
+
+  async updatePlatformAdmin(
+    id: string,
+    payload: { isActive: boolean }
+  ): Promise<User> {
+    const { data } = await this.client.patch<User>(`/platform/admins/${id}`, payload);
+    return data;
+  }
+
+  async resetPlatformAdminPassword(
+    id: string
+  ): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/platform/admins/${id}/reset-password`);
+    return data;
+  }
+
+  async deletePlatformAdmin(id: string): Promise<{ message: string }> {
+    const { data } = await this.client.delete(`/platform/admins/${id}`);
     return data;
   }
 }

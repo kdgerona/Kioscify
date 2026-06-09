@@ -12,16 +12,17 @@ const SelectValue = SelectPrimitive.Value;
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, style, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
       "flex h-9 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900",
-      "outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition",
+      "outline-none focus:ring-2 focus:border-transparent transition",
       "disabled:cursor-not-allowed disabled:opacity-50",
       "[&_[data-placeholder]]:text-gray-400",
       className
     )}
+    style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)', ...style } as React.CSSProperties}
     {...props}
   >
     {children}
@@ -46,8 +47,8 @@ const SelectContent = React.forwardRef<
       )}
       position={position}
       style={{
-        '--select-hover-bg': '#fff7ed',
-        '--select-hover-text': '#9a3412',
+        '--select-hover-bg': 'var(--company-primary-light, #ea580c18)',
+        '--select-hover-text': 'var(--company-primary, #ea580c)',
         ...style,
       } as React.CSSProperties}
       {...props}

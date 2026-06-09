@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { TenantProvider } from "@/contexts/TenantContext";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Kioscify - Store Management Portal",
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <Toaster position="top-center" richColors />
         <TenantProvider>
           {children}
         </TenantProvider>

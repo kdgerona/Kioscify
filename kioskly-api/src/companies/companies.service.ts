@@ -12,6 +12,8 @@ import {
   OnboardAdminDto,
 } from './dto/company.dto';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class CompaniesService {
@@ -23,7 +25,7 @@ export class CompaniesService {
   async validateSubdomain(slug: string) {
     const company = await this.prisma.company.findFirst({
       where: { slug, tombstone: { not: 1 } },
-      select: { id: true, slug: true, name: true, logoUrl: true, isActive: true },
+      select: { id: true, slug: true, name: true, logoUrl: true, isActive: true, themeColors: true },
     });
     return {
       valid: !!company,
@@ -31,17 +33,23 @@ export class CompaniesService {
       isActive: company?.isActive ?? false,
       name: company?.name ?? null,
       logoUrl: company?.logoUrl ?? null,
+      themeColors: company?.themeColors ?? null,
     };
   }
 
   async findAll() {
-    return this.prisma.company.findMany({
+    const companies = await this.prisma.company.findMany({
       where: { tombstone: { not: 1 } },
       orderBy: { createdAt: 'desc' },
       include: {
         _count: { select: { brands: true, stores: true, users: true } },
       },
     });
+    return companies.map(({ _count, ...company }) => ({
+      ...company,
+      brandCount: _count.brands,
+      storeCount: _count.stores,
+    }));
   }
 
   async findOne(id: string) {
@@ -143,7 +151,14 @@ export class CompaniesService {
   }
 
   async uploadLogo(id: string, logoUrl: string) {
-    await this.assertExists(id);
+    const existing = await this.assertExists(id);
+    if (existing.logoUrl) {
+      const relativePath = existing.logoUrl.startsWith('http')
+        ? new URL(existing.logoUrl).pathname
+        : existing.logoUrl;
+      const filePath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
     return this.prisma.company.update({ where: { id }, data: { logoUrl } });
   }
 

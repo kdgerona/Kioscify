@@ -5,6 +5,7 @@ interface CompanyInfo {
   name: string;
   logoUrl: string | null;
   slug: string;
+  primaryColor?: string;
 }
 
 async function fetchCompanyInfo(slug: string): Promise<CompanyInfo | null> {
@@ -16,7 +17,7 @@ async function fetchCompanyInfo(slug: string): Promise<CompanyInfo | null> {
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.valid || !data.isActive) return null;
-    return { name: data.name, logoUrl: data.logoUrl, slug };
+    return { name: data.name, logoUrl: data.logoUrl, slug, primaryColor: data.themeColors?.primary };
   } catch {
     return null;
   }
@@ -32,5 +33,5 @@ export default async function LoginPage() {
   }
 
   const company = await fetchCompanyInfo(companySlug);
-  return <LoginForm companySlug={company ? companySlug : null} company={company} />;
+  return <LoginForm companySlug={company ? companySlug : null} company={company} primaryColor={company?.primaryColor} />;
 }

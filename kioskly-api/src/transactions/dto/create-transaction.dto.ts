@@ -34,6 +34,11 @@ class TransactionItemDto {
   @IsOptional()
   sizeId?: string;
 
+  @ApiProperty({ example: 'light-sweet', required: false })
+  @IsString()
+  @IsOptional()
+  preferenceId?: string;
+
   @ApiProperty({
     example: 98,
     description: 'Subtotal for this item (quantity * price)',

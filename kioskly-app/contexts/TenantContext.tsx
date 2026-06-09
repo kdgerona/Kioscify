@@ -23,6 +23,7 @@ export interface Brand {
   themeColors?: ThemeColors;
   isActive: boolean;
   enabledDeliveryPlatforms?: string[];
+  preferenceLabel?: string;
 }
 
 export interface Company {
@@ -45,6 +46,7 @@ export interface Tenant {
   address?: string;
   themeColors?: ThemeColors;
   isActive: boolean;
+  enabledDeliveryPlatforms?: string[];
   brand?: Brand;
   company?: Company;
 }

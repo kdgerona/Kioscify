@@ -681,6 +681,11 @@ class ApiClient {
     return data;
   }
 
+  async resetStoreUserPassword(storeId: string, userId: string): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/users/stores/${storeId}/${userId}/reset-password`);
+    return data;
+  }
+
   // ─── Reports — time of day ─────────────────────────────────────────────────
 
   async getTimeOfDayTrends(startDate: string, endDate: string): Promise<{ period: { start: string; end: string }; hourlyBreakdown: TimeOfDayData[] }> {

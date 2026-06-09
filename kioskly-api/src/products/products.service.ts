@@ -9,6 +9,8 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { app as appConstants } from '../constants/env.constants';
 import { Prisma } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
@@ -21,6 +23,11 @@ type ProductWithRelations = Prisma.ProductGetPayload<{
     productAddons: {
       include: {
         addon: true;
+      };
+    };
+    productPreferences: {
+      include: {
+        preference: true;
       };
     };
   };
@@ -38,7 +45,7 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto, brandId: string) {
-    const { id, name, price, foodpandaPrice, grabPrice, categoryId, image, sizeIds, addonIds } =
+    const { id, name, price, foodpandaPrice, grabPrice, categoryId, image, sizeIds, addonIds, preferenceIds } =
       createProductDto;
 
     // Generate ID from product name if not provided
@@ -81,6 +88,13 @@ export class ProductsService {
               })),
             }
           : undefined,
+        productPreferences: preferenceIds
+          ? {
+              create: preferenceIds.map((preferenceId) => ({
+                preference: { connect: { id: preferenceId } },
+              })),
+            }
+          : undefined,
       },
       include: {
         category: true,
@@ -92,6 +106,11 @@ export class ProductsService {
         productAddons: {
           include: {
             addon: true,
+          },
+        },
+        productPreferences: {
+          include: {
+            preference: true,
           },
         },
       },
@@ -146,6 +165,11 @@ export class ProductsService {
             addon: true,
           },
         },
+        productPreferences: {
+          include: {
+            preference: true,
+          },
+        },
       },
       orderBy: { name: 'asc' },
     });
@@ -168,6 +192,11 @@ export class ProductsService {
             addon: true,
           },
         },
+        productPreferences: {
+          include: {
+            preference: true,
+          },
+        },
       },
     });
 
@@ -185,7 +214,7 @@ export class ProductsService {
   ) {
     await this.findOne(id, brandId); // Check if exists
 
-    const { sizeIds, addonIds, ...productData } = updateProductDto;
+    const { sizeIds, addonIds, preferenceIds, ...productData } = updateProductDto;
 
     // Update product and its relations
     const product = await this.prisma.product.update({
@@ -208,6 +237,14 @@ export class ProductsService {
             })),
           },
         }),
+        ...(preferenceIds !== undefined && {
+          productPreferences: {
+            deleteMany: {},
+            create: preferenceIds.map((preferenceId) => ({
+              preference: { connect: { id: preferenceId } },
+            })),
+          },
+        }),
       },
       include: {
         category: true,
@@ -221,6 +258,11 @@ export class ProductsService {
             addon: true,
           },
         },
+        productPreferences: {
+          include: {
+            preference: true,
+          },
+        },
       },
     });
 
@@ -228,7 +270,17 @@ export class ProductsService {
   }
 
   async updateImage(id: string, imageUrl: string, brandId: string) {
-    await this.findOne(id, brandId); // Check if exists
+    const existing = await this.findOne(id, brandId);
+
+    if (existing.image) {
+      const relativePath = existing.image.startsWith('http')
+        ? new URL(existing.image).pathname
+        : existing.image;
+      const filePath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
 
     const product = await this.prisma.product.update({
       where: { id },
@@ -243,6 +295,51 @@ export class ProductsService {
         productAddons: {
           include: {
             addon: true,
+          },
+        },
+        productPreferences: {
+          include: {
+            preference: true,
+          },
+        },
+      },
+    });
+
+    return this.formatProduct(product);
+  }
+
+  async removeImage(id: string, brandId: string) {
+    const existing = await this.findOne(id, brandId);
+
+    if (existing.image) {
+      // Strip any base URL prefix to get the relative path (e.g. /uploads/products/file.jpg)
+      const relativePath = existing.image.startsWith('http')
+        ? new URL(existing.image).pathname
+        : existing.image;
+      const filePath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    const product = await this.prisma.product.update({
+      where: { id },
+      data: { image: null },
+      include: {
+        category: true,
+        productSizes: {
+          include: {
+            size: true,
+          },
+        },
+        productAddons: {
+          include: {
+            addon: true,
+          },
+        },
+        productPreferences: {
+          include: {
+            preference: true,
           },
         },
       },
@@ -281,6 +378,8 @@ export class ProductsService {
       sizes: (product.productSizes?.map((ps) => ps.size) || [])
         .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
       addons: (product.productAddons?.map((pa) => pa.addon) || [])
+        .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
+      preferences: (product.productPreferences?.map((pp) => pp.preference) || [])
         .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
     };
   }

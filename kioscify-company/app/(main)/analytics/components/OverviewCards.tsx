@@ -32,24 +32,18 @@ export function OverviewCards({ startDate, endDate }: Props) {
       subtitle: 'Brands operating under your company',
       value: data?.totalBrands ?? 0,
       icon: BookOpen,
-      bgClass: 'bg-orange-50',
-      iconClass: 'text-orange-600',
     },
     {
       label: 'Total Stores',
       subtitle: 'All stores across all brands',
       value: data?.totalStores ?? 0,
       icon: Store,
-      bgClass: 'bg-orange-50',
-      iconClass: 'text-orange-500',
     },
     {
       label: 'Active Stores',
       subtitle: 'Stores with at least one transaction in the selected period',
       value: data?.activeStores ?? 0,
       icon: Activity,
-      bgClass: 'bg-orange-50',
-      iconClass: 'text-orange-600',
     },
   ];
 
@@ -73,12 +67,12 @@ export function OverviewCards({ startDate, endDate }: Props) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      {cards.map(({ label, subtitle, value, icon: Icon, bgClass, iconClass }) => (
+      {cards.map(({ label, subtitle, value, icon: Icon }) => (
         <div key={label} className="bg-white rounded-lg border p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-gray-500">{label}</span>
-            <div className={`p-2 ${bgClass} rounded-lg`}>
-              <Icon className={`w-4 h-4 ${iconClass}`} />
+            <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--company-primary-light, #ea580c18)' }}>
+              <Icon className="w-4 h-4" style={{ color: 'var(--company-primary, #ea580c)' }} />
             </div>
           </div>
           <p className="text-3xl font-bold text-gray-900">{value}</p>

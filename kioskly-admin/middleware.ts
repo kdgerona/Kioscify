@@ -21,15 +21,15 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Match /<companySlug>/<brandSlug> or /<companySlug>/<brandSlug>/<rest>
-  const match = pathname.match(/^\/([a-z0-9-]+)\/([a-z0-9-]+)(\/.*)?$/);
+  // Match /<companySlug>/<brandSlug> or /<companySlug>/<brandSlug>/<storeSlug> or /<companySlug>/<brandSlug>/<storeSlug>/<rest>
+  const match = pathname.match(/^\/([a-z0-9-]+)\/([a-z0-9-]+)(?:\/([a-z0-9-]+))?(\/.*)?$/);
 
   // No match — /login, /dashboard, /_next, etc. — pass through unchanged
   if (!match) {
     return NextResponse.next();
   }
 
-  const [, companySlug, brandSlug, rest] = match;
+  const [, companySlug, brandSlug, storeSlug, rest] = match;
   try {
     const res = await fetch(
       `${apiUrl}/brands/validate-subdomain?companySlug=${encodeURIComponent(companySlug)}&brandSlug=${encodeURIComponent(brandSlug)}`,
@@ -52,6 +52,7 @@ export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-company-slug', companySlug);
   requestHeaders.set('x-brand-slug', brandSlug);
+  if (storeSlug) requestHeaders.set('x-store-slug', storeSlug);
 
   return NextResponse.rewrite(rewriteUrl, { request: { headers: requestHeaders } });
 }

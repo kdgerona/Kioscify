@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/api';
 import { resolveLogoUrl } from '@/lib/utils';
+import { CompanyProvider, useCompany } from '@/contexts/CompanyContext';
 import {
   LayoutDashboard,
   BookOpen,
@@ -25,12 +26,28 @@ const navItems = [
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <CompanyProvider>
+      <MainLayoutInner>{children}</MainLayoutInner>
+    </CompanyProvider>
+  );
+}
+
+function MainLayoutInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { company } = useCompany();
   const [loading, setLoading] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+
+  const primaryColor = company?.themeColors?.primary ?? '#ea580c';
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--company-primary', primaryColor);
+    document.documentElement.style.setProperty('--company-primary-light', `${primaryColor}18`);
+  }, [primaryColor]);
 
   useEffect(() => {
     const token = api.getToken();
@@ -58,21 +75,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
 
     setCompanyName(user.companyName || 'Company Portal');
-
-    api.getMyCompany()
-      .then(company => {
-        setCompanyLogoUrl(resolveLogoUrl(company.logoUrl));
-        if (company.name) setCompanyName(company.name);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    setLoading(false);
   }, [router]);
+
+  useEffect(() => {
+    if (company) {
+      setCompanyLogoUrl(resolveLogoUrl(company.logoUrl));
+      if (company.name) setCompanyName(company.name);
+    }
+  }, [company]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderBottomColor: primaryColor }} />
           <p className="mt-4 text-gray-600 text-sm">Loading...</p>
         </div>
       </div>
@@ -101,8 +118,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               // eslint-disable-next-line @next/next/no-img-element
               <img src={companyLogoUrl} alt={companyName} className="w-8 h-8 object-contain rounded-lg flex-shrink-0 border border-gray-100" />
             ) : (
-              <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center bg-orange-50 border border-orange-100">
-                <Building2 className="w-4 h-4 text-orange-600" />
+              <div
+                className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center"
+                style={{ backgroundColor: `${primaryColor}18`, border: `1px solid ${primaryColor}30` }}
+              >
+                <Building2 className="w-4 h-4" style={{ color: primaryColor }} />
               </div>
             )}
             <div className="min-w-0">
@@ -127,10 +147,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-                  isActive
-                    ? 'bg-orange-50 text-orange-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
+                  isActive ? 'font-medium' : 'text-gray-700 hover:bg-gray-100'
                 }`}
+                style={isActive ? { backgroundColor: `${primaryColor}15`, color: primaryColor } : undefined}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {item.label}
@@ -173,8 +192,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             // eslint-disable-next-line @next/next/no-img-element
             <img src={companyLogoUrl} alt={companyName} className="w-6 h-6 object-contain rounded" />
           ) : (
-            <div className="w-6 h-6 rounded flex items-center justify-center bg-orange-50">
-              <Building2 className="w-3.5 h-3.5 text-orange-600" />
+            <div
+              className="w-6 h-6 rounded flex items-center justify-center"
+              style={{ backgroundColor: `${primaryColor}15` }}
+            >
+              <Building2 className="w-3.5 h-3.5" style={{ color: primaryColor }} />
             </div>
           )}
           <span className="font-semibold text-gray-900 text-sm truncate">{companyName}</span>

@@ -73,7 +73,7 @@ export default function BrandsPage() {
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: 'var(--company-primary, #ea580c)' }} />
       </div>
     );
   }
@@ -88,7 +88,8 @@ export default function BrandsPage() {
         {company?.canCreateBrands && (
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 text-sm font-medium transition-colors"
+            style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
           >
             <Plus className="w-4 h-4" />
             New Brand
@@ -126,7 +127,7 @@ export default function BrandsPage() {
                   onChange={e => handleNameChange(e.target.value)}
                   required
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                  style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   placeholder="e.g. Brand Name"
                 />
               </div>
@@ -139,7 +140,7 @@ export default function BrandsPage() {
                   required
                   pattern="[a-z0-9-]+"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                  style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   placeholder="e.g. brand-name"
                 />
                 <p className="text-xs text-gray-400 mt-1">Lowercase letters, numbers, and hyphens only</p>
@@ -151,7 +152,7 @@ export default function BrandsPage() {
                   onChange={e => setFormDescription(e.target.value)}
                   rows={3}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none"
-                  style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                  style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                 />
               </div>
               <div className="flex gap-3 pt-2">
@@ -165,7 +166,8 @@ export default function BrandsPage() {
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50 transition-colors"
+                  className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50 transition-colors"
+                  style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
                 >
                   {formLoading ? 'Creating...' : 'Create Brand'}
                 </button>
@@ -186,7 +188,7 @@ export default function BrandsPage() {
             {company?.canCreateBrands && (
               <button
                 onClick={() => setShowForm(true)}
-                className="mt-3 text-orange-600 hover:underline text-sm"
+                className="mt-3 hover:underline text-sm" style={{ color: 'var(--company-primary, #ea580c)' }}
               >
                 Create your first brand
               </button>
@@ -213,7 +215,7 @@ export default function BrandsPage() {
                   </div>
                   <a
                     href={`/brands/${brand.id}`}
-                    className="flex items-center gap-1 text-sm text-orange-600 hover:text-orange-800 font-medium"
+                    className="flex items-center gap-1 text-sm hover:opacity-70 font-medium" style={{ color: 'var(--company-primary, #ea580c)' }}
                   >
                     Manage <ArrowRight className="w-3 h-3" />
                   </a>

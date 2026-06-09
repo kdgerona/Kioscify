@@ -10,11 +10,13 @@ import {
   LogOut,
   Menu,
   X,
+  Users,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/companies', label: 'Companies', icon: Building2 },
+  { href: '/users', label: 'Users', icon: Users },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -56,7 +58,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400 mx-auto" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand mx-auto" />
           <p className="mt-4 text-gray-400 text-sm">Loading...</p>
         </div>
       </div>
@@ -82,7 +84,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <div className="p-4 border-b border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Kioscify" className="w-7 h-7 object-contain rounded-lg" />
+            <img src="/logo.png" alt="Kioscify" className="w-9 h-9 object-contain rounded-lg" />
             <div>
               <h2 className="font-bold text-white text-sm">Kioscify</h2>
               <p className="text-xs text-gray-400">Platform Admin</p>
@@ -106,7 +108,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                   isActive
-                    ? 'bg-indigo-600 text-white font-medium'
+                    ? 'bg-brand text-white font-medium'
                     : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                 }`}
               >
@@ -125,15 +127,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <LogOut className="w-4 h-4" />
             Sign Out
           </button>
-          <div className="flex justify-center pt-2 border-t border-gray-700">
-            <div className="flex items-center gap-2 bg-gray-800 rounded-full px-3 py-1.5 border border-gray-700">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-full.png" alt="Kioscify" className="w-8 h-8 object-contain" />
-              <span className="text-[11px] text-gray-400 whitespace-nowrap">
-                Powered by <span className="font-semibold text-gray-300">Kioscify</span>
-              </span>
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -148,7 +141,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <Menu className="w-5 h-5" />
           </button>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Kioscify" className="w-5 h-5 object-contain" />
+          <img src="/logo.png" alt="Kioscify" className="w-7 h-7 object-contain" />
           <span className="font-semibold text-white text-sm">Kioscify Platform</span>
         </header>
 
