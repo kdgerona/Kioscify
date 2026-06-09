@@ -139,4 +139,26 @@ describe('PlatformService — admin management', () => {
       expect(result.isActive).toBe(false);
     });
   });
+
+  describe('resetPlatformAdminPassword', () => {
+    it('throws NotFoundException if target user not found', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      await expect(service.resetPlatformAdminPassword('admin-99')).rejects.toThrow(NotFoundException);
+    });
+
+    it('resets password and sets isFirstLogin: true', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(mockAdmin);
+      mockPrisma.user.update.mockResolvedValue({ ...mockAdmin, isFirstLogin: true });
+
+      const result = await service.resetPlatformAdminPassword('admin-1');
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'admin-1' },
+          data: expect.objectContaining({ isFirstLogin: true }),
+        }),
+      );
+      expect(result.temporaryPassword).toBe('TempPass@123');
+    });
+  });
 });

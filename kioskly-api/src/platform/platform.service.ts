@@ -209,4 +209,35 @@ export class PlatformService {
       },
     });
   }
+
+  async resetPlatformAdminPassword(targetId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: targetId, role: 'PLATFORM_ADMIN' },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        isFirstLogin: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException('Platform admin not found');
+
+    const password = this.authService.generateSecurePassword();
+    const hashed = await bcrypt.hash(password, 12);
+    await this.prisma.user.update({
+      where: { id: targetId },
+      data: { password: hashed, isFirstLogin: true },
+    });
+
+    return {
+      user,
+      temporaryPassword: password,
+      note: 'Share this password via a secure channel. User will be required to change it on first login.',
+    };
+  }
 }
