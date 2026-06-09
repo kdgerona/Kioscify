@@ -133,4 +133,51 @@ export class PlatformService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async createPlatformAdmin(dto: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+  }) {
+    const existing = await this.prisma.user.findFirst({
+      where: { username: dto.username, role: 'PLATFORM_ADMIN' },
+    });
+    if (existing) throw new ConflictException('Username already exists');
+
+    const password = this.authService.generateSecurePassword();
+    const hashed = await bcrypt.hash(password, 12);
+
+    const user = await this.prisma.user.create({
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        email: dto.email,
+        username: dto.username,
+        password: hashed,
+        role: 'PLATFORM_ADMIN',
+        isFirstLogin: true,
+        isActive: true,
+        tenantId: null,
+        companyId: null,
+      },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        isFirstLogin: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      user,
+      temporaryPassword: password,
+      note: 'Share this password via a secure channel. User will be required to change it on first login.',
+    };
+  }
 }

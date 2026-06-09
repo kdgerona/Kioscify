@@ -72,4 +72,41 @@ describe('PlatformService — admin management', () => {
       expect(result).toEqual([mockAdmin]);
     });
   });
+
+  describe('createPlatformAdmin', () => {
+    const dto = {
+      firstName: 'Bob',
+      lastName: 'Jones',
+      email: 'bob@kioscify.com',
+      username: 'bobjones',
+    };
+
+    it('throws ConflictException if username already exists', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(mockAdmin);
+      await expect(service.createPlatformAdmin(dto)).rejects.toThrow(ConflictException);
+    });
+
+    it('creates a new PLATFORM_ADMIN and returns user + temporaryPassword', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      const created = { id: 'admin-2', ...dto, role: 'PLATFORM_ADMIN', isActive: true, isFirstLogin: true };
+      mockPrisma.user.create.mockResolvedValue(created);
+
+      const result = await service.createPlatformAdmin(dto);
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            username: dto.username,
+            email: dto.email,
+            role: 'PLATFORM_ADMIN',
+            isFirstLogin: true,
+            tenantId: null,
+            companyId: null,
+          }),
+        }),
+      );
+      expect(result.temporaryPassword).toBe('TempPass@123');
+      expect(result.user).toEqual(created);
+    });
+  });
 });
