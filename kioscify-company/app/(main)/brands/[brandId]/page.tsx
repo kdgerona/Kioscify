@@ -262,6 +262,9 @@ function Modal({
 
 // ─── Main Page ────────────────────────────────────────────────────────────
 
+const UPLOAD_MAX_SIZE = 5 * 1024 * 1024;
+const UPLOAD_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
 export default function BrandDetailPage() {
   const params = useParams();
   const brandId = params.brandId as string;
@@ -286,6 +289,7 @@ export default function BrandDetailPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
   // Tab data
   const [productCategories, setProductCategories] = useState<Category[]>([]);
@@ -386,6 +390,17 @@ export default function BrandDetailPage() {
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !brand) return;
+    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
+      setLogoUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > UPLOAD_MAX_SIZE) {
+      setLogoUploadError('File too large. Maximum size is 5 MB.');
+      e.target.value = '';
+      return;
+    }
+    setLogoUploadError(null);
     setLogoUploading(true);
     try {
       const updated = await api.uploadBrandLogo(brand.id, file);
@@ -930,6 +945,7 @@ export default function BrandDetailPage() {
                     />
                   </label>
                   <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+                  {logoUploadError && <p className="text-red-500 text-xs mt-1">{logoUploadError}</p>}
                 </div>
               </div>
             </div>
@@ -1383,6 +1399,7 @@ function ProductModal({
   const [imageRemoved, setImageRemoved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   const toggleId = (set: string[], setFn: (v: string[]) => void, id: string) =>
     setFn(set.includes(id) ? set.filter(x => x !== id) : [...set, id]);
@@ -1390,6 +1407,17 @@ function ProductModal({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
+      setImageUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > UPLOAD_MAX_SIZE) {
+      setImageUploadError('File too large. Maximum size is 5 MB.');
+      e.target.value = '';
+      return;
+    }
+    setImageUploadError(null);
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setImageRemoved(false);
@@ -1458,6 +1486,7 @@ function ProductModal({
                 </button>
               )}
               <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+              {imageUploadError && <p className="text-red-500 text-xs mt-1">{imageUploadError}</p>}
             </div>
           </div>
         </div>

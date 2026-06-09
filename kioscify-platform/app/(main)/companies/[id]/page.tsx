@@ -183,6 +183,9 @@ function PasswordBanner({
 
 // ─── Main page ────────────────────────────────────────────────────────────
 
+const UPLOAD_MAX_SIZE = 5 * 1024 * 1024;
+const UPLOAD_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
 export default function CompanyDetailPage() {
   const params = useParams();
   const companyId = params.id as string;
@@ -230,6 +233,7 @@ export default function CompanyDetailPage() {
   // Logo upload
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoSuccess, setLogoSuccess] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
   // Users tab
   const [companyAdmins, setCompanyAdmins] = useState<User[]>([]);
@@ -281,6 +285,7 @@ export default function CompanyDetailPage() {
   const [editBrandLoading, setEditBrandLoading] = useState(false);
   const [editBrandError, setEditBrandError] = useState<string | null>(null);
   const [editBrandLogoUploading, setEditBrandLogoUploading] = useState(false);
+  const [editBrandLogoUploadError, setEditBrandLogoUploadError] = useState<string | null>(null);
 
   const openEditBrand = (brand: Brand) => {
     setEditingBrand(brand);
@@ -315,6 +320,17 @@ export default function CompanyDetailPage() {
   const handleBrandLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingBrand) return;
+    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
+      setEditBrandLogoUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > UPLOAD_MAX_SIZE) {
+      setEditBrandLogoUploadError('File too large. Maximum size is 5 MB.');
+      e.target.value = '';
+      return;
+    }
+    setEditBrandLogoUploadError(null);
     setEditBrandLogoUploading(true);
     try {
       const updated = await api.uploadBrandLogo(editingBrand.id, file);
@@ -431,6 +447,17 @@ export default function CompanyDetailPage() {
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
+      setLogoUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > UPLOAD_MAX_SIZE) {
+      setLogoUploadError('File too large. Maximum size is 5 MB.');
+      e.target.value = '';
+      return;
+    }
+    setLogoUploadError(null);
     setLogoUploading(true);
     try {
       const updated = await api.uploadCompanyLogo(companyId, file);
@@ -916,6 +943,7 @@ export default function CompanyDetailPage() {
                   />
                 </label>
                 <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+                {logoUploadError && <p className="text-red-500 text-xs mt-1">{logoUploadError}</p>}
               </div>
             </div>
           </div>
@@ -1298,6 +1326,7 @@ export default function CompanyDetailPage() {
                   />
                 </label>
                 <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+                {editBrandLogoUploadError && <p className="text-red-500 text-xs mt-1">{editBrandLogoUploadError}</p>}
               </div>
             </div>
 

@@ -12,6 +12,8 @@ import {
   OnboardAdminDto,
 } from './dto/company.dto';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class CompaniesService {
@@ -149,7 +151,14 @@ export class CompaniesService {
   }
 
   async uploadLogo(id: string, logoUrl: string) {
-    await this.assertExists(id);
+    const existing = await this.assertExists(id);
+    if (existing.logoUrl) {
+      const relativePath = existing.logoUrl.startsWith('http')
+        ? new URL(existing.logoUrl).pathname
+        : existing.logoUrl;
+      const filePath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
     return this.prisma.company.update({ where: { id }, data: { logoUrl } });
   }
 

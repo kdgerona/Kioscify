@@ -156,7 +156,12 @@ export class BrandsController {
       }),
       fileFilter: (req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-        cb(allowed.includes(file.mimetype) ? null : new Error('Invalid file type'), allowed.includes(file.mimetype));
+        cb(
+          allowed.includes(file.mimetype)
+            ? null
+            : new BadRequestException('Only JPEG, PNG, WebP, and GIF images are allowed'),
+          allowed.includes(file.mimetype),
+        );
       },
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
