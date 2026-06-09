@@ -171,6 +171,13 @@ export async function syncAll(
   try {
     const db = await getDb();
 
+    // Recover items left in 'syncing' by a previous interrupted run (crash / OS kill).
+    // Starting a new syncAll() means the prior run has ended, so these can safely retry.
+    await db.runAsync(
+      `UPDATE sync_queue SET status = 'pending', error_message = 'recovered after interrupted sync'
+       WHERE status = 'syncing'`,
+    );
+
     // Reset items that failed with HTTP 400 — previously caused by display-only
     // fields; sync loop now strips them, so giving a clean retry.
     await db.runAsync(

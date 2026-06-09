@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSync } from "../contexts/SyncContext";
 
 export default function OfflineBanner() {
-  const { isOnline, pendingCount, failedCount, retryFailed, isSyncing } = useSync();
+  const { isOnline, pendingCount, failedCount, retryFailed, triggerSync, isSyncing } = useSync();
   const insets = useSafeAreaInsets();
 
   if (!isOnline) {
@@ -20,6 +20,27 @@ export default function OfflineBanner() {
             ? `Offline — ${pendingCount} pending ${pendingCount === 1 ? "change" : "changes"}`
             : "Offline mode"}
         </Text>
+      </View>
+    );
+  }
+
+  if (isOnline && pendingCount > 0) {
+    return (
+      <View
+        style={{ paddingTop: insets.top, backgroundColor: "#78350f" }}
+        className="px-4 pb-2 flex-row items-center justify-between gap-2"
+      >
+        <View className="flex-row items-center gap-2">
+          <Ionicons name="sync-outline" size={14} color="#fde68a" />
+          <Text className="text-amber-200 text-xs font-medium">
+            {pendingCount} {pendingCount === 1 ? "change" : "changes"} pending sync
+          </Text>
+        </View>
+        <TouchableOpacity onPress={triggerSync} disabled={isSyncing} className={`px-2 py-1 ${isSyncing ? "opacity-50" : ""}`}>
+          <Text className="text-amber-200 text-xs font-semibold underline">
+            {isSyncing ? "Syncing…" : "Sync now"}
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
