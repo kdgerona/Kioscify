@@ -169,6 +169,7 @@ class ApiClient {
       canCreateBrands: boolean;
       canOnboardStores: boolean;
       isActive: boolean;
+      themeColors: ThemeColors;
     }>
   ): Promise<Company> {
     const { data } = await this.client.patch<Company>(`/companies/${id}`, payload);

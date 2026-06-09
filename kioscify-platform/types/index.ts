@@ -20,6 +20,7 @@ export interface Company {
   description?: string;
   logoUrl?: string;
   contactEmail?: string;
+  themeColors?: ThemeColors;
   canCreateBrands: boolean;
   canOnboardStores: boolean;
   isActive: boolean;

@@ -23,6 +23,7 @@ model Company {
   contactEmail     String?
   contactPhone     String?
   address          String?
+  themeColors      ThemeColors?
   isActive         Boolean  @default(true)
   canCreateBrands  Boolean  @default(false)  // platform toggle: allow company to create brands
   canOnboardStores Boolean  @default(false)  // platform toggle: allow company to create stores

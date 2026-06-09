@@ -6,8 +6,6 @@ import { Eye, EyeOff, Building2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getContrastColor, resolveLogoUrl } from '@/lib/utils';
 
-const PRIMARY = '#ea580c';
-
 interface CompanyInfo {
   name: string;
   logoUrl: string | null;
@@ -17,10 +15,13 @@ interface CompanyInfo {
 export default function LoginForm({
   companySlug,
   company,
+  primaryColor: primaryColorProp,
 }: {
   companySlug: string | null;
   company: CompanyInfo | null;
+  primaryColor?: string;
 }) {
+  const PRIMARY = primaryColorProp ?? '#ea580c';
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');

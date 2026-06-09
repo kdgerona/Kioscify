@@ -265,6 +265,12 @@ export default function CompanyDetailPage() {
   const [brandLoading, setBrandLoading] = useState(false);
   const [brandError, setBrandError] = useState<string | null>(null);
 
+  // Company branding colors
+  const [companyTheme, setCompanyTheme] = useState<ThemeColors>({});
+  const [companyThemeHex, setCompanyThemeHex] = useState<Record<string, string>>({});
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeSuccess, setThemeSuccess] = useState(false);
+
   // Edit brand modal
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [editBrandName, setEditBrandName] = useState('');
@@ -353,6 +359,9 @@ export default function CompanyDetailPage() {
       setCompanyName(companyData.name);
       setContactEmail(companyData.contactEmail || '');
       setIsActive(companyData.isActive);
+      const tc = companyData.themeColors || {};
+      setCompanyTheme(tc);
+      setCompanyThemeHex({ ...tc });
     } catch {
       setError('Failed to load company data');
     } finally {
@@ -399,6 +408,21 @@ export default function CompanyDetailPage() {
       // no-op
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleSaveTheme = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setThemeSaving(true);
+    try {
+      const updated = await api.updateCompany(companyId, { themeColors: companyTheme });
+      setCompany(updated);
+      setThemeSuccess(true);
+      setTimeout(() => setThemeSuccess(false), 3000);
+    } catch {
+      // no-op
+    } finally {
+      setThemeSaving(false);
     }
   };
 
@@ -869,6 +893,65 @@ export default function CompanyDetailPage() {
                 <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP or GIF · Max 5 MB</p>
               </div>
             </div>
+          </div>
+
+          {/* Company branding colors */}
+          <div className="bg-white rounded-lg border">
+            <div className="px-6 py-4 border-b">
+              <h2 className="font-semibold text-gray-900">Company Branding</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Colors applied to the company portal interface</p>
+            </div>
+            <form onSubmit={handleSaveTheme} className="p-6 space-y-4">
+              {themeSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+                  Branding colors saved
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-2">
+                {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => {
+                  const defaultColor = key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : key === 'secondary' ? '#fb923c' : key === 'accent' ? '#fdba74' : '#ea580c';
+                  const colorValue = companyTheme[key] || defaultColor;
+                  const hexValue = companyThemeHex[key] ?? colorValue;
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={colorValue}
+                        onChange={e => {
+                          setCompanyTheme(prev => ({ ...prev, [key]: e.target.value }));
+                          setCompanyThemeHex(prev => ({ ...prev, [key]: e.target.value }));
+                        }}
+                        className="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={hexValue}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setCompanyThemeHex(prev => ({ ...prev, [key]: v }));
+                          if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                            setCompanyTheme(prev => ({ ...prev, [key]: v }));
+                          }
+                        }}
+                        maxLength={7}
+                        placeholder={defaultColor}
+                        spellCheck={false}
+                        className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <label className="text-xs text-gray-600 capitalize">{key}</label>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="submit"
+                disabled={themeSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium"
+              >
+                <Save className="w-4 h-4" />
+                {themeSaving ? 'Saving...' : 'Save Branding'}
+              </button>
+            </form>
           </div>
 
           {/* Onboard admin */}

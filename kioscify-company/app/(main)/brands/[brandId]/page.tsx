@@ -49,7 +49,7 @@ function CRUDRow({
         {sublabel && <p className="text-xs text-gray-400">{sublabel}</p>}
       </div>
       <div className="flex items-center gap-2">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-orange-600 rounded">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
@@ -108,7 +108,7 @@ function CategoryRow({
 
       {/* Edit / Delete */}
       <div className="flex items-center gap-2 shrink-0">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-orange-600 rounded">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
@@ -177,7 +177,7 @@ function ReorderRow({
             <Star className="w-3.5 h-3.5" fill={isDefault ? 'currentColor' : 'none'} />
           </button>
         )}
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-orange-600 rounded">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
@@ -223,7 +223,7 @@ function ProductRow({ product, onEdit, onDelete }: { product: Product; onEdit: (
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:text-orange-600 rounded">
+        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
@@ -504,7 +504,7 @@ export default function BrandDetailPage() {
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: 'var(--company-primary, #ea580c)' }} />
       </div>
     );
   }
@@ -541,9 +541,10 @@ export default function BrandDetailPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'border-orange-600 text-orange-600'
+                  ? 'border-current'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
+              style={activeTab === tab.id ? { color: 'var(--company-primary, #ea580c)' } : undefined}
             >
               {tab.label}
             </button>
@@ -555,7 +556,7 @@ export default function BrandDetailPage() {
       <div>
         {tabLoading && activeTab !== 'overview' && (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600" />
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderBottomColor: 'var(--company-primary, #ea580c)' }} />
           </div>
         )}
 
@@ -777,7 +778,7 @@ export default function BrandDetailPage() {
                             if (e.key === 'Escape') setEditingStoreId(null);
                           }}
                           className="px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white w-full max-w-xs"
-                          style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                          style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                         />
                       ) : (
                         <p className="text-sm font-medium text-gray-900">{store.name}</p>
@@ -789,7 +790,7 @@ export default function BrandDetailPage() {
                         <button
                           onClick={() => openDeliveryModal(store)}
                           title="Delivery Platforms"
-                          className="text-gray-400 hover:text-orange-600 transition-colors"
+                          className="text-gray-400 hover:opacity-70 transition-colors"
                         >
                           <Truck className="w-4 h-4" />
                         </button>
@@ -801,20 +802,20 @@ export default function BrandDetailPage() {
                             storeSlug: store.slug,
                           })}
                           title="View QR Code"
-                          className="text-gray-400 hover:text-orange-600 transition-colors"
+                          className="text-gray-400 hover:opacity-70 transition-colors"
                         >
                           <QrCode className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => copyStoreLink(store)}
                           title="Copy store portal link"
-                          className="text-gray-400 hover:text-orange-600 transition-colors"
+                          className="text-gray-400 hover:opacity-70 transition-colors"
                         >
                           <Copy className="w-4 h-4" />
                         </button>
                         {editingStoreId === store.id ? (
                           <div className="flex gap-3">
-                            <button onClick={() => handleSaveStoreName(store.id)} className="text-sm text-orange-600 hover:text-orange-800 font-medium">Save</button>
+                            <button onClick={() => handleSaveStoreName(store.id)} className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}>Save</button>
                             <button onClick={() => setEditingStoreId(null)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
                           </div>
                         ) : (
@@ -881,7 +882,7 @@ export default function BrandDetailPage() {
                 </button>
                 <button
                   onClick={handleSaveDelivery}
-                  className="text-sm text-white bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-lg font-medium"
+                  className="text-sm text-white px-4 py-2 rounded-lg font-medium hover:brightness-90" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
                 >
                   Save
                 </button>
@@ -912,9 +913,12 @@ export default function BrandDetailPage() {
                   )}
                 </div>
                 <div>
-                  <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-                    logoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-orange-600 text-white hover:bg-orange-700'
-                  }`}>
+                  <label
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                      logoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-white hover:brightness-90'
+                    }`}
+                    style={logoUploading ? undefined : { backgroundColor: 'var(--company-primary, #ea580c)' }}
+                  >
                     <Upload className="w-4 h-4" />
                     {logoUploading ? 'Uploading...' : 'Upload Logo'}
                     <input
@@ -949,7 +953,7 @@ export default function BrandDetailPage() {
                     onChange={e => setSettingsName(e.target.value)}
                     required
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                    style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                    style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   />
                 </div>
                 <div>
@@ -959,7 +963,7 @@ export default function BrandDetailPage() {
                     onChange={e => setSettingsDescription(e.target.value)}
                     rows={2}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none"
-                    style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                    style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   />
                 </div>
 
@@ -995,7 +999,7 @@ export default function BrandDetailPage() {
                             maxLength={7}
                             placeholder={defaultColor}
                             spellCheck={false}
-                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 focus:ring-orange-500"
+                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                           />
                           <span className="text-sm text-gray-600 capitalize">{key}</span>
                         </div>
@@ -1042,14 +1046,14 @@ export default function BrandDetailPage() {
                     onChange={e => setSettingsPreferenceLabel(e.target.value)}
                     placeholder="e.g. Sugar Level"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                    style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+                    style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={settingsSaving}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 text-sm font-medium"
+                  className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 disabled:opacity-50 text-sm font-medium" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
                 >
                   <Save className="w-4 h-4" />
                   {settingsSaving ? 'Saving...' : 'Save Settings'}
@@ -1243,7 +1247,7 @@ function TabSection({
         <h2 className="font-semibold text-gray-900 text-sm">{title}</h2>
         <button
           onClick={onAdd}
-          className="flex items-center gap-1.5 text-sm text-orange-600 hover:text-orange-800 font-medium"
+          className="flex items-center gap-1.5 text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}
         >
           <Plus className="w-4 h-4" /> Add
         </button>
@@ -1315,7 +1319,7 @@ function CategoryModal({
             onChange={e => setName(e.target.value)}
             required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
           />
         </div>
         <div>
@@ -1325,12 +1329,12 @@ function CategoryModal({
             value={description}
             onChange={e => setDescription(e.target.value)}
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
           />
         </div>
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>
@@ -1439,7 +1443,7 @@ function ProductModal({
               )}
             </div>
             <div className="flex-1">
-              <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer bg-orange-600 text-white hover:bg-orange-700 transition-colors">
+              <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-white hover:brightness-90 transition-colors" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
                 <Upload className="w-3.5 h-3.5" />
                 {imagePreview ? 'Change Image' : 'Upload Image'}
                 <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" onChange={handleImageChange} />
@@ -1462,13 +1466,13 @@ function ProductModal({
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
           <input type="text" value={name} onChange={e => setName(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
           <input type="number" value={price} onChange={e => setPrice(e.target.value)} required min="0" step="0.01"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
           brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
@@ -1534,7 +1538,7 @@ function ProductModal({
                     type="checkbox"
                     checked={selectedSizeIds.includes(s.id)}
                     onChange={() => toggleId(selectedSizeIds, setSelectedSizeIds, s.id)}
-                    className="rounded border-gray-300 text-orange-600"
+                    className="rounded border-gray-300" style={{ accentColor: 'var(--company-primary, #ea580c)' }}
                   />
                   <span className="text-sm text-gray-800 flex-1">{s.name}</span>
                   {s.priceModifier !== 0 && (
@@ -1559,7 +1563,7 @@ function ProductModal({
                     type="checkbox"
                     checked={selectedAddonIds.includes(a.id)}
                     onChange={() => toggleId(selectedAddonIds, setSelectedAddonIds, a.id)}
-                    className="rounded border-gray-300 text-orange-600"
+                    className="rounded border-gray-300" style={{ accentColor: 'var(--company-primary, #ea580c)' }}
                   />
                   <span className="text-sm text-gray-800 flex-1">{a.name}</span>
                   <span className="text-xs text-gray-400">+₱{a.price}</span>
@@ -1580,7 +1584,7 @@ function ProductModal({
                     type="checkbox"
                     checked={selectedPreferenceIds.includes(p.id)}
                     onChange={() => toggleId(selectedPreferenceIds, setSelectedPreferenceIds, p.id)}
-                    className="rounded border-gray-300 text-orange-600"
+                    className="rounded border-gray-300" style={{ accentColor: 'var(--company-primary, #ea580c)' }}
                   />
                   <span className="text-sm text-gray-800">{p.name}</span>
                 </label>
@@ -1591,7 +1595,7 @@ function ProductModal({
 
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>
@@ -1668,13 +1672,13 @@ function SizeModal({
           <input type="text" value={name} onChange={e => setName(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
             placeholder="e.g. Small, Medium, Large"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Price Modifier (+₱)</label>
           <input type="number" value={priceModifier} onChange={e => setPriceModifier(e.target.value)} required min="0" step="0.01"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
           brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
@@ -1711,7 +1715,7 @@ function SizeModal({
         )}
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>
@@ -1777,13 +1781,13 @@ function AddonModal({
           <input type="text" value={name} onChange={e => setName(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
             placeholder="e.g. Tapioca, Jelly"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Price (+$)</label>
           <input type="number" value={price} onChange={e => setPrice(e.target.value)} required min="0" step="0.01"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
           brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
@@ -1826,7 +1830,7 @@ function AddonModal({
         )}
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>
@@ -1885,12 +1889,12 @@ function PreferenceModal({
             required
             placeholder="e.g. Light Sweet (50%)"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties}
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
           />
         </div>
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>
@@ -1961,14 +1965,14 @@ function InventoryModal({
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
           <input type="text" value={name} onChange={e => setName(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
           <input type="text" value={unit} onChange={e => setUnit(e.target.value)} required
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
             placeholder="e.g. kg, liters, bags"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Category (optional)</label>
@@ -1988,7 +1992,7 @@ function InventoryModal({
           <label className="block text-sm font-medium text-gray-700 mb-1">Min Stock Level</label>
           <input type="number" value={minStockLevel} onChange={e => setMinStockLevel(e.target.value)} min="0"
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+            style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
         </div>
         <div>
           <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -1996,7 +2000,7 @@ function InventoryModal({
               type="checkbox"
               checked={requiresExpirationDate}
               onChange={e => setRequiresExpirationDate(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+              className="w-4 h-4 rounded border-gray-300" style={{ accentColor: 'var(--company-primary, #ea580c)' }}
             />
             <span className="text-sm font-medium text-gray-700">Track expiration dates</span>
           </label>
@@ -2008,7 +2012,7 @@ function InventoryModal({
               <input type="number" value={expirationWarningDays} onChange={e => setExpirationWarningDays(e.target.value)} min="1"
                 placeholder="7"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                style={{ '--tw-ring-color': '#ea580c' } as React.CSSProperties} />
+                style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
               <p className="mt-1 text-xs text-gray-400">
                 How many days before expiry to show a warning. Defaults to 7 days if left blank.
               </p>
@@ -2017,7 +2021,7 @@ function InventoryModal({
         </div>
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}>
             {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </button>
         </div>

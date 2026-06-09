@@ -14,6 +14,14 @@ export interface User {
   updatedAt: string;
 }
 
+export interface ThemeColors {
+  primary?: string;
+  secondary?: string;
+  accent?: string;
+  background?: string;
+  text?: string;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -21,6 +29,7 @@ export interface Company {
   description?: string;
   logoUrl?: string;
   contactEmail?: string;
+  themeColors?: ThemeColors;
   canCreateBrands: boolean;
   canOnboardStores: boolean;
   isActive: boolean;

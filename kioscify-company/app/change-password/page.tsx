@@ -6,8 +6,6 @@ import { Eye, EyeOff, Building2, KeyRound } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getContrastColor, resolveLogoUrl } from '@/lib/utils';
 
-const PRIMARY = '#ea580c';
-
 export default function ChangePasswordPage() {
   const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState('');
@@ -20,6 +18,7 @@ export default function ChangePasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState('Company Portal');
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
+  const [primaryColor, setPrimaryColor] = useState('#ea580c');
 
   useEffect(() => {
     if (!api.getToken()) {
@@ -39,6 +38,7 @@ export default function ChangePasswordPage() {
       .then(company => {
         if (company.name) setCompanyName(company.name);
         setLogoSrc(resolveLogoUrl(company.logoUrl));
+        if (company.themeColors?.primary) setPrimaryColor(company.themeColors.primary);
       })
       .catch(() => {});
   }, [router]);
@@ -78,7 +78,7 @@ export default function ChangePasswordPage() {
     }
   };
 
-  const panelText = getContrastColor(PRIMARY);
+  const panelText = getContrastColor(primaryColor);
   const panelMuted = panelText === '#ffffff' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.55)';
   const panelPillBg = panelText === '#ffffff' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)';
   const ringColor = panelText === '#ffffff' ? 'white' : '#111827';
@@ -88,7 +88,7 @@ export default function ChangePasswordPage() {
       {/* Left panel — brand identity */}
       <div
         className="hidden lg:flex lg:w-5/12 xl:w-1/2 relative flex-col items-center justify-center p-12 overflow-hidden"
-        style={{ backgroundColor: PRIMARY }}
+        style={{ backgroundColor: primaryColor }}
       >
         {/* Decorative rings */}
         <div
@@ -118,7 +118,7 @@ export default function ChangePasswordPage() {
             />
           ) : (
             <div className="w-28 h-28 rounded-2xl flex items-center justify-center mb-6 shadow-lg bg-white">
-              <Building2 className="w-14 h-14" style={{ color: PRIMARY }} />
+              <Building2 className="w-14 h-14" style={{ color: primaryColor }} />
             </div>
           )}
 
@@ -157,7 +157,7 @@ export default function ChangePasswordPage() {
           ) : (
             <div
               className="w-16 h-16 rounded-xl flex items-center justify-center mb-3"
-              style={{ backgroundColor: PRIMARY }}
+              style={{ backgroundColor: primaryColor }}
             >
               <Building2 className="w-8 h-8 text-white" />
             </div>
@@ -168,7 +168,7 @@ export default function ChangePasswordPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-start gap-3">
             <div className="p-2.5 rounded-xl flex-shrink-0 bg-gray-100">
-              <KeyRound className="w-5 h-5" style={{ color: PRIMARY }} />
+              <KeyRound className="w-5 h-5" style={{ color: primaryColor }} />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Set New Password</h2>
@@ -220,7 +220,7 @@ export default function ChangePasswordPage() {
                     onChange={e => set(e.target.value)}
                     required
                     className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                    style={{ '--tw-ring-color': PRIMARY } as React.CSSProperties}
+                    style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
                   />
                   <button
                     type="button"
@@ -239,7 +239,7 @@ export default function ChangePasswordPage() {
               type="submit"
               disabled={loading}
               className="w-full font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed text-sm hover:brightness-90 mt-2"
-              style={{ backgroundColor: PRIMARY, color: getContrastColor(PRIMARY) }}
+              style={{ backgroundColor: primaryColor, color: getContrastColor(primaryColor) }}
             >
               {loading ? 'Saving...' : 'Set New Password'}
             </button>

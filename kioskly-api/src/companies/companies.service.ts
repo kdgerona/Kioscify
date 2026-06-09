@@ -23,7 +23,7 @@ export class CompaniesService {
   async validateSubdomain(slug: string) {
     const company = await this.prisma.company.findFirst({
       where: { slug, tombstone: { not: 1 } },
-      select: { id: true, slug: true, name: true, logoUrl: true, isActive: true },
+      select: { id: true, slug: true, name: true, logoUrl: true, isActive: true, themeColors: true },
     });
     return {
       valid: !!company,
@@ -31,6 +31,7 @@ export class CompaniesService {
       isActive: company?.isActive ?? false,
       name: company?.name ?? null,
       logoUrl: company?.logoUrl ?? null,
+      themeColors: company?.themeColors ?? null,
     };
   }
 

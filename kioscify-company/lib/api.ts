@@ -141,7 +141,7 @@ class ApiClient {
 
   async updateCompany(
     id: string,
-    payload: Partial<Pick<Company, 'name' | 'contactEmail' | 'description'>>
+    payload: Partial<Pick<Company, 'name' | 'contactEmail' | 'description' | 'themeColors'>>
   ): Promise<Company> {
     const { data } = await this.client.patch<Company>(`/companies/${id}`, payload);
     return data;
