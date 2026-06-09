@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { resolveLogoUrl } from '@/lib/utils';
 import { CompanyProvider, useCompany } from '@/contexts/CompanyContext';
@@ -143,7 +144,7 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
@@ -153,7 +154,7 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {item.label}
-              </a>
+              </Link>
             );
           })}
         </nav>

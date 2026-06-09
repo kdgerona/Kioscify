@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import type { Company, Brand } from '@/types';
 import { Building2, Store, BookOpen, ArrowRight } from 'lucide-react';
@@ -103,20 +104,20 @@ export default function DashboardPage() {
       <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">Your Brands</h2>
-          <a
+          <Link
             href="/brands"
             className="text-sm hover:opacity-80 flex items-center gap-1" style={{ color: 'var(--company-primary, #ea580c)' }}
           >
             View all <ArrowRight className="w-3 h-3" />
-          </a>
+          </Link>
         </div>
         {brands.length === 0 ? (
           <div className="px-6 py-10 text-center text-gray-400 text-sm">
             No brands yet.{' '}
             {company?.canCreateBrands && (
-              <a href="/brands" className="hover:underline" style={{ color: 'var(--company-primary, #ea580c)' }}>
+              <Link href="/brands" className="hover:underline" style={{ color: 'var(--company-primary, #ea580c)' }}>
                 Create your first brand
-              </a>
+              </Link>
             )}
           </div>
         ) : (

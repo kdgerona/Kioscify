@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Brand, Store, Category, Product, Size, Addon, Preference, InventoryBrandTemplate } from '@/types';
@@ -538,9 +539,9 @@ export default function BrandDetailPage() {
     <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <a href="/brands" className="text-gray-400 hover:text-gray-600">
+        <Link href="/brands" className="text-gray-400 hover:text-gray-600">
           <ChevronLeft className="w-5 h-5" />
-        </a>
+        </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{brand.name}</h1>
           <p className="text-sm text-gray-500">{brand.slug}</p>
