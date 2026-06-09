@@ -240,4 +240,17 @@ export class PlatformService {
       note: 'Share this password via a secure channel. User will be required to change it on first login.',
     };
   }
+
+  async deletePlatformAdmin(requestingUserId: string, targetId: string) {
+    if (requestingUserId === targetId) {
+      throw new ForbiddenException('Cannot delete your own account');
+    }
+    const user = await this.prisma.user.findFirst({
+      where: { id: targetId, role: 'PLATFORM_ADMIN' },
+    });
+    if (!user) throw new NotFoundException('Platform admin not found');
+
+    await this.prisma.user.delete({ where: { id: targetId } });
+    return { message: 'Platform admin deleted' };
+  }
 }

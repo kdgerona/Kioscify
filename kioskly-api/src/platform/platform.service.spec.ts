@@ -161,4 +161,29 @@ describe('PlatformService — admin management', () => {
       expect(result.temporaryPassword).toBe('TempPass@123');
     });
   });
+
+  describe('deletePlatformAdmin', () => {
+    it('throws ForbiddenException if admin tries to delete themselves', async () => {
+      await expect(
+        service.deletePlatformAdmin('admin-1', 'admin-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws NotFoundException if target user not found', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      await expect(
+        service.deletePlatformAdmin('admin-1', 'admin-99'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('hard deletes the target user', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(mockAdmin);
+      mockPrisma.user.delete.mockResolvedValue(mockAdmin);
+
+      const result = await service.deletePlatformAdmin('admin-1', 'admin-2');
+
+      expect(mockPrisma.user.delete).toHaveBeenCalledWith({ where: { id: 'admin-2' } });
+      expect(result).toEqual({ message: 'Platform admin deleted' });
+    });
+  });
 });
