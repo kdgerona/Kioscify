@@ -339,6 +339,16 @@ class ApiClient {
     const { data } = await this.client.post(`/users/stores/${storeId}`, payload);
     return data;
   }
+
+  async updateCompanyUser(companyId: string, userId: string, payload: { isActive: boolean }): Promise<User> {
+    const { data } = await this.client.patch(`/users/companies/${companyId}/${userId}`, payload);
+    return data;
+  }
+
+  async deleteUser(userId: string): Promise<{ message: string }> {
+    const { data } = await this.client.delete(`/users/${userId}`);
+    return data;
+  }
 }
 
 export const api = new ApiClient();

@@ -73,12 +73,10 @@ export default function UsersPage() {
   const handleToggleActive = async (user: User) => {
     if (!company) return;
     try {
-      const updated = await api.updateCompanyUser(company.id, user.id, {
-        isActive: !user.isActive,
-      });
-      setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
+      await api.updateCompanyUser(company.id, user.id, { isActive: !user.isActive });
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: !user.isActive } : u));
     } catch {
-      // silent
+      toast.error('Failed to update user. Please try again.');
     }
   };
 
@@ -102,9 +100,9 @@ export default function UsersPage() {
     if (!company) return;
     try {
       await api.deactivateCompanyUser(company.id, user.id);
-      setUsers(prev => prev.filter(u => u.id !== user.id));
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: false } : u));
     } catch {
-      // silent
+      toast.error('Failed to remove user. Please try again.');
     }
   };
 
@@ -242,34 +240,44 @@ export default function UsersPage() {
                   <p className="text-xs text-gray-400">{user.username} · {user.email}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    user.isFirstLogin
-                      ? 'bg-amber-50 text-amber-700'
-                      : user.isActive
-                        ? 'bg-green-50 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {user.isFirstLogin ? 'Pending setup' : user.isActive ? 'Active' : 'Inactive'}
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${user.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {user.isActive ? 'Active' : 'Inactive'}
                   </span>
+                  {user.isFirstLogin && (
+                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-amber-50 text-amber-700">
+                      Pending login
+                    </span>
+                  )}
                   {currentUser?.id !== user.id && (
                     <div className="flex items-center gap-2">
-                      {user.isFirstLogin ? (
+                      {!user.isActive ? (
                         <button
-                          onClick={() => handleRemoveUser(user)}
-                          title="Remove pending user"
-                          className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                          onClick={() => handleToggleActive(user)}
+                          title="Enable account"
+                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <UserCheck className="w-4 h-4" />
                         </button>
                       ) : (
                         <>
-                          <button
-                            onClick={() => handleToggleActive(user)}
-                            title={user.isActive ? 'Deactivate' : 'Activate'}
-                            className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
-                          >
-                            {user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                          </button>
+                          {user.isFirstLogin && (
+                            <button
+                              onClick={() => handleRemoveUser(user)}
+                              title="Remove pending user"
+                              className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {!user.isFirstLogin && (
+                            <button
+                              onClick={() => handleToggleActive(user)}
+                              title="Disable account"
+                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                            >
+                              <UserX className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleResetPassword(user)}
                             title="Reset password"

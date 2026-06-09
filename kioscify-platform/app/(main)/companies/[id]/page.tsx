@@ -10,7 +10,6 @@ import {
   Plus,
   X,
   Copy,
-  Check,
   Save,
   UserPlus,
   Store as StoreIcon,
@@ -18,10 +17,14 @@ import {
   Pencil,
   QrCode,
   KeyRound,
+  Trash2,
   Users,
   ShieldCheck,
   BadgeCheck,
+  UserCheck,
+  UserX,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
 
 type Tab = 'settings' | 'brands' | 'stores' | 'users';
@@ -126,6 +129,24 @@ function AdminFields({
   );
 }
 
+// ─── Clipboard helper ─────────────────────────────────────────────────────
+
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.setAttribute('readonly', '');
+    el.style.cssText = 'position:absolute;left:-9999px';
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+  }
+  toast.success('Password copied to clipboard!');
+};
+
 // ─── Password result banner ───────────────────────────────────────────────
 
 function PasswordBanner({
@@ -137,14 +158,6 @@ function PasswordBanner({
   password: string;
   onClose: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const copy = () => {
-    navigator.clipboard.writeText(password);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
       <div className="flex items-center justify-between mb-2">
@@ -157,11 +170,11 @@ function PasswordBanner({
       <div className="flex items-center gap-2 bg-white rounded border border-green-200 px-3 py-2">
         <code className="text-sm font-mono flex-1">{password}</code>
         <button
-          onClick={copy}
+          onClick={() => copyToClipboard(password)}
           className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs"
         >
-          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-          {copied ? 'Copied' : 'Copy'}
+          <Copy className="w-3.5 h-3.5" />
+          Copy
         </button>
       </div>
     </div>
@@ -612,6 +625,37 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const currentUserId = (() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw).id : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const handleRemoveUser = async (user: User) => {
+    try {
+      await api.deleteUser(user.id);
+      await loadUsers();
+    } catch (err) {
+      console.error('Failed to remove user:', err);
+      toast.error('Failed to remove user. Please try again.');
+    }
+  };
+
+  const handleToggleUser = async (user: User) => {
+    if (!company?.id) return;
+    try {
+      await api.updateCompanyUser(company.id, user.id, { isActive: !user.isActive });
+      await loadUsers();
+    } catch (err) {
+      console.error('Failed to update user:', err);
+      toast.error('Failed to update user. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-64">
@@ -1005,7 +1049,7 @@ export default function CompanyDetailPage() {
                 ) : (
                   <div className="divide-y">
                     {companyAdmins.map(user => (
-                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
+                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} currentUserId={currentUserId} />
                     ))}
                   </div>
                 )}
@@ -1062,7 +1106,7 @@ export default function CompanyDetailPage() {
                                 ) : (
                                   <div className="divide-y">
                                     {staff.map(user => (
-                                      <UserRow key={`${user.id}-${store.id}`} user={{ ...user, role: user.assignedRole as any }} isAssigned={user.isAssigned} onReset={handleResetPassword} resetting={resetingUserId === user.id} />
+                                      <UserRow key={`${user.id}-${store.id}`} user={{ ...user, role: user.assignedRole as any }} isAssigned={user.isAssigned} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} currentUserId={currentUserId} />
                                     ))}
                                   </div>
                                 )}
@@ -1684,11 +1728,17 @@ function UserRow({
   isAssigned,
   onReset,
   resetting,
+  onRemove,
+  onToggle,
+  currentUserId,
 }: {
   user: User;
   isAssigned?: boolean;
   onReset: (user: User) => void;
   resetting: boolean;
+  onRemove: (user: User) => void;
+  onToggle: (user: User) => void;
+  currentUserId: string | null;
 }) {
   const roleBadge: Record<string, string> = {
     COMPANY_ADMIN: 'bg-purple-100 text-purple-700',
@@ -1696,6 +1746,8 @@ function UserRow({
     ADMIN: 'bg-blue-100 text-blue-700',
     CASHIER: 'bg-gray-100 text-gray-700',
   };
+
+  const isSelf = user.id === currentUserId;
 
   return (
     <div className="px-5 py-4 flex items-center gap-4">
@@ -1713,26 +1765,57 @@ function UserRow({
         <p className="text-xs text-gray-400 mt-0.5">{user.email}</p>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        {user.isFirstLogin ? (
+        <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${user.isActive ? 'text-green-600 bg-green-50' : 'text-gray-500 bg-gray-100'}`}>
+          {user.isActive ? <BadgeCheck className="w-3 h-3" /> : null}
+          {user.isActive ? 'Active' : 'Inactive'}
+        </span>
+        {user.isFirstLogin && (
           <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-            Pending setup
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">
-            <BadgeCheck className="w-3 h-3" />
-            Active
+            Pending login
           </span>
         )}
-        <button
-          onClick={() => onReset(user)}
-          disabled={resetting}
-          title="Reset password"
-          className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 border border-gray-200 hover:border-indigo-300 rounded px-2.5 py-1.5 transition-colors disabled:opacity-50"
-        >
-          <KeyRound className="w-3.5 h-3.5" />
-          {resetting ? 'Resetting...' : 'Reset Password'}
-        </button>
+        {!isSelf && !user.isActive && (
+          <button
+            onClick={() => onToggle(user)}
+            title="Enable account"
+            aria-label="Enable account"
+            className="p-1.5 text-gray-400 hover:text-green-600 rounded transition-colors"
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!isSelf && user.isActive && user.isFirstLogin && (
+          <button
+            onClick={() => onRemove(user)}
+            title="Remove pending user"
+            aria-label="Remove pending user"
+            className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!isSelf && user.isActive && !user.isFirstLogin && (
+          <button
+            onClick={() => onToggle(user)}
+            title="Disable account"
+            aria-label="Disable account"
+            className="p-1.5 text-gray-400 hover:text-gray-600 rounded transition-colors"
+          >
+            <UserX className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!isSelf && user.isActive && (
+          <button
+            onClick={() => onReset(user)}
+            disabled={resetting}
+            title="Reset password"
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-amber-600 border border-gray-200 hover:border-amber-300 rounded px-2.5 py-1.5 transition-colors disabled:opacity-50"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            {resetting ? 'Resetting...' : 'Reset Password'}
+          </button>
+        )}
       </div>
     </div>
   );

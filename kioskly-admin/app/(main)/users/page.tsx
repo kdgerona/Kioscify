@@ -376,48 +376,61 @@ export default function UsersPage() {
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-2">
-                          {user.isFirstLogin ? (
-                            <div className="relative group inline-block">
-                              <button
-                                onClick={() => handleRemoveUser(user)}
-                                disabled={removingUserId === user.id}
-                                className="text-gray-400 hover:text-red-500 disabled:opacity-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                Remove pending user
-                              </div>
-                            </div>
-                          ) : (
+                          {!user.isActive ? (
                             <div className="relative group inline-block">
                               <button
                                 onClick={() => handleToggleActive(user)}
                                 className="text-gray-400 hover:text-gray-600"
                               >
-                                {user.isActive ? (
-                                  <UserX className="h-4 w-4" />
-                                ) : (
-                                  <UserCheck className="h-4 w-4" />
-                                )}
+                                <UserCheck className="h-4 w-4" />
                               </button>
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                {user.isActive ? 'Disable account' : 'Enable account'}
+                                Enable account
                               </div>
                             </div>
+                          ) : (
+                            <>
+                              {user.isFirstLogin && (
+                                <div className="relative group inline-block">
+                                  <button
+                                    onClick={() => handleRemoveUser(user)}
+                                    disabled={removingUserId === user.id}
+                                    className="text-gray-400 hover:text-red-500 disabled:opacity-50"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Remove pending user
+                                  </div>
+                                </div>
+                              )}
+                              {!user.isFirstLogin && (
+                                <div className="relative group inline-block">
+                                  <button
+                                    onClick={() => handleToggleActive(user)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                  >
+                                    <UserX className="h-4 w-4" />
+                                  </button>
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Disable account
+                                  </div>
+                                </div>
+                              )}
+                              <div className="relative group inline-block">
+                                <button
+                                  onClick={() => handleResetPassword(user)}
+                                  disabled={resettingUserId === user.id}
+                                  className="text-gray-400 hover:text-amber-500 disabled:opacity-50"
+                                >
+                                  <KeyRound className="h-4 w-4" />
+                                </button>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                  Reset password
+                                </div>
+                              </div>
+                            </>
                           )}
-                          <div className="relative group inline-block">
-                            <button
-                              onClick={() => handleResetPassword(user)}
-                              disabled={resettingUserId === user.id}
-                              className="text-gray-400 hover:text-amber-500 disabled:opacity-50"
-                            >
-                              <KeyRound className="h-4 w-4" />
-                            </button>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                              Reset password
-                            </div>
-                          </div>
                         </div>
                       )
                     )}
