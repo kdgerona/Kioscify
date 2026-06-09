@@ -169,6 +169,22 @@ export class ProductsController {
     return this.productsService.updateImage(id, imageUrl, queryBrandId || jwtBrandId);
   }
 
+  @Delete(':id/image')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove product image (admin only)' })
+  @ApiResponse({ status: 200, description: 'Image removed successfully' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  @ApiQuery({ name: 'brandId', required: false })
+  removeImage(
+    @Param('id') id: string,
+    @Query('brandId') queryBrandId: string,
+    @BrandId() jwtBrandId: string,
+  ) {
+    return this.productsService.removeImage(id, queryBrandId || jwtBrandId);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')

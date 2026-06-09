@@ -1376,6 +1376,7 @@ function ProductModal({
   const [selectedPreferenceIds, setSelectedPreferenceIds] = useState<string[]>(item?.preferences?.map(p => p.id) ?? []);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(resolveUrl(item?.image));
+  const [imageRemoved, setImageRemoved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1387,6 +1388,7 @@ function ProductModal({
     if (!file) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+    setImageRemoved(false);
     e.target.value = '';
   };
 
@@ -1405,6 +1407,8 @@ function ProductModal({
       }
       if (imageFile) {
         result = await api.uploadProductImage(result.id, brandId, imageFile);
+      } else if (imageRemoved && item?.image) {
+        result = await api.removeProductImage(result.id, brandId);
       }
       onSave(result);
     } catch (err: unknown) {
@@ -1443,7 +1447,7 @@ function ProductModal({
               {imagePreview && (
                 <button
                   type="button"
-                  onClick={() => { setImageFile(null); setImagePreview(null); }}
+                  onClick={() => { setImageFile(null); setImagePreview(null); setImageRemoved(true); }}
                   className="ml-2 text-xs text-gray-400 hover:text-red-500"
                 >
                   Remove

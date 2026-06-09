@@ -9,6 +9,8 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { app as appConstants } from '../constants/env.constants';
 import { Prisma } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
@@ -268,11 +270,61 @@ export class ProductsService {
   }
 
   async updateImage(id: string, imageUrl: string, brandId: string) {
-    await this.findOne(id, brandId); // Check if exists
+    const existing = await this.findOne(id, brandId);
+
+    if (existing.image) {
+      const relativePath = existing.image.startsWith('http')
+        ? new URL(existing.image).pathname
+        : existing.image;
+      const filePath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
 
     const product = await this.prisma.product.update({
       where: { id },
       data: { image: imageUrl },
+      include: {
+        category: true,
+        productSizes: {
+          include: {
+            size: true,
+          },
+        },
+        productAddons: {
+          include: {
+            addon: true,
+          },
+        },
+        productPreferences: {
+          include: {
+            preference: true,
+          },
+        },
+      },
+    });
+
+    return this.formatProduct(product);
+  }
+
+  async removeImage(id: string, brandId: string) {
+    const existing = await this.findOne(id, brandId);
+
+    if (existing.image) {
+      // Strip any base URL prefix to get the relative path (e.g. /uploads/products/file.jpg)
+      const relativePath = existing.image.startsWith('http')
+        ? new URL(existing.image).pathname
+        : existing.image;
+      const filePath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    const product = await this.prisma.product.update({
+      where: { id },
+      data: { image: null },
       include: {
         category: true,
         productSizes: {

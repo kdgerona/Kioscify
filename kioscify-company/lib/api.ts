@@ -259,6 +259,13 @@ class ApiClient {
     return data;
   }
 
+  async removeProductImage(id: string, brandId: string): Promise<Product> {
+    const { data } = await this.client.delete<Product>(`/products/${id}/image`, {
+      params: { brandId },
+    });
+    return data;
+  }
+
   async deleteProduct(id: string): Promise<void> {
     await this.client.delete(`/products/${id}`);
   }
