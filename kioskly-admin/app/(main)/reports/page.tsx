@@ -76,6 +76,11 @@ export default function ReportsPage() {
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionTotal, setTransactionTotal] = useState(0);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const [transactionTotalPages, setTransactionTotalPages] = useState(1);
+  // Tracks the active filter for the modal so page navigation re-uses it
+  const transactionFilterRef = useRef<{ params: Record<string, string>; paymentMethod?: string }>({ params: {} });
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [hourlyData, setHourlyData] = useState<TimeOfDayData[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
@@ -419,14 +424,13 @@ export default function ReportsPage() {
     window.URL.revokeObjectURL(url);
   };
 
-  const loadTransactions = async () => {
+  const loadTransactions = async (requestPage = 1) => {
     try {
       setLoadingTransactions(true);
-      setSelectedPaymentMethod(null); // Reset filter when viewing all
+      setSelectedPaymentMethod(null);
       const params: { startDate?: string; endDate?: string } = {};
 
       if (period === "custom" && startDate && endDate) {
-        // Convert YYYY-MM-DD to full datetime with start/end of day
         const start = new Date(startDate + "T00:00:00");
         const end = new Date(endDate + "T23:59:59.999");
         params.startDate = start.toISOString();
@@ -436,8 +440,12 @@ export default function ReportsPage() {
         params.endDate = analytics.period.end;
       }
 
-      const data = await api.getTransactions(params);
-      setTransactions(data);
+      transactionFilterRef.current = { params };
+      const result = await api.getTransactions({ ...params, page: requestPage, limit: 50 });
+      setTransactions(result.data);
+      setTransactionTotal(result.total);
+      setTransactionPage(result.page);
+      setTransactionTotalPages(result.totalPages);
       setShowTransactionModal(true);
     } catch (error) {
       console.error("Failed to load transactions:", error);
@@ -472,14 +480,13 @@ export default function ReportsPage() {
     }
   };
 
-  const loadTransactionsByPaymentMethod = async (paymentMethod: string) => {
+  const loadTransactionsByPaymentMethod = async (paymentMethod: string, requestPage = 1) => {
     try {
       setLoadingTransactions(true);
       setSelectedPaymentMethod(paymentMethod);
       const params: { startDate?: string; endDate?: string } = {};
 
       if (period === "custom" && startDate && endDate) {
-        // Convert YYYY-MM-DD to full datetime with start/end of day
         const start = new Date(startDate + "T00:00:00");
         const end = new Date(endDate + "T23:59:59.999");
         params.startDate = start.toISOString();
@@ -489,12 +496,12 @@ export default function ReportsPage() {
         params.endDate = analytics.period.end;
       }
 
-      const allTransactions = await api.getTransactions(params);
-      // Filter transactions by payment method
-      const filteredTransactions = allTransactions.filter(
-        (t: Transaction) => t.paymentMethod === paymentMethod
-      );
-      setTransactions(filteredTransactions);
+      transactionFilterRef.current = { params, paymentMethod };
+      const result = await api.getTransactions({ ...params, paymentMethod, page: requestPage, limit: 50 });
+      setTransactions(result.data);
+      setTransactionTotal(result.total);
+      setTransactionPage(result.page);
+      setTransactionTotalPages(result.totalPages);
       setShowTransactionModal(true);
     } catch (error) {
       console.error("Failed to load transactions:", error);
@@ -590,7 +597,7 @@ export default function ReportsPage() {
         </div>
 
         <button
-          onClick={loadTransactions}
+          onClick={() => loadTransactions(1)}
           disabled={loadingTransactions}
           className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
         >
@@ -1152,14 +1159,27 @@ export default function ReportsPage() {
         onClose={() => {
           setShowTransactionModal(false);
           setSelectedPaymentMethod(null);
+          setTransactionPage(1);
         }}
         transactions={transactions}
         primaryColor={primaryColor}
         title={
           selectedPaymentMethod
-            ? `${selectedPaymentMethod} Transactions`
+            ? `${getPaymentMethodLabel(selectedPaymentMethod)} Transactions`
             : "All Transactions"
         }
+        totalCount={transactionTotal}
+        currentPage={transactionPage}
+        totalPages={transactionTotalPages}
+        isLoading={loadingTransactions}
+        onPageChange={(page) => {
+          const { params, paymentMethod } = transactionFilterRef.current;
+          if (paymentMethod) {
+            loadTransactionsByPaymentMethod(paymentMethod, page);
+          } else {
+            loadTransactions(page);
+          }
+        }}
       />
 
       {/* Expense List Modal */}

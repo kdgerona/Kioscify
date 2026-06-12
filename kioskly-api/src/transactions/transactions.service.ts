@@ -8,7 +8,7 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { VoidFiltersDto, VoidStatusFilter } from './dto/void-filters.dto';
 import { Prisma } from '@prisma/client';
 
-// Type for transaction with all includes
+// Type for transaction with all includes (used by findOne and write operations)
 type TransactionWithIncludes = Prisma.TransactionGetPayload<{
   include: {
     user: {
@@ -31,6 +31,22 @@ type TransactionWithIncludes = Prisma.TransactionGetPayload<{
             addon: true;
           };
         };
+      };
+    };
+  };
+}>;
+
+// Lean type for list view — no items
+type TransactionSummary = Prisma.TransactionGetPayload<{
+  include: {
+    user: {
+      select: {
+        id: true;
+        username: true;
+        firstName: true;
+        lastName: true;
+        email: true;
+        role: true;
       };
     };
   };
@@ -133,8 +149,14 @@ export class TransactionsService {
       paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED';
       search?: string;
       includeVoided?: boolean;
+      page?: number;
+      limit?: number;
     },
   ) {
+    const page = Math.max(1, filters?.page ?? 1);
+    const limit = Math.min(200, Math.max(1, filters?.limit ?? 50));
+    const skip = (page - 1) * limit;
+
     const where: Prisma.TransactionWhereInput = { tenantId };
 
     if (filters?.startDate || filters?.endDate) {
@@ -152,7 +174,6 @@ export class TransactionsService {
     }
 
     if (filters?.search) {
-      // Find users whose name or username matches the search term
       const matchingUsers = await this.prisma.user.findMany({
         where: {
           tenantId,
@@ -185,36 +206,35 @@ export class TransactionsService {
       };
     }
 
-    const transactions = await this.prisma.transaction.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-        items: {
-          include: {
-            product: true,
-            size: true,
-            preference: true,
-            addons: {
-              include: {
-                addon: true,
-              },
+    const [transactions, total] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
             },
           },
         },
-      },
-      orderBy: { timestamp: 'desc' },
-    });
+        orderBy: { timestamp: 'desc' },
+        take: limit,
+        skip,
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
 
-    return transactions.map((t) => this.formatTransaction(t));
+    return {
+      data: transactions.map((t) => this.formatTransactionSummary(t)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: string, tenantId: string) {
@@ -368,6 +388,34 @@ export class TransactionsService {
       averageTransaction,
       totalItems,
       paymentMethodBreakdown,
+    };
+  }
+
+  private formatTransactionSummary(t: TransactionSummary) {
+    return {
+      id: t.id,
+      transactionId: t.transactionId,
+      userId: t.userId,
+      user: t.user,
+      subtotal: t.subtotal,
+      total: t.total,
+      paymentMethod: t.paymentMethod,
+      paymentStatus: (t as any).paymentStatus || 'COMPLETED',
+      cashReceived: t.cashReceived,
+      change: t.change,
+      referenceNumber: t.referenceNumber,
+      remarks: t.remarks,
+      discountAmount: (t as any).discountAmount ?? null,
+      timestamp: t.timestamp,
+      voidStatus: (t as any).voidStatus || 'NONE',
+      voidReason: (t as any).voidReason,
+      voidRequestedBy: (t as any).voidRequestedBy,
+      voidRequestedAt: (t as any).voidRequestedAt,
+      voidReviewedBy: (t as any).voidReviewedBy,
+      voidReviewedAt: (t as any).voidReviewedAt,
+      voidRejectionReason: (t as any).voidRejectionReason,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
     };
   }
 

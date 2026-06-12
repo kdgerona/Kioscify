@@ -149,8 +149,10 @@ class ApiClient {
     paymentMethod?: string;
     paymentStatus?: string;
     search?: string;
-  }): Promise<Transaction[]> {
-    const { data } = await this.client.get<Transaction[]>("/transactions", {
+    page?: number;
+    limit?: number;
+  }): Promise<{ data: Transaction[]; total: number; page: number; limit: number; totalPages: number }> {
+    const { data } = await this.client.get<{ data: Transaction[]; total: number; page: number; limit: number; totalPages: number }>("/transactions", {
       params,
     });
     return data;

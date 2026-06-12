@@ -77,6 +77,8 @@ export class TransactionsController {
     required: false,
     description: 'Search by transaction ID or cashier name (partial match)',
   })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 50, max: 200)' })
   @ApiResponse({
     status: 200,
     description: 'Transactions retrieved successfully',
@@ -88,6 +90,8 @@ export class TransactionsController {
     paymentMethod?: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE',
     @Query('paymentStatus') paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED',
     @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Request() req?,
   ) {
     const filters: any = {};
@@ -96,6 +100,8 @@ export class TransactionsController {
     if (paymentMethod) filters.paymentMethod = paymentMethod;
     if (paymentStatus) filters.paymentStatus = paymentStatus;
     if (search) filters.search = search;
+    if (page) filters.page = parseInt(page, 10);
+    if (limit) filters.limit = parseInt(limit, 10);
 
     return this.transactionsService.findAll(req.user.tenantId, filters);
   }

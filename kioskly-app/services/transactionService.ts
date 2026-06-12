@@ -300,6 +300,9 @@ export const getTransactions = async (
   if (filters?.startDate) params.append("startDate", filters.startDate);
   if (filters?.endDate) params.append("endDate", filters.endDate);
   if (filters?.paymentMethod) params.append("paymentMethod", filters.paymentMethod);
+  // Always fetch enough for a full day on the mobile — the portal paginates but
+  // the app only ever queries a single day's window, so 1000 covers all cases.
+  params.append("limit", "1000");
   const queryString = params.toString();
   const endpoint = `/transactions${queryString ? `?${queryString}` : ""}`;
 
@@ -312,7 +315,9 @@ export const getTransactions = async (
   try {
     const response = await apiGet(endpoint);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data: TransactionResponse[] = await response.json();
+    const json = await response.json();
+    // API now returns a paginated envelope { data, total, page, ... }
+    const data: TransactionResponse[] = Array.isArray(json) ? json : (json.data ?? []);
     await cacheTransactions(data);
     const pending = await getPending();
     // De-duplicate by transactionId (the TXN… string) — both server responses and

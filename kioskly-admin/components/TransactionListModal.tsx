@@ -11,6 +11,11 @@ interface TransactionListModalProps {
   transactions: Transaction[];
   primaryColor: string;
   title?: string;
+  totalCount?: number;
+  currentPage?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
+  isLoading?: boolean;
 }
 
 export default function TransactionListModal({
@@ -19,8 +24,15 @@ export default function TransactionListModal({
   transactions,
   primaryColor,
   title = "All Transactions",
+  totalCount,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange,
+  isLoading = false,
 }: TransactionListModalProps) {
   if (!isOpen) return null;
+
+  const isPaginated = totalCount !== undefined && onPageChange !== undefined;
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -60,7 +72,9 @@ export default function TransactionListModal({
           <div>
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold">{title}</h2>
             <p className="text-xs sm:text-sm opacity-90 mt-1">
-              {transactions.length} transaction(s)
+              {isPaginated
+                ? `${totalCount} transaction${totalCount !== 1 ? "s" : ""} total`
+                : `${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}`}
             </p>
           </div>
           <button
@@ -72,8 +86,13 @@ export default function TransactionListModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
-          {transactions.length === 0 ? (
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 relative">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }} />
+            </div>
+          )}
+          {transactions.length === 0 && !isLoading ? (
             <div className="py-12 text-center text-gray-500">
               No transactions found
             </div>
@@ -289,16 +308,39 @@ export default function TransactionListModal({
         </div>
 
         {/* Footer */}
-        {transactions.length > 0 && (
+        {(transactions.length > 0 || isPaginated) && (
           <div className="px-4 py-3 sm:px-6 sm:py-4 border-t-2 border-gray-200 bg-gray-50 rounded-b-xl">
             <div className="flex justify-between items-center gap-2">
               <span className="text-sm sm:text-base font-bold text-black">
                 Total Transactions:
               </span>
               <span className="text-xl sm:text-2xl font-bold text-black">
-                {transactions.length}
+                {isPaginated ? totalCount : transactions.length}
               </span>
             </div>
+            {isPaginated && totalPages > 1 && (
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200">
+                <span className="text-xs text-gray-500">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onPageChange!(currentPage - 1)}
+                    disabled={currentPage <= 1 || isLoading}
+                    className="px-3 py-1 text-sm rounded border border-gray-300 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => onPageChange!(currentPage + 1)}
+                    disabled={currentPage >= totalPages || isLoading}
+                    className="px-3 py-1 text-sm rounded border border-gray-300 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -380,7 +380,7 @@ model Transaction {
 
   @@unique([tenantId, transactionId])
   @@unique([tenantId, clientId])  // offline deduplication
-  @@index([tenantId, createdAt])
+  @@index([tenantId, timestamp])
   @@map("transactions")
 }
 

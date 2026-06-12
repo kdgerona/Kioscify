@@ -61,6 +61,10 @@ export default function TransactionsPage() {
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
+  const [loadingTransactionDetail, setLoadingTransactionDetail] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Void request state
   const [showVoidRequests, setShowVoidRequests] = useState(false);
@@ -84,8 +88,21 @@ export default function TransactionsPage() {
     setEndDate(undefined);
   };
 
+  const handleViewTransaction = async (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setLoadingTransactionDetail(true);
+    try {
+      const full = await api.getTransactionById(transaction.id);
+      setSelectedTransaction(full);
+    } catch (error) {
+      console.error("Failed to load transaction detail:", error);
+    } finally {
+      setLoadingTransactionDetail(false);
+    }
+  };
+
   const loadTransactions = useCallback(
-    async (isInitial = false) => {
+    async (isInitial = false, requestPage = 1) => {
       try {
         if (isInitial) {
           setInitialLoading(true);
@@ -99,7 +116,9 @@ export default function TransactionsPage() {
           paymentMethod?: string;
           startDate?: string;
           endDate?: string;
-        } = {};
+          page?: number;
+          limit?: number;
+        } = { page: requestPage, limit: 50 };
 
         if (debouncedSearchTerm) {
           params.search = debouncedSearchTerm;
@@ -111,20 +130,21 @@ export default function TransactionsPage() {
           params.paymentMethod = filterMethod;
         }
         if (startDate) {
-          // Set to start of day
           const start = new Date(startDate);
           start.setHours(0, 0, 0, 0);
           params.startDate = start.toISOString();
         }
         if (endDate) {
-          // Set to end of day to include all transactions on the end date
           const end = new Date(endDate);
           end.setHours(23, 59, 59, 999);
           params.endDate = end.toISOString();
         }
 
-        const data = await api.getTransactions(params);
-        setTransactions(data);
+        const result = await api.getTransactions(params);
+        setTransactions(result.data);
+        setCurrentPage(result.page);
+        setTotalTransactions(result.total);
+        setTotalPages(result.totalPages);
       } catch (error) {
         console.error("Failed to load transactions:", error);
       } finally {
@@ -136,10 +156,11 @@ export default function TransactionsPage() {
   );
 
   // First call shows full skeleton; subsequent filter/search changes use the subtle indicator
+  // Filters changing always resets to page 1
   useEffect(() => {
     const isInitial = isFirstTransactionLoad.current;
     isFirstTransactionLoad.current = false;
-    loadTransactions(isInitial);
+    loadTransactions(isInitial, 1);
   }, [loadTransactions]);
 
   // Load void requests
@@ -502,7 +523,7 @@ export default function TransactionsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <button
-                          onClick={() => setSelectedTransaction(transaction)}
+                          onClick={() => handleViewTransaction(transaction)}
                           className="text-black hover:opacity-70 transition"
                         >
                           <Eye className="w-5 h-5" />
@@ -517,6 +538,36 @@ export default function TransactionsPage() {
             <div className="text-center py-12">
               <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">No transactions found</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!showVoidRequests && totalTransactions > 0 && (
+        <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+          <span>
+            {totalTransactions} transaction{totalTransactions !== 1 ? "s" : ""} total
+          </span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => loadTransactions(false, currentPage - 1)}
+                disabled={currentPage <= 1 || isFiltering}
+                className="px-3 py-1 rounded border border-gray-300 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="px-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => loadTransactions(false, currentPage + 1)}
+                disabled={currentPage >= totalPages || isFiltering}
+                className="px-3 py-1 rounded border border-gray-300 hover:border-gray-400 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
             </div>
           )}
         </div>
@@ -657,7 +708,7 @@ export default function TransactionsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <button
-                            onClick={() => setSelectedTransaction(request)}
+                            onClick={() => handleViewTransaction(request)}
                             className="text-gray-700 hover:text-gray-900"
                             title="View details"
                           >
@@ -791,7 +842,13 @@ export default function TransactionsPage() {
               </div>
 
               {/* Order Items */}
-              {selectedTransaction.items &&
+              {loadingTransactionDetail && (
+                <div className="flex items-center justify-center py-6 text-gray-500 text-sm gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
+                  Loading details...
+                </div>
+              )}
+              {!loadingTransactionDetail && selectedTransaction.items &&
                 selectedTransaction.items.length > 0 && (
                   <div>
                     <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 sm:mb-3">

@@ -94,8 +94,8 @@ export default function DashboardPage() {
         params.endDate = analytics.period.end;
       }
 
-      const data = await api.getTransactions(params);
-      setTransactions(data);
+      const result = await api.getTransactions({ ...params, limit: 1000 });
+      setTransactions(result.data);
       setShowTransactionModal(true);
     } catch (error) {
       console.error("Failed to load transactions:", error);
@@ -134,8 +134,8 @@ export default function DashboardPage() {
         params.endDate = dailyAnalytics.period.end;
       }
 
-      const data = await api.getTransactions(params);
-      setTransactions(data);
+      const result = await api.getTransactions({ ...params, limit: 1000 });
+      setTransactions(result.data);
       setShowTransactionModal(true);
     } catch (error) {
       console.error("Failed to load today's transactions:", error);
