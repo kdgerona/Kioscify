@@ -8,6 +8,7 @@ import type { Brand, Store, Category, Product, Size, Addon, Preference, Inventor
 import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown, Truck, Star, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
+import { hasPrivilege } from '@/lib/privileges';
 import {
   Select,
   SelectContent,
@@ -37,11 +38,15 @@ function CRUDRow({
   sublabel,
   onEdit,
   onDelete,
+  showEdit = true,
+  showDelete = true,
 }: {
   label: string;
   sublabel?: string;
   onEdit: () => void;
   onDelete: () => void;
+  showEdit?: boolean;
+  showDelete?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
@@ -50,12 +55,16 @@ function CRUDRow({
         {sublabel && <p className="text-xs text-gray-400">{sublabel}</p>}
       </div>
       <div className="flex items-center gap-2">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {showEdit && (
+          <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {showDelete && (
+          <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -71,6 +80,8 @@ function CategoryRow({
   onMoveDown,
   onEdit,
   onDelete,
+  showEdit = true,
+  showDelete = true,
 }: {
   cat: Category;
   index: number;
@@ -79,27 +90,31 @@ function CategoryRow({
   onMoveDown: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  showEdit?: boolean;
+  showDelete?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-2">
       {/* Sequence controls */}
-      <div className="flex flex-col items-center gap-0.5 shrink-0">
-        <button
-          onClick={onMoveUp}
-          disabled={index === 0}
-          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
-        >
-          <ChevronUp className="w-3.5 h-3.5" />
-        </button>
-        <span className="text-xs text-gray-400 font-mono w-5 text-center leading-none">{index + 1}</span>
-        <button
-          onClick={onMoveDown}
-          disabled={index === total - 1}
-          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
-        >
-          <ChevronDown className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      {showEdit && (
+        <div className="flex flex-col items-center gap-0.5 shrink-0">
+          <button
+            onClick={onMoveUp}
+            disabled={index === 0}
+            className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+          <span className="text-xs text-gray-400 font-mono w-5 text-center leading-none">{index + 1}</span>
+          <button
+            onClick={onMoveDown}
+            disabled={index === total - 1}
+            className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Label */}
       <div className="flex-1 min-w-0">
@@ -109,12 +124,16 @@ function CategoryRow({
 
       {/* Edit / Delete */}
       <div className="flex items-center gap-2 shrink-0">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {showEdit && (
+          <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {showDelete && (
+          <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -133,6 +152,8 @@ function ReorderRow({
   onDelete,
   isDefault,
   onSetDefault,
+  showEdit = true,
+  showDelete = true,
 }: {
   label: string;
   sublabel?: string;
@@ -144,26 +165,30 @@ function ReorderRow({
   onDelete: () => void;
   isDefault?: boolean;
   onSetDefault?: () => void;
+  showEdit?: boolean;
+  showDelete?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-2">
-      <div className="flex flex-col items-center gap-0.5 shrink-0">
-        <button
-          onClick={onMoveUp}
-          disabled={index === 0}
-          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
-        >
-          <ChevronUp className="w-3.5 h-3.5" />
-        </button>
-        <span className="text-xs text-gray-400 font-mono w-5 text-center leading-none">{index + 1}</span>
-        <button
-          onClick={onMoveDown}
-          disabled={index === total - 1}
-          className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
-        >
-          <ChevronDown className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      {showEdit && (
+        <div className="flex flex-col items-center gap-0.5 shrink-0">
+          <button
+            onClick={onMoveUp}
+            disabled={index === 0}
+            className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+          <span className="text-xs text-gray-400 font-mono w-5 text-center leading-none">{index + 1}</span>
+          <button
+            onClick={onMoveDown}
+            disabled={index === total - 1}
+            className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{label}</p>
         {sublabel && <p className="text-xs text-gray-400 truncate">{sublabel}</p>}
@@ -178,12 +203,16 @@ function ReorderRow({
             <Star className="w-3.5 h-3.5" fill={isDefault ? 'currentColor' : 'none'} />
           </button>
         )}
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {showEdit && (
+          <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {showDelete && (
+          <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -201,7 +230,19 @@ function resolveUrl(raw: string | null | undefined): string | null {
   } catch { return raw; }
 }
 
-function ProductRow({ product, onEdit, onDelete }: { product: Product; onEdit: () => void; onDelete: () => void }) {
+function ProductRow({
+  product,
+  onEdit,
+  onDelete,
+  showEdit = true,
+  showDelete = true,
+}: {
+  product: Product;
+  onEdit: () => void;
+  onDelete: () => void;
+  showEdit?: boolean;
+  showDelete?: boolean;
+}) {
   const imageSrc = resolveUrl(product.image);
   return (
     <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-3">
@@ -224,12 +265,16 @@ function ProductRow({ product, onEdit, onDelete }: { product: Product; onEdit: (
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {showEdit && (
+          <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {showDelete && (
+          <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -269,6 +314,9 @@ const UPLOAD_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gi
 export default function BrandDetailPage() {
   const params = useParams();
   const brandId = params.brandId as string;
+
+  const canWrite = hasPrivilege('brands', 'write');
+  const canDelete = hasPrivilege('brands', 'all');
 
   const [brand, setBrand] = useState<Brand | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -592,6 +640,7 @@ export default function BrandDetailPage() {
             <TabSection
               title="Product Categories"
               onAdd={() => setModal({ type: 'categories', mode: 'create', item: { _catType: 'PRODUCT' } })}
+              showAdd={canWrite}
             >
               {productCategories.length === 0 ? (
                 <EmptyState message="No product categories yet" />
@@ -610,6 +659,8 @@ export default function BrandDetailPage() {
                       await api.deleteCategory(cat.id);
                       setProductCategories(prev => prev.filter(c => c.id !== cat.id));
                     }}
+                    showEdit={canWrite}
+                    showDelete={canDelete}
                   />
                 ))
               )}
@@ -619,6 +670,7 @@ export default function BrandDetailPage() {
             <TabSection
               title="Inventory Categories"
               onAdd={() => setModal({ type: 'categories', mode: 'create', item: { _catType: 'INVENTORY' } })}
+              showAdd={canWrite}
             >
               {invCategories.length === 0 ? (
                 <EmptyState message="No inventory categories yet" />
@@ -637,6 +689,8 @@ export default function BrandDetailPage() {
                       await api.deleteCategory(cat.id);
                       setInvCategories(prev => prev.filter(c => c.id !== cat.id));
                     }}
+                    showEdit={canWrite}
+                    showDelete={canDelete}
                   />
                 ))
               )}
@@ -649,6 +703,7 @@ export default function BrandDetailPage() {
           <TabSection
             title="Products"
             onAdd={() => setModal({ type: 'products', mode: 'create' })}
+            showAdd={canWrite}
           >
             {products.length === 0 ? (
               <EmptyState message="No products yet" />
@@ -663,6 +718,8 @@ export default function BrandDetailPage() {
                     await api.deleteProduct(prod.id);
                     setProducts(prev => prev.filter(p => p.id !== prod.id));
                   }}
+                  showEdit={canWrite}
+                  showDelete={canDelete}
                 />
               ))
             )}
@@ -674,6 +731,7 @@ export default function BrandDetailPage() {
           <TabSection
             title="Sizes"
             onAdd={() => setModal({ type: 'sizes', mode: 'create' })}
+            showAdd={canWrite}
           >
             {sizes.length === 0 ? (
               <EmptyState message="No sizes yet" />
@@ -693,6 +751,8 @@ export default function BrandDetailPage() {
                     await api.deleteSize(size.id);
                     setSizes(prev => prev.filter(s => s.id !== size.id));
                   }}
+                  showEdit={canWrite}
+                  showDelete={canDelete}
                 />
               ))
             )}
@@ -704,6 +764,7 @@ export default function BrandDetailPage() {
           <TabSection
             title="Add-ons"
             onAdd={() => setModal({ type: 'addons', mode: 'create' })}
+            showAdd={canWrite}
           >
             {addons.length === 0 ? (
               <EmptyState message="No add-ons yet" />
@@ -723,6 +784,8 @@ export default function BrandDetailPage() {
                     await api.deleteAddon(addon.id);
                     setAddons(prev => prev.filter(a => a.id !== addon.id));
                   }}
+                  showEdit={canWrite}
+                  showDelete={canDelete}
                 />
               ))
             )}
@@ -734,6 +797,7 @@ export default function BrandDetailPage() {
           <TabSection
             title="Preferences"
             onAdd={() => setModal({ type: 'preferences', mode: 'create' })}
+            showAdd={canWrite}
           >
             {preferences.length === 0 ? (
               <EmptyState message="No preference options yet" />
@@ -746,10 +810,10 @@ export default function BrandDetailPage() {
                   index={i}
                   total={preferences.length}
                   isDefault={pref.isDefault}
-                  onSetDefault={async () => {
+                  onSetDefault={canWrite ? async () => {
                     const updated = await api.updatePreference(pref.id, { isDefault: true });
                     setPreferences(prev => prev.map(p => ({ ...p, isDefault: p.id === updated.id })));
-                  }}
+                  } : undefined}
                   onMoveUp={() => reorderItem(preferences, setPreferences, i, 'up', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
                   onMoveDown={() => reorderItem(preferences, setPreferences, i, 'down', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
                   onEdit={() => setModal({ type: 'preferences', mode: 'edit', item: pref })}
@@ -758,6 +822,8 @@ export default function BrandDetailPage() {
                     await api.deletePreference(pref.id);
                     setPreferences(prev => prev.filter(p => p.id !== pref.id));
                   }}
+                  showEdit={canWrite}
+                  showDelete={canDelete}
                 />
               ))
             )}
@@ -803,13 +869,15 @@ export default function BrandDetailPage() {
                     <td className="px-6 py-4 text-sm text-gray-500 font-mono">{store.slug}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => openDeliveryModal(store)}
-                          title="Delivery Platforms"
-                          className="text-gray-400 hover:opacity-70 transition-colors"
-                        >
-                          <Truck className="w-4 h-4" />
-                        </button>
+                        {canWrite && (
+                          <button
+                            onClick={() => openDeliveryModal(store)}
+                            title="Delivery Platforms"
+                            className="text-gray-400 hover:opacity-70 transition-colors"
+                          >
+                            <Truck className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => setQrStore({
                             storeName: store.name,
@@ -829,18 +897,20 @@ export default function BrandDetailPage() {
                         >
                           <Copy className="w-4 h-4" />
                         </button>
-                        {editingStoreId === store.id ? (
-                          <div className="flex gap-3">
-                            <button onClick={() => handleSaveStoreName(store.id)} className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}>Save</button>
-                            <button onClick={() => setEditingStoreId(null)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => { setEditingStoreId(store.id); setEditingStoreName(store.name); }}
-                            className="text-sm text-gray-400 hover:text-gray-600"
-                          >
-                            Edit
-                          </button>
+                        {canWrite && (
+                          editingStoreId === store.id ? (
+                            <div className="flex gap-3">
+                              <button onClick={() => handleSaveStoreName(store.id)} className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}>Save</button>
+                              <button onClick={() => setEditingStoreId(null)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingStoreId(store.id); setEditingStoreName(store.name); }}
+                              className="text-sm text-gray-400 hover:text-gray-600"
+                            >
+                              Edit
+                            </button>
+                          )
                         )}
                       </div>
                     </td>
@@ -929,22 +999,24 @@ export default function BrandDetailPage() {
                   )}
                 </div>
                 <div>
-                  <label
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-                      logoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-white hover:brightness-90'
-                    }`}
-                    style={logoUploading ? undefined : { backgroundColor: 'var(--company-primary, #ea580c)' }}
-                  >
-                    <Upload className="w-4 h-4" />
-                    {logoUploading ? 'Uploading...' : 'Upload Logo'}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="sr-only"
-                      disabled={logoUploading}
-                      onChange={handleLogoUpload}
-                    />
-                  </label>
+                  {canWrite && (
+                    <label
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                        logoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-white hover:brightness-90'
+                      }`}
+                      style={logoUploading ? undefined : { backgroundColor: 'var(--company-primary, #ea580c)' }}
+                    >
+                      <Upload className="w-4 h-4" />
+                      {logoUploading ? 'Uploading...' : 'Upload Logo'}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="sr-only"
+                        disabled={logoUploading}
+                        onChange={handleLogoUpload}
+                      />
+                    </label>
+                  )}
                   <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP or GIF · Max 5 MB</p>
                   {logoUploadError && <p className="text-red-500 text-xs mt-1">{logoUploadError}</p>}
                 </div>
@@ -969,7 +1041,8 @@ export default function BrandDetailPage() {
                     value={settingsName}
                     onChange={e => setSettingsName(e.target.value)}
                     required
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                    disabled={!canWrite}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                     style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   />
                 </div>
@@ -979,7 +1052,8 @@ export default function BrandDetailPage() {
                     value={settingsDescription}
                     onChange={e => setSettingsDescription(e.target.value)}
                     rows={2}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none"
+                    disabled={!canWrite}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                     style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   />
                 </div>
@@ -997,15 +1071,17 @@ export default function BrandDetailPage() {
                           <input
                             type="color"
                             value={colorValue}
+                            disabled={!canWrite}
                             onChange={e => {
                               setSettingsTheme(prev => ({ ...prev, [key]: e.target.value }));
                               setSettingsThemeHex(prev => ({ ...prev, [key]: e.target.value }));
                             }}
-                            className="w-9 h-9 rounded cursor-pointer border border-gray-200 p-0.5 shrink-0"
+                            className="w-9 h-9 rounded cursor-pointer border border-gray-200 p-0.5 shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
                           />
                           <input
                             type="text"
                             value={hexValue}
+                            disabled={!canWrite}
                             onChange={e => {
                               const v = e.target.value;
                               setSettingsThemeHex(prev => ({ ...prev, [key]: v }));
@@ -1016,7 +1092,7 @@ export default function BrandDetailPage() {
                             maxLength={7}
                             placeholder={defaultColor}
                             spellCheck={false}
-                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
+                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                           />
                           <span className="text-sm text-gray-600 capitalize">{key}</span>
                         </div>
@@ -1031,21 +1107,23 @@ export default function BrandDetailPage() {
                     Enable delivery platforms to set separate pricing for those orders.
                   </p>
                   <div className="space-y-2">
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className={`flex items-center gap-3 ${canWrite ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
                       <input
                         type="checkbox"
                         checked={enableFoodPanda}
+                        disabled={!canWrite}
                         onChange={e => setEnableFoodPanda(e.target.checked)}
-                        className="rounded border-gray-300 text-pink-500 focus:ring-pink-500"
+                        className="rounded border-gray-300 text-pink-500 focus:ring-pink-500 disabled:cursor-not-allowed"
                       />
                       <span className="text-sm font-medium text-gray-700">FoodPanda</span>
                     </label>
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className={`flex items-center gap-3 ${canWrite ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
                       <input
                         type="checkbox"
                         checked={enableGrab}
+                        disabled={!canWrite}
                         onChange={e => setEnableGrab(e.target.checked)}
-                        className="rounded border-gray-300 text-green-500 focus:ring-green-500"
+                        className="rounded border-gray-300 text-green-500 focus:ring-green-500 disabled:cursor-not-allowed"
                       />
                       <span className="text-sm font-medium text-gray-700">Grab</span>
                     </label>
@@ -1060,21 +1138,24 @@ export default function BrandDetailPage() {
                   <input
                     type="text"
                     value={settingsPreferenceLabel}
+                    disabled={!canWrite}
                     onChange={e => setSettingsPreferenceLabel(e.target.value)}
                     placeholder="e.g. Sugar Level"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
                     style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties}
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={settingsSaving}
-                  className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 disabled:opacity-50 text-sm font-medium" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
-                >
-                  <Save className="w-4 h-4" />
-                  {settingsSaving ? 'Saving...' : 'Save Settings'}
-                </button>
+                {canWrite && (
+                  <button
+                    type="submit"
+                    disabled={settingsSaving}
+                    className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 disabled:opacity-50 text-sm font-medium" style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
+                  >
+                    <Save className="w-4 h-4" />
+                    {settingsSaving ? 'Saving...' : 'Save Settings'}
+                  </button>
+                )}
               </form>
             </div>
           </div>
@@ -1085,6 +1166,7 @@ export default function BrandDetailPage() {
           <TabSection
             title="Inventory Items"
             onAdd={() => setModal({ type: 'inventory', mode: 'create' })}
+            showAdd={canWrite}
           >
             {invItems.length === 0 ? (
               <EmptyState message="No inventory items yet" />
@@ -1100,6 +1182,8 @@ export default function BrandDetailPage() {
                     await api.deleteInventoryBrandTemplate(item.id);
                     setInvItems(prev => prev.filter(i => i.id !== item.id));
                   }}
+                  showEdit={canWrite}
+                  showDelete={canDelete}
                 />
               ))
             )}
@@ -1252,22 +1336,26 @@ function StatCard({ label, value }: { label: string; value: number }) {
 function TabSection({
   title,
   onAdd,
+  showAdd = true,
   children,
 }: {
   title: string;
   onAdd: () => void;
+  showAdd?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="bg-white rounded-lg border">
       <div className="flex items-center justify-between px-5 py-4 border-b">
         <h2 className="font-semibold text-gray-900 text-sm">{title}</h2>
-        <button
-          onClick={onAdd}
-          className="flex items-center gap-1.5 text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}
-        >
-          <Plus className="w-4 h-4" /> Add
-        </button>
+        {showAdd && (
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-1.5 text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}
+          >
+            <Plus className="w-4 h-4" /> Add
+          </button>
+        )}
       </div>
       <div className="divide-y">{children}</div>
     </div>

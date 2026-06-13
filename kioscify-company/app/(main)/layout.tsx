@@ -86,7 +86,7 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
         { href: '/brands', label: 'Brands', icon: BookOpen, section: 'brands' as const },
         { href: '/analytics', label: 'Analytics', icon: BarChart2, section: 'analytics' as const },
         { href: '/users', label: 'Users', icon: Users, section: 'users' as const },
-        { href: '/settings', label: 'Settings', icon: Settings, section: 'settings' as const },
+        { href: '/settings', label: 'Settings', icon: Settings, section: null },
       ].filter(item => item.section === null || hasPrivilege(item.section, 'read'));
 
   if (loading) {

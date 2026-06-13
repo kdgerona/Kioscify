@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { hasPrivilege } from '@/lib/privileges';
 import { formatRole } from '@/lib/utils';
@@ -10,7 +9,6 @@ import type { Company, ThemeColors, User } from '@/types';
 import { Save, KeyRound } from 'lucide-react';
 
 export default function SettingsPage() {
-  const router = useRouter();
   const canEdit = hasPrivilege('settings', 'write');
 
   const { refetchCompany } = useCompany();
@@ -44,14 +42,14 @@ export default function SettingsPage() {
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
 
-  useEffect(() => {
-    if (!hasPrivilege('settings', 'read')) {
-      router.replace('/dashboard');
-    }
-  }, [router]);
+  const canViewCompany = hasPrivilege('settings', 'read');
 
   useEffect(() => {
     setCurrentUser(api.getCurrentUser());
+    if (!canViewCompany) {
+      setLoading(false);
+      return;
+    }
     api
       .getMyCompany()
       .then(data => {
@@ -65,7 +63,7 @@ export default function SettingsPage() {
       })
       .catch(() => setError('Failed to load company settings'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [canViewCompany]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,8 +246,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Editable section */}
-      <div className="bg-white rounded-lg border">
+      {/* Editable section — only for users with at least read on settings */}
+      {canViewCompany && <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b">
           <h2 className="font-semibold text-gray-900">Company Information</h2>
         </div>
@@ -297,10 +295,9 @@ export default function SettingsPage() {
             </button>
           )}
         </form>
-      </div>
+      </div>}
 
-      {/* Read-only company info */}
-      <div className="bg-white rounded-lg border">
+      {canViewCompany && <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b">
           <h2 className="font-semibold text-gray-900">Account Details</h2>
         </div>
@@ -308,10 +305,10 @@ export default function SettingsPage() {
           <DetailRow label="Slug" value={company?.slug || '—'} />
           <DetailRow label="Status" value={company?.isActive ? 'Active' : 'Inactive'} />
         </div>
-      </div>
+      </div>}
 
       {/* Branding colors */}
-      <div className="bg-white rounded-lg border">
+      {canViewCompany && <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b">
           <h2 className="font-semibold text-gray-900">Branding</h2>
           <p className="text-xs text-gray-400 mt-0.5">Customize your company portal colors</p>
@@ -376,7 +373,7 @@ export default function SettingsPage() {
             </button>
           )}
         </form>
-      </div>
+      </div>}
     </div>
   );
 }
