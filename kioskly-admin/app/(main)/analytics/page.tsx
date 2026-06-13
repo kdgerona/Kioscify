@@ -63,6 +63,13 @@ interface AnalyticsData {
     total: number;
     count: number;
   }>;
+  salesBySize?: Array<{
+    sizeId: string | null;
+    name: string;
+    quantity: number;
+    revenue: number;
+    percentage: number;
+  }>;
 }
 
 export default function ReportsPage() {
@@ -417,6 +424,18 @@ export default function ReportsPage() {
       );
     });
     csvLines.push("");
+
+    // Sales by Size Section
+    if ((analytics.salesBySize?.length ?? 0) > 0) {
+      csvLines.push("SALES BY SIZE");
+      csvLines.push("Size,Units Sold,Revenue,% of Total Revenue");
+      analytics.salesBySize!.forEach((row) => {
+        csvLines.push(
+          `${escapeCSV(row.name)},${row.quantity},${row.revenue.toFixed(2)},${row.percentage.toFixed(2)}%`,
+        );
+      });
+      csvLines.push("");
+    }
 
     // Sales by Day Section
     csvLines.push("DAILY SALES");
@@ -1073,6 +1092,96 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+
+      {/* Sales by Size Section */}
+      {(analytics.salesBySize?.length ?? 0) > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-1">
+            Sales by Size
+          </h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Total units and revenue broken down by product size.
+          </p>
+          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Size
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Units Sold
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Revenue
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    % of Total Revenue
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {analytics.salesBySize!.map((row) => (
+                  <tr
+                    key={row.sizeId ?? "__no_size__"}
+                    className="hover:bg-gray-50 transition"
+                  >
+                    <td className="px-4 py-3">
+                      <span className={`text-sm font-semibold ${row.sizeId === null ? "text-gray-400 italic" : "text-gray-900"}`}>
+                        {row.name}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
+                        {row.quantity} units
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right">
+                      <span className="text-sm font-bold text-gray-900">
+                        {formatCurrency(row.revenue)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full"
+                            style={{
+                              width: `${Math.min(row.percentage, 100)}%`,
+                              backgroundColor: primaryColor,
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700 min-w-[3rem]">
+                          {row.percentage.toFixed(1)}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t border-gray-200">
+                <tr>
+                  <td className="px-4 py-3 text-sm font-bold text-gray-900">
+                    Total
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <span className="text-sm font-bold text-gray-900">
+                      {analytics.sales.totalItemsSold} units
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <span className="text-sm font-bold text-gray-900">
+                      {formatCurrency(analytics.sales.totalAmount)}
+                    </span>
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Expenses Section */}
       <div className="mb-6 sm:mb-8">

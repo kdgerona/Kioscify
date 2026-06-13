@@ -336,6 +336,7 @@ export class ReportsService {
                 category: true,
               },
             },
+            size: true,
           },
         },
       },
@@ -424,6 +425,33 @@ export class ReportsService {
       (a, b) => b.revenue - a.revenue,
     );
 
+    // Sales by size
+    const sizeMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+    for (const transaction of transactions) {
+      for (const item of transaction.items) {
+        const key = item.sizeId ?? '__no_size__';
+        const name = item.size?.name ?? 'No Size';
+        const entry = sizeMap.get(key) ?? { name, quantity: 0, revenue: 0 };
+        entry.quantity += item.quantity;
+        entry.revenue += item.subtotal;
+        sizeMap.set(key, entry);
+      }
+    }
+
+    const salesBySize = Array.from(sizeMap.entries())
+      .map(([key, s]) => ({
+        sizeId: key === '__no_size__' ? null : key,
+        name: s.name,
+        quantity: s.quantity,
+        revenue: s.revenue,
+        percentage: totalSales > 0 ? (s.revenue / totalSales) * 100 : 0,
+      }))
+      .sort((a, b) => {
+        if (a.sizeId === null) return 1;
+        if (b.sizeId === null) return -1;
+        return b.quantity - a.quantity;
+      });
+
     // Calculate expense metrics
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const expenseCount = expenses.length;
@@ -510,6 +538,7 @@ export class ReportsService {
         netRevenue: grossProfit,
       },
       topProducts,
+      salesBySize,
       salesByDay: Object.values(salesByDay).sort((a, b) =>
         a.date.localeCompare(b.date),
       ),
