@@ -1,13 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { hasPrivilege } from '@/lib/privileges';
 import { formatRole } from '@/lib/utils';
 import { useCompany } from '@/contexts/CompanyContext';
 import type { Company, ThemeColors, User } from '@/types';
 import { Save, KeyRound } from 'lucide-react';
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const canEdit = hasPrivilege('settings', 'write');
+
   const { refetchCompany } = useCompany();
   const [company, setCompany] = useState<Company | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -38,6 +43,12 @@ export default function SettingsPage() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!hasPrivilege('settings', 'read')) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
 
   useEffect(() => {
     setCurrentUser(api.getCurrentUser());
@@ -274,15 +285,17 @@ export default function SettingsPage() {
               style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
             />
           </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          {canEdit && (
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
         </form>
       </div>
 
@@ -351,15 +364,17 @@ export default function SettingsPage() {
               );
             })}
           </div>
-          <button
-            type="submit"
-            disabled={themeSaving}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Save className="w-4 h-4" />
-            {themeSaving ? 'Saving...' : 'Save Branding'}
-          </button>
+          {canEdit && (
+            <button
+              type="submit"
+              disabled={themeSaving}
+              className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Save className="w-4 h-4" />
+              {themeSaving ? 'Saving...' : 'Save Branding'}
+            </button>
+          )}
         </form>
       </div>
     </div>

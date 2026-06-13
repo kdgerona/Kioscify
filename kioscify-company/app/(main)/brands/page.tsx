@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { hasPrivilege } from '@/lib/privileges';
 import type { Brand, Company } from '@/types';
 import { Plus, ArrowRight, Store, X } from 'lucide-react';
 
 export default function BrandsPage() {
+  const router = useRouter();
+  const canCreate = hasPrivilege('brands', 'write');
+
   const [brands, setBrands] = useState<Brand[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,6 +23,12 @@ export default function BrandsPage() {
   const [formDescription, setFormDescription] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasPrivilege('brands', 'read')) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
 
   useEffect(() => {
     loadData();
@@ -85,7 +96,7 @@ export default function BrandsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Brands</h1>
           <p className="text-sm text-gray-500 mt-1">Manage your brand catalog</p>
         </div>
-        {company?.canCreateBrands && (
+        {company?.canCreateBrands && canCreate && (
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 text-sm font-medium transition-colors"
@@ -185,7 +196,7 @@ export default function BrandsPage() {
               <Store className="w-6 h-6 text-gray-400" />
             </div>
             <p className="text-gray-500 text-sm">No brands yet</p>
-            {company?.canCreateBrands && (
+            {company?.canCreateBrands && canCreate && (
               <button
                 onClick={() => setShowForm(true)}
                 className="mt-3 hover:underline text-sm" style={{ color: 'var(--company-primary, #ea580c)' }}
