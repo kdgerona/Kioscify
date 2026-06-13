@@ -23,6 +23,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import DateRangeSelector, { TimePeriod } from "@/components/DateRangeSelector";
 import TransactionListModal from "@/components/TransactionListModal";
 import ExpenseListModal from "@/components/ExpenseListModal";
+import CashSummaryModal from "@/components/CashSummaryModal";
 import { Transaction, Expense, TimeOfDayData } from "@/types";
 
 interface AnalyticsData {
@@ -87,6 +88,9 @@ export default function ReportsPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     string | null
   >(null);
+  const [showCashSummaryModal, setShowCashSummaryModal] = useState(false);
+  const [cashSummaryExpenses, setCashSummaryExpenses] = useState<Expense[]>([]);
+  const [loadingCashSummary, setLoadingCashSummary] = useState(false);
 
   useEffect(() => {
     loadReportData();
@@ -528,6 +532,29 @@ export default function ReportsPage() {
       console.error("Failed to load transactions:", error);
     } finally {
       setLoadingTransactions(false);
+    }
+  };
+
+  const loadCashSummary = async () => {
+    try {
+      setLoadingCashSummary(true);
+      const params: { startDate?: string; endDate?: string } = {};
+
+      if (period === "custom" && startDate && endDate) {
+        params.startDate = new Date(startDate + "T00:00:00").toISOString();
+        params.endDate = new Date(endDate + "T23:59:59.999").toISOString();
+      } else if (analytics?.period) {
+        params.startDate = analytics.period.start;
+        params.endDate = analytics.period.end;
+      }
+
+      const data = await api.getExpenses(params);
+      setCashSummaryExpenses(data);
+      setShowCashSummaryModal(true);
+    } catch (error) {
+      console.error("Failed to load cash summary:", error);
+    } finally {
+      setLoadingCashSummary(false);
     }
   };
 
@@ -1053,7 +1080,7 @@ export default function ReportsPage() {
         <p className="text-sm text-gray-500 mb-6">
           Total outflows logged for the selected period.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
           {/* Total Expenses Card */}
           <button
             onClick={loadExpenses}
@@ -1081,7 +1108,7 @@ export default function ReportsPage() {
             <p className="text-sm text-amber-100 mt-2">Per expense entry</p>
           </div>
 
-          {/* Net Profit Card */}
+          {/* Net Revenue Card */}
           <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
             <p className="text-emerald-100 text-sm mb-2">Net Revenue</p>
             <p className="text-2xl sm:text-3xl font-bold">
@@ -1089,6 +1116,28 @@ export default function ReportsPage() {
             </p>
             <p className="text-sm text-emerald-100 mt-2">After expenses</p>
           </div>
+
+          {/* Net Cash Card */}
+          {(() => {
+            const cashSales = analytics.sales.paymentMethodBreakdown["CASH"]?.total ?? 0;
+            const netCash = cashSales - analytics.expenses.totalAmount;
+            return (
+              <button
+                onClick={loadCashSummary}
+                disabled={loadingCashSummary}
+                className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+              >
+                <p className="text-green-100 text-sm mb-2">
+                  Net Cash{" "}
+                  {loadingCashSummary ? "(Loading...)" : "(Click to view)"}
+                </p>
+                <p className={`text-2xl sm:text-3xl font-bold ${netCash < 0 ? "text-red-200" : ""}`}>
+                  {formatCurrency(netCash)}
+                </p>
+                <p className="text-sm text-green-100 mt-2">Cash sales minus expenses</p>
+              </button>
+            );
+          })()}
         </div>
 
         {/* Expense Breakdown Chart */}
@@ -1372,6 +1421,15 @@ export default function ReportsPage() {
         onClose={() => setShowExpenseModal(false)}
         expenses={expenses}
         primaryColor={primaryColor}
+      />
+
+      {/* Cash Summary Modal */}
+      <CashSummaryModal
+        isOpen={showCashSummaryModal}
+        onClose={() => setShowCashSummaryModal(false)}
+        cashSales={analytics.sales.paymentMethodBreakdown["CASH"]?.total ?? 0}
+        expenses={cashSummaryExpenses}
+        title="Cash Summary"
       />
     </div>
   );
