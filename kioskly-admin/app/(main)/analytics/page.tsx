@@ -66,11 +66,15 @@ interface AnalyticsData {
 
 export default function ReportsPage() {
   const { tenant, brand } = useTenant();
-  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const primaryColor =
+    brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const isInitialLoad = useRef(true);
-  const [period, setPeriod] = useState<TimePeriod>("daily");
+  const [period, setPeriod] = useState<TimePeriod>(() => {
+    if (typeof window === "undefined") return "daily";
+    return (localStorage.getItem("analytics_period") as TimePeriod) ?? "daily";
+  });
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [showTransactionModal, setShowTransactionModal] = useState(false);
@@ -88,13 +92,17 @@ export default function ReportsPage() {
     loadReportData();
   }, [period, startDate, endDate]);
 
+  useEffect(() => {
+    localStorage.setItem("analytics_period", period);
+  }, [period]);
+
   const dayStart = (d: Date) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
   const dayEnd = (d: Date) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
 
   const computeDateRange = (
-    p: TimePeriod
+    p: TimePeriod,
   ): { startDate: string; endDate: string } => {
     const now = new Date();
     switch (p) {
@@ -107,7 +115,7 @@ export default function ReportsPage() {
         const y = new Date(
           now.getFullYear(),
           now.getMonth(),
-          now.getDate() - 1
+          now.getDate() - 1,
         );
         return {
           startDate: dayStart(y).toISOString(),
@@ -120,7 +128,7 @@ export default function ReportsPage() {
         const mon = new Date(
           now.getFullYear(),
           now.getMonth(),
-          now.getDate() - diff
+          now.getDate() - diff,
         );
         return {
           startDate: dayStart(mon).toISOString(),
@@ -166,11 +174,9 @@ export default function ReportsPage() {
 
       if (period === "custom") {
         params.startDate = dayStart(
-          new Date(startDate + "T00:00:00")
+          new Date(startDate + "T00:00:00"),
         ).toISOString();
-        params.endDate = dayEnd(
-          new Date(endDate + "T00:00:00")
-        ).toISOString();
+        params.endDate = dayEnd(new Date(endDate + "T00:00:00")).toISOString();
       } else {
         const range = computeDateRange(period);
         params.startDate = range.startDate;
@@ -184,7 +190,7 @@ export default function ReportsPage() {
       try {
         const hourly = await api.getTimeOfDayTrends(
           data.period.start,
-          data.period.end
+          data.period.end,
         );
         setHourlyData(hourly.hourlyBreakdown);
       } catch {
@@ -215,7 +221,7 @@ export default function ReportsPage() {
         name: getPaymentMethodLabel(method),
         value: data.count,
         color: colors[method as keyof typeof colors] || "#6b7280",
-      })
+      }),
     );
   };
 
@@ -237,7 +243,7 @@ export default function ReportsPage() {
         name: category,
         value: data.total,
         color: colors[category as keyof typeof colors] || "#6b7280",
-      })
+      }),
     );
   };
 
@@ -269,6 +275,28 @@ export default function ReportsPage() {
     }));
   };
 
+  const getSalesByDayOfWeek = () => {
+    if (!analytics) return [];
+
+    const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const acc: Record<number, { totalRevenue: number; count: number }> = {};
+    for (let i = 0; i < 7; i++) acc[i] = { totalRevenue: 0, count: 0 };
+
+    analytics.salesByDay.forEach(({ date, total, count }) => {
+      const dow = new Date(date + "T00:00:00").getDay(); // local time avoids UTC day-shift
+      acc[dow].totalRevenue += total;
+      acc[dow].count += count;
+    });
+
+    // Order Mon → Sun (business-week convention)
+    return [1, 2, 3, 4, 5, 6, 0].map((dow) => ({
+      day: DAY_NAMES[dow],
+      totalRevenue: acc[dow].totalRevenue,
+      count: acc[dow].count,
+      aov: acc[dow].count > 0 ? acc[dow].totalRevenue / acc[dow].count : 0,
+    }));
+  };
+
   const exportReport = () => {
     if (!analytics) return;
 
@@ -295,10 +323,10 @@ export default function ReportsPage() {
     csvLines.push(`Generated At,${new Date().toLocaleString()}`);
     csvLines.push(`Period Type,${analytics.period.type}`);
     csvLines.push(
-      `Start Date,${new Date(analytics.period.start).toLocaleString()}`
+      `Start Date,${new Date(analytics.period.start).toLocaleString()}`,
     );
     csvLines.push(
-      `End Date,${new Date(analytics.period.end).toLocaleString()}`
+      `End Date,${new Date(analytics.period.end).toLocaleString()}`,
     );
     csvLines.push("");
 
@@ -308,32 +336,32 @@ export default function ReportsPage() {
     csvLines.push(`Total Sales,${formatCurrency(analytics.sales.totalAmount)}`);
     csvLines.push(`Total Transactions,${analytics.sales.transactionCount}`);
     csvLines.push(
-      `Average Transaction,${formatCurrency(analytics.sales.averageTransaction)}`
+      `Average Transaction,${formatCurrency(analytics.sales.averageTransaction)}`,
     );
     csvLines.push(`Total Items Sold,${analytics.sales.totalItemsSold}`);
     csvLines.push(`Sales Growth,${analytics.sales.growth.toFixed(2)}%`);
     csvLines.push(
-      `Total Expenses,${formatCurrency(analytics.expenses.totalAmount)}`
+      `Total Expenses,${formatCurrency(analytics.expenses.totalAmount)}`,
     );
     csvLines.push(`Expense Count,${analytics.expenses.expenseCount}`);
     csvLines.push(
-      `Average Expense,${formatCurrency(analytics.expenses.averageExpense)}`
+      `Average Expense,${formatCurrency(analytics.expenses.averageExpense)}`,
     );
     csvLines.push(
-      `Gross Profit,${formatCurrency(analytics.summary.grossProfit)}`
+      `Gross Profit,${formatCurrency(analytics.summary.grossProfit)}`,
     );
     csvLines.push(
-      `Profit Margin,${analytics.summary.profitMargin.toFixed(2)}%`
+      `Profit Margin,${analytics.summary.profitMargin.toFixed(2)}%`,
     );
     csvLines.push(
-      `Net Revenue,${formatCurrency(analytics.summary.netRevenue)}`
+      `Net Revenue,${formatCurrency(analytics.summary.netRevenue)}`,
     );
     csvLines.push("");
 
     // Payment Methods Section
     csvLines.push("SALES BY PAYMENT METHOD");
     csvLines.push(
-      "Payment Method,Total Amount,Transaction Count,Average Amount,Percentage"
+      "Payment Method,Total Amount,Transaction Count,Average Amount,Percentage",
     );
     Object.entries(analytics.sales.paymentMethodBreakdown).forEach(
       ([method, data]) => {
@@ -344,9 +372,9 @@ export default function ReportsPage() {
         const average =
           data.count > 0 ? (data.total / data.count).toFixed(2) : "0.00";
         csvLines.push(
-          `${method},${data.total.toFixed(2)},${data.count},${average},${percentage}%`
+          `${method},${data.total.toFixed(2)},${data.count},${average},${percentage}%`,
         );
-      }
+      },
     );
     csvLines.push("");
 
@@ -360,16 +388,16 @@ export default function ReportsPage() {
             ? ((data.total / analytics.expenses.totalAmount) * 100).toFixed(2)
             : "0.00";
         csvLines.push(
-          `${category},${data.total.toFixed(2)},${data.count},${percentage}%`
+          `${category},${data.total.toFixed(2)},${data.count},${percentage}%`,
         );
-      }
+      },
     );
     csvLines.push("");
 
     // Top Products Section
     csvLines.push("TOP SELLING PRODUCTS");
     csvLines.push(
-      "Rank,Product Name,Category,Quantity Sold,Revenue,Average Price,% of Total Sales"
+      "Rank,Product Name,Category,Quantity Sold,Revenue,Average Price,% of Total Sales",
     );
     analytics.topProducts.forEach((product, index) => {
       const percentage =
@@ -381,7 +409,7 @@ export default function ReportsPage() {
           ? (product.revenue / product.quantity).toFixed(2)
           : "0.00";
       csvLines.push(
-        `${index + 1},${escapeCSV(product.productName)},${escapeCSV(product.categoryName || "N/A")},${product.quantity},${product.revenue.toFixed(2)},${avgPrice},${percentage}%`
+        `${index + 1},${escapeCSV(product.productName)},${escapeCSV(product.categoryName || "N/A")},${product.quantity},${product.revenue.toFixed(2)},${avgPrice},${percentage}%`,
       );
     });
     csvLines.push("");
@@ -398,7 +426,7 @@ export default function ReportsPage() {
         day: "numeric",
       });
       csvLines.push(
-        `${formattedDate},${day.total.toFixed(2)},${day.count},${avgOrderValue}`
+        `${formattedDate},${day.total.toFixed(2)},${day.count},${avgOrderValue}`,
       );
     });
 
@@ -492,7 +520,7 @@ export default function ReportsPage() {
       const allTransactions = await api.getTransactions(params);
       // Filter transactions by payment method
       const filteredTransactions = allTransactions.filter(
-        (t: Transaction) => t.paymentMethod === paymentMethod
+        (t: Transaction) => t.paymentMethod === paymentMethod,
       );
       setTransactions(filteredTransactions);
       setShowTransactionModal(true);
@@ -531,8 +559,41 @@ export default function ReportsPage() {
   const hourlyChartData = getHourlyChartData();
   const peakHour = hourlyChartData.reduce(
     (max, h) => (h.revenue > max.revenue ? h : max),
-    { hour: "", revenue: 0, count: 0 }
+    { hour: "", revenue: 0, count: 0 },
   );
+  const salesByDayOfWeek = getSalesByDayOfWeek();
+  const peakDay = salesByDayOfWeek.reduce(
+    (max, d) => (d.totalRevenue > max.totalRevenue ? d : max),
+    { day: "", totalRevenue: 0, count: 0, aov: 0 },
+  );
+
+  const DayOfWeekTooltip = ({
+    active,
+    payload,
+    label,
+  }: {
+    active?: boolean;
+    payload?: Array<{ dataKey: string; value: number }>;
+    label?: string;
+  }) => {
+    if (!active || !payload?.length) return null;
+    const revenue =
+      payload.find((p) => p.dataKey === "totalRevenue")?.value ?? 0;
+    const count = payload.find((p) => p.dataKey === "count")?.value ?? 0;
+    const aov = count > 0 ? revenue / count : 0;
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+        <p className="font-semibold text-gray-900 mb-2">{label}</p>
+        <p className="text-sm text-gray-700">
+          Revenue: {formatCurrency(revenue)}
+        </p>
+        <p className="text-sm text-gray-700">Transactions: {count}</p>
+        <p className="text-sm text-gray-700">
+          Avg. Order: {formatCurrency(aov)}
+        </p>
+      </div>
+    );
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -631,7 +692,9 @@ export default function ReportsPage() {
             <h2 className="text-xl font-bold text-gray-900">Sales Trend</h2>
             <Calendar className="w-5 h-5 text-gray-400" />
           </div>
-          <p className="text-sm text-gray-500 mb-6">Daily revenue totals over the selected period.</p>
+          <p className="text-sm text-gray-500 mb-6">
+            Daily revenue totals over the selected period.
+          </p>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={salesByDay}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -671,7 +734,9 @@ export default function ReportsPage() {
             </h2>
             <TrendingUp className="w-5 h-5 text-gray-400" />
           </div>
-          <p className="text-sm text-gray-500 mb-6">Share of transaction count by payment type.</p>
+          <p className="text-sm text-gray-500 mb-6">
+            Share of transaction count by payment type.
+          </p>
           {paymentMethodData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -707,36 +772,80 @@ export default function ReportsPage() {
         <h2 className="text-xl font-bold text-gray-900 mb-1">
           Sales by Payment Method
         </h2>
-        <p className="text-sm text-gray-500 mb-6">Revenue and transaction count per payment channel. Click any card to filter transactions.</p>
+        <p className="text-sm text-gray-500 mb-6">
+          Revenue and transaction count per payment channel. Click any card to
+          filter transactions.
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Object.entries(analytics.sales.paymentMethodBreakdown).map(
             ([method, data]) => {
               type CardColors = {
-                bg: string; border: string; text: string; badge: string;
+                bg: string;
+                border: string;
+                text: string;
+                badge: string;
                 cardStyle?: React.CSSProperties;
                 textStyle?: React.CSSProperties;
                 badgeStyle?: React.CSSProperties;
               };
               const colors: Record<string, CardColors> = {
-                CASH: { bg: "bg-green-50", border: "border-green-200", text: "text-green-700", badge: "bg-green-100" },
-                GCASH: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100" },
+                CASH: {
+                  bg: "bg-green-50",
+                  border: "border-green-200",
+                  text: "text-green-700",
+                  badge: "bg-green-100",
+                },
+                GCASH: {
+                  bg: "bg-blue-50",
+                  border: "border-blue-200",
+                  text: "text-blue-700",
+                  badge: "bg-blue-100",
+                },
                 PAYMAYA: {
-                  bg: "", border: "", text: "", badge: "",
-                  cardStyle: { backgroundColor: "#202122", borderColor: "#3a3b3c" },
+                  bg: "",
+                  border: "",
+                  text: "",
+                  badge: "",
+                  cardStyle: {
+                    backgroundColor: "#202122",
+                    borderColor: "#3a3b3c",
+                  },
                   textStyle: { color: "#50B16B" },
                   badgeStyle: { backgroundColor: "#2d2f30", color: "#50B16B" },
                 },
-                ONLINE: { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", badge: "bg-gray-100" },
-                FOODPANDA: { bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700", badge: "bg-pink-100" },
+                ONLINE: {
+                  bg: "bg-gray-50",
+                  border: "border-gray-200",
+                  text: "text-gray-700",
+                  badge: "bg-gray-100",
+                },
+                FOODPANDA: {
+                  bg: "bg-pink-50",
+                  border: "border-pink-200",
+                  text: "text-pink-700",
+                  badge: "bg-pink-100",
+                },
                 GRAB: {
-                  bg: "", border: "", text: "", badge: "",
-                  cardStyle: { backgroundColor: "rgba(0,177,79,0.08)", borderColor: "#00B14F" },
+                  bg: "",
+                  border: "",
+                  text: "",
+                  badge: "",
+                  cardStyle: {
+                    backgroundColor: "rgba(0,177,79,0.08)",
+                    borderColor: "#00B14F",
+                  },
                   textStyle: { color: "#007835" },
-                  badgeStyle: { backgroundColor: "rgba(0,177,79,0.18)", color: "#007835" },
+                  badgeStyle: {
+                    backgroundColor: "rgba(0,177,79,0.18)",
+                    color: "#007835",
+                  },
                 },
               };
               const color: CardColors = colors[method] ?? {
-                bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", badge: "bg-gray-100",
+                bg: "bg-gray-50",
+                border: "border-gray-200",
+                text: "text-gray-700",
+                badge: "bg-gray-100",
               };
               const percentage =
                 analytics.sales.totalAmount > 0
@@ -752,7 +861,10 @@ export default function ReportsPage() {
                   style={color.cardStyle}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`text-sm font-semibold ${color.text}`} style={color.textStyle}>
+                    <span
+                      className={`text-sm font-semibold ${color.text}`}
+                      style={color.textStyle}
+                    >
                       {getPaymentMethodLabel(method)}{" "}
                       {loadingTransactions && selectedPaymentMethod === method
                         ? "(Loading...)"
@@ -768,28 +880,37 @@ export default function ReportsPage() {
                   <div className="space-y-2">
                     <div>
                       <p className="text-xs text-gray-600 mb-1">Total Amount</p>
-                      <p className={`text-2xl font-bold ${color.text}`} style={color.textStyle}>
+                      <p
+                        className={`text-2xl font-bold ${color.text}`}
+                        style={color.textStyle}
+                      >
                         {formatCurrency(data.total)}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-600">Transactions</p>
-                      <p className={`text-lg font-semibold ${color.text}`} style={color.textStyle}>
+                      <p
+                        className={`text-lg font-semibold ${color.text}`}
+                        style={color.textStyle}
+                      >
                         {data.count}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-600">Average</p>
-                      <p className={`text-sm font-medium ${color.text}`} style={color.textStyle}>
+                      <p
+                        className={`text-sm font-medium ${color.text}`}
+                        style={color.textStyle}
+                      >
                         {formatCurrency(
-                          data.count > 0 ? data.total / data.count : 0
+                          data.count > 0 ? data.total / data.count : 0,
                         )}
                       </p>
                     </div>
                   </div>
                 </button>
               );
-            }
+            },
           )}
         </div>
       </div>
@@ -799,7 +920,9 @@ export default function ReportsPage() {
         <h2 className="text-xl font-bold text-gray-900 mb-1">
           Top Selling Products
         </h2>
-        <p className="text-sm text-gray-500 mb-6">Ranked by revenue within the selected period.</p>
+        <p className="text-sm text-gray-500 mb-6">
+          Ranked by revenue within the selected period.
+        </p>
         {analytics.topProducts.length > 0 ? (
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             <table className="w-full">
@@ -927,7 +1050,9 @@ export default function ReportsPage() {
       {/* Expenses Section */}
       <div className="mb-6 sm:mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-1">Expenses</h2>
-        <p className="text-sm text-gray-500 mb-6">Total outflows logged for the selected period.</p>
+        <p className="text-sm text-gray-500 mb-6">
+          Total outflows logged for the selected period.
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           {/* Total Expenses Card */}
           <button
@@ -971,7 +1096,9 @@ export default function ReportsPage() {
           <h3 className="text-xl font-bold text-gray-900 mb-1">
             Expense Breakdown by Category
           </h3>
-          <p className="text-sm text-gray-500 mb-6">Total spend distributed across expense categories.</p>
+          <p className="text-sm text-gray-500 mb-6">
+            Total spend distributed across expense categories.
+          </p>
           {expenseCategoryData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -1007,7 +1134,9 @@ export default function ReportsPage() {
         <h2 className="text-xl font-bold text-gray-900 mb-1">
           Daily Sales & Quantity Overview
         </h2>
-        <p className="text-sm text-gray-500 mb-6">Revenue bars show daily totals; the line tracks number of items sold.</p>
+        <p className="text-sm text-gray-500 mb-6">
+          Revenue bars show daily totals; the line tracks number of items sold.
+        </p>
         <ResponsiveContainer width="100%" height={400}>
           <ComposedChart data={salesByDay}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -1070,21 +1199,25 @@ export default function ReportsPage() {
       {/* Sales by Time of Day */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6 sm:mt-8">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-bold text-gray-900">Sales by Time of Day</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            Sales by Time of Day
+          </h2>
           <TrendingUp className="w-5 h-5 text-gray-400" />
         </div>
         {peakHour.revenue > 0 && (
           <p className="text-sm text-gray-500 mb-6">
             Peak hour:{" "}
-            <span className="font-semibold text-black">
-              {peakHour.hour}
-            </span>{" "}
-            — {formatCurrency(peakHour.revenue)} across {peakHour.count} transaction{peakHour.count !== 1 ? "s" : ""}
+            <span className="font-semibold text-black">{peakHour.hour}</span> —{" "}
+            {formatCurrency(peakHour.revenue)} across {peakHour.count}{" "}
+            transaction{peakHour.count !== 1 ? "s" : ""}
           </p>
         )}
         {hourlyChartData.some((h) => h.revenue > 0) ? (
           <ResponsiveContainer width="100%" height={320}>
-            <ComposedChart data={hourlyChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+            <ComposedChart
+              data={hourlyChartData}
+              margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
                 dataKey="hour"
@@ -1123,6 +1256,77 @@ export default function ReportsPage() {
               <Bar
                 yAxisId="left"
                 dataKey="revenue"
+                name="Revenue"
+                radius={[4, 4, 0, 0]}
+                fill={primaryColor}
+                opacity={0.85}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="count"
+                name="Transactions"
+                stroke="#6b7280"
+                strokeWidth={2}
+                dot={false}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-[320px] flex items-center justify-center text-gray-500">
+            No sales data available for this period
+          </div>
+        )}
+      </div>
+
+      {/* Sales by Day of Week */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6 sm:mt-8">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-bold text-gray-900">
+            Sales by Day of Week
+          </h2>
+          <TrendingUp className="w-5 h-5 text-gray-400" />
+        </div>
+        {peakDay.totalRevenue > 0 && (
+          <p className="text-sm text-gray-500 mb-6">
+            Busiest day:{" "}
+            <span className="font-semibold text-black">{peakDay.day}</span> —{" "}
+            {formatCurrency(peakDay.totalRevenue)} across {peakDay.count}{" "}
+            transaction{peakDay.count !== 1 ? "s" : ""}
+          </p>
+        )}
+        {salesByDayOfWeek.some((d) => d.totalRevenue > 0) ? (
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart
+              data={salesByDayOfWeek}
+              margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="day"
+                stroke="#6b7280"
+                style={{ fontSize: "11px" }}
+              />
+              <YAxis
+                yAxisId="left"
+                stroke="#6b7280"
+                style={{ fontSize: "11px" }}
+                tickFormatter={(v) => formatCurrency(v)}
+                width={72}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#6b7280"
+                style={{ fontSize: "11px" }}
+                allowDecimals={false}
+                width={36}
+              />
+              <Tooltip content={<DayOfWeekTooltip />} />
+              <Legend />
+              <Bar
+                yAxisId="left"
+                dataKey="totalRevenue"
                 name="Revenue"
                 radius={[4, 4, 0, 0]}
                 fill={primaryColor}

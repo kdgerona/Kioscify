@@ -206,7 +206,7 @@ export default function InventoryReportsPage() {
           }`}
           style={activeTab === 'daily' ? { borderBottomColor: primaryColor } : {}}
         >
-          Daily Inventory Reports
+          Daily Inventory Reports (Full Day)
         </button>
         <button
           onClick={() => setActiveTab('shift')}
