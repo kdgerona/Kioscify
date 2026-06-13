@@ -459,6 +459,41 @@ export default function SubmittedReportsPage() {
                     </div>
                   </div>
                 </div>
+                {(() => {
+                  const cashSales = (selectedReport.salesSnapshot.paymentMethodBreakdown as Record<string, { total: number; count: number }>)["CASH"]?.total ?? 0;
+                  const netCash = cashSales - selectedReport.expensesSnapshot.totalAmount;
+                  const expenseList = selectedReport.expenses ?? [];
+                  return (
+                    <div className="bg-green-50 p-4 sm:p-6 rounded-xl border-2 border-green-200">
+                      <h3 className="text-base sm:text-lg font-bold text-green-900 mb-3 sm:mb-4">💵 Cash Summary</h3>
+                      <div className="flex justify-between items-center py-3 border-b-2 border-green-300">
+                        <p className="text-sm sm:text-base font-semibold text-green-800">Cash Sales</p>
+                        <p className="text-lg sm:text-xl font-bold text-green-900">{formatCurrency(cashSales)}</p>
+                      </div>
+                      <div className="mt-3">
+                        <p className="text-xs sm:text-sm font-bold text-red-700 mb-2">Deducted Expenses</p>
+                        <div className="space-y-2">
+                          {expenseList.length > 0 ? expenseList.map((expense: any) => (
+                            <div key={expense.id} className="flex justify-between items-center bg-white p-2 sm:p-3 rounded-lg">
+                              <p className="text-xs sm:text-sm text-red-600 flex-1 mr-2">{expense.description}</p>
+                              <p className="text-xs sm:text-sm font-semibold text-red-600">-{formatCurrency(expense.amount)}</p>
+                            </div>
+                          )) : (
+                            <div className="flex justify-between items-center bg-white p-2 sm:p-3 rounded-lg">
+                              <p className="text-xs sm:text-sm text-gray-400 italic flex-1 mr-2">No expenses</p>
+                              <p className="text-xs sm:text-sm font-semibold text-gray-400">-{formatCurrency(0)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-t-2 border-green-300 mt-3">
+                        <p className="text-sm sm:text-base font-semibold text-green-800">Net Cash</p>
+                        <p className={`text-lg sm:text-xl font-bold ${netCash >= 0 ? "text-green-700" : "text-red-600"}`}>{formatCurrency(netCash)}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="bg-blue-50 p-4 sm:p-6 rounded-xl border-2 border-blue-200">
                   <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-3 sm:mb-4">Sales</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -691,6 +726,41 @@ export default function SubmittedReportsPage() {
                     </div>
                   </div>
                 </div>
+                {(() => {
+                  const cashSales = (selectedShiftReport.salesSnapshot.paymentMethodBreakdown as Record<string, { total: number; count: number }>)["CASH"]?.total ?? 0;
+                  const netCash = cashSales - selectedShiftReport.expensesSnapshot.totalAmount;
+                  const expenseList = selectedShiftReport.expenses ?? [];
+                  return (
+                    <div className="bg-green-50 p-4 sm:p-6 rounded-xl border-2 border-green-200">
+                      <h3 className="text-base sm:text-lg font-bold text-green-900 mb-3 sm:mb-4">💵 Cash Summary</h3>
+                      <div className="flex justify-between items-center py-3 border-b-2 border-green-300">
+                        <p className="text-sm sm:text-base font-semibold text-green-800">Cash Sales</p>
+                        <p className="text-lg sm:text-xl font-bold text-green-900">{formatCurrency(cashSales)}</p>
+                      </div>
+                      <div className="mt-3">
+                        <p className="text-xs sm:text-sm font-bold text-red-700 mb-2">Deducted Expenses</p>
+                        <div className="space-y-2">
+                          {expenseList.length > 0 ? expenseList.map((expense: any) => (
+                            <div key={expense.id} className="flex justify-between items-center bg-white p-2 sm:p-3 rounded-lg">
+                              <p className="text-xs sm:text-sm text-red-600 flex-1 mr-2">{expense.description}</p>
+                              <p className="text-xs sm:text-sm font-semibold text-red-600">-{formatCurrency(expense.amount)}</p>
+                            </div>
+                          )) : (
+                            <div className="flex justify-between items-center bg-white p-2 sm:p-3 rounded-lg">
+                              <p className="text-xs sm:text-sm text-gray-400 italic flex-1 mr-2">No expenses</p>
+                              <p className="text-xs sm:text-sm font-semibold text-gray-400">-{formatCurrency(0)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-t-2 border-green-300 mt-3">
+                        <p className="text-sm sm:text-base font-semibold text-green-800">Net Cash</p>
+                        <p className={`text-lg sm:text-xl font-bold ${netCash >= 0 ? "text-green-700" : "text-red-600"}`}>{formatCurrency(netCash)}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="bg-blue-50 p-4 sm:p-6 rounded-xl border-2 border-blue-200">
                   <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-3 sm:mb-4">Sales</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

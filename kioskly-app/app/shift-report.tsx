@@ -484,6 +484,48 @@ export default function ShiftReport() {
               </View>
             </View>
 
+            {/* Cash Summary Section */}
+            {(() => {
+              const cashSales = reportData.sales.paymentMethodBreakdown["CASH"]?.total ?? 0;
+              const netCash = cashSales - reportData.expenses.totalAmount;
+              return (
+                <View className="bg-green-50 rounded-lg p-5 mb-6 border-2 border-green-300">
+                  <Text className="text-xl font-bold mb-4 text-green-900">💵 Cash Summary</Text>
+                  <View className="space-y-3">
+                    <View className="flex-row justify-between items-center py-3 border-b-2 border-green-400">
+                      <Text className="text-lg font-semibold text-green-800">Cash Sales:</Text>
+                      <Text className="text-2xl font-bold" style={{ color: textColor }}>
+                        {formatCurrency(cashSales)}
+                      </Text>
+                    </View>
+                    <View className="mt-2">
+                      <Text className="text-base font-bold mb-2 text-red-700">Deducted Expenses:</Text>
+                      {expenses.length > 0 ? expenses.map((expense) => (
+                        <View key={expense.id} className="flex-row justify-between items-center py-2 px-3 bg-white rounded-lg mb-2">
+                          <Text className="text-base text-red-600 flex-1 mr-2">{expense.description}</Text>
+                          <Text className="text-base font-semibold text-red-600">-{formatCurrency(expense.amount)}</Text>
+                        </View>
+                      )) : (
+                        <View className="flex-row justify-between items-center py-2 px-3 bg-white rounded-lg mb-2">
+                          <Text className="text-base text-gray-400 italic flex-1 mr-2">No expenses</Text>
+                          <Text className="text-base font-semibold text-gray-400">-{formatCurrency(0)}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View className="flex-row justify-between items-center py-3 border-t-2 border-green-400">
+                      <Text className="text-lg font-semibold text-green-800">Net Cash:</Text>
+                      <Text
+                        className="text-2xl font-bold"
+                        style={{ color: netCash >= 0 ? "#059669" : "#dc2626" }}
+                      >
+                        {formatCurrency(netCash)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })()}
+
             {/* Sales Section */}
             <View className="bg-blue-50 rounded-lg p-5 mb-6 border-2 border-blue-300">
               <Text className="text-xl font-bold mb-4 text-blue-900">💰 Sales</Text>
