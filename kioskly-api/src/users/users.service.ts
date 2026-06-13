@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateStoreUserDto, UpdateStoreUserDto, CreateCompanyUserDto, UpdateCompanyUserDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
-import { DEFAULT_PRIVILEGES, hasPrivilege } from '../common/utils/privileges';
+import { DEFAULT_PRIVILEGES, DEFAULT_STORE_PRIVILEGES, hasPrivilege } from '../common/utils/privileges';
 
 @Injectable()
 export class UsersService {
@@ -29,6 +29,7 @@ export class UsersService {
     const userSelect = {
       id: true, username: true, firstName: true, lastName: true,
       email: true, role: true, isActive: true, isFirstLogin: true, createdAt: true,
+      storePrivileges: true,
       tenant: { select: { id: true, name: true, slug: true } },
     };
 
@@ -128,6 +129,7 @@ export class UsersService {
     requestingTenantId: string,
     requestingUserId: string,
     dto: UpdateStoreUserDto,
+    requestingPrivileges: Record<string, string> | null = null,
   ) {
     if (storeId !== requestingTenantId) throw new ForbiddenException('Access denied');
     await this.assertStoreUserExists(userId, storeId);
@@ -137,9 +139,24 @@ export class UsersService {
       throw new ForbiddenException('Cannot change your own role');
     }
 
+    if (dto.storePrivileges !== undefined) {
+      const canSetPrivileges = hasPrivilege(requestingPrivileges, 'users', 'all');
+      if (!canSetPrivileges) {
+        throw new ForbiddenException("Requires 'all' privilege on 'users' to update storePrivileges");
+      }
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (dto.firstName !== undefined) updateData.firstName = dto.firstName;
+    if (dto.lastName !== undefined) updateData.lastName = dto.lastName;
+    if (dto.email !== undefined) updateData.email = dto.email;
+    if (dto.role !== undefined) updateData.role = dto.role;
+    if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
+    if (dto.storePrivileges !== undefined) updateData.storePrivileges = dto.storePrivileges;
+
     return this.prisma.user.update({
       where: { id: userId },
-      data: dto,
+      data: updateData,
       select: {
         id: true,
         username: true,
@@ -148,6 +165,8 @@ export class UsersService {
         email: true,
         role: true,
         isActive: true,
+        isFirstLogin: true,
+        storePrivileges: true,
       },
     });
   }

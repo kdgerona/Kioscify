@@ -160,6 +160,7 @@ export class AuthService {
       accessibleStores.find((s) => s.id === store.id) ?? accessibleStores[0];
 
     const role = user.role === 'ADMIN' ? 'STORE_ADMIN' : user.role;
+    const storePrivileges = (user.storePrivileges as Record<string, string> | null) ?? null;
     const payload = {
       sub: user.id,
       username: user.username,
@@ -168,6 +169,7 @@ export class AuthService {
       brandId: activeStore.brandId,
       companyId: activeStore.companyId,
       mustChangePassword: user.isFirstLogin,
+      storePrivileges,
     };
 
     this.logger.info(
@@ -190,6 +192,7 @@ export class AuthService {
         brandId: activeStore.brandId,
         companyId: activeStore.companyId,
         mustChangePassword: user.isFirstLogin,
+        storePrivileges,
       },
     };
   }

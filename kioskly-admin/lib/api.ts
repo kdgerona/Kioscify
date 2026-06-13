@@ -22,6 +22,7 @@ import type {
   Expense,
   AssignableUser,
   StoreAccess,
+  StorePrivileges,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -726,6 +727,11 @@ class ApiClient {
 
   async resetStoreUserPassword(storeId: string, userId: string): Promise<{ user: User; temporaryPassword: string }> {
     const { data } = await this.client.post(`/users/stores/${storeId}/${userId}/reset-password`);
+    return data;
+  }
+
+  async updateStoreUserPrivileges(storeId: string, userId: string, storePrivileges: StorePrivileges | null): Promise<User> {
+    const { data } = await this.client.patch<User>(`/users/stores/${storeId}/${userId}`, { storePrivileges });
     return data;
   }
 

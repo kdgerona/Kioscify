@@ -44,6 +44,16 @@ export interface StoreRef {
   slug: string;
 }
 
+export type StorePrivilegeLevel = 'no_access' | 'read' | 'write' | 'all';
+export type StorePrivilegeSection = 'transactions' | 'expenses' | 'inventory' | 'users' | 'settings';
+export interface StorePrivileges {
+  transactions: StorePrivilegeLevel;
+  expenses: StorePrivilegeLevel;
+  inventory: StorePrivilegeLevel;
+  users: StorePrivilegeLevel;
+  settings: StorePrivilegeLevel;
+}
+
 export interface User {
   id: string;
   tenantId?: string;
@@ -61,6 +71,7 @@ export interface User {
   isAssigned?: boolean;
   assignedRole?: "STORE_ADMIN" | "CASHIER";
   primaryStore?: StoreRef;
+  storePrivileges?: StorePrivileges | null;
 }
 
 export interface AssignableUser {

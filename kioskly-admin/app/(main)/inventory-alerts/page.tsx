@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
 import {
@@ -59,8 +61,13 @@ interface AlertsData {
 }
 
 export default function InventoryAlertsPage() {
+  const router = useRouter();
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+
+  useEffect(() => {
+    if (!hasPrivilege('inventory', 'read')) router.replace('/dashboard');
+  }, [router]);
 
   const [alertsData, setAlertsData] = useState<AlertsData | null>(null);
   const [loading, setLoading] = useState(true);

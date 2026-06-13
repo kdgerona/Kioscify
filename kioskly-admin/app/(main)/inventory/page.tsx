@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
 import { InventoryItem, LatestInventoryItem, InventoryStats } from "@/types";
@@ -24,9 +26,16 @@ import {
 } from "@/components/ui/select";
 
 export default function InventoryPage() {
+  const router = useRouter();
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const textColor = "#1f2937";
+
+  const canWrite = hasPrivilege('inventory', 'write');
+
+  useEffect(() => {
+    if (!hasPrivilege('inventory', 'read')) router.replace('/dashboard');
+  }, [router]);
 
   // State management
   const [stats, setStats] = useState<InventoryStats | null>(null);
@@ -613,7 +622,7 @@ export default function InventoryPage() {
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Unit</th>
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Min Stock</th>
                       <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Expiry Warning (days)</th>
-                      <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Actions</th>
+                      {canWrite && <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -668,7 +677,7 @@ export default function InventoryPage() {
                           )}
                         </td>
                         <td className="py-3 px-2 sm:px-4 text-right text-xs sm:text-sm">
-                          {editingThresholdId === item.id ? (
+                          {canWrite && (editingThresholdId === item.id ? (
                             <div className="flex gap-2 justify-end">
                               <button onClick={() => handleSaveThreshold(item.id)} className="text-gray-900 hover:text-gray-600 font-medium">Save</button>
                               <button onClick={() => setEditingThresholdId(null)} className="text-gray-500 hover:text-gray-700">Cancel</button>
@@ -677,7 +686,7 @@ export default function InventoryPage() {
                             <button onClick={() => handleEditThreshold(item)} className="text-gray-500 hover:text-gray-700">
                               Edit thresholds
                             </button>
-                          )}
+                          ))}
                         </td>
                       </tr>
                     ))}

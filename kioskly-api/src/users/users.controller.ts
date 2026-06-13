@@ -24,8 +24,10 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { PrivilegeGuard } from '../common/guards/privilege.guard';
+import { StorePrivilegeGuard } from '../common/guards/store-privilege.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RequirePrivilege } from '../common/decorators/require-privilege.decorator';
+import { RequireStorePrivilege } from '../common/decorators/require-store-privilege.decorator';
 import { TenantId, CompanyId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('users')
@@ -38,8 +40,9 @@ export class UsersController {
   // ─── Store users (STORE_ADMIN manages their own store) ────────────────────
 
   @Get('stores/:storeId')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, StorePrivilegeGuard)
   @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
+  @RequireStorePrivilege('users', 'read')
   @ApiOperation({ summary: 'List users in a store' })
   getStoreUsers(@Param('storeId') storeId: string, @Request() req) {
     return this.usersService.getStoreUsers(storeId, req.user.role, req.user.id);
@@ -58,8 +61,9 @@ export class UsersController {
   }
 
   @Post('stores/:storeId')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, StorePrivilegeGuard)
   @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
+  @RequireStorePrivilege('users', 'write')
   @ApiOperation({ summary: 'Create a store user (returns temporary password)' })
   createStoreUser(
     @Param('storeId') storeId: string,
@@ -71,8 +75,9 @@ export class UsersController {
   }
 
   @Patch('stores/:storeId/:userId')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, StorePrivilegeGuard)
   @Roles('STORE_ADMIN')
+  @RequireStorePrivilege('users', 'write')
   @ApiOperation({ summary: 'Update a store user' })
   updateStoreUser(
     @Param('storeId') storeId: string,
@@ -81,13 +86,14 @@ export class UsersController {
     @TenantId() tenantId: string,
     @Request() req,
   ) {
-    return this.usersService.updateStoreUser(storeId, userId, tenantId, req.user.id, dto);
+    return this.usersService.updateStoreUser(storeId, userId, tenantId, req.user.id, dto, req.user.storePrivileges ?? null);
   }
 
   @Delete('stores/:storeId/:userId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, StorePrivilegeGuard)
   @Roles('STORE_ADMIN')
+  @RequireStorePrivilege('users', 'all')
   @ApiOperation({ summary: 'Deactivate a store user (soft delete)' })
   deleteStoreUser(
     @Param('storeId') storeId: string,
@@ -99,8 +105,9 @@ export class UsersController {
   }
 
   @Post('stores/:storeId/:userId/reset-password')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, StorePrivilegeGuard)
   @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
+  @RequireStorePrivilege('users', 'write')
   @ApiOperation({ summary: 'Reset a store user\'s password (generates new temporary password)' })
   resetStoreUserPassword(
     @Param('storeId') storeId: string,

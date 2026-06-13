@@ -167,6 +167,7 @@ model User {
   isFirstLogin Boolean   @default(true)   // forces password change on first login
   isActive           Boolean   @default(true)
   companyPrivileges  Json?     // null = owner (full access); { brands, analytics, users, settings } for restricted admins
+  storePrivileges    Json?     // null = owner (full access); { transactions, expenses, inventory, users, settings } for restricted store admins
   createdAt          DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

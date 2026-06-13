@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { hasPrivilege } from '@/lib/privileges';
 import { api } from '@/lib/api';
 import { formatUserName } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
@@ -11,8 +13,13 @@ import type { UserShiftInventoryReport } from '@/types';
 type Tab = 'daily' | 'shift';
 
 export default function InventoryReportsPage() {
+  const router = useRouter();
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? '#ea580c';
+
+  useEffect(() => {
+    if (!hasPrivilege('inventory', 'read')) router.replace('/dashboard');
+  }, [router]);
 
   const [activeTab, setActiveTab] = useState<Tab>('daily');
 

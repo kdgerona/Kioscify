@@ -30,12 +30,15 @@ import Image from "next/image";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
 import { cn, getContrastColor, resolveLogoUrl } from "@/lib/utils";
+import { hasPrivilege } from "@/lib/privileges";
+import type { StorePrivilegeSection } from "@/types";
 import * as Popover from "@radix-ui/react-popover";
 
 interface NavigationItem {
   name: string;
   href: string;
   icon: any;
+  section?: StorePrivilegeSection | null;
   subItems?: {
     name: string;
     href: string;
@@ -43,25 +46,26 @@ interface NavigationItem {
   }[];
 }
 
-const navigation: NavigationItem[] = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Transactions", href: "/transactions", icon: Receipt },
-  { name: "Expenses", href: "/expenses", icon: Wallet },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
-  { name: "Sales Reports", href: "/sales-reports", icon: FileText },
-  { name: "Inventory", href: "/inventory", icon: Boxes },
+const ALL_NAVIGATION: NavigationItem[] = [
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, section: null },
+  { name: "Transactions", href: "/transactions", icon: Receipt, section: "transactions" },
+  { name: "Expenses", href: "/expenses", icon: Wallet, section: "expenses" },
+  { name: "Analytics", href: "/analytics", icon: BarChart3, section: null },
+  { name: "Sales Reports", href: "/sales-reports", icon: FileText, section: "transactions" },
+  { name: "Inventory", href: "/inventory", icon: Boxes, section: "inventory" },
   {
     name: "Inventory Reports",
     href: "#",
     icon: ClipboardList,
+    section: "inventory" as StorePrivilegeSection,
     subItems: [
       { name: "Reports", href: "/inventory-reports", icon: FileText },
       { name: "Progression", href: "/inventory-progression", icon: TrendingUp },
       { name: "Alerts", href: "/inventory-alerts", icon: AlertTriangle },
     ],
   },
-  { name: "Users", href: "/users", icon: Users },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Users", href: "/users", icon: Users, section: "users" },
+  { name: "Settings", href: "/settings", icon: Settings, section: null },
 ];
 
 interface AccessibleStore {
@@ -78,6 +82,10 @@ export default function Sidebar() {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const navigation = ALL_NAVIGATION.filter(
+    (item) => item.section === null || item.section === undefined || hasPrivilege(item.section, 'read')
+  );
   const [accessibleStores, setAccessibleStores] = useState<AccessibleStore[]>(
     [],
   );

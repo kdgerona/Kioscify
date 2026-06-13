@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
 import { formatCurrency, formatDateTime, formatRole, formatUserName, getPaymentMethodLabel } from "@/lib/utils";
 import {
@@ -16,8 +18,13 @@ import type { SubmittedReport, UserShiftReport } from "@/types";
 type Tab = "daily" | "shift";
 
 export default function SubmittedReportsPage() {
+  const router = useRouter();
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+
+  useEffect(() => {
+    if (!hasPrivilege('transactions', 'read')) router.replace('/dashboard');
+  }, [router]);
 
   const [activeTab, setActiveTab] = useState<Tab>("daily");
 

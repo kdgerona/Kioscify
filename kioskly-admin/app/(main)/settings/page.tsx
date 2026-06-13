@@ -6,10 +6,12 @@ import type { User as UserType } from '@/types';
 import { useTenant } from '@/contexts/TenantContext';
 import { api } from '@/lib/api';
 import { formatRole } from '@/lib/utils';
+import { hasPrivilege } from '@/lib/privileges';
 
 export default function SettingsPage() {
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? '#ea580c';
+  const canViewStore = hasPrivilege('settings', 'read');
   const [user, setUser] = useState<UserType | null>(null);
 
   // Change password state
@@ -54,8 +56,8 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Tenant Info */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        {/* Tenant Info — only for users with at least read on settings */}
+        {canViewStore && <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center mb-4 sm:mb-6">
             <div className="p-2 sm:p-3 rounded-lg flex-shrink-0" style={{ backgroundColor: `${primaryColor}20` }}>
               <Store className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: primaryColor }} />
@@ -87,7 +89,7 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* User Info */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">

@@ -57,6 +57,20 @@ export class UpdateStoreUserDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Privilege levels per store section. Only admins with users:all can set this.',
+    example: { transactions: 'read', expenses: 'no_access', inventory: 'read', users: 'read', settings: 'read' },
+  })
+  @IsOptional()
+  @IsObject()
+  storePrivileges?: {
+    transactions: string;
+    expenses: string;
+    inventory: string;
+    users: string;
+    settings: string;
+  } | null;
 }
 
 export class CreateCompanyUserDto {
