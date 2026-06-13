@@ -10,6 +10,18 @@ import { hasPrivilege } from '@/lib/privileges';
 import { PrivilegesGrid } from '@/components/PrivilegesGrid';
 import { EditPrivilegesModal } from '@/components/EditPrivilegesModal';
 
+function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="relative group/tip">
+      {children}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity pointer-events-none z-20">
+        {label}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const router = useRouter();
 
@@ -287,54 +299,59 @@ export default function UsersPage() {
                   {currentUser?.id !== user.id && (
                     <div className="flex items-center gap-2">
                       {canManagePrivileges && (
-                        <button
-                          onClick={() => setEditPrivilegesUser(user)}
-                          title="Edit privileges"
-                          className="p-1.5 text-gray-400 hover:text-blue-500 rounded"
-                        >
-                          <Shield className="w-4 h-4" />
-                        </button>
+                        <Tooltip label="Edit privileges">
+                          <button
+                            onClick={() => setEditPrivilegesUser(user)}
+                            className="p-1.5 text-gray-400 hover:text-blue-500 rounded"
+                          >
+                            <Shield className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
                       )}
                       {!user.isActive ? (
                         <>
                           {canEdit && (
-                            <button
-                              onClick={() => handleToggleActive(user)}
-                              title="Enable account"
-                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
-                            >
-                              <UserCheck className="w-4 h-4" />
-                            </button>
+                            <Tooltip label="Enable account">
+                              <button
+                                onClick={() => handleToggleActive(user)}
+                                className="p-1.5 text-gray-400 hover:text-green-600 rounded"
+                              >
+                                <UserCheck className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
                           )}
                         </>
                       ) : (
                         <>
                           {user.isFirstLogin && canDelete && (
-                            <button
-                              onClick={() => handleRemoveUser(user)}
-                              title="Remove pending user"
-                              className="p-1.5 text-gray-400 hover:text-red-500 rounded"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <Tooltip label="Remove pending user">
+                              <button
+                                onClick={() => handleRemoveUser(user)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
                           )}
                           {!user.isFirstLogin && canEdit && (
-                            <button
-                              onClick={() => handleToggleActive(user)}
-                              title="Disable account"
-                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
-                            >
-                              <UserX className="w-4 h-4" />
-                            </button>
+                            <Tooltip label="Disable account">
+                              <button
+                                onClick={() => handleToggleActive(user)}
+                                className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                              >
+                                <UserX className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
                           )}
                           {canEdit && (
-                            <button
-                              onClick={() => handleResetPassword(user)}
-                              title="Reset password"
-                              className="p-1.5 text-gray-400 hover:text-amber-500 rounded"
-                            >
-                              <KeyRound className="w-4 h-4" />
-                            </button>
+                            <Tooltip label="Reset password">
+                              <button
+                                onClick={() => handleResetPassword(user)}
+                                className="p-1.5 text-gray-400 hover:text-amber-500 rounded"
+                              >
+                                <KeyRound className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
                           )}
                         </>
                       )}
