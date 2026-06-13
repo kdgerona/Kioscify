@@ -331,12 +331,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    const companyPrivileges = (user.companyPrivileges as Record<string, string> | null) ?? null;
+
     const payload = {
       sub: user.id,
       username: user.username,
       role: user.role,
       companyId: user.companyId,
       mustChangePassword: user.isFirstLogin,
+      companyPrivileges,
     };
 
     this.logger.info(
@@ -356,6 +359,7 @@ export class AuthService {
         role: user.role,
         companyId: user.companyId,
         mustChangePassword: user.isFirstLogin,
+        companyPrivileges,
       },
     };
   }
