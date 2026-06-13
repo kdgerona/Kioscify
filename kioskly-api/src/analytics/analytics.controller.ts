@@ -5,13 +5,16 @@ import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryDto, TopProductsQueryDto } from './dto/analytics-query.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PrivilegeGuard } from '../common/guards/privilege.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RequirePrivilege } from '../common/decorators/require-privilege.decorator';
 import { CompanyId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('analytics')
 @Controller('analytics/company')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
 @Roles('COMPANY_ADMIN')
+@RequirePrivilege('analytics', 'read')
 @ApiBearerAuth()
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}

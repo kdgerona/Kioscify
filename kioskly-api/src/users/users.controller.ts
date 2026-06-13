@@ -23,7 +23,9 @@ import {
 } from './dto/user.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PrivilegeGuard } from '../common/guards/privilege.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RequirePrivilege } from '../common/decorators/require-privilege.decorator';
 import { TenantId, CompanyId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('users')
@@ -112,8 +114,9 @@ export class UsersController {
   // ─── Company users (COMPANY_ADMIN manages their own company) ─────────────
 
   @Get('companies/:companyId')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, PrivilegeGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @RequirePrivilege('users', 'read')
   @ApiOperation({ summary: 'List COMPANY_ADMIN users for a company' })
   getCompanyUsers(
     @Param('companyId') companyId: string,
@@ -142,20 +145,23 @@ export class UsersController {
   }
 
   @Post('companies/:companyId')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, PrivilegeGuard)
   @Roles('COMPANY_ADMIN')
+  @RequirePrivilege('users', 'write')
   @ApiOperation({ summary: 'Create additional COMPANY_ADMIN user (returns temporary password)' })
   createCompanyUser(
     @Param('companyId') companyId: string,
     @Body() dto: CreateCompanyUserDto,
     @CompanyId() requestingCompanyId: string,
+    @Request() req,
   ) {
-    return this.usersService.createCompanyUser(companyId, requestingCompanyId, dto);
+    return this.usersService.createCompanyUser(companyId, requestingCompanyId, dto, req.user.companyPrivileges ?? null);
   }
 
   @Patch('companies/:companyId/:userId')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, PrivilegeGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @RequirePrivilege('users', 'write')
   @ApiOperation({ summary: 'Update a company user' })
   updateCompanyUser(
     @Param('companyId') companyId: string,
@@ -164,13 +170,14 @@ export class UsersController {
     @CompanyId() requestingCompanyId: string,
     @Request() req,
   ) {
-    return this.usersService.updateCompanyUser(companyId, userId, requestingCompanyId, req.user.role, req.user.id, dto);
+    return this.usersService.updateCompanyUser(companyId, userId, requestingCompanyId, req.user.role, req.user.id, dto, req.user.companyPrivileges ?? null);
   }
 
   @Delete('companies/:companyId/:userId')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, PrivilegeGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @RequirePrivilege('users', 'all')
   @ApiOperation({ summary: 'Remove a company user (soft delete)' })
   deleteCompanyUser(
     @Param('companyId') companyId: string,
@@ -182,8 +189,9 @@ export class UsersController {
   }
 
   @Post('companies/:companyId/:userId/reset-password')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, PrivilegeGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @RequirePrivilege('users', 'write')
   @ApiOperation({ summary: "Reset a company user's password" })
   resetCompanyUserPassword(
     @Param('companyId') companyId: string,

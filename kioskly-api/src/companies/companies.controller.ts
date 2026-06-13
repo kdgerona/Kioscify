@@ -33,7 +33,9 @@ import {
 } from './dto/company.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PrivilegeGuard } from '../common/guards/privilege.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RequirePrivilege } from '../common/decorators/require-privilege.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { CompanyId } from '../common/decorators/tenant.decorator';
 
@@ -61,8 +63,9 @@ export class CompaniesController {
   }
 
   @Get('me')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
   @Roles('COMPANY_ADMIN')
+  @RequirePrivilege('settings', 'read')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get own company (COMPANY_ADMIN)' })
   findOwn(@CompanyId() companyId: string) {
@@ -88,8 +91,9 @@ export class CompaniesController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
+  @RequirePrivilege('settings', 'write')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update company (PLATFORM_ADMIN can change all fields; COMPANY_ADMIN can update basic info only)' })
   update(
@@ -119,8 +123,9 @@ export class CompaniesController {
   }
 
   @Post(':id/upload-logo')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
+  @RequirePrivilege('settings', 'write')
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload company logo' })
