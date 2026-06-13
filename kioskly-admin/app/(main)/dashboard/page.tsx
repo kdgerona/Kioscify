@@ -69,11 +69,25 @@ export default function DashboardPage() {
     loadDashboardData();
   }, []);
 
+  const dayStart = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+  const dayEnd = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
   const loadDashboardData = async () => {
     try {
+      const now = new Date();
+
+      const todayStart = dayStart(now).toISOString();
+      const todayEnd = dayEnd(now).toISOString();
+
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthStartISO = dayStart(monthStart).toISOString();
+      const monthEndISO = dayEnd(now).toISOString();
+
       const [monthlyData, dailyData] = await Promise.all([
-        api.getAnalytics({ period: "monthly" }),
-        api.getAnalytics({ period: "daily" }),
+        api.getAnalytics({ period: "monthly", startDate: monthStartISO, endDate: monthEndISO }),
+        api.getAnalytics({ period: "daily", startDate: todayStart, endDate: todayEnd }),
       ]);
       setAnalytics(monthlyData);
       setDailyAnalytics(dailyData);

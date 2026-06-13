@@ -297,9 +297,10 @@ export default function SubmittedReportsPage() {
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">
                       Period Covered
                     </p>
-                    <p className="text-xs text-gray-700 break-words">
-                      {new Date(selectedReport.periodStart).toLocaleString()} -{" "}
-                      {new Date(selectedReport.periodEnd).toLocaleString()}
+                    <p className="text-xs sm:text-sm text-gray-900 break-words">
+                      {new Date(selectedReport.reportDate).toLocaleDateString('en-PH', {
+                        year: 'numeric', month: 'long', day: 'numeric'
+                      })} (Full Day)
                     </p>
                   </div>
                 </div>
