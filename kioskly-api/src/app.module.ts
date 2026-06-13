@@ -28,6 +28,8 @@ import { ReportsModule } from './reports/reports.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SubmittedReportsModule } from './submitted-reports/submitted-reports.module';
 import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/submitted-inventory-reports.module';
+import { UserShiftReportsModule } from './user-shift-reports/user-shift-reports.module';
+import { UserShiftInventoryReportsModule } from './user-shift-inventory-reports/user-shift-inventory-reports.module';
 
 @Module({
   imports: [
@@ -91,6 +93,8 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
     InventoryModule,
     SubmittedReportsModule,
     SubmittedInventoryReportsModule,
+    UserShiftReportsModule,
+    UserShiftInventoryReportsModule,
 
   ],
   controllers: [AppController],

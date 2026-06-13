@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubmittedInventoryReportDto } from './dto/create-submitted-inventory-report.dto';
@@ -100,29 +99,6 @@ export class SubmittedInventoryReportsService {
     userId: string,
     tenantId: string,
   ) {
-    // Check if report for this date already exists
-    const existingReport = await this.prisma.submittedInventoryReport.findFirst(
-      {
-        where: {
-          tenantId,
-          reportDate: createDto.reportDate,
-        },
-      },
-    );
-
-    if (existingReport) {
-      // If replaceExisting is true, delete the old report
-      if (createDto.replaceExisting) {
-        await this.prisma.submittedInventoryReport.delete({
-          where: { id: existingReport.id },
-        });
-      } else {
-        throw new BadRequestException(
-          `Inventory report for date ${createDto.reportDate} already exists`,
-        );
-      }
-    }
-
     return this.prisma.submittedInventoryReport.create({
       data: {
         tenantId,
@@ -148,7 +124,7 @@ export class SubmittedInventoryReportsService {
   }
 
   async findAll(tenantId: string, filters: SubmittedInventoryReportFiltersDto) {
-    const where: any = { tenantId };
+    const where: any = { tenantId, isShiftMirror: { not: true } };
 
     if (filters.reportDate) {
       where.reportDate = filters.reportDate;
@@ -226,10 +202,11 @@ export class SubmittedInventoryReportsService {
       startDate.setDate(startDate.getDate() - daysToLookBack);
     }
 
-    // Fetch reports in date range
+    // Fetch reports in date range — exclude shift mirrors to avoid duplicate date entries
     const reports = await this.prisma.submittedInventoryReport.findMany({
       where: {
         tenantId,
+        isShiftMirror: { not: true },
         submittedAt: {
           gte: startDate,
           lte: endDate,
@@ -418,7 +395,6 @@ export class SubmittedInventoryReportsService {
     });
 
     const now = new Date();
-    now.setHours(0, 0, 0, 0);
 
     // Calculate alerts for each item
     itemsMap.forEach((dataPoints, inventoryItemId) => {
@@ -465,12 +441,14 @@ export class SubmittedInventoryReportsService {
         for (const batch of latestPoint.expirationBatches) {
           if (!batch.expirationDate || batch.quantity <= 0) continue;
 
-          const expirationDate = new Date(batch.expirationDate);
-          expirationDate.setHours(0, 0, 0, 0);
-
-          const daysUntilExpiration = Math.ceil(
-            (expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+          // Use UTC-based day arithmetic to avoid server-timezone shifts
+          const nowMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+          const expDay = Date.UTC(
+            new Date(batch.expirationDate).getUTCFullYear(),
+            new Date(batch.expirationDate).getUTCMonth(),
+            new Date(batch.expirationDate).getUTCDate(),
           );
+          const daysUntilExpiration = Math.ceil((expDay - nowMs) / (1000 * 60 * 60 * 24));
 
           if (daysUntilExpiration < 0) {
             // Already expired
@@ -482,7 +460,7 @@ export class SubmittedInventoryReportsService {
               category: latestPoint.category,
               unit: latestPoint.unit,
               batchQuantity: batch.quantity,
-              expirationDate: expirationDate.toISOString().split('T')[0],
+              expirationDate: batch.expirationDate,
               daysExpiredAgo: Math.abs(daysUntilExpiration),
             });
           } else if (daysUntilExpiration <= warningDays) {
@@ -502,7 +480,7 @@ export class SubmittedInventoryReportsService {
               category: latestPoint.category,
               unit: latestPoint.unit,
               batchQuantity: batch.quantity,
-              expirationDate: expirationDate.toISOString().split('T')[0],
+              expirationDate: batch.expirationDate,
               daysUntilExpiration,
             });
           }
@@ -601,13 +579,16 @@ export class SubmittedInventoryReportsService {
   }
 
   async getStats(tenantId: string) {
+    const mirrorFilter = { isShiftMirror: { not: true } };
+
     const totalReports = await this.prisma.submittedInventoryReport.count({
-      where: { tenantId },
+      where: { tenantId, ...mirrorFilter },
     });
 
     const reportsThisMonth = await this.prisma.submittedInventoryReport.count({
       where: {
         tenantId,
+        ...mirrorFilter,
         submittedAt: {
           gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
         },
@@ -615,7 +596,7 @@ export class SubmittedInventoryReportsService {
     });
 
     const lastReport = await this.prisma.submittedInventoryReport.findFirst({
-      where: { tenantId },
+      where: { tenantId, ...mirrorFilter },
       orderBy: { submittedAt: 'desc' },
       select: { submittedAt: true, reportDate: true },
     });

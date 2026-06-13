@@ -5,28 +5,29 @@ import { api } from "@/lib/api";
 import { formatCurrency, formatDateTime, formatRole, formatUserName, getPaymentMethodLabel } from "@/lib/utils";
 import {
   FileText,
-  Search,
-  Filter,
   Eye,
   X,
   RefreshCw,
-  User,
 } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
-import type { SubmittedReport } from "@/types";
+import type { SubmittedReport, UserShiftReport } from "@/types";
+
+type Tab = "daily" | "shift";
 
 export default function SubmittedReportsPage() {
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+
+  const [activeTab, setActiveTab] = useState<Tab>("daily");
+
+  // ─── Daily tab state ───────────────────────────────────────────────────────
   const [reports, setReports] = useState<SubmittedReport[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [selectedReport, setSelectedReport] = useState<SubmittedReport | null>(
-    null
-  );
+  const [selectedReport, setSelectedReport] = useState<SubmittedReport | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const isFirstMount = useRef(true);
 
@@ -55,12 +56,7 @@ export default function SubmittedReportsPage() {
         } else {
           setIsFiltering(true);
         }
-
-        const params: {
-          startDate?: string;
-          endDate?: string;
-        } = {};
-
+        const params: { startDate?: string; endDate?: string } = {};
         if (startDate) {
           const start = new Date(startDate);
           start.setHours(0, 0, 0, 0);
@@ -71,7 +67,6 @@ export default function SubmittedReportsPage() {
           end.setHours(23, 59, 59, 999);
           params.endDate = end.toISOString();
         }
-
         const data = await api.getSubmittedReports(params);
         setReports(data);
       } catch (error) {
@@ -81,7 +76,7 @@ export default function SubmittedReportsPage() {
         setIsFiltering(false);
       }
     },
-    [startDate, endDate]
+    [startDate, endDate],
   );
 
   useEffect(() => {
@@ -89,6 +84,84 @@ export default function SubmittedReportsPage() {
     isFirstMount.current = false;
     loadReports(isInitial);
   }, [loadReports]);
+
+  // ─── Shift tab state ───────────────────────────────────────────────────────
+  const [shiftReports, setShiftReports] = useState<UserShiftReport[]>([]);
+  const [shiftLoading, setShiftLoading] = useState(false);
+  const [shiftFiltering, setShiftFiltering] = useState(false);
+  const [shiftStartDate, setShiftStartDate] = useState<Date | undefined>(undefined);
+  const [shiftEndDate, setShiftEndDate] = useState<Date | undefined>(undefined);
+  const [selectedShiftReport, setSelectedShiftReport] = useState<UserShiftReport | null>(null);
+  const [loadingShiftDetails, setLoadingShiftDetails] = useState(false);
+  const shiftFirstLoad = useRef(false);
+
+  const clearShiftFilters = () => {
+    setShiftStartDate(undefined);
+    setShiftEndDate(undefined);
+  };
+
+  const loadShiftReportDetails = async (reportId: string) => {
+    try {
+      setLoadingShiftDetails(true);
+      const fullReport = await api.getUserShiftReportById(reportId);
+      setSelectedShiftReport(fullReport);
+    } catch (error) {
+      console.error("Failed to load shift report details:", error);
+    } finally {
+      setLoadingShiftDetails(false);
+    }
+  };
+
+  const loadShiftReports = useCallback(
+    async (isInitial = false) => {
+      try {
+        if (isInitial) {
+          setShiftLoading(true);
+        } else {
+          setShiftFiltering(true);
+        }
+        const params: { startDate?: string; endDate?: string } = {};
+        if (shiftStartDate) {
+          const start = new Date(shiftStartDate);
+          start.setHours(0, 0, 0, 0);
+          params.startDate = start.toISOString();
+        }
+        if (shiftEndDate) {
+          const end = new Date(shiftEndDate);
+          end.setHours(23, 59, 59, 999);
+          params.endDate = end.toISOString();
+        }
+        const data = await api.getUserShiftReports(params);
+        setShiftReports(data);
+      } catch (error) {
+        console.error("Failed to load shift reports:", error);
+      } finally {
+        setShiftLoading(false);
+        setShiftFiltering(false);
+      }
+    },
+    [shiftStartDate, shiftEndDate],
+  );
+
+  // Load shift reports the first time the tab is opened
+  useEffect(() => {
+    if (activeTab === "shift" && !shiftFirstLoad.current) {
+      shiftFirstLoad.current = true;
+      loadShiftReports(true);
+    }
+  }, [activeTab, loadShiftReports]);
+
+  // Re-fetch when shift filters change (but only after first load)
+  const shiftFilterMountRef = useRef(false);
+  useEffect(() => {
+    if (!shiftFilterMountRef.current) {
+      shiftFilterMountRef.current = true;
+      return;
+    }
+    if (shiftFirstLoad.current) {
+      loadShiftReports(false);
+    }
+  }, [loadShiftReports]);
 
   if (initialLoading) {
     return (
@@ -105,592 +178,647 @@ export default function SubmittedReportsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-          Sales Reports
-        </h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-2">
-          View all submitted daily sales reports
-        </p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Sales Reports</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-2">View submitted sales reports</p>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200 mb-6">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-          <div className="flex-1">
-            <DatePicker
-              date={startDate}
-              onDateChange={setStartDate}
-              placeholder="Submission start date"
-            />
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-6">
+        <button
+          onClick={() => setActiveTab("daily")}
+          className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
+            activeTab === "daily"
+              ? "border-b-2 text-gray-900"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+          style={activeTab === "daily" ? { borderBottomColor: primaryColor } : {}}
+        >
+          Daily Sales Report (Full Day)
+        </button>
+        <button
+          onClick={() => setActiveTab("shift")}
+          className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
+            activeTab === "shift"
+              ? "border-b-2 text-gray-900"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+          style={activeTab === "shift" ? { borderBottomColor: primaryColor } : {}}
+        >
+          Shift Reports
+        </button>
+      </div>
+
+      {/* ─── Daily Tab ──────────────────────────────────────────────────────── */}
+      {activeTab === "daily" && (
+        <>
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200 mb-6">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+              <div className="flex-1">
+                <DatePicker date={startDate} onDateChange={setStartDate} placeholder="Submission start date" />
+              </div>
+              <div className="flex-1">
+                <DatePicker date={endDate} onDateChange={setEndDate} placeholder="Submission end date" />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => loadReports(false)}
+                  disabled={isFiltering}
+                  className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition disabled:opacity-50"
+                  title="Refresh reports"
+                >
+                  <RefreshCw className={`w-5 h-5 ${isFiltering ? "animate-spin" : ""}`} />
+                </button>
+                {(startDate || endDate) && (
+                  <button
+                    onClick={clearFilters}
+                    className="text-gray-600 hover:text-gray-900 p-2 rounded-lg border border-gray-300 hover:border-gray-400 transition"
+                    title="Clear filters"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex-1">
-            <DatePicker
-              date={endDate}
-              onDateChange={setEndDate}
-              placeholder="Submission end date"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => loadReports(false)}
-              disabled={isFiltering}
-              className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition disabled:opacity-50"
-              title="Refresh reports"
-            >
-              <RefreshCw className={`w-5 h-5 ${isFiltering ? "animate-spin" : ""}`} />
-            </button>
-            {(startDate || endDate) && (
-              <button
-                onClick={clearFilters}
-                className="text-gray-600 hover:text-gray-900 p-2 rounded-lg border border-gray-300 hover:border-gray-400 transition"
-                title="Clear filters"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
+          {/* Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
+            {isFiltering && (
+              <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
+              </div>
+            )}
+            {reports.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Report Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Submitted At</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Submitted By</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Sales</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Gross Profit</th>
+                      <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {reports.map((report) => (
+                      <tr key={report.id} className="hover:bg-gray-50 transition">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <FileText className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm font-medium text-gray-900">{report.reportDate}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatDateTime(report.submittedAt)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatUserName(report.user)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm font-bold text-gray-900">{formatCurrency(report.salesSnapshot.totalAmount)}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`text-sm font-bold ${report.summarySnapshot.grossProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                            {formatCurrency(report.summarySnapshot.grossProfit)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => loadReportDetails(report.id)}
+                            className="text-black hover:opacity-70 transition"
+                            disabled={loadingDetails}
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No submitted reports found</p>
+              </div>
             )}
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
-      {/* Reports Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
-        {isFiltering && (
-          <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
+      {/* ─── Shift Tab ──────────────────────────────────────────────────────── */}
+      {activeTab === "shift" && (
+        <>
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200 mb-6">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+              <div className="flex-1">
+                <DatePicker date={shiftStartDate} onDateChange={setShiftStartDate} placeholder="Start date" />
+              </div>
+              <div className="flex-1">
+                <DatePicker date={shiftEndDate} onDateChange={setShiftEndDate} placeholder="End date" />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => loadShiftReports(false)}
+                  disabled={shiftFiltering}
+                  className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition disabled:opacity-50"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`w-5 h-5 ${shiftFiltering ? "animate-spin" : ""}`} />
+                </button>
+                {(shiftStartDate || shiftEndDate) && (
+                  <button
+                    onClick={clearShiftFilters}
+                    className="text-gray-600 hover:text-gray-900 p-2 rounded-lg border border-gray-300 hover:border-gray-400 transition"
+                    title="Clear filters"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-        {reports.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Report Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Submitted At
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Submitted By
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Total Sales
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Gross Profit
-                  </th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {reports.map((report) => (
-                  <tr key={report.id} className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <FileText className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-900">
-                          {report.reportDate}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {formatDateTime(report.submittedAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatUserName(report.user)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-bold text-gray-900">
-                        {formatCurrency(report.salesSnapshot.totalAmount)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`text-sm font-bold ${
-                          report.summarySnapshot.grossProfit >= 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {formatCurrency(report.summarySnapshot.grossProfit)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <button
-                        onClick={() => loadReportDetails(report.id)}
-                        className="text-black hover:opacity-70 transition"
-                        disabled={loadingDetails}
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No submitted reports found</p>
-          </div>
-        )}
-      </div>
 
-      {/* Detail Modal */}
+          {/* Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden relative">
+            {(shiftLoading || shiftFiltering) && (
+              <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderBottomColor: primaryColor }}></div>
+              </div>
+            )}
+            {shiftReports.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Report Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Submitted At</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Submitted By</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Sales</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Gross Profit</th>
+                      <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {shiftReports.map((report) => (
+                      <tr key={report.id} className="hover:bg-gray-50 transition">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <FileText className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm font-medium text-gray-900">{report.reportDate}</span>
+                            <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">Shift</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatDateTime(report.submittedAt)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatUserName(report.user)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm font-bold text-gray-900">{formatCurrency(report.salesSnapshot.totalAmount)}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`text-sm font-bold ${report.summarySnapshot.grossProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                            {formatCurrency(report.summarySnapshot.grossProfit)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => loadShiftReportDetails(report.id)}
+                            className="text-black hover:opacity-70 transition"
+                            disabled={loadingShiftDetails}
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : !shiftLoading ? (
+              <div className="text-center py-12">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No shift reports found</p>
+              </div>
+            ) : null}
+          </div>
+        </>
+      )}
+
+      {/* ─── Daily Report Detail Modal ─────────────────────────────────────── */}
       {(selectedReport || loadingDetails) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
               <div className="flex items-center justify-between gap-2">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
-                  Report Details
-                </h2>
-                <button
-                  onClick={() => setSelectedReport(null)}
-                  className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl flex-shrink-0"
-                >
-                  ×
-                </button>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Report Details</h2>
+                <button onClick={() => setSelectedReport(null)} className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl flex-shrink-0">×</button>
               </div>
             </div>
-
             {loadingDetails ? (
               <div className="p-8 sm:p-12 flex flex-col items-center justify-center">
                 <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-indigo-600 mb-4"></div>
-                <p className="text-sm sm:text-base text-gray-600">
-                  Loading report details...
-                </p>
+                <p className="text-sm sm:text-base text-gray-600">Loading report details...</p>
               </div>
             ) : selectedReport ? (
               <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                {/* Metadata */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
-                      Report Date
-                    </p>
-                    <p className="text-base sm:text-lg font-semibold text-gray-900">
-                      {selectedReport.reportDate}
-                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Report Date</p>
+                    <p className="text-base sm:text-lg font-semibold text-gray-900">{selectedReport.reportDate}</p>
                   </div>
                   <div>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
-                      Submitted At
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-900">
-                      {formatDateTime(selectedReport.submittedAt)}
-                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Submitted At</p>
+                    <p className="text-xs sm:text-sm text-gray-900">{formatDateTime(selectedReport.submittedAt)}</p>
                   </div>
                   <div>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
-                      Submitted By
-                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Submitted By</p>
                     <p className="text-xs sm:text-sm text-gray-900 break-words">
-                      {formatUserName(selectedReport.user)}{" "}
-                      ({formatRole(selectedReport.user?.role)})
+                      {formatUserName(selectedReport.user)} ({formatRole(selectedReport.user?.role)})
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-1">
-                      Period Covered
-                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Period Covered</p>
                     <p className="text-xs sm:text-sm text-gray-900 break-words">
-                      {new Date(selectedReport.reportDate).toLocaleDateString('en-PH', {
-                        year: 'numeric', month: 'long', day: 'numeric'
-                      })} (Full Day)
+                      {new Date(selectedReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })} (Full Day)
                     </p>
                   </div>
                 </div>
-
-                {/* Summary */}
                 <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-4 sm:p-6 rounded-xl">
-                  <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">
-                    Summary
-                  </h3>
+                  <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">Summary</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div>
-                      <p className="text-emerald-100 text-xs sm:text-sm">
-                        Gross Profit
-                      </p>
-                      <p className="text-lg sm:text-xl md:text-2xl font-bold">
-                        {formatCurrency(
-                          selectedReport.summarySnapshot.grossProfit
-                        )}
-                      </p>
+                      <p className="text-emerald-100 text-xs sm:text-sm">Gross Profit</p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold">{formatCurrency(selectedReport.summarySnapshot.grossProfit)}</p>
                     </div>
                     <div>
-                      <p className="text-emerald-100 text-xs sm:text-sm">
-                        Profit Margin
-                      </p>
-                      <p className="text-lg sm:text-xl md:text-2xl font-bold">
-                        {selectedReport.summarySnapshot.profitMargin.toFixed(2)}
-                        %
-                      </p>
+                      <p className="text-emerald-100 text-xs sm:text-sm">Profit Margin</p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold">{selectedReport.summarySnapshot.profitMargin.toFixed(2)}%</p>
                     </div>
                     <div>
-                      <p className="text-emerald-100 text-xs sm:text-sm">
-                        Net Revenue
-                      </p>
-                      <p className="text-lg sm:text-xl md:text-2xl font-bold">
-                        {formatCurrency(
-                          selectedReport.summarySnapshot.netRevenue
-                        )}
-                      </p>
+                      <p className="text-emerald-100 text-xs sm:text-sm">Net Revenue</p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold">{formatCurrency(selectedReport.summarySnapshot.netRevenue)}</p>
                     </div>
                   </div>
                 </div>
-
-                {/* Sales Snapshot */}
                 <div className="bg-blue-50 p-4 sm:p-6 rounded-xl border-2 border-blue-200">
-                  <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-3 sm:mb-4">
-                    Sales
-                  </h3>
+                  <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-3 sm:mb-4">Sales</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <p className="text-xs sm:text-sm text-blue-700">
-                        Total Amount
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold text-blue-900">
-                        {formatCurrency(
-                          selectedReport.salesSnapshot.totalAmount
-                        )}
-                      </p>
+                      <p className="text-xs sm:text-sm text-blue-700">Total Amount</p>
+                      <p className="text-lg sm:text-xl font-bold text-blue-900">{formatCurrency(selectedReport.salesSnapshot.totalAmount)}</p>
                     </div>
                     <div>
-                      <p className="text-xs sm:text-sm text-blue-700">
-                        Transactions
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold text-blue-900">
-                        {selectedReport.salesSnapshot.transactionCount}
-                      </p>
+                      <p className="text-xs sm:text-sm text-blue-700">Transactions</p>
+                      <p className="text-lg sm:text-xl font-bold text-blue-900">{selectedReport.salesSnapshot.transactionCount}</p>
                     </div>
                     <div>
-                      <p className="text-xs sm:text-sm text-blue-700">
-                        Avg Transaction
-                      </p>
-                      <p className="text-base sm:text-lg font-semibold text-blue-900">
-                        {formatCurrency(
-                          selectedReport.salesSnapshot.averageTransaction
-                        )}
-                      </p>
+                      <p className="text-xs sm:text-sm text-blue-700">Avg Transaction</p>
+                      <p className="text-base sm:text-lg font-semibold text-blue-900">{formatCurrency(selectedReport.salesSnapshot.averageTransaction)}</p>
                     </div>
                     <div>
-                      <p className="text-xs sm:text-sm text-blue-700">
-                        Items Sold
-                      </p>
-                      <p className="text-base sm:text-lg font-semibold text-blue-900">
-                        {selectedReport.salesSnapshot.totalItemsSold}
-                      </p>
+                      <p className="text-xs sm:text-sm text-blue-700">Items Sold</p>
+                      <p className="text-base sm:text-lg font-semibold text-blue-900">{selectedReport.salesSnapshot.totalItemsSold}</p>
                     </div>
                   </div>
-
-                  {/* Payment Method Breakdown */}
                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-blue-300">
-                    <p className="text-xs sm:text-sm font-bold text-blue-900 mb-2">
-                      Payment Methods
-                    </p>
+                    <p className="text-xs sm:text-sm font-bold text-blue-900 mb-2">Payment Methods</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {Object.entries(
-                        selectedReport.salesSnapshot
-                          .paymentMethodBreakdown as Record<
-                          string,
-                          { total: number; count: number }
-                        >
-                      ).map(([method, data]) => (
-                        <div
-                          key={method}
-                          className="bg-white p-2 sm:p-3 rounded-lg"
-                        >
+                      {Object.entries(selectedReport.salesSnapshot.paymentMethodBreakdown as Record<string, { total: number; count: number }>).map(([method, data]) => (
+                        <div key={method} className="bg-white p-2 sm:p-3 rounded-lg">
                           <p className="text-xs text-gray-600">{method}</p>
-                          <p className="text-xs sm:text-sm font-bold text-gray-900">
-                            {formatCurrency(data.total)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {data.count} transactions
-                          </p>
+                          <p className="text-xs sm:text-sm font-bold text-gray-900">{formatCurrency(data.total)}</p>
+                          <p className="text-xs text-gray-500">{data.count} transactions</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
-
-                {/* Expenses Snapshot */}
                 <div className="bg-red-50 p-4 sm:p-6 rounded-xl border-2 border-red-200">
-                  <h3 className="text-base sm:text-lg font-bold text-red-900 mb-3 sm:mb-4">
-                    Expenses
-                  </h3>
+                  <h3 className="text-base sm:text-lg font-bold text-red-900 mb-3 sm:mb-4">Expenses</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div>
-                      <p className="text-xs sm:text-sm text-red-700">
-                        Total Amount
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold text-red-900">
-                        {formatCurrency(
-                          selectedReport.expensesSnapshot.totalAmount
-                        )}
-                      </p>
+                      <p className="text-xs sm:text-sm text-red-700">Total Amount</p>
+                      <p className="text-lg sm:text-xl font-bold text-red-900">{formatCurrency(selectedReport.expensesSnapshot.totalAmount)}</p>
                     </div>
                     <div>
                       <p className="text-xs sm:text-sm text-red-700">Count</p>
-                      <p className="text-lg sm:text-xl font-bold text-red-900">
-                        {selectedReport.expensesSnapshot.expenseCount}
-                      </p>
+                      <p className="text-lg sm:text-xl font-bold text-red-900">{selectedReport.expensesSnapshot.expenseCount}</p>
                     </div>
                     <div>
-                      <p className="text-xs sm:text-sm text-red-700">
-                        Avg Expense
-                      </p>
-                      <p className="text-base sm:text-lg font-semibold text-red-900">
-                        {formatCurrency(
-                          selectedReport.expensesSnapshot.averageExpense
-                        )}
-                      </p>
+                      <p className="text-xs sm:text-sm text-red-700">Avg Expense</p>
+                      <p className="text-base sm:text-lg font-semibold text-red-900">{formatCurrency(selectedReport.expensesSnapshot.averageExpense)}</p>
                     </div>
                   </div>
-
-                  {/* Category Breakdown */}
                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-red-300">
-                    <p className="text-xs sm:text-sm font-bold text-red-900 mb-2">
-                      Categories
-                    </p>
+                    <p className="text-xs sm:text-sm font-bold text-red-900 mb-2">Categories</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {Object.entries(
-                        selectedReport.expensesSnapshot
-                          .categoryBreakdown as Record<
-                          string,
-                          { total: number; count: number }
-                        >
-                      ).map(([category, data]) => (
-                        <div
-                          key={category}
-                          className="bg-white p-2 sm:p-3 rounded-lg"
-                        >
+                      {Object.entries(selectedReport.expensesSnapshot.categoryBreakdown as Record<string, { total: number; count: number }>).map(([category, data]) => (
+                        <div key={category} className="bg-white p-2 sm:p-3 rounded-lg">
                           <p className="text-xs text-gray-600">{category}</p>
-                          <p className="text-xs sm:text-sm font-bold text-gray-900">
-                            {formatCurrency(data.total)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {data.count} expenses
-                          </p>
+                          <p className="text-xs sm:text-sm font-bold text-gray-900">{formatCurrency(data.total)}</p>
+                          <p className="text-xs text-gray-500">{data.count} expenses</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
-
-                {/* Transaction Details */}
                 <div className="bg-gray-50 p-4 sm:p-6 rounded-xl">
                   <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
-                    Transactions (
-                    {selectedReport.transactions?.length ||
-                      selectedReport.transactionIds.length}
-                    )
+                    Transactions ({selectedReport.transactions?.length || selectedReport.transactionIds.length})
                   </h3>
-                  {selectedReport.transactions &&
-                  selectedReport.transactions.length > 0 ? (
+                  {selectedReport.transactions && selectedReport.transactions.length > 0 ? (
                     <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
                       {selectedReport.transactions.map((transaction) => (
-                        <div
-                          key={transaction.id}
-                          className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200"
-                        >
+                        <div key={transaction.id} className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
                           <div className="flex justify-between items-start gap-2 mb-2">
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs sm:text-sm font-semibold text-gray-900 break-all">
-                                Transaction #{transaction.transactionId}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {formatDateTime(transaction.timestamp)}
-                              </p>
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900 break-all">Transaction #{transaction.transactionId}</p>
+                              <p className="text-xs text-gray-500">{formatDateTime(transaction.timestamp)}</p>
                             </div>
                             <div className="text-right flex-shrink-0">
                               {transaction.discountAmount != null && transaction.discountAmount > 0 && (
-                                <p className="text-xs text-gray-400 line-through">
-                                  {formatCurrency(transaction.subtotal)}
-                                </p>
+                                <p className="text-xs text-gray-400 line-through">{formatCurrency(transaction.subtotal)}</p>
                               )}
-                              <p className="text-base sm:text-lg font-bold text-gray-900">
-                                {formatCurrency(transaction.total)}
-                              </p>
+                              <p className="text-base sm:text-lg font-bold text-gray-900">{formatCurrency(transaction.total)}</p>
                               {transaction.discountAmount != null && transaction.discountAmount > 0 && (
-                                <p className="text-xs text-red-500">
-                                  -{formatCurrency(transaction.discountAmount)} off
-                                </p>
+                                <p className="text-xs text-red-500">-{formatCurrency(transaction.discountAmount)} off</p>
                               )}
-                              <p className="text-xs text-gray-600">
-                                {getPaymentMethodLabel(transaction.paymentMethod)}
-                              </p>
+                              <p className="text-xs text-gray-600">{getPaymentMethodLabel(transaction.paymentMethod)}</p>
                             </div>
                           </div>
-                          {transaction.items &&
-                            transaction.items.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-gray-100">
-                                <p className="text-xs font-semibold text-gray-700 mb-2">
-                                  Items:
-                                </p>
-                                <div className="space-y-2">
-                                  {transaction.items.map((item) => (
-                                    <div
-                                      key={item.id}
-                                      className="border-l-2 border-gray-300 pl-2"
-                                    >
-                                      {/* Main product line */}
-                                      <div className="flex justify-between items-start mb-0.5">
-                                        <p className="text-xs font-medium text-gray-800">
-                                          {item.quantity}x{" "}
-                                          {item.product?.name || "Product"}
-                                          {item.size && (
-                                            <span className="text-xs text-gray-600">
-                                              {" "}
-                                              ({item.size.name})
-                                            </span>
-                                          )}
-                                        </p>
-                                        <span className="text-xs font-semibold text-gray-800">
-                                          {formatCurrency(item.subtotal)}
-                                        </span>
-                                      </div>
-
-                                      {/* Price breakdown */}
-                                      <div className="ml-3 space-y-0.5">
-                                        {/* Base price */}
-                                        <div className="flex justify-between items-center text-[10px] text-gray-600">
-                                          <span>Base × {item.quantity}</span>
-                                          <span>
-                                            {formatCurrency(
-                                              (item.product?.price || 0) *
-                                                item.quantity
-                                            )}
-                                          </span>
-                                        </div>
-
-                                        {/* Size modifier */}
-                                        {item.size &&
-                                          item.size.priceModifier !== 0 && (
-                                            <div className="flex justify-between items-center text-[10px] text-gray-600">
-                                              <span>
-                                                Size ({item.size.name}) ×{" "}
-                                                {item.quantity}
-                                              </span>
-                                              <span>
-                                                {formatCurrency(
-                                                  item.size.priceModifier *
-                                                    item.quantity
-                                                )}
-                                              </span>
-                                            </div>
-                                          )}
-
-                                        {/* Addons */}
-                                        {item.addons &&
-                                          item.addons.length > 0 &&
-                                          item.addons.map(
-                                            (a: any, idx: number) => {
-                                              const addon = a.addon || a;
-                                              return (
-                                                <div
-                                                  key={idx}
-                                                  className="flex justify-between items-center text-[10px] text-gray-600"
-                                                >
-                                                  <span>
-                                                    + {addon.name || "Addon"} ×{" "}
-                                                    {item.quantity}
-                                                  </span>
-                                                  <span>
-                                                    {formatCurrency(
-                                                      (addon.price || 0) *
-                                                        item.quantity
-                                                    )}
-                                                  </span>
-                                                </div>
-                                              );
-                                            }
-                                          )}
-                                      </div>
+                          {transaction.items && transaction.items.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-100">
+                              <p className="text-xs font-semibold text-gray-700 mb-2">Items:</p>
+                              <div className="space-y-2">
+                                {transaction.items.map((item) => (
+                                  <div key={item.id} className="border-l-2 border-gray-300 pl-2">
+                                    <div className="flex justify-between items-start mb-0.5">
+                                      <p className="text-xs font-medium text-gray-800">
+                                        {item.quantity}x {item.product?.name || "Product"}
+                                        {item.size && <span className="text-xs text-gray-600"> ({item.size.name})</span>}
+                                      </p>
+                                      <span className="text-xs font-semibold text-gray-800">{formatCurrency(item.subtotal)}</span>
                                     </div>
-                                  ))}
-                                </div>
+                                    <div className="ml-3 space-y-0.5">
+                                      <div className="flex justify-between items-center text-[10px] text-gray-600">
+                                        <span>Base × {item.quantity}</span>
+                                        <span>{formatCurrency((item.product?.price || 0) * item.quantity)}</span>
+                                      </div>
+                                      {item.size && item.size.priceModifier !== 0 && (
+                                        <div className="flex justify-between items-center text-[10px] text-gray-600">
+                                          <span>Size ({item.size.name}) × {item.quantity}</span>
+                                          <span>{formatCurrency(item.size.priceModifier * item.quantity)}</span>
+                                        </div>
+                                      )}
+                                      {item.addons && item.addons.length > 0 && item.addons.map((a: any, idx: number) => {
+                                        const addon = a.addon || a;
+                                        return (
+                                          <div key={idx} className="flex justify-between items-center text-[10px] text-gray-600">
+                                            <span>+ {addon.name || "Addon"} × {item.quantity}</span>
+                                            <span>{formatCurrency((addon.price || 0) * item.quantity)}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">
-                      No transactions found
-                    </p>
+                    <p className="text-sm text-gray-500">No transactions found</p>
                   )}
                 </div>
-
-                {/* Expense Details */}
                 <div className="bg-gray-50 p-4 sm:p-6 rounded-xl">
                   <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
-                    Expenses (
-                    {selectedReport.expenses?.length ||
-                      selectedReport.expenseIds.length}
-                    )
+                    Expenses ({selectedReport.expenses?.length || selectedReport.expenseIds.length})
                   </h3>
-                  {selectedReport.expenses &&
-                  selectedReport.expenses.length > 0 ? (
+                  {selectedReport.expenses && selectedReport.expenses.length > 0 ? (
                     <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
                       {selectedReport.expenses.map((expense) => (
-                        <div
-                          key={expense.id}
-                          className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200"
-                        >
+                        <div key={expense.id} className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
                           <div className="flex justify-between items-start gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs sm:text-sm font-semibold text-gray-900 break-words">
-                                {expense.description}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {formatDateTime(expense.date)}
-                              </p>
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900 break-words">{expense.description}</p>
+                              <p className="text-xs text-gray-500 mt-1">{formatDateTime(expense.date)}</p>
                               <div className="flex flex-wrap items-center gap-2 mt-1">
-                                <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                                  {expense.category}
-                                </span>
-                                {expense.user && (
-                                  <span className="text-xs text-gray-500 truncate">
-                                    by{" "}
-                                    {formatUserName(expense.user)}
-                                  </span>
-                                )}
+                                <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{expense.category}</span>
+                                {expense.user && <span className="text-xs text-gray-500 truncate">by {formatUserName(expense.user)}</span>}
                               </div>
-                              {expense.notes && (
-                                <p className="text-xs sm:text-sm text-gray-600 mt-2 italic break-words">
-                                  {expense.notes}
-                                </p>
-                              )}
+                              {expense.notes && <p className="text-xs sm:text-sm text-gray-600 mt-2 italic break-words">{expense.notes}</p>}
                             </div>
                             <div className="text-right flex-shrink-0">
-                              <p className="text-base sm:text-lg font-bold text-red-600">
-                                {formatCurrency(expense.amount)}
-                              </p>
+                              <p className="text-base sm:text-lg font-bold text-red-600">{formatCurrency(expense.amount)}</p>
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      No expenses found
-                    </p>
+                    <p className="text-xs sm:text-sm text-gray-500">No expenses found</p>
                   )}
                 </div>
-
-                {/* Notes */}
                 {selectedReport.notes && (
                   <div className="bg-yellow-50 border border-yellow-200 p-3 sm:p-4 rounded-lg">
-                    <p className="text-xs sm:text-sm font-semibold text-yellow-800 mb-1">
-                      Notes:
+                    <p className="text-xs sm:text-sm font-semibold text-yellow-800 mb-1">Notes:</p>
+                    <p className="text-xs sm:text-sm text-yellow-900 break-words">{selectedReport.notes}</p>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Shift Report Detail Modal ─────────────────────────────────────── */}
+      {(selectedShiftReport || loadingShiftDetails) && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">Shift Report Details</h2>
+                  <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">Shift</span>
+                </div>
+                <button onClick={() => setSelectedShiftReport(null)} className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl flex-shrink-0">×</button>
+              </div>
+            </div>
+            {loadingShiftDetails ? (
+              <div className="p-8 sm:p-12 flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"></div>
+                <p className="text-sm text-gray-600">Loading shift report...</p>
+              </div>
+            ) : selectedShiftReport ? (
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Report Date</p>
+                    <p className="text-base sm:text-lg font-semibold text-gray-900">{selectedShiftReport.reportDate}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Submitted At</p>
+                    <p className="text-xs sm:text-sm text-gray-900">{formatDateTime(selectedShiftReport.submittedAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Submitted By</p>
+                    <p className="text-xs sm:text-sm text-gray-900 break-words">
+                      {formatUserName(selectedShiftReport.user)} ({formatRole(selectedShiftReport.user?.role)})
                     </p>
-                    <p className="text-xs sm:text-sm text-yellow-900 break-words">
-                      {selectedReport.notes}
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1">Period Covered</p>
+                    <p className="text-xs sm:text-sm text-gray-900">
+                      {new Date(selectedShiftReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })} (Shift)
                     </p>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-4 sm:p-6 rounded-xl">
+                  <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">Summary</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <div>
+                      <p className="text-indigo-100 text-xs sm:text-sm">Gross Profit</p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold">{formatCurrency(selectedShiftReport.summarySnapshot.grossProfit)}</p>
+                    </div>
+                    <div>
+                      <p className="text-indigo-100 text-xs sm:text-sm">Profit Margin</p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold">{selectedShiftReport.summarySnapshot.profitMargin.toFixed(2)}%</p>
+                    </div>
+                    <div>
+                      <p className="text-indigo-100 text-xs sm:text-sm">Net Revenue</p>
+                      <p className="text-lg sm:text-xl md:text-2xl font-bold">{formatCurrency(selectedShiftReport.summarySnapshot.netRevenue)}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-blue-50 p-4 sm:p-6 rounded-xl border-2 border-blue-200">
+                  <h3 className="text-base sm:text-lg font-bold text-blue-900 mb-3 sm:mb-4">Sales</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <p className="text-xs sm:text-sm text-blue-700">Total Amount</p>
+                      <p className="text-lg sm:text-xl font-bold text-blue-900">{formatCurrency(selectedShiftReport.salesSnapshot.totalAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-blue-700">Transactions</p>
+                      <p className="text-lg sm:text-xl font-bold text-blue-900">{selectedShiftReport.salesSnapshot.transactionCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-blue-700">Avg Transaction</p>
+                      <p className="text-base sm:text-lg font-semibold text-blue-900">{formatCurrency(selectedShiftReport.salesSnapshot.averageTransaction)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-blue-700">Items Sold</p>
+                      <p className="text-base sm:text-lg font-semibold text-blue-900">{selectedShiftReport.salesSnapshot.totalItemsSold}</p>
+                    </div>
+                  </div>
+                  {Object.keys(selectedShiftReport.salesSnapshot.paymentMethodBreakdown as object).length > 0 && (
+                    <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-blue-300">
+                      <p className="text-xs sm:text-sm font-bold text-blue-900 mb-2">Payment Methods</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {Object.entries(selectedShiftReport.salesSnapshot.paymentMethodBreakdown as Record<string, { total: number; count: number }>).map(([method, data]) => (
+                          <div key={method} className="bg-white p-2 sm:p-3 rounded-lg">
+                            <p className="text-xs text-gray-600">{method}</p>
+                            <p className="text-xs sm:text-sm font-bold text-gray-900">{formatCurrency(data.total)}</p>
+                            <p className="text-xs text-gray-500">{data.count} transactions</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="bg-red-50 p-4 sm:p-6 rounded-xl border-2 border-red-200">
+                  <h3 className="text-base sm:text-lg font-bold text-red-900 mb-3 sm:mb-4">Expenses</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <div>
+                      <p className="text-xs sm:text-sm text-red-700">Total Amount</p>
+                      <p className="text-lg sm:text-xl font-bold text-red-900">{formatCurrency(selectedShiftReport.expensesSnapshot.totalAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-red-700">Count</p>
+                      <p className="text-lg sm:text-xl font-bold text-red-900">{selectedShiftReport.expensesSnapshot.expenseCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm text-red-700">Avg Expense</p>
+                      <p className="text-base sm:text-lg font-semibold text-red-900">{formatCurrency(selectedShiftReport.expensesSnapshot.averageExpense)}</p>
+                    </div>
+                  </div>
+                  {Object.keys(selectedShiftReport.expensesSnapshot.categoryBreakdown as object).length > 0 && (
+                    <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-red-300">
+                      <p className="text-xs sm:text-sm font-bold text-red-900 mb-2">Categories</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {Object.entries(selectedShiftReport.expensesSnapshot.categoryBreakdown as Record<string, { total: number; count: number }>).map(([category, data]) => (
+                          <div key={category} className="bg-white p-2 sm:p-3 rounded-lg">
+                            <p className="text-xs text-gray-600">{category}</p>
+                            <p className="text-xs sm:text-sm font-bold text-gray-900">{formatCurrency(data.total)}</p>
+                            <p className="text-xs text-gray-500">{data.count} expenses</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="bg-gray-50 p-4 sm:p-6 rounded-xl">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
+                    Transactions ({selectedShiftReport.transactions?.length || selectedShiftReport.transactionIds.length})
+                  </h3>
+                  {selectedShiftReport.transactions && selectedShiftReport.transactions.length > 0 ? (
+                    <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
+                      {selectedShiftReport.transactions.map((transaction) => (
+                        <div key={transaction.id} className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900 break-all">Transaction #{transaction.transactionId}</p>
+                              <p className="text-xs text-gray-500">{formatDateTime(transaction.timestamp)}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-base sm:text-lg font-bold text-gray-900">{formatCurrency(transaction.total)}</p>
+                              <p className="text-xs text-gray-600">{getPaymentMethodLabel(transaction.paymentMethod)}</p>
+                            </div>
+                          </div>
+                          {transaction.items && transaction.items.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-100">
+                              <p className="text-xs font-semibold text-gray-700 mb-1">Items:</p>
+                              {transaction.items.map((item) => (
+                                <div key={item.id} className="text-xs text-gray-600 ml-2">
+                                  {item.quantity}x {item.product?.name}{item.size ? ` (${item.size.name})` : ""} — {formatCurrency(item.subtotal)}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No transactions found</p>
+                  )}
+                </div>
+                <div className="bg-gray-50 p-4 sm:p-6 rounded-xl">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
+                    Expenses ({selectedShiftReport.expenses?.length || selectedShiftReport.expenseIds.length})
+                  </h3>
+                  {selectedShiftReport.expenses && selectedShiftReport.expenses.length > 0 ? (
+                    <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto">
+                      {selectedShiftReport.expenses.map((expense) => (
+                        <div key={expense.id} className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900 break-words">{expense.description}</p>
+                              <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded mt-1 inline-block">{expense.category}</span>
+                              {expense.notes && <p className="text-xs text-gray-600 mt-1 italic">{expense.notes}</p>}
+                            </div>
+                            <p className="text-base sm:text-lg font-bold text-red-600 flex-shrink-0">{formatCurrency(expense.amount)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs sm:text-sm text-gray-500">No expenses found</p>
+                  )}
+                </div>
+                {selectedShiftReport.notes && (
+                  <div className="bg-yellow-50 border border-yellow-200 p-3 sm:p-4 rounded-lg">
+                    <p className="text-xs sm:text-sm font-semibold text-yellow-800 mb-1">Notes:</p>
+                    <p className="text-xs sm:text-sm text-yellow-900 break-words">{selectedShiftReport.notes}</p>
                   </div>
                 )}
               </div>

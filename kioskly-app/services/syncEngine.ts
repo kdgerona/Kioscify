@@ -21,7 +21,9 @@ export type SyncItemType =
   | "expense"
   | "inventory_record"
   | "submitted_report"
-  | "submitted_inventory_report";
+  | "submitted_inventory_report"
+  | "user_shift_report"
+  | "user_shift_inventory_report";
 
 export interface SyncQueueItem {
   clientId: string;
@@ -88,7 +90,7 @@ async function notifyListeners(): Promise<void> {
 
 // ─── UUID ────────────────────────────────────────────────────────────────────
 
-function uuidv4(): string {
+export function uuidv4(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
@@ -236,10 +238,10 @@ export async function syncAll(
           }
         }
 
-        // For submitted reports queued offline, resolve any pending transaction/
+        // For submitted/shift reports queued offline, resolve any pending transaction/
         // expense clientIds to their real server IDs. Transactions are ordered
         // before the report in the queue, so they should be synced by now.
-        if (row.type === "submitted_report" && body) {
+        if ((row.type === "submitted_report" || row.type === "user_shift_report") && body) {
           const parsed = JSON.parse(body) as Record<string, unknown>;
           let dirty = false;
           if (Array.isArray(parsed.pendingTransactionClientIds) && parsed.pendingTransactionClientIds.length) {

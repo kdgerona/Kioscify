@@ -96,7 +96,7 @@ export default function InventoryItemRow({
 
       <View className="items-end mr-2">
         {isCounted ? (
-          <Text className="text-sm font-bold" style={{ color: primaryColor }}>
+          <Text className="text-sm font-bold" style={{ color: textColor }}>
             {item.quantity} {item.unit}
           </Text>
         ) : (

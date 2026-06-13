@@ -294,11 +294,11 @@ export default function InventoryItemSheet({
                       <Ionicons
                         name="add-circle-outline"
                         size={18}
-                        color={primaryColor}
+                        color={textColor}
                       />
                       <Text
                         className="ml-1 text-sm font-medium"
-                        style={{ color: primaryColor }}
+                        style={{ color: textColor }}
                       >
                         Add another batch
                       </Text>
@@ -326,7 +326,7 @@ export default function InventoryItemSheet({
                   className="rounded-xl py-4 items-center"
                   style={{ backgroundColor: primaryColor }}
                 >
-                  <Text className="text-base font-bold text-white">Done</Text>
+                  <Text className="text-base font-bold text-black">Done</Text>
                 </TouchableOpacity>
               </View>
         </View>

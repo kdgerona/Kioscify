@@ -17,6 +17,8 @@ import type {
   StoreUserCreatePayload,
   TimeOfDayData,
   SubmittedReport,
+  UserShiftReport,
+  UserShiftInventoryReport,
   Expense,
   AssignableUser,
   StoreAccess,
@@ -632,6 +634,47 @@ class ApiClient {
     );
     return data;
   }
+  // User Shift Reports endpoints
+  async getUserShiftReports(params?: {
+    reportDate?: string;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<UserShiftReport[]> {
+    const { data } = await this.client.get<UserShiftReport[]>("/user-shift-reports", { params });
+    return data;
+  }
+
+  async getUserShiftReportById(id: string): Promise<UserShiftReport> {
+    const { data } = await this.client.get<UserShiftReport>(`/user-shift-reports/${id}`);
+    return data;
+  }
+
+  async getUserShiftReportsStats(): Promise<{
+    totalReports: number;
+    reportsThisMonth: number;
+    lastSubmission: { date: string; submittedAt: string } | null;
+  }> {
+    const { data } = await this.client.get("/user-shift-reports/stats");
+    return data;
+  }
+
+  // User Shift Inventory Reports endpoints
+  async getUserShiftInventoryReports(params?: {
+    reportDate?: string;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<UserShiftInventoryReport[]> {
+    const { data } = await this.client.get<UserShiftInventoryReport[]>("/user-shift-inventory-reports", { params });
+    return data;
+  }
+
+  async getUserShiftInventoryReportById(id: string): Promise<UserShiftInventoryReport> {
+    const { data } = await this.client.get<UserShiftInventoryReport>(`/user-shift-inventory-reports/${id}`);
+    return data;
+  }
+
   // ─── Store assignment (multi-store) ───────────────────────────────────────
 
   async getMyStoreAccess(userId: string): Promise<StoreAccess[]> {

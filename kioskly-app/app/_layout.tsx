@@ -23,6 +23,7 @@ function AppNavigator() {
         <Stack.Screen name="home" />
         <Stack.Screen name="change-password" />
         <Stack.Screen name="transactions" />
+        <Stack.Screen name="shift-report" />
       </Stack>
     </View>
   );

@@ -68,7 +68,6 @@ export default function InventoryPage() {
         loadStats(),
         loadLatestInventory(),
         loadInventoryItems(),
-        loadExpirationBatches(),
       ]);
     } catch (error) {
       console.error("Failed to load inventory data:", error);
@@ -90,28 +89,15 @@ export default function InventoryPage() {
     try {
       const data = await api.getLatestInventory();
       setLatestInventory(data);
+      const newBatchesMap = new Map<string, ExpirationBatch[]>();
+      data.forEach((item: any) => {
+        if (item.expirationBatches && item.expirationBatches.length > 0) {
+          newBatchesMap.set(item.id, item.expirationBatches);
+        }
+      });
+      setBatchesMap(newBatchesMap);
     } catch (error) {
       console.error("Failed to load latest inventory:", error);
-    }
-  };
-
-  const loadExpirationBatches = async () => {
-    try {
-      const reports = await api.getSubmittedInventoryReports();
-      if (reports.length > 0) {
-        const latestReport = reports[0];
-        const newBatchesMap = new Map<string, ExpirationBatch[]>();
-        if (latestReport.inventorySnapshot?.items) {
-          latestReport.inventorySnapshot.items.forEach((item: any) => {
-            if (item.expirationBatches && item.expirationBatches.length > 0) {
-              newBatchesMap.set(item.inventoryItemId, item.expirationBatches);
-            }
-          });
-        }
-        setBatchesMap(newBatchesMap);
-      }
-    } catch (error) {
-      console.error("Failed to load expiration batches:", error);
     }
   };
 

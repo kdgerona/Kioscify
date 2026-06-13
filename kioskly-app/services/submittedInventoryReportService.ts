@@ -13,6 +13,7 @@ export interface InventoryItemSnapshot {
   category: string;
   unit: string;
   quantity: number;
+  previousQuantity?: number | null;
   minStockLevel?: number;
   recordDate: string;
   requiresExpirationDate?: boolean;
@@ -30,7 +31,7 @@ export interface CreateSubmittedInventoryReportPayload {
   reportDate: string; // YYYY-MM-DD
   inventorySnapshot: InventorySnapshot;
   notes?: string;
-  replaceExisting?: boolean;
+  clientId?: string;
   submittedAt?: string;
 }
 
