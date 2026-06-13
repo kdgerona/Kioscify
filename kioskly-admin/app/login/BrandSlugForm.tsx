@@ -54,7 +54,7 @@ export default function BrandSlugForm() {
           </p>
 
           <div className="flex flex-wrap justify-center gap-2 mt-8">
-            {['Multi-Brand', 'Analytics', 'Inventory', 'Reports'].map((f) => (
+            {['Multi-Brand', 'Analytics', 'Inventory', 'Sales Reports'].map((f) => (
               <span
                 key={f}
                 className="text-xs font-medium px-3 py-1 rounded-full"

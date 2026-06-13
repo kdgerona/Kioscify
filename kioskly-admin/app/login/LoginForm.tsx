@@ -176,7 +176,7 @@ export default function LoginForm({
 
           {/* Feature pills */}
           <div className="flex flex-wrap justify-center gap-2 mt-8">
-            {["Sales", "Inventory", "Reports", "Expenses"].map((f) => (
+            {["Sales", "Inventory", "Analytics", "Expenses"].map((f) => (
               <span
                 key={f}
                 className="text-xs font-medium px-3 py-1 rounded-full"

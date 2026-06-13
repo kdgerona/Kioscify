@@ -47,8 +47,8 @@ const navigation: NavigationItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Transactions", href: "/transactions", icon: Receipt },
   { name: "Expenses", href: "/expenses", icon: Wallet },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "Submitted Reports", href: "/submitted-reports", icon: FileText },
+  { name: "Analytics", href: "/analytics", icon: BarChart3 },
+  { name: "Sales Reports", href: "/sales-reports", icon: FileText },
   { name: "Inventory", href: "/inventory", icon: Boxes },
   {
     name: "Inventory Reports",
