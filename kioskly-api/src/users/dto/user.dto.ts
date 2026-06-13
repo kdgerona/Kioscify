@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsEmail, IsOptional, IsBoolean, IsEnum, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsEmail, IsOptional, IsBoolean, IsEnum, Matches, IsObject } from 'class-validator';
 
 export enum StoreUserRole {
   STORE_ADMIN = 'STORE_ADMIN',
@@ -79,6 +79,19 @@ export class CreateCompanyUserDto {
   @IsNotEmpty()
   @Matches(/^[a-zA-Z0-9_.-]+$/, { message: 'Username must be alphanumeric' })
   username: string;
+
+  @ApiPropertyOptional({
+    description: 'Privilege levels per section. Omit to default to read for all sections.',
+    example: { brands: 'read', analytics: 'no_access', users: 'read', settings: 'read' },
+  })
+  @IsOptional()
+  @IsObject()
+  companyPrivileges?: {
+    brands: string;
+    analytics: string;
+    users: string;
+    settings: string;
+  };
 }
 
 export class UpdateCompanyUserDto {
@@ -86,4 +99,17 @@ export class UpdateCompanyUserDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Update privilege levels. Only admins with users:all can set this.',
+    example: { brands: 'write', analytics: 'read', users: 'read', settings: 'no_access' },
+  })
+  @IsOptional()
+  @IsObject()
+  companyPrivileges?: {
+    brands: string;
+    analytics: string;
+    users: string;
+    settings: string;
+  } | null;
 }
