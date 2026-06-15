@@ -28,7 +28,9 @@ import { BrandsService } from './brands.service';
 import { CreateBrandDto, UpdateBrandDto } from './dto/brand.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PrivilegeGuard } from '../common/guards/privilege.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RequirePrivilege } from '../common/decorators/require-privilege.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { CompanyId } from '../common/decorators/tenant.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -42,8 +44,9 @@ export class BrandsController {
   ) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
+  @RequirePrivilege('brands', 'read')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List all brands for the requesting company' })
   findAll(
@@ -69,8 +72,9 @@ export class BrandsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
+  @RequirePrivilege('brands', 'read')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single brand' })
   findOne(
@@ -85,8 +89,9 @@ export class BrandsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
+  @RequirePrivilege('brands', 'write')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a brand (PLATFORM_ADMIN always; COMPANY_ADMIN only if canCreateBrands=true)' })
   async create(
@@ -111,8 +116,9 @@ export class BrandsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
+  @RequirePrivilege('brands', 'write')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a brand' })
   update(
@@ -124,8 +130,9 @@ export class BrandsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
   @Roles('PLATFORM_ADMIN')
+  @RequirePrivilege('brands', 'all')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a brand (PLATFORM_ADMIN only)' })
   remove(
@@ -137,8 +144,9 @@ export class BrandsController {
   }
 
   @Post(':id/upload-logo')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')
+  @RequirePrivilege('brands', 'write')
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload brand logo' })

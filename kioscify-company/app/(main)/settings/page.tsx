@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { hasPrivilege } from '@/lib/privileges';
 import { formatRole } from '@/lib/utils';
 import { useCompany } from '@/contexts/CompanyContext';
 import type { Company, ThemeColors, User } from '@/types';
 import { Save, KeyRound } from 'lucide-react';
 
 export default function SettingsPage() {
+  const canEdit = hasPrivilege('settings', 'write');
+
   const { refetchCompany } = useCompany();
   const [company, setCompany] = useState<Company | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -39,8 +42,14 @@ export default function SettingsPage() {
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
 
+  const canViewCompany = hasPrivilege('settings', 'read');
+
   useEffect(() => {
     setCurrentUser(api.getCurrentUser());
+    if (!canViewCompany) {
+      setLoading(false);
+      return;
+    }
     api
       .getMyCompany()
       .then(data => {
@@ -54,7 +63,7 @@ export default function SettingsPage() {
       })
       .catch(() => setError('Failed to load company settings'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [canViewCompany]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -237,8 +246,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Editable section */}
-      <div className="bg-white rounded-lg border">
+      {/* Editable section — only for users with at least read on settings */}
+      {canViewCompany && <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b">
           <h2 className="font-semibold text-gray-900">Company Information</h2>
         </div>
@@ -274,20 +283,21 @@ export default function SettingsPage() {
               style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
             />
           </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          {canEdit && (
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
         </form>
-      </div>
+      </div>}
 
-      {/* Read-only company info */}
-      <div className="bg-white rounded-lg border">
+      {canViewCompany && <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b">
           <h2 className="font-semibold text-gray-900">Account Details</h2>
         </div>
@@ -295,10 +305,10 @@ export default function SettingsPage() {
           <DetailRow label="Slug" value={company?.slug || '—'} />
           <DetailRow label="Status" value={company?.isActive ? 'Active' : 'Inactive'} />
         </div>
-      </div>
+      </div>}
 
       {/* Branding colors */}
-      <div className="bg-white rounded-lg border">
+      {canViewCompany && <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b">
           <h2 className="font-semibold text-gray-900">Branding</h2>
           <p className="text-xs text-gray-400 mt-0.5">Customize your company portal colors</p>
@@ -351,17 +361,19 @@ export default function SettingsPage() {
               );
             })}
           </div>
-          <button
-            type="submit"
-            disabled={themeSaving}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Save className="w-4 h-4" />
-            {themeSaving ? 'Saving...' : 'Save Branding'}
-          </button>
+          {canEdit && (
+            <button
+              type="submit"
+              disabled={themeSaving}
+              className="flex items-center gap-2 px-4 py-2 text-white rounded-lg disabled:opacity-50 text-sm font-medium transition-colors"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Save className="w-4 h-4" />
+              {themeSaving ? 'Saving...' : 'Save Branding'}
+            </button>
+          )}
         </form>
-      </div>
+      </div>}
     </div>
   );
 }

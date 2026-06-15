@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateStoreUserDto, UpdateStoreUserDto, CreateCompanyUserDto, UpdateCompanyUserDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
+import { DEFAULT_PRIVILEGES, DEFAULT_STORE_PRIVILEGES, hasPrivilege } from '../common/utils/privileges';
 
 @Injectable()
 export class UsersService {
@@ -28,6 +29,7 @@ export class UsersService {
     const userSelect = {
       id: true, username: true, firstName: true, lastName: true,
       email: true, role: true, isActive: true, isFirstLogin: true, createdAt: true,
+      storePrivileges: true,
       tenant: { select: { id: true, name: true, slug: true } },
     };
 
@@ -127,6 +129,7 @@ export class UsersService {
     requestingTenantId: string,
     requestingUserId: string,
     dto: UpdateStoreUserDto,
+    requestingPrivileges: Record<string, string> | null = null,
   ) {
     if (storeId !== requestingTenantId) throw new ForbiddenException('Access denied');
     await this.assertStoreUserExists(userId, storeId);
@@ -136,9 +139,24 @@ export class UsersService {
       throw new ForbiddenException('Cannot change your own role');
     }
 
+    if (dto.storePrivileges !== undefined) {
+      const canSetPrivileges = hasPrivilege(requestingPrivileges, 'users', 'all');
+      if (!canSetPrivileges) {
+        throw new ForbiddenException("Requires 'all' privilege on 'users' to update storePrivileges");
+      }
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (dto.firstName !== undefined) updateData.firstName = dto.firstName;
+    if (dto.lastName !== undefined) updateData.lastName = dto.lastName;
+    if (dto.email !== undefined) updateData.email = dto.email;
+    if (dto.role !== undefined) updateData.role = dto.role;
+    if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
+    if (dto.storePrivileges !== undefined) updateData.storePrivileges = dto.storePrivileges;
+
     return this.prisma.user.update({
       where: { id: userId },
-      data: dto,
+      data: updateData,
       select: {
         id: true,
         username: true,
@@ -147,6 +165,8 @@ export class UsersService {
         email: true,
         role: true,
         isActive: true,
+        isFirstLogin: true,
+        storePrivileges: true,
       },
     });
   }
@@ -178,6 +198,7 @@ export class UsersService {
         isActive: true,
         isFirstLogin: true,
         createdAt: true,
+        companyPrivileges: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -257,7 +278,12 @@ export class UsersService {
     }));
   }
 
-  async createCompanyUser(companyId: string, requestingCompanyId: string, dto: CreateCompanyUserDto) {
+  async createCompanyUser(
+    companyId: string,
+    requestingCompanyId: string,
+    dto: CreateCompanyUserDto,
+    requestingPrivileges: Record<string, string> | null,
+  ) {
     if (companyId !== requestingCompanyId) throw new ForbiddenException('Access denied');
 
     const existing = await this.prisma.user.findFirst({
@@ -267,6 +293,12 @@ export class UsersService {
 
     const password = this.authService.generateSecurePassword();
     const hashed = await bcrypt.hash(password, 12);
+
+    // Only honor provided privileges if requester has users:all (or is owner)
+    const canSetPrivileges = hasPrivilege(requestingPrivileges, 'users', 'all');
+    const companyPrivileges = canSetPrivileges && dto.companyPrivileges
+      ? dto.companyPrivileges
+      : { ...DEFAULT_PRIVILEGES };
 
     const user = await this.prisma.user.create({
       data: {
@@ -279,6 +311,7 @@ export class UsersService {
         role: 'COMPANY_ADMIN',
         isFirstLogin: true,
         isActive: true,
+        companyPrivileges,
       },
       select: {
         id: true,
@@ -288,6 +321,7 @@ export class UsersService {
         email: true,
         role: true,
         isFirstLogin: true,
+        companyPrivileges: true,
       },
     });
 
@@ -305,17 +339,41 @@ export class UsersService {
     requestingRole: string,
     requestingUserId: string,
     dto: UpdateCompanyUserDto,
+    requestingPrivileges: Record<string, string> | null = null,
   ) {
     if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) {
       throw new ForbiddenException('Access denied');
     }
     if (requestingUserId === userId) throw new ForbiddenException('Cannot modify your own account');
+
     const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } });
     if (!user) throw new NotFoundException('User not found in this company');
+
+    if (dto.companyPrivileges !== undefined) {
+      const canSetPrivileges = hasPrivilege(requestingPrivileges, 'users', 'all');
+      if (!canSetPrivileges) {
+        throw new ForbiddenException("Requires 'all' privilege on 'users' to update companyPrivileges");
+      }
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
+    if (dto.companyPrivileges !== undefined) updateData.companyPrivileges = dto.companyPrivileges;
+
     return this.prisma.user.update({
       where: { id: userId },
-      data: { isActive: dto.isActive },
-      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true, isActive: true, isFirstLogin: true },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        isActive: true,
+        isFirstLogin: true,
+        companyPrivileges: true,
+      },
     });
   }
 

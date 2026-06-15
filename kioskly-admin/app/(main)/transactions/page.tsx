@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
 import {
   formatCurrency,
@@ -48,9 +50,17 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export default function TransactionsPage() {
+  const router = useRouter();
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const activeTabColor = "#1f2937";
+
+  const canWrite = hasPrivilege('transactions', 'write');
+
+  useEffect(() => {
+    if (!hasPrivilege('transactions', 'read')) router.replace('/dashboard');
+  }, [router]);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
@@ -634,7 +644,7 @@ export default function TransactionsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {request.voidStatus === "PENDING" ? (
+                          {request.voidStatus === "PENDING" && canWrite ? (
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleApproveVoid(request)}

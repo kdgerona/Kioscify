@@ -51,6 +51,11 @@ export class InventoryItemSnapshotDto {
   @IsNumber()
   quantity: number;
 
+  @ApiProperty({ required: false, description: 'Previous quantity before this submission' })
+  @IsOptional()
+  @IsNumber()
+  previousQuantity?: number | null;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
@@ -119,11 +124,6 @@ export class CreateSubmittedInventoryReportDto {
   @IsOptional()
   @IsString()
   notes?: string;
-
-  @ApiProperty({ required: false, description: 'Replace existing report for the same date if it exists' })
-  @IsOptional()
-  @IsBoolean()
-  replaceExisting?: boolean;
 
   @ApiProperty({ required: false, description: 'Device-generated UUID for offline deduplication' })
   @IsOptional()

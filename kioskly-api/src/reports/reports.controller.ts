@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -76,6 +76,18 @@ export class ReportsController {
   ) {
     const targetDate = date ? new Date(date) : undefined;
     return this.reportsService.getDailyReport(tenantId, targetDate);
+  }
+
+  @Get('user-shift')
+  @ApiOperation({ summary: 'Get user shift report (current user only)' })
+  @ApiQuery({ name: 'date', required: false, description: 'Date in YYYY-MM-DD format. Defaults to today.', example: '2024-12-14' })
+  @ApiResponse({ status: 200, description: 'User shift report generated successfully' })
+  getUserShiftReport(
+    @TenantId() tenantId: string,
+    @Query('date') date: string,
+    @Request() req: any,
+  ) {
+    return this.reportsService.getUserShiftReport(req.user.id, tenantId, date);
   }
 
   @Get('analytics')

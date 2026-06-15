@@ -44,6 +44,16 @@ export interface StoreRef {
   slug: string;
 }
 
+export type StorePrivilegeLevel = 'no_access' | 'read' | 'write' | 'all';
+export type StorePrivilegeSection = 'transactions' | 'expenses' | 'inventory' | 'users' | 'settings';
+export interface StorePrivileges {
+  transactions: StorePrivilegeLevel;
+  expenses: StorePrivilegeLevel;
+  inventory: StorePrivilegeLevel;
+  users: StorePrivilegeLevel;
+  settings: StorePrivilegeLevel;
+}
+
 export interface User {
   id: string;
   tenantId?: string;
@@ -61,6 +71,7 @@ export interface User {
   isAssigned?: boolean;
   assignedRole?: "STORE_ADMIN" | "CASHIER";
   primaryStore?: StoreRef;
+  storePrivileges?: StorePrivileges | null;
 }
 
 export interface AssignableUser {
@@ -294,6 +305,25 @@ export interface Expense {
   user?: User;
 }
 
+// Inventory types used by submitted inventory reports
+export interface InventoryItemSnapshot {
+  inventoryItemId: string;
+  itemName: string;
+  category: string;
+  unit: string;
+  quantity: number;
+  minStockLevel?: number;
+  recordDate: string;
+  requiresExpirationDate?: boolean;
+  expirationWarningDays?: number;
+}
+
+export interface InventorySnapshot {
+  items: InventoryItemSnapshot[];
+  totalItems: number;
+  submittedBy: string;
+}
+
 // Submitted Reports types
 export interface SalesSnapshot {
   totalAmount: number;
@@ -331,6 +361,40 @@ export interface SubmittedReport {
   expenseIds: string[];
   transactions?: Transaction[];
   expenses?: Expense[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: User;
+}
+
+export interface UserShiftReport {
+  id: string;
+  tenantId: string;
+  userId: string;
+  reportDate: string;
+  submittedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  salesSnapshot: SalesSnapshot;
+  expensesSnapshot: ExpensesSnapshot;
+  summarySnapshot: SummarySnapshot;
+  transactionIds: string[];
+  expenseIds: string[];
+  transactions?: Transaction[];
+  expenses?: Expense[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: User;
+}
+
+export interface UserShiftInventoryReport {
+  id: string;
+  tenantId: string;
+  userId: string;
+  reportDate: string;
+  submittedAt: string;
+  inventorySnapshot: InventorySnapshot;
   notes?: string;
   createdAt: string;
   updatedAt: string;

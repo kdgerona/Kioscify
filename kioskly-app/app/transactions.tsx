@@ -24,7 +24,10 @@ import {
   requestVoidTransaction,
   TransactionResponse,
 } from "../services/transactionService";
-import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paymentMethod";
+import {
+  getPaymentMethodLabel,
+  getPaymentMethodBadgeStyle,
+} from "../utils/paymentMethod";
 import { formatUserName } from "../utils/formatUserName";
 
 export default function Transactions() {
@@ -32,7 +35,9 @@ export default function Transactions() {
   const { tenant, brand } = useTenant();
   const { user } = useAuth();
   const { pendingCount } = useSync();
-  const [transactions, setTransactions] = useState<(TransactionResponse & { pendingSync?: boolean })[]>([]);
+  const [transactions, setTransactions] = useState<
+    (TransactionResponse & { pendingSync?: boolean })[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +73,7 @@ export default function Transactions() {
     const startOfDay = new Date(
       today.getFullYear(),
       today.getMonth(),
-      today.getDate()
+      today.getDate(),
     );
     const endOfDay = new Date(
       today.getFullYear(),
@@ -77,7 +82,7 @@ export default function Transactions() {
       23,
       59,
       59,
-      999
+      999,
     );
 
     return {
@@ -96,7 +101,9 @@ export default function Transactions() {
       const data = await getTransactions({ startDate, endDate });
       setTransactions(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load transactions");
+      setError(
+        err instanceof Error ? err.message : "Failed to load transactions",
+      );
     } finally {
       setLoading(false);
     }
@@ -147,9 +154,14 @@ export default function Transactions() {
     return null;
   }
 
-  const primaryColor = brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
-  const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
-  const backgroundColor = brand?.themeColors?.background ?? tenant.themeColors?.background ?? "#ffffff";
+  const primaryColor =
+    brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
+  const textColor =
+    brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
+  const backgroundColor =
+    brand?.themeColors?.background ??
+    tenant.themeColors?.background ??
+    "#ffffff";
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -186,12 +198,12 @@ export default function Transactions() {
     try {
       const updated = await updateTransactionRemarks(
         selectedTransaction.id,
-        remarksInput.trim() || undefined
+        remarksInput.trim() || undefined,
       );
 
       // Update the transaction in the list
       setTransactions(
-        transactions.map((t) => (t.id === updated.id ? updated : t))
+        transactions.map((t) => (t.id === updated.id ? updated : t)),
       );
 
       closeRemarksModal();
@@ -237,12 +249,12 @@ export default function Transactions() {
     try {
       const updated = await requestVoidTransaction(
         selectedVoidTransaction.id,
-        voidReason.trim()
+        voidReason.trim(),
       );
 
       // Update the transaction in the list
       setTransactions(
-        transactions.map((t) => (t.id === updated.id ? updated : t))
+        transactions.map((t) => (t.id === updated.id ? updated : t)),
       );
 
       closeVoidModal();
@@ -278,6 +290,10 @@ export default function Transactions() {
     router.push("/daily-report" as Href);
   };
 
+  const handleShiftReport = () => {
+    router.push("/shift-report" as Href);
+  };
+
   return (
     <AppSafeAreaView className="w-full h-full bg-gray-50">
       {/* Header */}
@@ -285,22 +301,52 @@ export default function Transactions() {
         className="px-6 py-4 flex-row justify-between items-center"
         style={{ backgroundColor: backgroundColor }}
       >
-        <View className="flex-row items-center">
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
           <TouchableOpacity onPress={() => router.back()} className="mr-4 p-2">
             <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text className="text-2xl font-bold" style={{ color: textColor }}>
+          <Text
+            className="text-2xl font-bold"
+            numberOfLines={1}
+            style={{ color: textColor }}
+          >
             Daily Sales
           </Text>
         </View>
-        <TouchableOpacity
-          className="flex-row items-center rounded-lg px-3 py-2"
-          style={{ backgroundColor: primaryColor }}
-          onPress={handleGenerateReport}
-        >
-          <Ionicons name="document-text" size={18} color="#000000" />
-          <Text className="font-semibold text-black ml-1.5">Report</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: primaryColor,
+              flexDirection: "row",
+              alignItems: "center",
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              marginRight: 8,
+            }}
+            onPress={handleShiftReport}
+          >
+            <Ionicons name="person-circle-outline" size={18} color="#000000" />
+            <Text className="font-semibold text-black ml-1.5">
+              Shift Sales Report
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              backgroundColor: primaryColor,
+              flexDirection: "row",
+              alignItems: "center",
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              marginRight: 8,
+            }}
+            onPress={handleGenerateReport}
+          >
+            <Ionicons name="document-text" size={18} color="#000000" />
+            <Text className="font-semibold text-black ml-1.5">Sales Report</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Content */}
@@ -357,11 +403,12 @@ export default function Transactions() {
                       </Text>
                     </View>
                     <View className="items-end">
-                      {transaction.discountAmount != null && transaction.discountAmount > 0 && (
-                        <Text className="text-xs text-gray-400 line-through">
-                          {formatCurrency(transaction.subtotal)}
-                        </Text>
-                      )}
+                      {transaction.discountAmount != null &&
+                        transaction.discountAmount > 0 && (
+                          <Text className="text-xs text-gray-400 line-through">
+                            {formatCurrency(transaction.subtotal)}
+                          </Text>
+                        )}
                       <Text
                         className="text-xl font-bold"
                         style={{ color: textColor }}
@@ -371,11 +418,19 @@ export default function Transactions() {
                       <View className="flex-row items-center mt-1 flex-wrap gap-1">
                         <View
                           className="px-3 py-1 rounded-full"
-                          style={{ backgroundColor: getPaymentMethodBadgeStyle(transaction.paymentMethod).backgroundColor }}
+                          style={{
+                            backgroundColor: getPaymentMethodBadgeStyle(
+                              transaction.paymentMethod,
+                            ).backgroundColor,
+                          }}
                         >
                           <Text
                             className="text-xs font-semibold"
-                            style={{ color: getPaymentMethodBadgeStyle(transaction.paymentMethod).textColor }}
+                            style={{
+                              color: getPaymentMethodBadgeStyle(
+                                transaction.paymentMethod,
+                              ).textColor,
+                            }}
                           >
                             {getPaymentMethodLabel(transaction.paymentMethod)}
                           </Text>
@@ -383,7 +438,9 @@ export default function Transactions() {
                         {getVoidStatusBadge(transaction.voidStatus)}
                         {(transaction as any).pendingSync && (
                           <View className="px-2 py-1 rounded-full bg-yellow-100 border border-yellow-300">
-                            <Text className="text-xs text-yellow-700 font-medium">Pending sync</Text>
+                            <Text className="text-xs text-yellow-700 font-medium">
+                              Pending sync
+                            </Text>
                           </View>
                         )}
                       </View>
@@ -425,28 +482,41 @@ export default function Transactions() {
                   </View>
 
                   {/* Financial breakdown — only when a discount was applied */}
-                  {transaction.discountAmount != null && transaction.discountAmount > 0 && (
-                    <View className="border-t border-gray-200 pt-3 mt-2">
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-sm text-gray-500">Subtotal:</Text>
-                        <Text className="text-sm text-gray-500">
-                          {formatCurrency(transaction.subtotal)}
-                        </Text>
+                  {transaction.discountAmount != null &&
+                    transaction.discountAmount > 0 && (
+                      <View className="border-t border-gray-200 pt-3 mt-2">
+                        <View className="flex-row justify-between mt-1">
+                          <Text className="text-sm text-gray-500">
+                            Subtotal:
+                          </Text>
+                          <Text className="text-sm text-gray-500">
+                            {formatCurrency(transaction.subtotal)}
+                          </Text>
+                        </View>
+                        <View className="flex-row justify-between mt-1">
+                          <Text className="text-sm text-red-500">
+                            Discount:
+                          </Text>
+                          <Text className="text-sm text-red-500">
+                            -{formatCurrency(transaction.discountAmount)}
+                          </Text>
+                        </View>
+                        <View className="flex-row justify-between mt-1">
+                          <Text
+                            className="text-sm font-semibold"
+                            style={{ color: textColor }}
+                          >
+                            Total:
+                          </Text>
+                          <Text
+                            className="text-sm font-semibold"
+                            style={{ color: textColor }}
+                          >
+                            {formatCurrency(transaction.total)}
+                          </Text>
+                        </View>
                       </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-sm text-red-500">Discount:</Text>
-                        <Text className="text-sm text-red-500">
-                          -{formatCurrency(transaction.discountAmount)}
-                        </Text>
-                      </View>
-                      <View className="flex-row justify-between mt-1">
-                        <Text className="text-sm font-semibold" style={{ color: textColor }}>Total:</Text>
-                        <Text className="text-sm font-semibold" style={{ color: textColor }}>
-                          {formatCurrency(transaction.total)}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
+                    )}
 
                   {/* Payment Details */}
                   {transaction.paymentMethod === "CASH" &&
@@ -517,7 +587,8 @@ export default function Transactions() {
                           )}
                           {transaction.voidRequester && (
                             <Text className="text-xs text-gray-600">
-                              Requested by: {formatUserName(transaction.voidRequester)}
+                              Requested by:{" "}
+                              {formatUserName(transaction.voidRequester)}
                             </Text>
                           )}
                           {transaction.voidRequestedAt && (
@@ -528,7 +599,8 @@ export default function Transactions() {
                           )}
                           {transaction.voidReviewer && (
                             <Text className="text-xs text-gray-600 mt-1">
-                              Reviewed by: {formatUserName(transaction.voidReviewer)}
+                              Reviewed by:{" "}
+                              {formatUserName(transaction.voidReviewer)}
                             </Text>
                           )}
                           {transaction.voidReviewedAt && (

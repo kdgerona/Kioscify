@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { hasPrivilege } from '@/lib/privileges';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { DateRangePicker } from './components/DateRangePicker';
 import { OverviewCards } from './components/OverviewCards';
@@ -9,6 +11,14 @@ import { TopStoresWidget } from './components/TopStoresWidget';
 import { NetworkGrowthChart } from './components/NetworkGrowthChart';
 
 export default function AnalyticsPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!hasPrivilege('analytics', 'read')) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
+
   const [startDate, setStartDate] = useState(startOfMonth(new Date()).toISOString());
   const [endDate, setEndDate] = useState(endOfMonth(new Date()).toISOString());
 

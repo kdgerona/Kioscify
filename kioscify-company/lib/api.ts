@@ -11,6 +11,7 @@ import type {
   InventoryBrandTemplate,
   User,
   CompanyUserCreatePayload,
+  CompanyPrivileges,
   AnalyticsOverview,
   TopBrandItem,
   TopProductItem,
@@ -437,6 +438,18 @@ class ApiClient {
 
   async resetCompanyUserPassword(companyId: string, userId: string): Promise<{ user: User; temporaryPassword: string }> {
     const { data } = await this.client.post(`/users/companies/${companyId}/${userId}/reset-password`);
+    return data;
+  }
+
+  async updateCompanyUserPrivileges(
+    companyId: string,
+    userId: string,
+    companyPrivileges: CompanyPrivileges | null,
+  ): Promise<User> {
+    const { data } = await this.client.patch<User>(
+      `/users/companies/${companyId}/${userId}`,
+      { companyPrivileges },
+    );
     return data;
   }
 

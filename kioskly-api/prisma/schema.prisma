@@ -101,6 +101,8 @@ model Tenant {
   inventoryRecords          InventoryRecord[]
   submittedReports          SubmittedReport[]
   submittedInventoryReports SubmittedInventoryReport[]
+  userShiftReports          UserShiftReport[]
+  userShiftInventoryReports UserShiftInventoryReport[]
 
   // Catalog relations kept during migration period (will be removed once catalog fully moves to Brand)
   categories  Category[]
@@ -163,8 +165,10 @@ model User {
   email        String
   role         Role      @default(CASHIER)
   isFirstLogin Boolean   @default(true)   // forces password change on first login
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
+  isActive           Boolean   @default(true)
+  companyPrivileges  Json?     // null = owner (full access); { brands, analytics, users, settings } for restricted admins
+  storePrivileges    Json?     // null = owner (full access); { transactions, expenses, inventory, users, settings } for restricted store admins
+  createdAt          DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   tenant  Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -176,6 +180,8 @@ model User {
   inventoryRecords          InventoryRecord[]
   submittedReports          SubmittedReport[]
   submittedInventoryReports SubmittedInventoryReport[]
+  userShiftReports          UserShiftReport[]
+  userShiftInventoryReports UserShiftInventoryReport[]
   voidRequestsCreated       Transaction[]  @relation("VoidRequests")
   voidRequestsReviewed      Transaction[]  @relation("VoidReviews")
   expenseVoidRequestsCreated  Expense[]    @relation("ExpenseVoidRequests")
@@ -540,6 +546,36 @@ model SubmittedReport {
   @@map("submitted_reports")
 }
 
+model UserShiftReport {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String   @db.ObjectId
+  userId      String   @db.ObjectId
+  reportDate  String   // YYYY-MM-DD (the calendar day this shift falls on)
+  submittedAt DateTime @default(now())
+  periodStart DateTime
+  periodEnd   DateTime
+
+  salesSnapshot    SalesSnapshot
+  expensesSnapshot ExpensesSnapshot
+  summarySnapshot  SummarySnapshot
+
+  transactionIds String[]
+  expenseIds     String[]
+  notes          String?
+  clientId       String?  // offline deduplication (UUID per submission)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, clientId])
+  @@index([tenantId, reportDate])
+  @@index([tenantId, userId])
+  @@map("user_shift_reports")
+}
+
 model SubmittedInventoryReport {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
   tenantId   String   @db.ObjectId
@@ -550,6 +586,7 @@ model SubmittedInventoryReport {
   inventorySnapshot InventorySnapshot
   notes             String?
   clientId          String?  // offline deduplication
+  isShiftMirror     Boolean? @default(false)  // true for records mirrored from shift inventory reports
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -561,6 +598,30 @@ model SubmittedInventoryReport {
   @@index([tenantId, reportDate])
   @@index([tenantId, submittedAt])
   @@map("submitted_inventory_reports")
+}
+
+model UserShiftInventoryReport {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String   @db.ObjectId
+  userId      String   @db.ObjectId
+  reportDate  String   // YYYY-MM-DD
+
+  inventorySnapshot InventorySnapshot
+
+  notes    String?
+  clientId String?  // offline deduplication
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  submittedAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, clientId])
+  @@index([tenantId, reportDate])
+  @@index([tenantId, userId])
+  @@map("user_shift_inventory_reports")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -605,6 +666,7 @@ type InventoryItemSnapshot {
   category               String
   unit                   String
   quantity               Float
+  previousQuantity       Float?
   minStockLevel          Float?
   recordDate             DateTime
   requiresExpirationDate Boolean?

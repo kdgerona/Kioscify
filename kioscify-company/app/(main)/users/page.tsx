@@ -1,12 +1,35 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import type { User, Company } from '@/types';
-import { Plus, X, Copy, KeyRound, Trash2, UserCheck, UserX } from 'lucide-react';
+import type { User, Company, CompanyPrivileges } from '@/types';
+import { Plus, X, Copy, KeyRound, Trash2, UserCheck, UserX, Shield } from 'lucide-react';
 import { toast } from 'sonner';
+import { hasPrivilege } from '@/lib/privileges';
+import { PrivilegesGrid } from '@/components/PrivilegesGrid';
+import { EditPrivilegesModal } from '@/components/EditPrivilegesModal';
+
+function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="relative group/tip">
+      {children}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity pointer-events-none z-20">
+        {label}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+      </div>
+    </div>
+  );
+}
 
 export default function UsersPage() {
+  const router = useRouter();
+
+  const canCreate = hasPrivilege('users', 'write');
+  const canEdit = hasPrivilege('users', 'write');
+  const canDelete = hasPrivilege('users', 'all');
+  const canManagePrivileges = hasPrivilege('users', 'all');
+
   const [users, setUsers] = useState<User[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,9 +45,22 @@ export default function UsersPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Privileges state for create form
+  const DEFAULT_PRIVILEGES: CompanyPrivileges = { brands: 'read', analytics: 'read', users: 'read', settings: 'read' };
+  const [newPrivileges, setNewPrivileges] = useState<CompanyPrivileges>(DEFAULT_PRIVILEGES);
+
+  // Edit privileges modal state
+  const [editPrivilegesUser, setEditPrivilegesUser] = useState<User | null>(null);
+
   const currentUser = typeof window !== 'undefined'
     ? (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })()
     : null;
+
+  useEffect(() => {
+    if (!hasPrivilege('users', 'read')) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
 
   useEffect(() => {
     loadData();
@@ -54,6 +90,7 @@ export default function UsersPage() {
         lastName,
         email,
         username,
+        ...(canManagePrivileges ? { companyPrivileges: newPrivileges } : {}),
       });
       setUsers(prev => [...prev, result.user]);
       setNewPassword(result.temporaryPassword);
@@ -61,6 +98,7 @@ export default function UsersPage() {
       setLastName('');
       setEmail('');
       setUsername('');
+      setNewPrivileges(DEFAULT_PRIVILEGES);
       setShowForm(false);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
@@ -131,14 +169,16 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
           <p className="text-sm text-gray-500 mt-1">Company admin accounts</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 text-sm font-medium transition-colors"
-          style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
-        >
-          <Plus className="w-4 h-4" />
-          New User
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 text-sm font-medium transition-colors"
+            style={{ backgroundColor: 'var(--company-primary, #ea580c)' }}
+          >
+            <Plus className="w-4 h-4" />
+            New User
+          </button>
+        )}
       </div>
 
       {error && (
@@ -212,6 +252,12 @@ export default function UsersPage() {
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
                   style={{ '--tw-ring-color': 'var(--company-primary, #ea580c)' } as React.CSSProperties} />
               </div>
+              {canManagePrivileges && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Permissions</label>
+                  <PrivilegesGrid value={newPrivileges} onChange={setNewPrivileges} />
+                </div>
+              )}
               <p className="text-xs text-gray-400">Role will be set to COMPANY_ADMIN. A temporary password will be generated.</p>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => { setShowForm(false); setFormError(null); }}
@@ -252,41 +298,61 @@ export default function UsersPage() {
                   )}
                   {currentUser?.id !== user.id && (
                     <div className="flex items-center gap-2">
+                      {canManagePrivileges && (
+                        <Tooltip label="Edit privileges">
+                          <button
+                            onClick={() => setEditPrivilegesUser(user)}
+                            className="p-1.5 text-gray-400 hover:text-blue-500 rounded"
+                          >
+                            <Shield className="w-4 h-4" />
+                          </button>
+                        </Tooltip>
+                      )}
                       {!user.isActive ? (
-                        <button
-                          onClick={() => handleToggleActive(user)}
-                          title="Enable account"
-                          className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
-                        >
-                          <UserCheck className="w-4 h-4" />
-                        </button>
+                        <>
+                          {canEdit && (
+                            <Tooltip label="Enable account">
+                              <button
+                                onClick={() => handleToggleActive(user)}
+                                className="p-1.5 text-gray-400 hover:text-green-600 rounded"
+                              >
+                                <UserCheck className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                          )}
+                        </>
                       ) : (
                         <>
-                          {user.isFirstLogin && (
-                            <button
-                              onClick={() => handleRemoveUser(user)}
-                              title="Remove pending user"
-                              className="p-1.5 text-gray-400 hover:text-red-500 rounded"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                          {user.isFirstLogin && canDelete && (
+                            <Tooltip label="Remove pending user">
+                              <button
+                                onClick={() => handleRemoveUser(user)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
                           )}
-                          {!user.isFirstLogin && (
-                            <button
-                              onClick={() => handleToggleActive(user)}
-                              title="Disable account"
-                              className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
-                            >
-                              <UserX className="w-4 h-4" />
-                            </button>
+                          {!user.isFirstLogin && canEdit && (
+                            <Tooltip label="Disable account">
+                              <button
+                                onClick={() => handleToggleActive(user)}
+                                className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                              >
+                                <UserX className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
                           )}
-                          <button
-                            onClick={() => handleResetPassword(user)}
-                            title="Reset password"
-                            className="p-1.5 text-gray-400 hover:text-amber-500 rounded"
-                          >
-                            <KeyRound className="w-4 h-4" />
-                          </button>
+                          {canEdit && (
+                            <Tooltip label="Reset password">
+                              <button
+                                onClick={() => handleResetPassword(user)}
+                                className="p-1.5 text-gray-400 hover:text-amber-500 rounded"
+                              >
+                                <KeyRound className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                          )}
                         </>
                       )}
                     </div>
@@ -297,6 +363,19 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+
+      {editPrivilegesUser && company && (
+        <EditPrivilegesModal
+          open={!!editPrivilegesUser}
+          onClose={() => setEditPrivilegesUser(null)}
+          onSave={(updatedUser) => {
+            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+            setEditPrivilegesUser(null);
+          }}
+          companyId={company.id}
+          user={editPrivilegesUser}
+        />
+      )}
     </div>
   );
 }

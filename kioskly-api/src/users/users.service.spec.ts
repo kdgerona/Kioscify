@@ -5,6 +5,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { ForbiddenException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
+jest.mock('bcrypt', () => ({
+  hash: jest.fn().mockResolvedValue('hashed-password'),
+  compare: jest.fn().mockResolvedValue(true),
+}));
+
 const mockPrisma = {
   user: {
     findMany: jest.fn(),
@@ -305,6 +310,80 @@ describe('UsersService', () => {
 
       const call = mockPrisma.user.findMany.mock.calls[0]?.[0];
       expect(call?.take).toBe(20);
+    });
+  });
+
+  describe('createCompanyUser', () => {
+    it('uses provided companyPrivileges when requesting user is owner (null)', async () => {
+      mockPrisma.user.findFirst.mockResolvedValueOnce(null); // no conflict
+      mockPrisma.user.create.mockResolvedValue({ id: 'u1', username: 'jane', firstName: 'Jane', lastName: 'Doe', email: 'jane@co.com', role: 'COMPANY_ADMIN', isFirstLogin: true });
+
+      const dto = { firstName: 'Jane', lastName: 'Doe', email: 'jane@co.com', username: 'jane', companyPrivileges: { brands: 'write', analytics: 'read', users: 'no_access', settings: 'read' } };
+      await service.createCompanyUser('co1', 'co1', dto, null /* requestingPrivileges = owner */);
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            companyPrivileges: { brands: 'write', analytics: 'read', users: 'no_access', settings: 'read' },
+          }),
+        }),
+      );
+    });
+
+    it('ignores provided companyPrivileges when requester has users:write (not all)', async () => {
+      mockPrisma.user.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.user.create.mockResolvedValue({ id: 'u2', username: 'bob', firstName: 'Bob', lastName: 'Smith', email: 'bob@co.com', role: 'COMPANY_ADMIN', isFirstLogin: true });
+
+      const dto = { firstName: 'Bob', lastName: 'Smith', email: 'bob@co.com', username: 'bob', companyPrivileges: { brands: 'all', analytics: 'all', users: 'all', settings: 'all' } };
+      const requestingPrivileges = { brands: 'write', analytics: 'read', users: 'write', settings: 'read' };
+      await service.createCompanyUser('co1', 'co1', dto, requestingPrivileges);
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            companyPrivileges: { brands: 'read', analytics: 'read', users: 'read', settings: 'read' },
+          }),
+        }),
+      );
+    });
+
+    it('defaults to read for all sections when no companyPrivileges provided', async () => {
+      mockPrisma.user.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.user.create.mockResolvedValue({ id: 'u3', username: 'carol', firstName: 'Carol', lastName: 'Lee', email: 'carol@co.com', role: 'COMPANY_ADMIN', isFirstLogin: true });
+
+      await service.createCompanyUser('co1', 'co1', { firstName: 'Carol', lastName: 'Lee', email: 'carol@co.com', username: 'carol' }, null);
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            companyPrivileges: { brands: 'read', analytics: 'read', users: 'read', settings: 'read' },
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('updateCompanyUser', () => {
+    it('throws ForbiddenException when requester lacks users:all and tries to set companyPrivileges', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'u2', companyId: 'co1' });
+
+      const requestingPrivileges = { brands: 'read', analytics: 'read', users: 'write', settings: 'read' };
+      await expect(
+        service.updateCompanyUser('co1', 'u2', 'co1', 'COMPANY_ADMIN', 'req-user', { companyPrivileges: { brands: 'all', analytics: 'all', users: 'all', settings: 'all' } }, requestingPrivileges),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows companyPrivileges update when requester is owner (null)', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'u2', companyId: 'co1' });
+      mockPrisma.user.update.mockResolvedValue({ id: 'u2', companyPrivileges: { brands: 'write', analytics: 'read', users: 'read', settings: 'read' } });
+
+      await service.updateCompanyUser('co1', 'u2', 'co1', 'COMPANY_ADMIN', 'req-user', { companyPrivileges: { brands: 'write', analytics: 'read', users: 'read', settings: 'read' } }, null);
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyPrivileges: { brands: 'write', analytics: 'read', users: 'read', settings: 'read' } }),
+        }),
+      );
     });
   });
 

@@ -14,6 +14,7 @@ import {
 import { useTenant } from "@/contexts/TenantContext";
 import TransactionListModal from "@/components/TransactionListModal";
 import ExpenseListModal from "@/components/ExpenseListModal";
+import CashSummaryModal from "@/components/CashSummaryModal";
 import { Transaction, Expense } from "@/types";
 
 interface AnalyticsData {
@@ -64,16 +65,34 @@ export default function DashboardPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
+  const [transactionModalTitle, setTransactionModalTitle] = useState<string | undefined>(undefined);
+  const [showCashSummaryModal, setShowCashSummaryModal] = useState(false);
+  const [cashSummaryData, setCashSummaryData] = useState<{ title: string; cashSales: number; expenses: Expense[] } | null>(null);
+  const [loadingCashSummary, setLoadingCashSummary] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
+  const dayStart = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+  const dayEnd = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
   const loadDashboardData = async () => {
     try {
+      const now = new Date();
+
+      const todayStart = dayStart(now).toISOString();
+      const todayEnd = dayEnd(now).toISOString();
+
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthStartISO = dayStart(monthStart).toISOString();
+      const monthEndISO = dayEnd(now).toISOString();
+
       const [monthlyData, dailyData] = await Promise.all([
-        api.getAnalytics({ period: "monthly" }),
-        api.getAnalytics({ period: "daily" }),
+        api.getAnalytics({ period: "monthly", startDate: monthStartISO, endDate: monthEndISO }),
+        api.getAnalytics({ period: "daily", startDate: todayStart, endDate: todayEnd }),
       ]);
       setAnalytics(monthlyData);
       setDailyAnalytics(dailyData);
@@ -87,6 +106,7 @@ export default function DashboardPage() {
   const loadTransactions = async () => {
     try {
       setLoadingTransactions(true);
+      setTransactionModalTitle(undefined);
       const params: { startDate?: string; endDate?: string } = {};
 
       if (analytics?.period) {
@@ -124,9 +144,52 @@ export default function DashboardPage() {
     }
   };
 
+  const loadTodayCashSummary = async () => {
+    try {
+      setLoadingCashSummary(true);
+      const params: { startDate?: string; endDate?: string } = {};
+
+      if (dailyAnalytics?.period) {
+        params.startDate = dailyAnalytics.period.start;
+        params.endDate = dailyAnalytics.period.end;
+      }
+
+      const data = await api.getExpenses(params);
+      const cashSales = dailyAnalytics?.sales?.paymentMethodBreakdown?.["CASH"]?.total ?? 0;
+      setCashSummaryData({ title: "Today's Cash Summary", cashSales, expenses: data });
+      setShowCashSummaryModal(true);
+    } catch (error) {
+      console.error("Failed to load today's cash summary:", error);
+    } finally {
+      setLoadingCashSummary(false);
+    }
+  };
+
+  const loadMonthlyCashSummary = async () => {
+    try {
+      setLoadingCashSummary(true);
+      const params: { startDate?: string; endDate?: string } = {};
+
+      if (analytics?.period) {
+        params.startDate = analytics.period.start;
+        params.endDate = analytics.period.end;
+      }
+
+      const data = await api.getExpenses(params);
+      const cashSales = analytics?.sales?.paymentMethodBreakdown?.["CASH"]?.total ?? 0;
+      setCashSummaryData({ title: "Monthly Cash Summary", cashSales, expenses: data });
+      setShowCashSummaryModal(true);
+    } catch (error) {
+      console.error("Failed to load monthly cash summary:", error);
+    } finally {
+      setLoadingCashSummary(false);
+    }
+  };
+
   const loadTodayTransactions = async () => {
     try {
       setLoadingTransactions(true);
+      setTransactionModalTitle(undefined);
       const params: { startDate?: string; endDate?: string } = {};
 
       if (dailyAnalytics?.period) {
@@ -197,7 +260,7 @@ export default function DashboardPage() {
         <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
           Today&apos;s Overview
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Today's Sales */}
           <button
             onClick={loadTodayTransactions}
@@ -235,7 +298,7 @@ export default function DashboardPage() {
           </button>
 
           {/* Today's Net */}
-          <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-4 sm:p-6 rounded-xl shadow-lg sm:col-span-2 lg:col-span-1">
+          <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
             <p className="text-teal-100 text-xs sm:text-sm mb-2">
               Today&apos;s Net Revenue
             </p>
@@ -246,6 +309,30 @@ export default function DashboardPage() {
               After expenses
             </p>
           </div>
+
+          {/* Today's Net Cash */}
+          {(() => {
+            const dailyCash = dailyAnalytics?.sales?.paymentMethodBreakdown?.["CASH"]?.total ?? 0;
+            const dailyNetCash = dailyCash - (dailyAnalytics?.expenses?.totalAmount ?? 0);
+            return (
+              <button
+                onClick={loadTodayCashSummary}
+                disabled={loadingCashSummary}
+                className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 sm:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+              >
+                <p className="text-green-100 text-xs sm:text-sm mb-2">
+                  Today&apos;s Net Cash{" "}
+                  {loadingCashSummary ? "(Loading...)" : "(Click to view)"}
+                </p>
+                <p className={`text-xl lg:text-2xl font-bold break-all ${dailyNetCash < 0 ? "text-red-200" : ""}`}>
+                  {formatCurrency(dailyNetCash)}
+                </p>
+                <p className="text-xs sm:text-sm text-green-100 mt-2">
+                  Cash sales minus expenses
+                </p>
+              </button>
+            );
+          })()}
         </div>
       </div>
 
@@ -315,7 +402,7 @@ export default function DashboardPage() {
           Monthly Financial Overview
         </h2>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Monthly Total Expenses - Clickable */}
         <button
           onClick={loadExpenses}
@@ -348,7 +435,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Monthly Net Revenue */}
-        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-4 sm:p-6 rounded-xl shadow-lg sm:col-span-2 lg:col-span-1">
+        <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
           <p className="text-indigo-100 text-xs sm:text-sm mb-2">
             Monthly Net Revenue
           </p>
@@ -359,6 +446,30 @@ export default function DashboardPage() {
             After expenses
           </p>
         </div>
+
+        {/* Monthly Net Cash */}
+        {(() => {
+          const monthlyCash = analytics?.sales?.paymentMethodBreakdown?.["CASH"]?.total ?? 0;
+          const monthlyNetCash = monthlyCash - (analytics?.expenses?.totalAmount ?? 0);
+          return (
+            <button
+              onClick={loadMonthlyCashSummary}
+              disabled={loadingCashSummary}
+              className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 sm:p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 text-left w-full cursor-pointer"
+            >
+              <p className="text-green-100 text-xs sm:text-sm mb-2">
+                Monthly Net Cash{" "}
+                {loadingCashSummary ? "(Loading...)" : "(Click to view)"}
+              </p>
+              <p className={`text-xl lg:text-2xl font-bold break-all ${monthlyNetCash < 0 ? "text-red-200" : ""}`}>
+                {formatCurrency(monthlyNetCash)}
+              </p>
+              <p className="text-xs sm:text-sm text-green-100 mt-2">
+                Cash sales minus expenses
+              </p>
+            </button>
+          );
+        })()}
       </div>
 
       {/* Top Products */}
@@ -499,6 +610,7 @@ export default function DashboardPage() {
         onClose={() => setShowTransactionModal(false)}
         transactions={transactions}
         primaryColor={primaryColor}
+        title={transactionModalTitle}
       />
 
       {/* Expense List Modal */}
@@ -508,6 +620,17 @@ export default function DashboardPage() {
         expenses={expenses}
         primaryColor={primaryColor}
       />
+
+      {/* Cash Summary Modal */}
+      {cashSummaryData && (
+        <CashSummaryModal
+          isOpen={showCashSummaryModal}
+          onClose={() => setShowCashSummaryModal(false)}
+          cashSales={cashSummaryData.cashSales}
+          expenses={cashSummaryData.expenses}
+          title={cashSummaryData.title}
+        />
+      )}
     </div>
   );
 }

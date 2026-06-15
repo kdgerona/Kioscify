@@ -263,13 +263,17 @@ export class InventoryService {
 
     const latestReport = recentReports[0];
     const previousReport = recentReports[1];
-    const latestMap = new Map<string, { quantity: number; date: Date }>();
+    const latestMap = new Map<string, { quantity: number; date: Date; expirationBatches: any[] }>();
     const previousMap = new Map<string, number>();
 
     if (latestReport?.inventorySnapshot) {
       const snapshot = latestReport.inventorySnapshot as any;
       snapshot.items?.forEach((item: any) => {
-        latestMap.set(item.inventoryItemId, { quantity: item.quantity, date: latestReport.submittedAt });
+        latestMap.set(item.inventoryItemId, {
+          quantity: item.quantity,
+          date: latestReport.submittedAt,
+          expirationBatches: item.expirationBatches ?? [],
+        });
       });
     }
     if (previousReport?.inventorySnapshot) {
@@ -293,6 +297,7 @@ export class InventoryService {
         latestQuantity: latest?.quantity ?? null,
         latestRecordDate: latest?.date ?? null,
         previousQuantity: previousMap.get(item.id) ?? null,
+        expirationBatches: latest?.expirationBatches ?? [],
       };
     });
   }

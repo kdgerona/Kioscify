@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
 import { formatCurrency, formatDateTime, formatUserName } from "@/lib/utils";
 import {
@@ -61,9 +63,17 @@ const getCategoryColor = (category: string) => {
 };
 
 export default function ExpensesPage() {
+  const router = useRouter();
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const activeTabColor = "#1f2937";
+
+  const canWrite = hasPrivilege('expenses', 'write');
+
+  useEffect(() => {
+    if (!hasPrivilege('expenses', 'read')) router.replace('/dashboard');
+  }, [router]);
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
@@ -652,7 +662,7 @@ export default function ExpensesPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {request.voidStatus === "PENDING" ? (
+                          {request.voidStatus === "PENDING" && canWrite ? (
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleApproveVoid(request)}

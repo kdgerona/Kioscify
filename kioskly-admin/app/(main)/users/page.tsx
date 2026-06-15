@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
 import { formatRole } from '@/lib/utils';
+import { hasPrivilege } from '@/lib/privileges';
 import type { User, StoreUserCreatePayload } from '@/types';
-import { UserPlus, Eye, EyeOff, UserCheck, UserX, KeyRound, Trash2 } from 'lucide-react';
+import { UserPlus, Eye, EyeOff, UserCheck, UserX, KeyRound, Trash2, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Select,
@@ -15,11 +17,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import AssignUserModal from './AssignUserModal';
+import { EditPrivilegesModal } from '@/components/EditPrivilegesModal';
 
 export default function UsersPage() {
+  const router = useRouter();
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? '#ea580c';
   const textColor = '#1f2937';
+
+  const canCreate = hasPrivilege('users', 'write');
+  const canEdit = hasPrivilege('users', 'write');
+  const canDelete = hasPrivilege('users', 'all');
+  const canManagePrivileges = hasPrivilege('users', 'all');
+
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +54,15 @@ export default function UsersPage() {
   const [resettingUserId, setResettingUserId] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Edit privileges modal state
+  const [editPrivilegesUser, setEditPrivilegesUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    if (!hasPrivilege('users', 'read')) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
 
   const fetchUsers = useCallback(async () => {
     if (!tenant?.id) return;
@@ -112,7 +131,6 @@ export default function UsersPage() {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      // Fallback for tablets/browsers that block navigator.clipboard
       const el = document.createElement('textarea');
       el.value = text;
       el.setAttribute('readonly', '');
@@ -162,7 +180,7 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Store Users</h1>
           <p className="text-sm text-gray-500 mt-1">Manage staff accounts for this store</p>
         </div>
-        {isStoreAdmin && (
+        {isStoreAdmin && canCreate && (
           <div className="flex items-center gap-3">
             {isStoreAdmin && isMultiStoreAdmin && (
               <button
@@ -216,7 +234,7 @@ export default function UsersPage() {
       )}
 
       {/* Create form — STORE_ADMIN only */}
-      {showCreateForm && isStoreAdmin && (
+      {showCreateForm && isStoreAdmin && canCreate && (
         <div className="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-4">Add New User</h2>
           {error && (
@@ -376,21 +394,37 @@ export default function UsersPage() {
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-2">
-                          {!user.isActive ? (
+                          {/* Privileges button — only for STORE_ADMIN users */}
+                          {canManagePrivileges && ['STORE_ADMIN', 'ADMIN'].includes(user.role) && (
                             <div className="relative group inline-block">
                               <button
-                                onClick={() => handleToggleActive(user)}
-                                className="text-gray-400 hover:text-gray-600"
+                                onClick={() => setEditPrivilegesUser(user)}
+                                className="text-gray-400 hover:text-blue-500"
                               >
-                                <UserCheck className="h-4 w-4" />
+                                <Shield className="h-4 w-4" />
                               </button>
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                Enable account
+                                Edit privileges
                               </div>
                             </div>
+                          )}
+                          {!user.isActive ? (
+                            canEdit && (
+                              <div className="relative group inline-block">
+                                <button
+                                  onClick={() => handleToggleActive(user)}
+                                  className="text-gray-400 hover:text-gray-600"
+                                >
+                                  <UserCheck className="h-4 w-4" />
+                                </button>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                  Enable account
+                                </div>
+                              </div>
+                            )
                           ) : (
                             <>
-                              {user.isFirstLogin && (
+                              {user.isFirstLogin && canDelete && (
                                 <div className="relative group inline-block">
                                   <button
                                     onClick={() => handleRemoveUser(user)}
@@ -404,7 +438,7 @@ export default function UsersPage() {
                                   </div>
                                 </div>
                               )}
-                              {!user.isFirstLogin && (
+                              {!user.isFirstLogin && canEdit && (
                                 <div className="relative group inline-block">
                                   <button
                                     onClick={() => handleToggleActive(user)}
@@ -417,18 +451,20 @@ export default function UsersPage() {
                                   </div>
                                 </div>
                               )}
-                              <div className="relative group inline-block">
-                                <button
-                                  onClick={() => handleResetPassword(user)}
-                                  disabled={resettingUserId === user.id}
-                                  className="text-gray-400 hover:text-amber-500 disabled:opacity-50"
-                                >
-                                  <KeyRound className="h-4 w-4" />
-                                </button>
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                  Reset password
+                              {canEdit && (
+                                <div className="relative group inline-block">
+                                  <button
+                                    onClick={() => handleResetPassword(user)}
+                                    disabled={resettingUserId === user.id}
+                                    className="text-gray-400 hover:text-amber-500 disabled:opacity-50"
+                                  >
+                                    <KeyRound className="h-4 w-4" />
+                                  </button>
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Reset password
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </>
                           )}
                         </div>
@@ -460,6 +496,19 @@ export default function UsersPage() {
         primaryColor={primaryColor}
         onAssigned={fetchUsers}
       />
+
+      {editPrivilegesUser && tenant && (
+        <EditPrivilegesModal
+          open={!!editPrivilegesUser}
+          onClose={() => setEditPrivilegesUser(null)}
+          onSave={(updatedUser) => {
+            setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+            setEditPrivilegesUser(null);
+          }}
+          storeId={tenant.id}
+          user={editPrivilegesUser}
+        />
+      )}
     </div>
   );
 }

@@ -202,6 +202,108 @@ export class ReportsService {
     };
   }
 
+  async getUserShiftReport(userId: string, tenantId: string, date?: string) {
+    const targetDate = date ? new Date(date) : new Date();
+    const startOfDay = new Date(
+      targetDate.getFullYear(),
+      targetDate.getMonth(),
+      targetDate.getDate(),
+    );
+    const endOfDay = new Date(
+      targetDate.getFullYear(),
+      targetDate.getMonth(),
+      targetDate.getDate(),
+      23,
+      59,
+      59,
+      999,
+    );
+
+    const [transactions, expenses] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: {
+          tenantId,
+          userId,
+          timestamp: { gte: startOfDay, lte: endOfDay },
+          voidStatus: { not: 'APPROVED' } as any,
+        },
+        include: { items: true },
+      }),
+      this.prisma.expense.findMany({
+        where: {
+          tenantId,
+          userId,
+          date: { gte: startOfDay, lte: endOfDay },
+          voidStatus: { not: 'APPROVED' } as any,
+        },
+      }),
+    ]);
+
+    const totalSales = transactions.reduce((sum, t) => sum + t.total, 0);
+    const transactionCount = transactions.length;
+    const averageTransaction = transactionCount > 0 ? totalSales / transactionCount : 0;
+
+    const paymentMethodBreakdown = transactions.reduce(
+      (acc, t) => {
+        const method = t.paymentMethod;
+        if (!acc[method]) acc[method] = { total: 0, count: 0 };
+        acc[method].total += t.total;
+        acc[method].count += 1;
+        return acc;
+      },
+      {} as Record<string, { total: number; count: number }>,
+    );
+
+    const totalItemsSold = transactions.reduce(
+      (sum, t) => sum + t.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+      0,
+    );
+
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const expenseCount = expenses.length;
+    const averageExpense = expenseCount > 0 ? totalExpenses / expenseCount : 0;
+
+    const expenseCategoryBreakdown = expenses.reduce(
+      (acc, e) => {
+        const category = e.category;
+        if (!acc[category]) acc[category] = { total: 0, count: 0 };
+        acc[category].total += e.amount;
+        acc[category].count += 1;
+        return acc;
+      },
+      {} as Record<string, { total: number; count: number }>,
+    );
+
+    const grossProfit = totalSales - totalExpenses;
+    const profitMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+
+    return {
+      date: targetDate.toISOString().split('T')[0],
+      period: {
+        start: startOfDay.toISOString(),
+        end: endOfDay.toISOString(),
+      },
+      sales: {
+        totalAmount: totalSales,
+        transactionCount,
+        averageTransaction,
+        totalItemsSold,
+        paymentMethodBreakdown,
+      },
+      expenses: {
+        totalAmount: totalExpenses,
+        expenseCount,
+        averageExpense,
+        categoryBreakdown: expenseCategoryBreakdown,
+      },
+      summary: {
+        grossProfit,
+        profitMargin: Number(profitMargin.toFixed(2)),
+        netRevenue: grossProfit,
+      },
+    };
+  }
+
   /**
    * Generate comprehensive analytics report for a given period
    */
@@ -234,6 +336,7 @@ export class ReportsService {
                 category: true,
               },
             },
+            size: true,
           },
         },
       },
@@ -322,6 +425,33 @@ export class ReportsService {
       (a, b) => b.revenue - a.revenue,
     );
 
+    // Sales by size
+    const sizeMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+    for (const transaction of transactions) {
+      for (const item of transaction.items) {
+        const key = item.sizeId ?? '__no_size__';
+        const name = item.size?.name ?? 'No Size';
+        const entry = sizeMap.get(key) ?? { name, quantity: 0, revenue: 0 };
+        entry.quantity += item.quantity;
+        entry.revenue += item.subtotal;
+        sizeMap.set(key, entry);
+      }
+    }
+
+    const salesBySize = Array.from(sizeMap.entries())
+      .map(([key, s]) => ({
+        sizeId: key === '__no_size__' ? null : key,
+        name: s.name,
+        quantity: s.quantity,
+        revenue: s.revenue,
+        percentage: totalSales > 0 ? (s.revenue / totalSales) * 100 : 0,
+      }))
+      .sort((a, b) => {
+        if (a.sizeId === null) return 1;
+        if (b.sizeId === null) return -1;
+        return b.quantity - a.quantity;
+      });
+
     // Calculate expense metrics
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const expenseCount = expenses.length;
@@ -408,6 +538,7 @@ export class ReportsService {
         netRevenue: grossProfit,
       },
       topProducts,
+      salesBySize,
       salesByDay: Object.values(salesByDay).sort((a, b) =>
         a.date.localeCompare(b.date),
       ),

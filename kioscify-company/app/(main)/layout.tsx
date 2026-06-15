@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { resolveLogoUrl } from '@/lib/utils';
+import { hasPrivilege } from '@/lib/privileges';
 import { CompanyProvider, useCompany } from '@/contexts/CompanyContext';
 import {
   LayoutDashboard,
@@ -17,14 +18,6 @@ import {
   X,
   Building2,
 } from 'lucide-react';
-
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/brands', label: 'Brands', icon: BookOpen },
-  { href: '/analytics', label: 'Analytics', icon: BarChart2 },
-  { href: '/users', label: 'Users', icon: Users },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -86,6 +79,16 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
     }
   }, [company]);
 
+  const visibleNavItems = loading
+    ? []
+    : [
+        { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: null },
+        { href: '/brands', label: 'Brands', icon: BookOpen, section: 'brands' as const },
+        { href: '/analytics', label: 'Analytics', icon: BarChart2, section: 'analytics' as const },
+        { href: '/users', label: 'Users', icon: Users, section: 'users' as const },
+        { href: '/settings', label: 'Settings', icon: Settings, section: null },
+      ].filter(item => item.section === null || hasPrivilege(item.section, 'read'));
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -140,7 +143,7 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map(item => {
+          {visibleNavItems.map(item => {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
