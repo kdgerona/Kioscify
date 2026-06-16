@@ -30,6 +30,7 @@ import { SubmittedReportsModule } from './submitted-reports/submitted-reports.mo
 import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/submitted-inventory-reports.module';
 import { UserShiftReportsModule } from './user-shift-reports/user-shift-reports.module';
 import { UserShiftInventoryReportsModule } from './user-shift-inventory-reports/user-shift-inventory-reports.module';
+import { AppReleasesModule } from './app-releases/app-releases.module';
 
 @Module({
   imports: [
@@ -95,6 +96,9 @@ import { UserShiftInventoryReportsModule } from './user-shift-inventory-reports/
     SubmittedInventoryReportsModule,
     UserShiftReportsModule,
     UserShiftInventoryReportsModule,
+
+    // App releases (APK auto-update)
+    AppReleasesModule,
 
   ],
   controllers: [AppController],
