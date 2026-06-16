@@ -34,7 +34,7 @@ Android Kiosk App
 | Checksum verification | Kotlin streaming SHA-256 | Avoids loading 100MB file into JS ArrayBuffer |
 | Install mechanism | Kotlin FileProvider + Intent | Required for Android sideloading |
 | Auth on CRUD | PLATFORM_ADMIN only | Portal-side management |
-| Version selection | Highest versionCode PUBLISHED | Not latest createdAt |
+| Version selection | Highest versionCode PUBLISHED; downgrade prevention | Not latest createdAt; app only prompts when `server version_code > nativeBuildVersion`. If server publishes lower versionCode (e.g., rollback), app ignores it and continues running. |
 
 ## Data Model
 
@@ -84,14 +84,16 @@ GET /app/version response:
 
 ## Android Update Flow
 
-1. `AppUpdateContext` polls `GET /app/version` silently (never crashes app)
+1. `AppUpdateContext` polls `GET /app/version` silently (never crashes app) every 30 minutes (balances update freshness against battery/bandwidth drain on always-on POS kiosk hardware)
 2. If `version_code > nativeBuildVersion`, store `updateInfo` in context state
 3. `UpdateDialog` renders as transparent `<Modal>` over entire app
 4. User taps "Update Now" → `expo-file-system` streams download with progress callback
-5. After download: `AppInstallerModule.computeSha256(filePath)` → compare to `checksum_sha256`
+5. After download: `AppInstallerModule.computeSha256(filePath)` → compare to `checksum_sha256` (case-insensitive; both sides lowercased before comparing)
 6. Mismatch → show error, delete file, allow retry
 7. Match → `AppInstallerModule.installApk(filePath)` → system installer launches
 8. `force_update: true` → no "Later" button, `onRequestClose` is `undefined`
+
+**File Cleanup:** Downloaded APK file is deleted at the START of any new download attempt (existing partial/complete file removed). On checksum mismatch, delete immediately. On download error, delete any partial file. On successful install launch, leave the file (system installer needs it; OS handles cleanup after install completes). If user dismisses update dialog after download, the file persists but will be cleaned up at the next download attempt.
 
 ## Error Codes (DownloadError)
 - `NO_INTERNET` — network unavailable
