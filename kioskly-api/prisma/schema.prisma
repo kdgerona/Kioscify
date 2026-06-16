@@ -756,7 +756,8 @@ model AppRelease {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  @@index([status, createdAt])
+  @@index([status, versionCode])
+  @@unique([versionCode])
   @@map("app_releases")
 }
 
