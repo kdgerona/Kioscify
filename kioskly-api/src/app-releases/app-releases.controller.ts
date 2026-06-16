@@ -41,9 +41,8 @@ export class AppReleasesController {
     FileInterceptor('apk', {
       storage: diskStorage({
         destination: (req, file, cb) => {
-          const dir = './uploads/apks';
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-          cb(null, dir);
+          fs.mkdirSync('./uploads/apks', { recursive: true });
+          cb(null, './uploads/apks');
         },
         filename: (req, file, cb) => {
           cb(null, `kioscify-${Date.now()}${extname(file.originalname)}`);

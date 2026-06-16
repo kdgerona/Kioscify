@@ -13,7 +13,7 @@ export class MulterExceptionFilter implements ExceptionFilter {
         : HttpStatus.BAD_REQUEST;
     const message =
       exception.code === 'LIMIT_FILE_SIZE'
-        ? 'File too large. Maximum size is 5 MB.'
+        ? 'File exceeds the maximum allowed size.'
         : 'Invalid file upload.';
     response.status(status).json({
       statusCode: status,
