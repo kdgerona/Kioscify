@@ -737,3 +737,31 @@ model PlatformConfig {
   mobileAppMaintenance     Boolean @default(false)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// APP RELEASES — Kiosk Android APK distribution
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AppRelease {
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+  versionCode     Int
+  versionName     String
+  apkPath         String
+  apkUrl          String
+  fileSize        Int
+  checksumSha256  String
+  releaseNotes    String[]
+  forceUpdate     Boolean           @default(false)
+  status          AppReleaseStatus  @default(DRAFT)
+  uploadedById    String?           @db.ObjectId
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([status, createdAt])
+  @@map("app_releases")
+}
+
+enum AppReleaseStatus {
+  DRAFT
+  PUBLISHED
+}
+
