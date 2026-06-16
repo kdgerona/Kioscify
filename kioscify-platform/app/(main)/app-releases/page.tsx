@@ -132,8 +132,9 @@ export default function AppReleasesPage() {
       setUploadForm(defaultUploadForm);
       setApkFile(null);
       await loadReleases();
-    } catch (err: any) {
-      setUploadError(err?.response?.data?.message ?? 'Upload failed');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setUploadError(axiosErr?.response?.data?.message ?? 'Upload failed');
     } finally {
       setUploading(false);
     }
