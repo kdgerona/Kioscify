@@ -1,6 +1,7 @@
 // kioskly-api/src/app-releases/app-releases.service.ts
 import {
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -40,25 +41,37 @@ export class AppReleasesService {
       );
     }
 
-    const checksum = await this.computeSha256(file.path);
-    const relativePath = `/uploads/apks/${file.filename}`;
-    const apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000';
-    const apkUrl = `${apiBaseUrl}${relativePath}`;
+    let checksum: string;
+    try {
+      checksum = await this.computeSha256(file.path);
+    } catch {
+      fs.unlinkSync(file.path);
+      throw new InternalServerErrorException('Failed to process uploaded file');
+    }
 
-    return this.prisma.appRelease.create({
-      data: {
-        versionCode: dto.versionCode,
-        versionName: dto.versionName,
-        apkPath: relativePath,
-        apkUrl,
-        fileSize: file.size,
-        checksumSha256: checksum,
-        releaseNotes: dto.releaseNotes,
-        forceUpdate: dto.forceUpdate,
-        status: dto.status,
-        uploadedById,
-      },
-    });
+    const relativePath = `uploads/apks/${file.filename}`;
+    const apiBaseUrl = process.env.API_BASE_URL ?? 'http://localhost:3000';
+    const apkUrl = `${apiBaseUrl}/${relativePath}`;
+
+    try {
+      return await this.prisma.appRelease.create({
+        data: {
+          versionCode: dto.versionCode,
+          versionName: dto.versionName,
+          apkPath: relativePath,
+          apkUrl,
+          fileSize: file.size,
+          checksumSha256: checksum,
+          releaseNotes: dto.releaseNotes,
+          forceUpdate: dto.forceUpdate,
+          status: dto.status,
+          uploadedById,
+        },
+      });
+    } catch (err) {
+      fs.unlinkSync(file.path);
+      throw err;
+    }
   }
 
   findAll() {
@@ -95,9 +108,19 @@ export class AppReleasesService {
     const existing = await this.prisma.appRelease.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Release not found');
 
-    const absolutePath = path.join(process.cwd(), existing.apkPath);
-    if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+    // Delete DB record first. If this fails, both record and file survive (safe).
+    // If file delete fails after, the stale file can be cleaned up separately.
+    const deleted = await this.prisma.appRelease.delete({ where: { id } });
 
-    return this.prisma.appRelease.delete({ where: { id } });
+    const absolutePath = path.join(process.cwd(), existing.apkPath);
+    if (fs.existsSync(absolutePath)) {
+      try {
+        fs.unlinkSync(absolutePath);
+      } catch {
+        // Log but do not fail — file cleanup is best-effort after DB delete
+      }
+    }
+
+    return deleted;
   }
 }
