@@ -10,6 +10,7 @@ import type {
   User,
   OnboardAdminPayload,
   OnboardStorePayload,
+  AppRelease,
 } from '@/types';
 
 const API_BASE_URL =
@@ -386,6 +387,32 @@ class ApiClient {
   async deletePlatformAdmin(id: string): Promise<{ message: string }> {
     const { data } = await this.client.delete(`/platform/admins/${id}`);
     return data;
+  }
+
+  // ─── App Releases ─────────────────────────────────────────────────────────
+
+  async getAppReleases(): Promise<AppRelease[]> {
+    const { data } = await this.client.get<AppRelease[]>('/app-releases');
+    return data;
+  }
+
+  async uploadAppRelease(formData: FormData): Promise<AppRelease> {
+    const { data } = await this.client.post<AppRelease>('/app-releases', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  }
+
+  async updateAppRelease(
+    id: string,
+    payload: { releaseNotes?: string[]; forceUpdate?: boolean; status?: string },
+  ): Promise<AppRelease> {
+    const { data } = await this.client.patch<AppRelease>(`/app-releases/${id}`, payload);
+    return data;
+  }
+
+  async deleteAppRelease(id: string): Promise<void> {
+    await this.client.delete(`/app-releases/${id}`);
   }
 }
 
