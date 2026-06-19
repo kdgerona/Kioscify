@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { NativeModules } from 'react-native';
 
 const { AppInstaller } = NativeModules;
