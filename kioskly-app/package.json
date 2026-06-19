@@ -12,7 +12,7 @@
     "lint": "expo lint",
     "prebuild": "npx expo prebuild --platform android",
     "build:android": "cd android && ./gradlew assembleRelease",
-    "build:apk": "npx expo prebuild --clean --platform android && cp release.keystore android/app/debug.keystore && cd android && JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew clean assembleRelease"
+    "build:apk": "cd android && JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew clean assembleRelease"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
