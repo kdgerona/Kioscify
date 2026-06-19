@@ -10,8 +10,8 @@ import { initDb } from "../lib/db";
 import OfflineBanner from "../components/OfflineBanner";
 import { getApiUrl } from "../utils/api";
 import MaintenanceScreen from "../components/MaintenanceScreen";
-import { AppUpdateProvider } from '../contexts/AppUpdateContext';
-import UpdateDialog from '../components/UpdateDialog';
+import { AppUpdateProvider } from "../contexts/AppUpdateContext";
+import UpdateDialog from "../components/UpdateDialog";
 
 // Inner component — must live inside SyncProvider to call useSync() via OfflineBanner.
 function AppNavigator() {
