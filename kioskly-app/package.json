@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "expo start",
     "start": "expo start",
-    "android": "cd android && ./gradlew :gradle-plugin:settings-plugin:jar --quiet 2>/dev/null; cd .. && expo run:android",
+    "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build": "expo export",
