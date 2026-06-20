@@ -20,7 +20,7 @@ RUN yarn install --frozen-lockfile || yarn install
 # Generate Prisma client
 RUN npx prisma generate
 
-# Copy source code
+# Copy source code (includes scripts/ for migration)
 COPY . .
 
 # Build the application
@@ -51,11 +51,6 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
-
-# Create uploads directory structure with proper permissions
-RUN mkdir -p uploads/logos uploads/products uploads/categories && \
-    chown -R nestjs:nodejs uploads && \
-    chmod -R 755 uploads
 
 # Set ownership
 RUN chown -R nestjs:nodejs /app

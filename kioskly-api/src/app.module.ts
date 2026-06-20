@@ -31,6 +31,7 @@ import { SubmittedInventoryReportsModule } from './submitted-inventory-reports/s
 import { UserShiftReportsModule } from './user-shift-reports/user-shift-reports.module';
 import { UserShiftInventoryReportsModule } from './user-shift-inventory-reports/user-shift-inventory-reports.module';
 import { AppReleasesModule } from './app-releases/app-releases.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -99,6 +100,9 @@ import { AppReleasesModule } from './app-releases/app-releases.module';
 
     // App releases (APK auto-update)
     AppReleasesModule,
+
+    // Object storage (MinIO)
+    StorageModule,
 
   ],
   controllers: [AppController],

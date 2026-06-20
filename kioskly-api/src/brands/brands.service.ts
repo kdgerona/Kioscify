@@ -5,13 +5,16 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateBrandDto, UpdateBrandDto } from './dto/brand.dto';
-import * as fs from 'fs';
-import * as path from 'path';
+import { extname } from 'path';
 
 @Injectable()
 export class BrandsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   async validateSubdomain(companySlug: string, brandSlug: string) {
     const company = await this.prisma.company.findUnique({
@@ -120,15 +123,11 @@ export class BrandsService {
     return this.prisma.brand.update({ where: { id }, data: { tombstone: 1 } });
   }
 
-  async uploadLogo(id: string, companyId: string, logoUrl: string) {
+  async uploadLogo(id: string, companyId: string, file: Express.Multer.File) {
     const existing = await this.assertOwnership(id, companyId);
-    if (existing.logoUrl) {
-      const relativePath = existing.logoUrl.startsWith('http')
-        ? new URL(existing.logoUrl).pathname
-        : existing.logoUrl;
-      const filePath = path.join(process.cwd(), relativePath);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
+    if (existing.logoUrl) await this.storage.delete(existing.logoUrl);
+    const filename = `brand-${Date.now()}${extname(file.originalname)}`;
+    const logoUrl = await this.storage.upload('logos', filename, file.buffer, file.mimetype);
     return this.prisma.brand.update({ where: { id }, data: { logoUrl } });
   }
 

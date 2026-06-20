@@ -21,9 +21,7 @@ import {
   ApiConsumes,
   ApiQuery,
 } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
 import { StoresService } from './stores.service';
 import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
 import { OnboardAdminDto } from '../companies/dto/company.dto';
@@ -137,16 +135,7 @@ export class StoresController {
   @ApiOperation({ summary: 'Upload store logo' })
   @UseInterceptors(
     FileInterceptor('logo', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const dir = './uploads/logos';
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (req, file, cb) => {
-          cb(null, `store-${Date.now()}${extname(file.originalname)}`);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
         cb(
@@ -163,6 +152,7 @@ export class StoresController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.storesService.uploadLogo(id, `/uploads/logos/${file.filename}`);
+    if (!file) throw new BadRequestException('No file uploaded');
+    return this.storesService.uploadLogo(id, file);
   }
 }

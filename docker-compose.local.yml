@@ -84,6 +84,31 @@ services:
       start_period: 30s
 
   # ================================
+  # MinIO Object Storage
+  # ================================
+  minio:
+    image: elestio/minio:latest
+    container_name: kioscify-minio-local
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # S3 API — reachable from host (API runs natively)
+      - "9001:9001"   # MinIO console — http://localhost:9001
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data-local:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - kioscify-local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ================================
   # Nginx Local Gateway
   # ================================
   nginx:
@@ -111,4 +136,6 @@ volumes:
   mongo-data-local:
     driver: local
   mongo-config-local:
+    driver: local
+  minio-data-local:
     driver: local

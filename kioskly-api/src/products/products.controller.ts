@@ -20,9 +20,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import type { Request } from 'express';
-import { extname } from 'path';
+import { memoryStorage } from 'multer';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -31,18 +29,6 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { BrandId } from '../common/decorators/tenant.decorator';
 
-// Interface for uploaded file
-interface MulterFile {
-  fieldname: string;
-  originalname: string;
-  encoding: string;
-  mimetype: string;
-  size: number;
-  destination: string;
-  filename: string;
-  path: string;
-  buffer: Buffer;
-}
 
 @ApiTags('products')
 @Controller('products')
@@ -121,26 +107,8 @@ export class ProductsController {
   @ApiResponse({ status: 404, description: 'Product not found' })
   @UseInterceptors(
     FileInterceptor('image', {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-      storage: diskStorage({
-        destination: './uploads/products',
-        filename: (
-          req: Request,
-          file: MulterFile,
-          callback: (error: Error | null, filename: string) => void,
-        ) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          const productId = (req.params as { id?: string }).id || 'unknown';
-          callback(null, `product-${productId}-${uniqueSuffix}${ext}`);
-        },
-      }),
-      fileFilter: (
-        req: Request,
-        file: MulterFile,
-        callback: (error: Error | null, acceptFile: boolean) => void,
-      ) => {
+      storage: memoryStorage(),
+      fileFilter: (req, file, callback) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
           return callback(
             new BadRequestException('Only image files are allowed!'),
@@ -150,7 +118,7 @@ export class ProductsController {
         callback(null, true);
       },
       limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
+        fileSize: 5 * 1024 * 1024,
       },
     }),
   )
@@ -159,14 +127,13 @@ export class ProductsController {
     @Param('id') id: string,
     @Query('brandId') queryBrandId: string,
     @BrandId() jwtBrandId: string,
-    @UploadedFile() file?: MulterFile,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
 
-    const imageUrl = `/uploads/products/${file.filename}`;
-    return this.productsService.updateImage(id, imageUrl, queryBrandId || jwtBrandId);
+    return this.productsService.updateImage(id, file, queryBrandId || jwtBrandId);
   }
 
   @Delete(':id/image')

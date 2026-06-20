@@ -40,7 +40,7 @@ async function bootstrap() {
     exclude: ['health'],
   });
 
-  // Serve static uploads
+  // Fallback for old /uploads/* URLs in DB — remove after running migrate:minio
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads',
   });

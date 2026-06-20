@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { AuthService } from '../auth/auth.service';
 import { BrandsService } from '../brands/brands.service';
 import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
@@ -14,8 +15,7 @@ import { OnboardAdminDto } from '../companies/dto/company.dto';
 import { app as appConstants } from '../constants/env.constants';
 import { Tenant } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import * as fs from 'fs';
-import * as path from 'path';
+import { extname } from 'path';
 
 @Injectable()
 export class StoresService {
@@ -23,6 +23,7 @@ export class StoresService {
 
   constructor(
     private prisma: PrismaService,
+    private storage: StorageService,
     private configService: ConfigService,
     private authService: AuthService,
     private brandsService: BrandsService,
@@ -140,15 +141,11 @@ export class StoresService {
     return this.prisma.tenant.update({ where: { id }, data: { tombstone: 1 } });
   }
 
-  async uploadLogo(id: string, logoUrl: string) {
+  async uploadLogo(id: string, file: Express.Multer.File) {
     const existing = await this.findOne(id);
-    if (existing.logoUrl) {
-      const relativePath = existing.logoUrl.startsWith('http')
-        ? new URL(existing.logoUrl).pathname
-        : existing.logoUrl;
-      const filePath = path.join(process.cwd(), relativePath);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
+    if (existing.logoUrl) await this.storage.delete(existing.logoUrl);
+    const filename = `store-${Date.now()}${extname(file.originalname)}`;
+    const logoUrl = await this.storage.upload('logos', filename, file.buffer, file.mimetype);
     const updated = await this.prisma.tenant.update({ where: { id }, data: { logoUrl } });
     return this.formatLogoUrl(updated);
   }
