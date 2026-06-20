@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional, IsInt } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsInt, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { AddonPriceTierDto } from './create-addon.dto';
 
 export class UpdateAddonDto {
   @ApiProperty({ example: 'Nata De Coco', required: false })
@@ -26,4 +28,14 @@ export class UpdateAddonDto {
   @IsInt()
   @IsOptional()
   sequenceNo?: number;
+
+  @ApiPropertyOptional({
+    description: 'Per-tier pricing overrides',
+    type: [AddonPriceTierDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddonPriceTierDto)
+  @IsOptional()
+  priceTiers?: AddonPriceTierDto[];
 }

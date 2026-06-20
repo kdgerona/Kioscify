@@ -1,5 +1,27 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class ProductPriceTierDto {
+  @ApiProperty({ example: '60d5f484f8d2e30015a0b1c2' })
+  @IsString()
+  @IsNotEmpty()
+  tierId: string;
+
+  @ApiProperty({ example: 49 })
+  @IsNumber()
+  price: number;
+
+  @ApiPropertyOptional({ example: 55 })
+  @IsNumber()
+  @IsOptional()
+  foodpandaPrice?: number;
+
+  @ApiPropertyOptional({ example: 58 })
+  @IsNumber()
+  @IsOptional()
+  grabPrice?: number;
+}
 
 export class CreateProductDto {
   @ApiProperty({ example: 'lem-1', required: false })
@@ -62,4 +84,14 @@ export class CreateProductDto {
   @IsArray()
   @IsOptional()
   preferenceIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Per-tier pricing overrides',
+    type: [ProductPriceTierDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductPriceTierDto)
+  @IsOptional()
+  priceTiers?: ProductPriceTierDto[];
 }

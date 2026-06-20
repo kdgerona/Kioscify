@@ -27,7 +27,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { BrandId } from '../common/decorators/tenant.decorator';
+import { BrandId, TenantId } from '../common/decorators/tenant.decorator';
 
 
 @ApiTags('products')
@@ -63,9 +63,10 @@ export class ProductsController {
   findAll(
     @Query('brandId') queryBrandId: string,
     @BrandId() jwtBrandId: string,
+    @TenantId() jwtTenantId: string,
     @Query('categoryId') categoryId?: string,
   ) {
-    return this.productsService.findAll(queryBrandId || jwtBrandId, categoryId);
+    return this.productsService.findAll(queryBrandId || jwtBrandId, categoryId, jwtTenantId);
   }
 
   @Get(':id')
@@ -77,8 +78,9 @@ export class ProductsController {
     @Param('id') id: string,
     @Query('brandId') queryBrandId: string,
     @BrandId() jwtBrandId: string,
+    @TenantId() jwtTenantId: string,
   ) {
-    return this.productsService.findOne(id, queryBrandId || jwtBrandId);
+    return this.productsService.findOne(id, queryBrandId || jwtBrandId, jwtTenantId);
   }
 
   @Patch(':id')

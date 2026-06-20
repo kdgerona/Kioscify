@@ -30,8 +30,37 @@ type ProductWithRelations = Prisma.ProductGetPayload<{
         preference: true;
       };
     };
+    priceTiers: {
+      include: {
+        tier: true;
+      };
+    };
   };
 }>;
+
+const PRODUCT_INCLUDE = {
+  category: true,
+  productSizes: {
+    include: {
+      size: true,
+    },
+  },
+  productAddons: {
+    include: {
+      addon: true,
+    },
+  },
+  productPreferences: {
+    include: {
+      preference: true,
+    },
+  },
+  priceTiers: {
+    include: {
+      tier: true,
+    },
+  },
+} satisfies Prisma.ProductInclude;
 
 @Injectable()
 export class ProductsService {
@@ -46,7 +75,7 @@ export class ProductsService {
   }
 
   async create(createProductDto: CreateProductDto, brandId: string) {
-    const { id, name, price, foodpandaPrice, grabPrice, categoryId, image, sizeIds, addonIds, preferenceIds } =
+    const { id, name, price, foodpandaPrice, grabPrice, categoryId, image, sizeIds, addonIds, preferenceIds, priceTiers } =
       createProductDto;
 
     // Generate ID from product name if not provided
@@ -97,25 +126,38 @@ export class ProductsService {
             }
           : undefined,
       },
-      include: {
-        category: true,
-        productSizes: {
-          include: {
-            size: true,
-          },
-        },
-        productAddons: {
-          include: {
-            addon: true,
-          },
-        },
-        productPreferences: {
-          include: {
-            preference: true,
-          },
-        },
-      },
+      include: PRODUCT_INCLUDE,
     });
+
+    // Upsert price tiers if provided
+    if (priceTiers && priceTiers.length > 0) {
+      await Promise.all(
+        priceTiers.map((pt) =>
+          this.prisma.productPriceTier.upsert({
+            where: { productId_tierId: { productId: product.id, tierId: pt.tierId } },
+            create: {
+              productId: product.id,
+              tierId: pt.tierId,
+              price: pt.price,
+              foodpandaPrice: pt.foodpandaPrice,
+              grabPrice: pt.grabPrice,
+            },
+            update: {
+              price: pt.price,
+              foodpandaPrice: pt.foodpandaPrice,
+              grabPrice: pt.grabPrice,
+            },
+          }),
+        ),
+      );
+
+      // Re-fetch with updated price tiers
+      const updated = await this.prisma.product.findUnique({
+        where: { id: product.id },
+        include: PRODUCT_INCLUDE,
+      });
+      return this.formatProduct(updated!);
+    }
 
     return this.formatProduct(product);
   }
@@ -146,7 +188,30 @@ export class ProductsService {
     }
   }
 
-  async findAll(brandId: string, categoryId?: string) {
+  /**
+   * Resolve the effective priceTierId for a store given the brand's default tier fallback.
+   * Returns null if the store has no assigned tier and no brand default exists.
+   */
+  private async resolveStoreTierId(tenantId: string, brandId: string): Promise<string | null> {
+    const store = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { priceTierId: true },
+    });
+
+    if (store?.priceTierId) {
+      return store.priceTierId;
+    }
+
+    // Fall back to brand's default PriceTier
+    const defaultTier = await this.prisma.priceTier.findFirst({
+      where: { brandId, isDefault: true },
+      select: { id: true },
+    });
+
+    return defaultTier?.id ?? null;
+  }
+
+  async findAll(brandId: string, categoryId?: string, tenantId?: string) {
     const where: Prisma.ProductWhereInput = { brandId, tombstone: { not: 1 } };
     if (categoryId) {
       where.categoryId = categoryId;
@@ -154,55 +219,33 @@ export class ProductsService {
 
     const products = await this.prisma.product.findMany({
       where,
-      include: {
-        category: true,
-        productSizes: {
-          include: {
-            size: true,
-          },
-        },
-        productAddons: {
-          include: {
-            addon: true,
-          },
-        },
-        productPreferences: {
-          include: {
-            preference: true,
-          },
-        },
-      },
+      include: PRODUCT_INCLUDE,
       orderBy: { name: 'asc' },
     });
 
+    // Store context: resolve effective prices per tier
+    if (tenantId) {
+      const tierId = await this.resolveStoreTierId(tenantId, brandId);
+      return products.map((product) => this.formatProduct(product, { tenantId, tierId }));
+    }
+
+    // Brand context: return full priceTiers array
     return products.map((product) => this.formatProduct(product));
   }
 
-  async findOne(id: string, brandId?: string) {
+  async findOne(id: string, brandId?: string, tenantId?: string) {
     const product = await this.prisma.product.findFirst({
       where: { id, ...(brandId ? { brandId } : {}), tombstone: { not: 1 } },
-      include: {
-        category: true,
-        productSizes: {
-          include: {
-            size: true,
-          },
-        },
-        productAddons: {
-          include: {
-            addon: true,
-          },
-        },
-        productPreferences: {
-          include: {
-            preference: true,
-          },
-        },
-      },
+      include: PRODUCT_INCLUDE,
     });
 
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    if (tenantId && brandId) {
+      const tierId = await this.resolveStoreTierId(tenantId, brandId);
+      return this.formatProduct(product, { tenantId, tierId });
     }
 
     return this.formatProduct(product);
@@ -215,7 +258,7 @@ export class ProductsService {
   ) {
     await this.findOne(id, brandId); // Check if exists
 
-    const { sizeIds, addonIds, preferenceIds, ...productData } = updateProductDto;
+    const { sizeIds, addonIds, preferenceIds, priceTiers, ...productData } = updateProductDto;
 
     // Update product and its relations
     const product = await this.prisma.product.update({
@@ -247,25 +290,38 @@ export class ProductsService {
           },
         }),
       },
-      include: {
-        category: true,
-        productSizes: {
-          include: {
-            size: true,
-          },
-        },
-        productAddons: {
-          include: {
-            addon: true,
-          },
-        },
-        productPreferences: {
-          include: {
-            preference: true,
-          },
-        },
-      },
+      include: PRODUCT_INCLUDE,
     });
+
+    // Upsert price tiers if provided
+    if (priceTiers && priceTiers.length > 0) {
+      await Promise.all(
+        priceTiers.map((pt) =>
+          this.prisma.productPriceTier.upsert({
+            where: { productId_tierId: { productId: id, tierId: pt.tierId } },
+            create: {
+              productId: id,
+              tierId: pt.tierId,
+              price: pt.price,
+              foodpandaPrice: pt.foodpandaPrice,
+              grabPrice: pt.grabPrice,
+            },
+            update: {
+              price: pt.price,
+              foodpandaPrice: pt.foodpandaPrice,
+              grabPrice: pt.grabPrice,
+            },
+          }),
+        ),
+      );
+
+      // Re-fetch with updated price tiers
+      const updated = await this.prisma.product.findUnique({
+        where: { id },
+        include: PRODUCT_INCLUDE,
+      });
+      return this.formatProduct(updated!);
+    }
 
     return this.formatProduct(product);
   }
@@ -282,24 +338,7 @@ export class ProductsService {
     const product = await this.prisma.product.update({
       where: { id },
       data: { image: imageUrl },
-      include: {
-        category: true,
-        productSizes: {
-          include: {
-            size: true,
-          },
-        },
-        productAddons: {
-          include: {
-            addon: true,
-          },
-        },
-        productPreferences: {
-          include: {
-            preference: true,
-          },
-        },
-      },
+      include: PRODUCT_INCLUDE,
     });
 
     return this.formatProduct(product);
@@ -313,24 +352,7 @@ export class ProductsService {
     const product = await this.prisma.product.update({
       where: { id },
       data: { image: null },
-      include: {
-        category: true,
-        productSizes: {
-          include: {
-            size: true,
-          },
-        },
-        productAddons: {
-          include: {
-            addon: true,
-          },
-        },
-        productPreferences: {
-          include: {
-            preference: true,
-          },
-        },
-      },
+      include: PRODUCT_INCLUDE,
     });
 
     return this.formatProduct(product);
@@ -345,19 +367,37 @@ export class ProductsService {
     });
   }
 
-  private formatProduct(product: ProductWithRelations) {
+  private formatProduct(
+    product: ProductWithRelations,
+    storeCtx?: { tenantId: string; tierId: string | null },
+  ) {
     // Transform image URL to absolute URL if it's a relative path
     const imageUrl =
       product.image && !product.image.startsWith('http')
         ? `${this.baseUrl}${product.image}`
         : product.image;
 
-    return {
+    // Resolve effective prices
+    let resolvedPrice = product.price;
+    let resolvedFoodpandaPrice = product.foodpandaPrice ?? null;
+    let resolvedGrabPrice = product.grabPrice ?? null;
+
+    if (storeCtx?.tierId) {
+      const tierRecord = product.priceTiers.find((pt) => pt.tierId === storeCtx.tierId);
+      if (tierRecord) {
+        resolvedPrice = tierRecord.price;
+        resolvedFoodpandaPrice = tierRecord.foodpandaPrice ?? null;
+        resolvedGrabPrice = tierRecord.grabPrice ?? null;
+      }
+      // else keep flat fields as fallback
+    }
+
+    const base = {
       id: product.id,
       name: product.name,
-      price: product.price,
-      foodpandaPrice: product.foodpandaPrice ?? null,
-      grabPrice: product.grabPrice ?? null,
+      price: resolvedPrice,
+      foodpandaPrice: resolvedFoodpandaPrice,
+      grabPrice: resolvedGrabPrice,
       categoryId: product.categoryId,
       image: imageUrl,
       createdAt: product.createdAt,
@@ -370,5 +410,22 @@ export class ProductsService {
       preferences: (product.productPreferences?.map((pp) => pp.preference) || [])
         .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
     };
+
+    // Brand context (no store): include full priceTiers array
+    if (!storeCtx) {
+      return {
+        ...base,
+        priceTiers: product.priceTiers.map((pt) => ({
+          id: pt.id,
+          tierId: pt.tierId,
+          tierName: pt.tier.name,
+          price: pt.price,
+          foodpandaPrice: pt.foodpandaPrice ?? null,
+          grabPrice: pt.grabPrice ?? null,
+        })),
+      };
+    }
+
+    return base;
   }
 }
