@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -42,25 +43,38 @@ export class AddonsService {
     });
 
     if (priceTiers && priceTiers.length > 0) {
-      await Promise.all(
-        priceTiers.map((pt) =>
-          this.prisma.addonPriceTier.upsert({
-            where: { addonId_tierId: { addonId: addon.id, tierId: pt.tierId } },
-            create: {
-              addonId: addon.id,
-              tierId: pt.tierId,
-              price: pt.price,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-            update: {
-              price: pt.price,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-          }),
-        ),
-      );
+      // Validate all submitted tierIds belong to this brand
+      const validTierIds = await this.prisma.priceTier.findMany({
+        where: { brandId, id: { in: priceTiers.map((p) => p.tierId) } },
+        select: { id: true },
+      });
+      const validSet = new Set(validTierIds.map((t) => t.id));
+      const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
+      if (invalid.length > 0) {
+        throw new BadRequestException(`Invalid tier IDs for this brand`);
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        await Promise.all(
+          priceTiers.map((pt) =>
+            tx.addonPriceTier.upsert({
+              where: { addonId_tierId: { addonId: addon.id, tierId: pt.tierId } },
+              create: {
+                addonId: addon.id,
+                tierId: pt.tierId,
+                price: pt.price,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+              update: {
+                price: pt.price,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+            }),
+          ),
+        );
+      });
 
       const updated = await this.prisma.addon.findUnique({
         where: { id: addon.id },
@@ -116,26 +130,49 @@ export class AddonsService {
       include: ADDON_INCLUDE,
     });
 
-    if (priceTiers && priceTiers.length > 0) {
-      await Promise.all(
-        priceTiers.map((pt) =>
-          this.prisma.addonPriceTier.upsert({
-            where: { addonId_tierId: { addonId: id, tierId: pt.tierId } },
-            create: {
-              addonId: id,
-              tierId: pt.tierId,
-              price: pt.price,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-            update: {
-              price: pt.price,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-          }),
-        ),
-      );
+    // Replace-all tier prices when priceTiers is provided
+    if (priceTiers !== undefined) {
+      if (priceTiers.length > 0) {
+        // Validate all submitted tierIds belong to this brand
+        const effectiveBrandId = addon.brandId!;
+        const validTierIds = await this.prisma.priceTier.findMany({
+          where: { brandId: effectiveBrandId, id: { in: priceTiers.map((p) => p.tierId) } },
+          select: { id: true },
+        });
+        const validSet = new Set(validTierIds.map((t) => t.id));
+        const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
+        if (invalid.length > 0) {
+          throw new BadRequestException(`Invalid tier IDs for this brand`);
+        }
+      }
+
+      const incomingTierIds = priceTiers.map((p) => p.tierId);
+      await this.prisma.$transaction(async (tx) => {
+        // Delete stale tier records not in the incoming set
+        await tx.addonPriceTier.deleteMany({
+          where: { addonId: id, tierId: { notIn: incomingTierIds } },
+        });
+        // Upsert the incoming set
+        await Promise.all(
+          priceTiers.map((pt) =>
+            tx.addonPriceTier.upsert({
+              where: { addonId_tierId: { addonId: id, tierId: pt.tierId } },
+              create: {
+                addonId: id,
+                tierId: pt.tierId,
+                price: pt.price,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+              update: {
+                price: pt.price,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+            }),
+          ),
+        );
+      });
 
       const updated = await this.prisma.addon.findUnique({
         where: { id },

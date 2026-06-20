@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -59,25 +60,38 @@ export class SizesService {
     });
 
     if (priceTiers && priceTiers.length > 0) {
-      await Promise.all(
-        priceTiers.map((pt) =>
-          this.prisma.sizePriceTier.upsert({
-            where: { sizeId_tierId: { sizeId: size.id, tierId: pt.tierId } },
-            create: {
-              sizeId: size.id,
-              tierId: pt.tierId,
-              priceModifier: pt.priceModifier,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-            update: {
-              priceModifier: pt.priceModifier,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-          }),
-        ),
-      );
+      // Validate all submitted tierIds belong to this brand
+      const validTierIds = await this.prisma.priceTier.findMany({
+        where: { brandId, id: { in: priceTiers.map((p) => p.tierId) } },
+        select: { id: true },
+      });
+      const validSet = new Set(validTierIds.map((t) => t.id));
+      const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
+      if (invalid.length > 0) {
+        throw new BadRequestException(`Invalid tier IDs for this brand`);
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        await Promise.all(
+          priceTiers.map((pt) =>
+            tx.sizePriceTier.upsert({
+              where: { sizeId_tierId: { sizeId: size.id, tierId: pt.tierId } },
+              create: {
+                sizeId: size.id,
+                tierId: pt.tierId,
+                priceModifier: pt.priceModifier,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+              update: {
+                priceModifier: pt.priceModifier,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+            }),
+          ),
+        );
+      });
 
       const updated = await this.prisma.size.findUnique({
         where: { id: size.id },
@@ -133,26 +147,49 @@ export class SizesService {
       include: SIZE_INCLUDE,
     });
 
-    if (priceTiers && priceTiers.length > 0) {
-      await Promise.all(
-        priceTiers.map((pt) =>
-          this.prisma.sizePriceTier.upsert({
-            where: { sizeId_tierId: { sizeId: id, tierId: pt.tierId } },
-            create: {
-              sizeId: id,
-              tierId: pt.tierId,
-              priceModifier: pt.priceModifier,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-            update: {
-              priceModifier: pt.priceModifier,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-          }),
-        ),
-      );
+    // Replace-all tier prices when priceTiers is provided
+    if (priceTiers !== undefined) {
+      if (priceTiers.length > 0) {
+        // Validate all submitted tierIds belong to this brand
+        const effectiveBrandId = size.brandId!;
+        const validTierIds = await this.prisma.priceTier.findMany({
+          where: { brandId: effectiveBrandId, id: { in: priceTiers.map((p) => p.tierId) } },
+          select: { id: true },
+        });
+        const validSet = new Set(validTierIds.map((t) => t.id));
+        const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
+        if (invalid.length > 0) {
+          throw new BadRequestException(`Invalid tier IDs for this brand`);
+        }
+      }
+
+      const incomingTierIds = priceTiers.map((p) => p.tierId);
+      await this.prisma.$transaction(async (tx) => {
+        // Delete stale tier records not in the incoming set
+        await tx.sizePriceTier.deleteMany({
+          where: { sizeId: id, tierId: { notIn: incomingTierIds } },
+        });
+        // Upsert the incoming set
+        await Promise.all(
+          priceTiers.map((pt) =>
+            tx.sizePriceTier.upsert({
+              where: { sizeId_tierId: { sizeId: id, tierId: pt.tierId } },
+              create: {
+                sizeId: id,
+                tierId: pt.tierId,
+                priceModifier: pt.priceModifier,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+              update: {
+                priceModifier: pt.priceModifier,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+            }),
+          ),
+        );
+      });
 
       const updated = await this.prisma.size.findUnique({
         where: { id },

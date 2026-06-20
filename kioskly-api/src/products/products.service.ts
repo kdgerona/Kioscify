@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,12 +19,16 @@ type ProductWithRelations = Prisma.ProductGetPayload<{
     category: true;
     productSizes: {
       include: {
-        size: true;
+        size: {
+          include: { priceTiers: true };
+        };
       };
     };
     productAddons: {
       include: {
-        addon: true;
+        addon: {
+          include: { priceTiers: true };
+        };
       };
     };
     productPreferences: {
@@ -43,12 +48,16 @@ const PRODUCT_INCLUDE = {
   category: true,
   productSizes: {
     include: {
-      size: true,
+      size: {
+        include: { priceTiers: true },
+      },
     },
   },
   productAddons: {
     include: {
-      addon: true,
+      addon: {
+        include: { priceTiers: true },
+      },
     },
   },
   productPreferences: {
@@ -133,25 +142,38 @@ export class ProductsService {
 
     // Upsert price tiers if provided
     if (priceTiers && priceTiers.length > 0) {
-      await Promise.all(
-        priceTiers.map((pt) =>
-          this.prisma.productPriceTier.upsert({
-            where: { productId_tierId: { productId: product.id, tierId: pt.tierId } },
-            create: {
-              productId: product.id,
-              tierId: pt.tierId,
-              price: pt.price,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-            update: {
-              price: pt.price,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-          }),
-        ),
-      );
+      // Validate all submitted tierIds belong to this brand
+      const validTierIds = await this.prisma.priceTier.findMany({
+        where: { brandId: product.brandId!, id: { in: priceTiers.map((p) => p.tierId) } },
+        select: { id: true },
+      });
+      const validSet = new Set(validTierIds.map((t) => t.id));
+      const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
+      if (invalid.length > 0) {
+        throw new BadRequestException(`Invalid tier IDs for this brand`);
+      }
+
+      await this.prisma.$transaction(async (tx) => {
+        await Promise.all(
+          priceTiers.map((pt) =>
+            tx.productPriceTier.upsert({
+              where: { productId_tierId: { productId: product.id, tierId: pt.tierId } },
+              create: {
+                productId: product.id,
+                tierId: pt.tierId,
+                price: pt.price,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+              update: {
+                price: pt.price,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+            }),
+          ),
+        );
+      });
 
       // Re-fetch with updated price tiers
       const updated = await this.prisma.product.findUnique({
@@ -275,27 +297,48 @@ export class ProductsService {
       include: PRODUCT_INCLUDE,
     });
 
-    // Upsert price tiers if provided
-    if (priceTiers && priceTiers.length > 0) {
-      await Promise.all(
-        priceTiers.map((pt) =>
-          this.prisma.productPriceTier.upsert({
-            where: { productId_tierId: { productId: id, tierId: pt.tierId } },
-            create: {
-              productId: id,
-              tierId: pt.tierId,
-              price: pt.price,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-            update: {
-              price: pt.price,
-              foodpandaPrice: pt.foodpandaPrice,
-              grabPrice: pt.grabPrice,
-            },
-          }),
-        ),
-      );
+    // Replace-all tier prices when priceTiers is provided
+    if (priceTiers !== undefined) {
+      if (priceTiers.length > 0) {
+        // Validate all submitted tierIds belong to this brand
+        const validTierIds = await this.prisma.priceTier.findMany({
+          where: { brandId: product.brandId!, id: { in: priceTiers.map((p) => p.tierId) } },
+          select: { id: true },
+        });
+        const validSet = new Set(validTierIds.map((t) => t.id));
+        const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
+        if (invalid.length > 0) {
+          throw new BadRequestException(`Invalid tier IDs for this brand`);
+        }
+      }
+
+      const incomingTierIds = priceTiers.map((p) => p.tierId);
+      await this.prisma.$transaction(async (tx) => {
+        // Delete stale tier records not in the incoming set
+        await tx.productPriceTier.deleteMany({
+          where: { productId: id, tierId: { notIn: incomingTierIds } },
+        });
+        // Upsert the incoming set
+        await Promise.all(
+          priceTiers.map((pt) =>
+            tx.productPriceTier.upsert({
+              where: { productId_tierId: { productId: id, tierId: pt.tierId } },
+              create: {
+                productId: id,
+                tierId: pt.tierId,
+                price: pt.price,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+              update: {
+                price: pt.price,
+                foodpandaPrice: pt.foodpandaPrice,
+                grabPrice: pt.grabPrice,
+              },
+            }),
+          ),
+        );
+      });
 
       // Re-fetch with updated price tiers
       const updated = await this.prisma.product.findUnique({
@@ -374,6 +417,44 @@ export class ProductsService {
       // else keep flat fields as fallback
     }
 
+    // Tier-resolve nested sizes
+    const resolvedSizes = (product.productSizes ?? [])
+      .map((ps) => {
+        const size = ps.size;
+        if (storeCtx?.tierId) {
+          const sizeTierRecord = size.priceTiers?.find((pt) => pt.tierId === storeCtx.tierId);
+          if (sizeTierRecord) {
+            return {
+              ...size,
+              priceModifier: sizeTierRecord.priceModifier,
+              foodpandaPrice: sizeTierRecord.foodpandaPrice ?? null,
+              grabPrice: sizeTierRecord.grabPrice ?? null,
+            };
+          }
+        }
+        return size;
+      })
+      .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0));
+
+    // Tier-resolve nested addons
+    const resolvedAddons = (product.productAddons ?? [])
+      .map((pa) => {
+        const addon = pa.addon;
+        if (storeCtx?.tierId) {
+          const addonTierRecord = addon.priceTiers?.find((pt) => pt.tierId === storeCtx.tierId);
+          if (addonTierRecord) {
+            return {
+              ...addon,
+              price: addonTierRecord.price,
+              foodpandaPrice: addonTierRecord.foodpandaPrice ?? null,
+              grabPrice: addonTierRecord.grabPrice ?? null,
+            };
+          }
+        }
+        return addon;
+      })
+      .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0));
+
     const base = {
       id: product.id,
       name: product.name,
@@ -385,10 +466,8 @@ export class ProductsService {
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
       category: product.category,
-      sizes: (product.productSizes?.map((ps) => ps.size) || [])
-        .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
-      addons: (product.productAddons?.map((pa) => pa.addon) || [])
-        .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
+      sizes: resolvedSizes,
+      addons: resolvedAddons,
       preferences: (product.productPreferences?.map((pp) => pp.preference) || [])
         .sort((a, b) => (a.sequenceNo ?? 0) - (b.sequenceNo ?? 0)),
     };
