@@ -54,6 +54,7 @@ export class StoresService {
       orderBy: { createdAt: 'desc' },
       include: {
         brand: { select: { id: true, name: true, slug: true } },
+        priceTier: { select: { id: true, name: true, isDefault: true } },
         _count: { select: { users: true, transactions: true } },
       },
     });
@@ -66,6 +67,7 @@ export class StoresService {
       include: {
         brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true, enabledDeliveryPlatforms: true, preferenceLabel: true } },
         company: { select: { id: true, name: true, slug: true, logoUrl: true } },
+        priceTier: { select: { id: true, name: true, isDefault: true } },
         _count: { select: { users: true, transactions: true } },
       },
     });

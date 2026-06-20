@@ -44,4 +44,7 @@ export class UpdateStoreDto extends PartialType(CreateStoreDto) {
   @IsEnum(DeliveryPlatform, { each: true })
   @IsOptional()
   enabledDeliveryPlatforms?: DeliveryPlatform[];
+
+  @ApiPropertyOptional({ example: 'price-tier-id-here' })
+  @IsString() @IsOptional() priceTierId?: string;
 }
