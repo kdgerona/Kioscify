@@ -19,31 +19,35 @@ export class PriceTiersService {
   }
 
   async create(brandId: string, dto: CreatePriceTierDto) {
-    if (dto.isDefault) {
-      await this.prisma.priceTier.updateMany({
-        where: { brandId, isDefault: true },
-        data: { isDefault: false },
-      });
-    }
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.isDefault) {
+        await tx.priceTier.updateMany({
+          where: { brandId, isDefault: true },
+          data: { isDefault: false },
+        });
+      }
 
-    return this.prisma.priceTier.create({
-      data: { ...dto, brandId },
+      return tx.priceTier.create({
+        data: { ...dto, brandId },
+      });
     });
   }
 
   async update(brandId: string, tierId: string, dto: UpdatePriceTierDto) {
     await this.assertExists(brandId, tierId);
 
-    if (dto.isDefault) {
-      await this.prisma.priceTier.updateMany({
-        where: { brandId, isDefault: true, id: { not: tierId } },
-        data: { isDefault: false },
-      });
-    }
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.isDefault) {
+        await tx.priceTier.updateMany({
+          where: { brandId, isDefault: true, id: { not: tierId } },
+          data: { isDefault: false },
+        });
+      }
 
-    return this.prisma.priceTier.update({
-      where: { id: tierId },
-      data: dto,
+      return tx.priceTier.update({
+        where: { id: tierId, brandId },
+        data: dto,
+      });
     });
   }
 
@@ -62,7 +66,7 @@ export class PriceTiersService {
       );
     }
 
-    return this.prisma.priceTier.delete({ where: { id: tierId } });
+    return this.prisma.priceTier.delete({ where: { id: tierId, brandId } });
   }
 
   private async assertExists(brandId: string, tierId: string) {
