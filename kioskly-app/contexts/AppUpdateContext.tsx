@@ -5,9 +5,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, BackHandler } from 'react-native';
 import * as Application from 'expo-application';
-import { apiGet } from '@/utils/api';
+import { apiGet, getApiUrl } from '@/utils/api';
 import { downloadApk } from '@/utils/apkDownloader';
 import { installApk } from '@/utils/apkInstaller';
 
@@ -54,10 +54,16 @@ export function AppUpdateProvider({ children }: { children: React.ReactNode }) {
     if (isChecking) return;
     setIsChecking(true);
     try {
-      const response = await apiGet('/app/version');
+      const response = await apiGet('/app/version', {
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+      if (!response.ok) return;
       const data = (await response.json()) as UpdateInfo;
       if (data.version_code > currentVersionCode) {
-        setUpdateInfo(data);
+        // Rewrite apk_url origin to match the app's configured API host so the
+        // device can reach the file regardless of what the server stored in the DB.
+        const apiBase = getApiUrl().replace(/\/api\/v1\/?$/, '');
+        setUpdateInfo({ ...data, apk_url: data.apk_url.replace(/^https?:\/\/[^/]+/, apiBase) });
       }
     } catch {
       // Silently fail — update check must never crash the app
@@ -80,6 +86,9 @@ export function AppUpdateProvider({ children }: { children: React.ReactNode }) {
     try {
       const filePath = await downloadApk(updateInfo.apk_url, updateInfo.checksum_sha256, setDownloadProgress);
       await installApk(filePath);
+      // Give the system installer a moment to launch, then exit so the app
+      // relaunches fresh as the new version after the user confirms install.
+      setTimeout(() => BackHandler.exitApp(), 500);
     } catch (e: unknown) {
       setError((e as { message?: string })?.message ?? 'Download failed. Please try again.');
     } finally {

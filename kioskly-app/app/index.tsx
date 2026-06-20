@@ -17,6 +17,7 @@ import { useAuth } from "../contexts/AuthContext";
 import LogoWithAppName from "../assets/images/logo-with-appname.png";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
+import * as Application from "expo-application";
 
 export default function Index() {
   const [username, setUsername] = useState("");
@@ -446,7 +447,7 @@ export default function Index() {
             </Text>
           </View>
           <Text style={{ color: "#9ca3af", fontSize: 11, marginTop: 6 }}>
-            v{Constants.expoConfig?.version ?? "1.0.0"}
+            v{Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? "—"}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

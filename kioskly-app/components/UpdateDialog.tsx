@@ -43,6 +43,7 @@ export default function UpdateDialog() {
         <View
           style={{
             width: '100%',
+            maxWidth: 360,
             backgroundColor: '#fff',
             borderRadius: 16,
             padding: 24,

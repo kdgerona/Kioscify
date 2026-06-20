@@ -5,14 +5,14 @@
   "scripts": {
     "dev": "expo start",
     "start": "expo start",
-    "android": "expo run:android",
+    "android": "JAVA_HOME=$(/usr/libexec/java_home -v 17) expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build": "expo export",
     "lint": "expo lint",
     "prebuild": "npx expo prebuild --platform android",
     "build:android": "cd android && ./gradlew assembleRelease",
-    "build:apk": "cd android && JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew clean assembleRelease"
+    "build:apk": "cd android && rm -rf app/.cxx && JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew assembleRelease"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
