@@ -69,6 +69,29 @@ export class PriceTiersService {
     return this.prisma.priceTier.delete({ where: { id: tierId, brandId } });
   }
 
+  /**
+   * Resolve the effective priceTierId for a store given the brand's default tier fallback.
+   * Returns null if the store has no assigned tier and no brand default exists.
+   */
+  async resolveStoreTierId(tenantId: string, brandId: string): Promise<string | null> {
+    const store = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { priceTierId: true },
+    });
+
+    if (store?.priceTierId) {
+      return store.priceTierId;
+    }
+
+    // Fall back to brand's default PriceTier
+    const defaultTier = await this.prisma.priceTier.findFirst({
+      where: { brandId, isDefault: true },
+      select: { id: true },
+    });
+
+    return defaultTier?.id ?? null;
+  }
+
   private async assertExists(brandId: string, tierId: string) {
     const tier = await this.prisma.priceTier.findFirst({
       where: { id: tierId, brandId },

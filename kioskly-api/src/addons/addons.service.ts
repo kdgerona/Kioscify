@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { PriceTiersService } from '../price-tiers/price-tiers.service';
 import { CreateAddonDto } from './dto/create-addon.dto';
 import { UpdateAddonDto } from './dto/update-addon.dto';
 import { Prisma } from '@prisma/client';
@@ -21,7 +22,10 @@ const ADDON_INCLUDE = {
 
 @Injectable()
 export class AddonsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private priceTiersService: PriceTiersService,
+  ) {}
 
   async create(createAddonDto: CreateAddonDto, brandId: string) {
     const { id: providedId, name, price, foodpandaPrice, grabPrice, priceTiers } = createAddonDto;
@@ -68,27 +72,6 @@ export class AddonsService {
     return this.formatAddon(addon);
   }
 
-  /**
-   * Resolve the effective priceTierId for a store, falling back to the brand default.
-   */
-  private async resolveStoreTierId(tenantId: string, brandId: string): Promise<string | null> {
-    const store = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: { priceTierId: true },
-    });
-
-    if (store?.priceTierId) {
-      return store.priceTierId;
-    }
-
-    const defaultTier = await this.prisma.priceTier.findFirst({
-      where: { brandId, isDefault: true },
-      select: { id: true },
-    });
-
-    return defaultTier?.id ?? null;
-  }
-
   async findAll(brandId: string, tenantId?: string) {
     const addons = await this.prisma.addon.findMany({
       where: { brandId, tombstone: { not: 1 } },
@@ -97,7 +80,7 @@ export class AddonsService {
     });
 
     if (tenantId) {
-      const tierId = await this.resolveStoreTierId(tenantId, brandId);
+      const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, brandId);
       return addons.map((a) => this.formatAddon(a, { tenantId, tierId }));
     }
 
@@ -111,9 +94,12 @@ export class AddonsService {
     });
     if (!addon) throw new NotFoundException(`Addon with ID ${id} not found`);
 
-    if (tenantId && brandId) {
-      const tierId = await this.resolveStoreTierId(tenantId, brandId);
-      return this.formatAddon(addon, { tenantId, tierId });
+    if (tenantId) {
+      const effectiveBrandId = brandId ?? addon.brandId ?? undefined;
+      if (effectiveBrandId) {
+        const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, effectiveBrandId);
+        return this.formatAddon(addon, { tenantId, tierId });
+      }
     }
 
     return this.formatAddon(addon);

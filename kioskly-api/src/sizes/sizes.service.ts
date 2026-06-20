@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { PriceTiersService } from '../price-tiers/price-tiers.service';
 import { CreateSizeDto } from './dto/create-size.dto';
 import { UpdateSizeDto } from './dto/update-size.dto';
 import { Prisma } from '@prisma/client';
@@ -21,7 +22,10 @@ const SIZE_INCLUDE = {
 
 @Injectable()
 export class SizesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private priceTiersService: PriceTiersService,
+  ) {}
 
   async create(createSizeDto: CreateSizeDto, brandId: string) {
     const {
@@ -85,27 +89,6 @@ export class SizesService {
     return this.formatSize(size);
   }
 
-  /**
-   * Resolve the effective priceTierId for a store, falling back to the brand default.
-   */
-  private async resolveStoreTierId(tenantId: string, brandId: string): Promise<string | null> {
-    const store = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: { priceTierId: true },
-    });
-
-    if (store?.priceTierId) {
-      return store.priceTierId;
-    }
-
-    const defaultTier = await this.prisma.priceTier.findFirst({
-      where: { brandId, isDefault: true },
-      select: { id: true },
-    });
-
-    return defaultTier?.id ?? null;
-  }
-
   async findAll(brandId: string, tenantId?: string) {
     const sizes = await this.prisma.size.findMany({
       where: { brandId, tombstone: { not: 1 } },
@@ -114,7 +97,7 @@ export class SizesService {
     });
 
     if (tenantId) {
-      const tierId = await this.resolveStoreTierId(tenantId, brandId);
+      const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, brandId);
       return sizes.map((s) => this.formatSize(s, { tenantId, tierId }));
     }
 
@@ -128,9 +111,12 @@ export class SizesService {
     });
     if (!size) throw new NotFoundException(`Size with ID ${id} not found`);
 
-    if (tenantId && brandId) {
-      const tierId = await this.resolveStoreTierId(tenantId, brandId);
-      return this.formatSize(size, { tenantId, tierId });
+    if (tenantId) {
+      const effectiveBrandId = brandId ?? size.brandId ?? undefined;
+      if (effectiveBrandId) {
+        const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, effectiveBrandId);
+        return this.formatSize(size, { tenantId, tierId });
+      }
     }
 
     return this.formatSize(size);

@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
+import { PriceTiersService } from '../price-tiers/price-tiers.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { app as appConstants } from '../constants/env.constants';
@@ -70,6 +71,7 @@ export class ProductsService {
     private prisma: PrismaService,
     private storage: StorageService,
     private configService: ConfigService,
+    private priceTiersService: PriceTiersService,
   ) {
     this.baseUrl = this.configService.get<string>(appConstants.base_url) || '';
   }
@@ -188,29 +190,6 @@ export class ProductsService {
     }
   }
 
-  /**
-   * Resolve the effective priceTierId for a store given the brand's default tier fallback.
-   * Returns null if the store has no assigned tier and no brand default exists.
-   */
-  private async resolveStoreTierId(tenantId: string, brandId: string): Promise<string | null> {
-    const store = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-      select: { priceTierId: true },
-    });
-
-    if (store?.priceTierId) {
-      return store.priceTierId;
-    }
-
-    // Fall back to brand's default PriceTier
-    const defaultTier = await this.prisma.priceTier.findFirst({
-      where: { brandId, isDefault: true },
-      select: { id: true },
-    });
-
-    return defaultTier?.id ?? null;
-  }
-
   async findAll(brandId: string, categoryId?: string, tenantId?: string) {
     const where: Prisma.ProductWhereInput = { brandId, tombstone: { not: 1 } };
     if (categoryId) {
@@ -225,7 +204,7 @@ export class ProductsService {
 
     // Store context: resolve effective prices per tier
     if (tenantId) {
-      const tierId = await this.resolveStoreTierId(tenantId, brandId);
+      const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, brandId);
       return products.map((product) => this.formatProduct(product, { tenantId, tierId }));
     }
 
@@ -243,9 +222,12 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    if (tenantId && brandId) {
-      const tierId = await this.resolveStoreTierId(tenantId, brandId);
-      return this.formatProduct(product, { tenantId, tierId });
+    if (tenantId) {
+      const effectiveBrandId = brandId ?? product.brandId ?? undefined;
+      if (effectiveBrandId) {
+        const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, effectiveBrandId);
+        return this.formatProduct(product, { tenantId, tierId });
+      }
     }
 
     return this.formatProduct(product);
