@@ -22,9 +22,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
 } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
 import { CompaniesService } from './companies.service';
 import {
   CreateCompanyDto,
@@ -131,17 +129,7 @@ export class CompaniesController {
   @ApiOperation({ summary: 'Upload company logo' })
   @UseInterceptors(
     FileInterceptor('logo', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const dir = './uploads/logos';
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (req, file, cb) => {
-          const unique = `company-${Date.now()}${extname(file.originalname)}`;
-          cb(null, unique);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
         if (allowed.includes(file.mimetype)) {
@@ -154,7 +142,7 @@ export class CompaniesController {
     }),
   )
   uploadLogo(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
-    const logoUrl = `/uploads/logos/${file.filename}`;
-    return this.companiesService.uploadLogo(id, logoUrl);
+    if (!file) throw new BadRequestException('No file uploaded');
+    return this.companiesService.uploadLogo(id, file);
   }
 }

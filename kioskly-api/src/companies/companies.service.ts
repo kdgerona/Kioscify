@@ -5,6 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { AuthService } from '../auth/auth.service';
 import {
   CreateCompanyDto,
@@ -12,13 +13,13 @@ import {
   OnboardAdminDto,
 } from './dto/company.dto';
 import * as bcrypt from 'bcrypt';
-import * as fs from 'fs';
-import * as path from 'path';
+import { extname } from 'path';
 
 @Injectable()
 export class CompaniesService {
   constructor(
     private prisma: PrismaService,
+    private storage: StorageService,
     private authService: AuthService,
   ) {}
 
@@ -150,15 +151,11 @@ export class CompaniesService {
     };
   }
 
-  async uploadLogo(id: string, logoUrl: string) {
+  async uploadLogo(id: string, file: Express.Multer.File) {
     const existing = await this.assertExists(id);
-    if (existing.logoUrl) {
-      const relativePath = existing.logoUrl.startsWith('http')
-        ? new URL(existing.logoUrl).pathname
-        : existing.logoUrl;
-      const filePath = path.join(process.cwd(), relativePath);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
+    if (existing.logoUrl) await this.storage.delete(existing.logoUrl);
+    const filename = `company-${Date.now()}${extname(file.originalname)}`;
+    const logoUrl = await this.storage.upload('logos', filename, file.buffer, file.mimetype);
     return this.prisma.company.update({ where: { id }, data: { logoUrl } });
   }
 

@@ -21,9 +21,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
 } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto, UpdateBrandDto } from './dto/brand.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -152,16 +150,7 @@ export class BrandsController {
   @ApiOperation({ summary: 'Upload brand logo' })
   @UseInterceptors(
     FileInterceptor('logo', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const dir = './uploads/logos';
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (req, file, cb) => {
-          cb(null, `brand-${Date.now()}${extname(file.originalname)}`);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
         cb(
@@ -179,6 +168,7 @@ export class BrandsController {
     @CompanyId() companyId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.brandsService.uploadLogo(id, companyId, `/uploads/logos/${file.filename}`);
+    if (!file) throw new BadRequestException('No file uploaded');
+    return this.brandsService.uploadLogo(id, companyId, file);
   }
 }

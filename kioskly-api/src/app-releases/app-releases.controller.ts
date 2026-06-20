@@ -12,9 +12,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
 import {
   ApiBearerAuth,
   ApiConsumes,
@@ -39,15 +37,7 @@ export class AppReleasesController {
   @ApiOperation({ summary: 'Upload a new APK release' })
   @UseInterceptors(
     FileInterceptor('apk', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          fs.mkdirSync('./uploads/apks', { recursive: true });
-          cb(null, './uploads/apks');
-        },
-        filename: (req, file, cb) => {
-          cb(null, `kioscify-${Date.now()}${extname(file.originalname)}`);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
         const allowed = [
           'application/vnd.android.package-archive',
@@ -58,7 +48,7 @@ export class AppReleasesController {
         }
         cb(null, true);
       },
-      limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB
+      limits: { fileSize: 200 * 1024 * 1024 },
     }),
   )
   create(

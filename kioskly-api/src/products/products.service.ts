@@ -5,12 +5,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { app as appConstants } from '../constants/env.constants';
 import { Prisma } from '@prisma/client';
-import * as fs from 'fs';
-import * as path from 'path';
+import { extname } from 'path';
 
 type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
@@ -39,6 +39,7 @@ export class ProductsService {
 
   constructor(
     private prisma: PrismaService,
+    private storage: StorageService,
     private configService: ConfigService,
   ) {
     this.baseUrl = this.configService.get<string>(appConstants.base_url) || '';
@@ -269,18 +270,14 @@ export class ProductsService {
     return this.formatProduct(product);
   }
 
-  async updateImage(id: string, imageUrl: string, brandId: string) {
+  async updateImage(id: string, file: Express.Multer.File, brandId: string) {
     const existing = await this.findOne(id, brandId);
 
-    if (existing.image) {
-      const relativePath = existing.image.startsWith('http')
-        ? new URL(existing.image).pathname
-        : existing.image;
-      const filePath = path.join(process.cwd(), relativePath);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
+    if (existing.image) await this.storage.delete(existing.image);
+
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const filename = `product-${id}-${uniqueSuffix}${extname(file.originalname)}`;
+    const imageUrl = await this.storage.upload('products', filename, file.buffer, file.mimetype);
 
     const product = await this.prisma.product.update({
       where: { id },
@@ -311,16 +308,7 @@ export class ProductsService {
   async removeImage(id: string, brandId: string) {
     const existing = await this.findOne(id, brandId);
 
-    if (existing.image) {
-      // Strip any base URL prefix to get the relative path (e.g. /uploads/products/file.jpg)
-      const relativePath = existing.image.startsWith('http')
-        ? new URL(existing.image).pathname
-        : existing.image;
-      const filePath = path.join(process.cwd(), relativePath);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
+    if (existing.image) await this.storage.delete(existing.image);
 
     const product = await this.prisma.product.update({
       where: { id },

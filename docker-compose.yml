@@ -104,6 +104,13 @@ services:
       API_BASE_URL: ${API_BASE_URL:-https://kioscify.com}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-kioscify}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://kioscify.com/storage}
     volumes:
       - api-uploads:/app/uploads:rw
     networks:
@@ -124,6 +131,8 @@ services:
       mongo:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
@@ -249,6 +258,37 @@ services:
       start_period: 30s
 
   # ================================
+  # MinIO Object Storage
+  # ================================
+  minio:
+    image: elestio/minio:latest
+    container_name: kioscify-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - kioskly-internal
+      - kioskly-frontend
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ================================
   # Nginx Reverse Proxy
   # ================================
   nginx:
@@ -283,6 +323,7 @@ services:
       - store
       - company
       - platform
+      - minio
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s
@@ -371,6 +412,8 @@ volumes:
   redis-data:
     driver: local
   api-uploads:
+    driver: local
+  minio-data:
     driver: local
   nginx-logs:
     driver: local
