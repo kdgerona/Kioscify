@@ -616,7 +616,7 @@ export default function BrandDetailPage() {
   };
 
   const handleDeleteTier = async (tier: PriceTier) => {
-    if (!confirm(`Delete tier "${tier.name}"? Stores assigned to it will lose their tier assignment.`)) return;
+    if (!confirm(`Are you sure you want to delete this tier?`)) return;
     try {
       await api.deletePriceTier(brandId, tier.id);
       setPriceTiers(prev => prev.filter(t => t.id !== tier.id));
@@ -629,7 +629,7 @@ export default function BrandDetailPage() {
 
   const handleSaveStorePriceTier = async (storeId: string, tierId: string | null) => {
     try {
-      const updated = await api.updateStore(storeId, { priceTierId: tierId ?? undefined });
+      const updated = await api.updateStore(storeId, { priceTierId: tierId });
       setStores(prev => prev.map(s => s.id === storeId ? { ...s, priceTier: updated.priceTier } : s));
       setEditingStorePriceTierId(null);
     } catch (err: unknown) {
