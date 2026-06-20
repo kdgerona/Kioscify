@@ -101,6 +101,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required - generate a strong random string}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       BASE_URL: ${BASE_URL:-http://localhost}
+      API_BASE_URL: ${API_BASE_URL:-https://kioscify.com}
       REDIS_HOST: redis
       REDIS_PORT: 6379
     volumes:

@@ -97,3 +97,19 @@ export interface OnboardStorePayload {
   companyId: string;
   admin: OnboardAdminPayload;
 }
+
+export interface AppRelease {
+  id: string;
+  versionCode: number;
+  versionName: string;
+  apkPath: string;
+  apkUrl: string;
+  fileSize: number;
+  checksumSha256: string;
+  releaseNotes: string[];
+  forceUpdate: boolean;
+  status: 'DRAFT' | 'PUBLISHED';
+  uploadedById?: string;
+  createdAt: string;
+  updatedAt: string;
+}

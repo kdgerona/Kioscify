@@ -3,6 +3,7 @@ import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter, Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
+import * as Application from "expo-application";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -51,7 +52,7 @@ export default function SettingsScreen() {
   const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
   const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
 
-  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+  const appVersion = Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? "—";
 
   const roleLabel: Record<string, string> = {
     STORE_ADMIN: "Store Admin",
