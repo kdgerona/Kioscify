@@ -1,3 +1,31 @@
+export interface PriceTier {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  brandId: string;
+}
+
+export interface ProductPriceTier {
+  tierId: string;
+  price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
+}
+
+export interface SizePriceTier {
+  tierId: string;
+  priceModifier: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
+}
+
+export interface AddonPriceTier {
+  tierId: string;
+  price: number;
+  foodpandaPrice?: number | null;
+  grabPrice?: number | null;
+}
+
 export type PrivilegeLevel = 'no_access' | 'read' | 'write' | 'all';
 export type PrivilegeSection = 'brands' | 'analytics' | 'users' | 'settings';
 
@@ -84,6 +112,7 @@ export interface Store {
   companyId: string;
   isActive: boolean;
   enabledDeliveryPlatforms?: string[];
+  priceTier?: PriceTier;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +141,7 @@ export interface Product {
   sizes?: Size[];
   addons?: Addon[];
   preferences?: Preference[];
+  priceTiers?: ProductPriceTier[];
   brandId?: string;
   tenantId?: string;
   isAvailable: boolean;
@@ -125,6 +155,7 @@ export interface Size {
   priceModifier: number;
   foodpandaPrice?: number | null;
   grabPrice?: number | null;
+  priceTiers?: SizePriceTier[];
   brandId?: string;
   tenantId?: string;
   sequenceNo?: number;
@@ -138,6 +169,7 @@ export interface Addon {
   price: number;
   foodpandaPrice?: number | null;
   grabPrice?: number | null;
+  priceTiers?: AddonPriceTier[];
   brandId?: string;
   tenantId?: string;
   sequenceNo?: number;

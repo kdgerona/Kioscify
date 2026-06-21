@@ -61,6 +61,7 @@ model Brand {
   preferences    Preference[]
   inventoryItems InventoryItem[]
   users          User[]
+  priceTiers     PriceTier[]
 
   @@unique([companyId, slug])
   @@map("brands")
@@ -92,6 +93,9 @@ model Tenant {
 
   brand    Brand?   @relation(fields: [brandId], references: [id], onDelete: SetNull)
   company  Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  priceTierId String?    @db.ObjectId
+  priceTier   PriceTier? @relation(fields: [priceTierId], references: [id])
 
   users                     User[]
   userAccess                UserStoreAccess[]
@@ -237,6 +241,7 @@ model Size {
   brand            Brand?           @relation(fields: [brandId], references: [id], onDelete: Cascade)
   productSizes     ProductSize[]
   transactionItems TransactionItem[]
+  priceTiers       SizePriceTier[]
 
   @@unique([tenantId, name])
   @@map("sizes")
@@ -259,6 +264,7 @@ model Addon {
   brand                 Brand?                 @relation(fields: [brandId], references: [id], onDelete: Cascade)
   productAddons         ProductAddon[]
   transactionItemAddons TransactionItemAddon[]
+  priceTiers            AddonPriceTier[]
 
   @@unique([tenantId, name])
   @@map("addons")
@@ -305,6 +311,7 @@ model Product {
   productAddons      ProductAddon[]
   productPreferences ProductPreference[]
   transactionItems   TransactionItem[]
+  priceTiers         ProductPriceTier[]
 
   @@unique([tenantId, name])
   @@map("products")
@@ -344,6 +351,72 @@ model ProductPreference {
 
   @@unique([productId, preferenceId])
   @@map("product_preferences")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRICE TIERS — brand-scoped; stores are assigned one tier
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PriceTier {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  brandId   String   @db.ObjectId
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brand             Brand              @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  stores            Tenant[]
+  productPriceTiers ProductPriceTier[]
+  sizePriceTiers    SizePriceTier[]
+  addonPriceTiers   AddonPriceTier[]
+
+  @@map("price_tiers")
+}
+
+model ProductPriceTier {
+  id             String @id @default(auto()) @map("_id") @db.ObjectId
+  productId      String  // plain String to match Product.id (no @db.ObjectId)
+  tierId         String @db.ObjectId
+  price          Float
+  foodpandaPrice Float?
+  grabPrice      Float?
+
+  product Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tier    PriceTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, tierId])
+  @@map("product_price_tiers")
+}
+
+model SizePriceTier {
+  id             String @id @default(auto()) @map("_id") @db.ObjectId
+  sizeId         String  // plain String to match Size.id (no @db.ObjectId)
+  tierId         String @db.ObjectId
+  priceModifier  Float
+  foodpandaPrice Float?
+  grabPrice      Float?
+
+  size Size      @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+  tier PriceTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  @@unique([sizeId, tierId])
+  @@map("size_price_tiers")
+}
+
+model AddonPriceTier {
+  id             String @id @default(auto()) @map("_id") @db.ObjectId
+  addonId        String  // plain String to match Addon.id (no @db.ObjectId)
+  tierId         String @db.ObjectId
+  price          Float
+  foodpandaPrice Float?
+  grabPrice      Float?
+
+  addon Addon     @relation(fields: [addonId], references: [id], onDelete: Cascade)
+  tier  PriceTier @relation(fields: [tierId], references: [id], onDelete: Cascade)
+
+  @@unique([addonId, tierId])
+  @@map("addon_price_tiers")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

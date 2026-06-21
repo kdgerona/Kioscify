@@ -54,6 +54,7 @@ export class StoresService {
       orderBy: { createdAt: 'desc' },
       include: {
         brand: { select: { id: true, name: true, slug: true } },
+        priceTier: { select: { id: true, name: true, isDefault: true } },
         _count: { select: { users: true, transactions: true } },
       },
     });
@@ -66,6 +67,7 @@ export class StoresService {
       include: {
         brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true, enabledDeliveryPlatforms: true, preferenceLabel: true } },
         company: { select: { id: true, name: true, slug: true, logoUrl: true } },
+        priceTier: { select: { id: true, name: true, isDefault: true } },
         _count: { select: { users: true, transactions: true } },
       },
     });
@@ -132,7 +134,11 @@ export class StoresService {
         throw new BadRequestException(`Platform(s) not enabled on this brand: ${invalid.join(', ')}`);
       }
     }
-    const updated = await this.prisma.tenant.update({ where: { id }, data: dto });
+    const updated = await this.prisma.tenant.update({
+      where: { id },
+      data: dto,
+      include: { priceTier: { select: { id: true, name: true, isDefault: true } } },
+    });
     return this.formatLogoUrl(updated);
   }
 

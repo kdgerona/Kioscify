@@ -32,6 +32,7 @@ import { UserShiftReportsModule } from './user-shift-reports/user-shift-reports.
 import { UserShiftInventoryReportsModule } from './user-shift-inventory-reports/user-shift-inventory-reports.module';
 import { AppReleasesModule } from './app-releases/app-releases.module';
 import { StorageModule } from './storage/storage.module';
+import { PriceTiersModule } from './price-tiers/price-tiers.module';
 
 @Module({
   imports: [
@@ -97,6 +98,9 @@ import { StorageModule } from './storage/storage.module';
     SubmittedInventoryReportsModule,
     UserShiftReportsModule,
     UserShiftInventoryReportsModule,
+
+    // Price tiers (brand-scoped)
+    PriceTiersModule,
 
     // App releases (APK auto-update)
     AppReleasesModule,

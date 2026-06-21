@@ -17,6 +17,11 @@ import type {
   TopProductItem,
   TopStoreItem,
   GrowthDataPoint,
+  PriceTier,
+  ProductPriceTier,
+  SizePriceTier,
+  AddonPriceTier,
+  Store,
 } from '@/types';
 
 const API_BASE_URL =
@@ -236,6 +241,7 @@ class ApiClient {
     sizeIds?: string[];
     addonIds?: string[];
     preferenceIds?: string[];
+    priceTiers?: ProductPriceTier[];
   }): Promise<Product> {
     const { brandId, ...body } = payload;
     const { data } = await this.client.post<Product>('/products', body, { params: { brandId } });
@@ -244,7 +250,7 @@ class ApiClient {
 
   async updateProduct(
     id: string,
-    payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; categoryId: string; sizeIds: string[]; addonIds: string[]; preferenceIds: string[] }>
+    payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; categoryId: string; sizeIds: string[]; addonIds: string[]; preferenceIds: string[]; priceTiers: ProductPriceTier[] }>
   ): Promise<Product> {
     const { data } = await this.client.patch<Product>(`/products/${id}`, payload);
     return data;
@@ -286,13 +292,14 @@ class ApiClient {
     foodpandaPrice?: number | null;
     grabPrice?: number | null;
     brandId: string;
+    priceTiers?: SizePriceTier[];
   }): Promise<Size> {
     const { brandId, ...body } = payload;
     const { data } = await this.client.post<Size>('/sizes', body, { params: { brandId } });
     return data;
   }
 
-  async updateSize(id: string, payload: Partial<{ name: string; priceModifier: number; foodpandaPrice: number | null; grabPrice: number | null; sequenceNo: number }>): Promise<Size> {
+  async updateSize(id: string, payload: Partial<{ name: string; priceModifier: number; foodpandaPrice: number | null; grabPrice: number | null; sequenceNo: number; priceTiers: SizePriceTier[] }>): Promise<Size> {
     const { data } = await this.client.patch<Size>(`/sizes/${id}`, payload);
     return data;
   }
@@ -316,13 +323,14 @@ class ApiClient {
     foodpandaPrice?: number | null;
     grabPrice?: number | null;
     brandId: string;
+    priceTiers?: AddonPriceTier[];
   }): Promise<Addon> {
     const { brandId, ...body } = payload;
     const { data } = await this.client.post<Addon>('/addons', body, { params: { brandId } });
     return data;
   }
 
-  async updateAddon(id: string, payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; sequenceNo: number }>): Promise<Addon> {
+  async updateAddon(id: string, payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; sequenceNo: number; priceTiers: AddonPriceTier[] }>): Promise<Addon> {
     const { data } = await this.client.patch<Addon>(`/addons/${id}`, payload);
     return data;
   }
@@ -455,14 +463,35 @@ class ApiClient {
 
   // ─── Store user assignment (multi-store) ──────────────────────────────────
 
-  async getStores(brandId: string): Promise<any[]> {
-    const { data } = await this.client.get('/stores', { params: { brandId } });
+  async getStores(brandId: string): Promise<Store[]> {
+    const { data } = await this.client.get<Store[]>('/stores', { params: { brandId } });
     return data;
   }
 
-  async updateStore(storeId: string, payload: { name?: string; enabledDeliveryPlatforms?: string[] }): Promise<any> {
-    const { data } = await this.client.patch(`/stores/${storeId}`, payload);
+  async updateStore(storeId: string, payload: { name?: string; enabledDeliveryPlatforms?: string[]; priceTierId?: string | null }): Promise<Store> {
+    const { data } = await this.client.patch<Store>(`/stores/${storeId}`, payload);
     return data;
+  }
+
+  // ─── Price Tiers ──────────────────────────────────────────────────────────
+
+  async getPriceTiers(brandId: string): Promise<PriceTier[]> {
+    const { data } = await this.client.get<PriceTier[]>(`/brands/${brandId}/price-tiers`);
+    return data;
+  }
+
+  async createPriceTier(brandId: string, payload: { name: string; isDefault?: boolean }): Promise<PriceTier> {
+    const { data } = await this.client.post<PriceTier>(`/brands/${brandId}/price-tiers`, payload);
+    return data;
+  }
+
+  async updatePriceTier(brandId: string, tierId: string, payload: { name?: string; isDefault?: boolean }): Promise<PriceTier> {
+    const { data } = await this.client.patch<PriceTier>(`/brands/${brandId}/price-tiers/${tierId}`, payload);
+    return data;
+  }
+
+  async deletePriceTier(brandId: string, tierId: string): Promise<void> {
+    await this.client.delete(`/brands/${brandId}/price-tiers/${tierId}`);
   }
 
   async getStoreUsers(storeId: string): Promise<User[]> {

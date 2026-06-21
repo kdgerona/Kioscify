@@ -22,7 +22,7 @@ import { UpdateSizeDto } from './dto/update-size.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { BrandId } from '../common/decorators/tenant.decorator';
+import { BrandId, TenantId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('sizes')
 @Controller('sizes')
@@ -52,8 +52,9 @@ export class SizesController {
   findAll(
     @Query('brandId') queryBrandId: string,
     @BrandId() jwtBrandId: string,
+    @TenantId() jwtTenantId: string,
   ) {
-    return this.sizesService.findAll(queryBrandId || jwtBrandId);
+    return this.sizesService.findAll(queryBrandId || jwtBrandId, jwtTenantId);
   }
 
   @Get(':id')
@@ -65,8 +66,9 @@ export class SizesController {
     @Param('id') id: string,
     @Query('brandId') queryBrandId: string,
     @BrandId() jwtBrandId: string,
+    @TenantId() jwtTenantId: string,
   ) {
-    return this.sizesService.findOne(id, queryBrandId || jwtBrandId);
+    return this.sizesService.findOne(id, queryBrandId || jwtBrandId, jwtTenantId);
   }
 
   @Patch(':id')

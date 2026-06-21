@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional, IsInt } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsInt, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { SizePriceTierDto } from './create-size.dto';
 
 export class UpdateSizeDto {
   @ApiProperty({ example: 'Regular', required: false })
@@ -31,4 +33,14 @@ export class UpdateSizeDto {
   @IsInt()
   @IsOptional()
   sequenceNo?: number;
+
+  @ApiPropertyOptional({
+    description: 'Per-tier pricing overrides',
+    type: [SizePriceTierDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SizePriceTierDto)
+  @IsOptional()
+  priceTiers?: SizePriceTierDto[];
 }
