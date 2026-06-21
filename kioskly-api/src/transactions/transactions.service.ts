@@ -85,6 +85,7 @@ export class TransactionsService {
             sizeId: item.sizeId,
             preferenceId: item.preferenceId,
             subtotal: item.subtotal,
+            discountAmount: item.discountAmount,
             addons: item.addons
               ? {
                   create: item.addons.map((addon) => ({
@@ -408,6 +409,7 @@ export class TransactionsService {
         preferenceId: item.preferenceId,
         preference: item.preference ?? null,
         subtotal: item.subtotal,
+        discountAmount: item.discountAmount ?? null,
         addons: item.addons?.map((a) => a.addon) || [],
       })),
     };

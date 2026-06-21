@@ -30,6 +30,7 @@ import {
 } from "../utils/paymentMethod";
 import { formatUserName } from "../utils/formatUserName";
 import { useDeviceType } from "../hooks/useDeviceType";
+import { getCombinedDiscount } from "../utils/discount";
 
 export default function Transactions() {
   const router = useRouter();
@@ -411,8 +412,7 @@ export default function Transactions() {
                       </Text>
                     </View>
                     <View className="items-end">
-                      {transaction.discountAmount != null &&
-                        transaction.discountAmount > 0 && (
+                      {getCombinedDiscount(transaction) > 0 && (
                           <Text className="text-xs text-gray-400 line-through">
                             {formatCurrency(transaction.subtotal)}
                           </Text>
@@ -478,20 +478,24 @@ export default function Transactions() {
                               + {item.addons.map((a) => a.name).join(", ")}
                             </Text>
                           )}
+                          {(item as any).discountAmount != null && (item as any).discountAmount > 0 && (
+                            <Text className="text-xs text-red-500 ml-4">
+                              -{formatCurrency((item as any).discountAmount)} item discount
+                            </Text>
+                          )}
                         </View>
                         <Text
                           className="text-sm font-semibold"
                           style={{ color: textColor }}
                         >
-                          {formatCurrency(item.subtotal)}
+                          {formatCurrency(item.subtotal - ((item as any).discountAmount ?? 0))}
                         </Text>
                       </View>
                     ))}
                   </View>
 
                   {/* Financial breakdown — only when a discount was applied */}
-                  {transaction.discountAmount != null &&
-                    transaction.discountAmount > 0 && (
+                  {getCombinedDiscount(transaction) > 0 && (
                       <View className="border-t border-gray-200 pt-3 mt-2">
                         <View className="flex-row justify-between mt-1">
                           <Text className="text-sm text-gray-500">
@@ -506,7 +510,7 @@ export default function Transactions() {
                             Discount:
                           </Text>
                           <Text className="text-sm text-red-500">
-                            -{formatCurrency(transaction.discountAmount)}
+                            -{formatCurrency(getCombinedDiscount(transaction))}
                           </Text>
                         </View>
                         <View className="flex-row justify-between mt-1">

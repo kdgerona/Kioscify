@@ -32,6 +32,7 @@ function buildLocalTransaction(clientId: string, payload: Record<string, unknown
     preferenceId: item.preferenceId,
     preference: item.preferenceName ? { id: item.preferenceId ?? "", name: item.preferenceName } : undefined,
     subtotal: item.subtotal,
+    discountAmount: item.discountAmount ?? null,
     addons: (item.addons as any[] | undefined)
       ?.filter((a: any) => a.addonName)
       .map((a: any) => ({ id: a.addonId, name: a.addonName, price: 0 })) ?? [],
@@ -74,6 +75,7 @@ interface TransactionItem {
   preferenceId?: string;
   preferenceName?: string; // display-only: stored in queue, stripped before API call
   subtotal: number;
+  discountAmount?: number;
   addons?: TransactionItemAddon[];
 }
 
@@ -114,6 +116,7 @@ export interface TransactionItemResponse {
     name: string;
   };
   subtotal: number;
+  discountAmount?: number | null;
   addons?: Array<{
     id: string;
     name: string;

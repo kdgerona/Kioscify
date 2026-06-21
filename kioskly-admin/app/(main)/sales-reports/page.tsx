@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
-import { formatCurrency, formatDateTime, formatRole, formatUserName, getPaymentMethodLabel } from "@/lib/utils";
+import { formatCurrency, formatDateTime, formatRole, formatUserName, getPaymentMethodLabel, getCombinedDiscount } from "@/lib/utils";
 import {
   FileText,
   Eye,
@@ -577,12 +577,12 @@ export default function SubmittedReportsPage() {
                               <p className="text-xs text-gray-500">{formatDateTime(transaction.timestamp)}</p>
                             </div>
                             <div className="text-right flex-shrink-0">
-                              {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                              {getCombinedDiscount(transaction) > 0 && (
                                 <p className="text-xs text-gray-400 line-through">{formatCurrency(transaction.subtotal)}</p>
                               )}
                               <p className="text-base sm:text-lg font-bold text-gray-900">{formatCurrency(transaction.total)}</p>
-                              {transaction.discountAmount != null && transaction.discountAmount > 0 && (
-                                <p className="text-xs text-red-500">-{formatCurrency(transaction.discountAmount)} off</p>
+                              {getCombinedDiscount(transaction) > 0 && (
+                                <p className="text-xs text-red-500">-{formatCurrency(getCombinedDiscount(transaction))} off</p>
                               )}
                               <p className="text-xs text-gray-600">{getPaymentMethodLabel(transaction.paymentMethod)}</p>
                             </div>
@@ -620,6 +620,12 @@ export default function SubmittedReportsPage() {
                                           </div>
                                         );
                                       })}
+                                      {item.discountAmount != null && item.discountAmount > 0 && (
+                                        <div className="flex justify-between items-center text-[10px] text-red-600">
+                                          <span>Item discount</span>
+                                          <span>-{formatCurrency(item.discountAmount)}</span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 ))}
@@ -848,7 +854,13 @@ export default function SubmittedReportsPage() {
                               <p className="text-xs text-gray-500">{formatDateTime(transaction.timestamp)}</p>
                             </div>
                             <div className="text-right flex-shrink-0">
+                              {getCombinedDiscount(transaction) > 0 && (
+                                <p className="text-xs text-gray-400 line-through">{formatCurrency(transaction.subtotal)}</p>
+                              )}
                               <p className="text-base sm:text-lg font-bold text-gray-900">{formatCurrency(transaction.total)}</p>
+                              {getCombinedDiscount(transaction) > 0 && (
+                                <p className="text-xs text-red-500">-{formatCurrency(getCombinedDiscount(transaction))} off</p>
+                              )}
                               <p className="text-xs text-gray-600">{getPaymentMethodLabel(transaction.paymentMethod)}</p>
                             </div>
                           </div>
@@ -856,8 +868,15 @@ export default function SubmittedReportsPage() {
                             <div className="mt-2 pt-2 border-t border-gray-100">
                               <p className="text-xs font-semibold text-gray-700 mb-1">Items:</p>
                               {transaction.items.map((item) => (
-                                <div key={item.id} className="text-xs text-gray-600 ml-2">
-                                  {item.quantity}x {item.product?.name}{item.size ? ` (${item.size.name})` : ""} — {formatCurrency(item.subtotal)}
+                                <div key={item.id} className="ml-2 mb-1">
+                                  <div className="text-xs text-gray-600">
+                                    {item.quantity}x {item.product?.name}{item.size ? ` (${item.size.name})` : ""} — {formatCurrency(item.subtotal - (item.discountAmount ?? 0))}
+                                  </div>
+                                  {item.discountAmount != null && item.discountAmount > 0 && (
+                                    <div className="text-[10px] text-red-500 ml-3">
+                                      item discount: -{formatCurrency(item.discountAmount)}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>

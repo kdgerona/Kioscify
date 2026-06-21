@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDeviceType } from "@/hooks/useDeviceType";
+import { DISCOUNT_PERCENTAGES, computeDiscountAmount } from "@/utils/discount";
 
 export type PaymentMethod =
   | "cash"
@@ -45,8 +46,6 @@ type PaymentDetails = {
   remarks?: string;
   discountAmount?: number;
 };
-
-const DISCOUNT_PERCENTAGES = [5, 10, 15, 20, 25, 50];
 
 export default function CheckoutModal({
   visible,
@@ -122,15 +121,8 @@ export default function CheckoutModal({
     setDiscountMode(null);
   };
 
-  const computedDiscount = (): number => {
-    if (discountMode === "percentage" && discountPercentage !== null) {
-      return totalAmount * discountPercentage / 100;
-    }
-    if (discountMode === "amount") {
-      return Math.min(parseFloat(customDiscountAmount) || 0, totalAmount);
-    }
-    return 0;
-  };
+  const computedDiscount = (): number =>
+    computeDiscountAmount(totalAmount, discountMode, discountPercentage, customDiscountAmount);
 
   const finalTotal = totalAmount - computedDiscount();
 
