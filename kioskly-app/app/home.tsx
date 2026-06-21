@@ -17,11 +17,13 @@ import { useAuth } from "../contexts/AuthContext";
 import { apiGet } from "../utils/api";
 import CheckoutModal from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
+import ItemDiscountModal from "../components/ItemDiscountModal";
 import { createTransactionOffline } from "../services/transactionService";
 import { cacheCategories, getCachedCategories, cacheProducts, getCachedProducts } from "../lib/localCache";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
 import { useDeviceType } from "../hooks/useDeviceType";
+import { ItemDiscount } from "../utils/discount";
 
 type Size = {
   id: string;
@@ -75,6 +77,7 @@ type OrderItem = {
   selectedSize?: Size;
   selectedAddons: Addon[];
   selectedPreference?: Preference;
+  itemDiscount?: ItemDiscount;
 };
 
 type PaymentMethodType =
@@ -91,6 +94,7 @@ type TransactionData = {
   items: OrderItem[];
   subtotal: number;
   total: number;
+  discountAmount?: number;
   paymentMethod: PaymentMethodType;
   cashReceived?: number;
   change?: number;
@@ -135,6 +139,7 @@ export default function Home() {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const headerMenuAnim = useRef(new Animated.Value(HEADER_MENU_WIDTH)).current;
+  const [discountItemId, setDiscountItemId] = useState<string | null>(null);
 
   // Fetch categories and products from API, fall back to local cache when offline
   useEffect(() => {
@@ -290,6 +295,14 @@ export default function Home() {
     setOrders(orders.filter((item) => item.id !== orderId));
   };
 
+  const setItemDiscount = (orderId: string, discount: ItemDiscount | undefined) => {
+    setOrders(
+      orders.map((item) =>
+        item.id === orderId ? { ...item, itemDiscount: discount } : item,
+      ),
+    );
+  };
+
   const updateQuantity = (orderId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeFromOrder(orderId);
@@ -335,8 +348,16 @@ export default function Home() {
     return price;
   };
 
-  const totalAmount = orders.reduce(
+  const calculateItemLineTotal = (item: OrderItem): number =>
+    calculateItemPrice(item) * item.quantity - (item.itemDiscount?.amount ?? 0);
+
+  const grossOrderTotal = orders.reduce(
     (sum, item) => sum + calculateItemPrice(item) * item.quantity,
+    0,
+  );
+
+  const totalAmount = orders.reduce(
+    (sum, item) => sum + calculateItemLineTotal(item),
     0,
   );
 
@@ -449,10 +470,12 @@ export default function Home() {
     item,
     onRemove,
     onUpdateQuantity,
+    onOpenDiscount,
   }: {
     item: OrderItem;
     onRemove: (id: string) => void;
     onUpdateQuantity: (id: string, quantity: number) => void;
+    onOpenDiscount: (id: string) => void;
   }) => {
     const swipeableRef = useRef<Swipeable>(null);
 
@@ -539,13 +562,41 @@ export default function Home() {
                 {brand?.preferenceLabel ?? 'Preferences'}: {item.selectedPreference.name}
               </Text>
             )}
-            <Text className="font-semibold mt-1" style={{ color: textColor }}>
-              ₱{calculateItemPrice(item).toFixed(2)}
-            </Text>
+            {item.itemDiscount ? (
+              <View className="flex-row items-center mt-1 gap-2">
+                <Text
+                  className="font-semibold line-through text-xs"
+                  style={{ color: `${textColor}60` }}
+                >
+                  ₱{(calculateItemPrice(item) * item.quantity).toFixed(2)}
+                </Text>
+                <Text className="font-semibold" style={{ color: "#ef4444" }}>
+                  ₱{calculateItemLineTotal(item).toFixed(2)}
+                </Text>
+              </View>
+            ) : (
+              <Text className="font-semibold mt-1" style={{ color: textColor }}>
+                ₱{calculateItemLineTotal(item).toFixed(2)}
+              </Text>
+            )}
           </View>
 
-          {/* Right side - Quantity controls */}
-          <View className="flex-row items-center">
+          {/* Right side - Discount button + Quantity controls */}
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              className="w-8 h-8 rounded justify-center items-center"
+              style={{ backgroundColor: item.itemDiscount ? "#ef444420" : `${primaryColor}20` }}
+              onPress={() => {
+                if (!showCheckoutModal) onOpenDiscount(item.id);
+              }}
+              disabled={showCheckoutModal}
+            >
+              <Ionicons
+                name="pricetag-outline"
+                size={16}
+                color={item.itemDiscount ? "#ef4444" : "#000000"}
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               className="w-10 h-10 rounded justify-center items-center"
               style={{ backgroundColor: `${primaryColor}30` }}
@@ -601,6 +652,7 @@ export default function Home() {
             item={item}
             onRemove={removeFromOrder}
             onUpdateQuantity={updateQuantity}
+            onOpenDiscount={(id) => setDiscountItemId(id)}
           />
         ))}
       </ScrollView>
@@ -658,6 +710,9 @@ export default function Home() {
         preferenceId: item.selectedPreference?.id,
         preferenceName: item.selectedPreference?.name,
         subtotal: calculateItemPrice(item) * item.quantity,
+        ...(item.itemDiscount && item.itemDiscount.amount > 0 && {
+          discountAmount: item.itemDiscount.amount,
+        }),
         addons: item.selectedAddons.map((addon) => ({
           addonId: addon.id,
           addonName: addon.name,
@@ -673,7 +728,7 @@ export default function Home() {
       const transactionPayload = {
         transactionId,
         timestamp: saleTimestamp,
-        subtotal: totalAmount,
+        subtotal: grossOrderTotal,
         total: totalAmount - (details.discountAmount ?? 0),
         paymentMethod: paymentMethod.toUpperCase() as
           | "CASH"
@@ -714,8 +769,9 @@ export default function Home() {
           transactionId,
           timestamp: new Date(),
           items: [...orders],
-          subtotal: totalAmount,
-          total: totalAmount,
+          subtotal: grossOrderTotal,
+          total: totalAmount - (details.discountAmount ?? 0),
+          discountAmount: details.discountAmount,
           paymentMethod,
           ...(paymentMethod === "cash" && {
             cashReceived: details.cashReceived,
@@ -1459,6 +1515,28 @@ export default function Home() {
           </View>
         </View>
       </Modal>
+
+      {/* Item Discount Modal */}
+      {discountItemId !== null && (() => {
+        const discountItem = orders.find((o) => o.id === discountItemId);
+        if (!discountItem) return null;
+        return (
+          <ItemDiscountModal
+            visible
+            baseLineTotal={calculateItemPrice(discountItem) * discountItem.quantity}
+            initialDiscount={discountItem.itemDiscount}
+            onApply={(discount) => {
+              setItemDiscount(discountItemId, discount);
+              setDiscountItemId(null);
+            }}
+            onClear={() => {
+              setItemDiscount(discountItemId, undefined);
+              setDiscountItemId(null);
+            }}
+            onClose={() => setDiscountItemId(null)}
+          />
+        );
+      })()}
 
       {/* Checkout Modal */}
       <CheckoutModal

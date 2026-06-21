@@ -148,6 +148,7 @@ export interface TransactionItem {
   sizeId?: string;
   quantity: number;
   subtotal: number;
+  discountAmount?: number | null;
   product?: Product;
   size?: Size;
   addons?: { addon: Addon }[];

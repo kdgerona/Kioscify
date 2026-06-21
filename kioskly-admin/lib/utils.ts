@@ -92,6 +92,16 @@ export function resolveLogoUrl(rawUrl: string | null | undefined, apiBase = _api
   }
 }
 
+export function getCombinedDiscount(transaction: {
+  discountAmount?: number | null;
+  items?: { discountAmount?: number | null }[];
+}): number {
+  return (
+    (transaction.discountAmount ?? 0) +
+    (transaction.items ?? []).reduce((s, i) => s + (i.discountAmount ?? 0), 0)
+  );
+}
+
 export function getContrastColor(hex: string): string {
   const c = hex.replace("#", "");
   if (c.length !== 6) return "#111827";

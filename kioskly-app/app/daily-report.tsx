@@ -36,6 +36,7 @@ import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paym
 import { formatUserName } from "../utils/formatUserName";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
 import { useDeviceType } from "../hooks/useDeviceType";
+import { getCombinedDiscount } from "../utils/discount";
 
 // Build a DailyReportResponse from locally cached transactions and expenses.
 // Used when the API is unreachable so staff can still view and submit the report.
@@ -731,7 +732,7 @@ export default function DailyReport() {
                             </Text>
                           </View>
                           <View className="items-end">
-                            {(transaction as any).discountAmount != null && (transaction as any).discountAmount > 0 && (
+                            {getCombinedDiscount(transaction) > 0 && (
                               <Text className="text-xs text-gray-400 line-through">
                                 {formatCurrency(transaction.subtotal)}
                               </Text>
@@ -773,16 +774,21 @@ export default function DailyReport() {
                                     + {item.addons.map((a) => a.name).join(", ")}
                                   </Text>
                                 )}
+                                {(item as any).discountAmount != null && (item as any).discountAmount > 0 && (
+                                  <Text className="text-xs text-red-500 ml-2">
+                                    -{formatCurrency((item as any).discountAmount)} item discount
+                                  </Text>
+                                )}
                               </View>
                               <Text className="text-sm font-semibold text-gray-700">
-                                {formatCurrency(item.subtotal)}
+                                {formatCurrency(item.subtotal - ((item as any).discountAmount ?? 0))}
                               </Text>
                             </View>
                           ))}
                         </View>
 
                         {/* Discount breakdown — only when a discount was applied */}
-                        {(transaction as any).discountAmount != null && (transaction as any).discountAmount > 0 && (
+                        {getCombinedDiscount(transaction) > 0 && (
                           <View className="mt-2 bg-gray-50 rounded-lg px-3 py-2">
                             <View className="flex-row justify-between">
                               <Text className="text-xs text-gray-500">Subtotal:</Text>
@@ -790,7 +796,7 @@ export default function DailyReport() {
                             </View>
                             <View className="flex-row justify-between mt-0.5">
                               <Text className="text-xs text-red-500">Discount:</Text>
-                              <Text className="text-xs text-red-500">-{formatCurrency((transaction as any).discountAmount)}</Text>
+                              <Text className="text-xs text-red-500">-{formatCurrency(getCombinedDiscount(transaction))}</Text>
                             </View>
                             <View className="flex-row justify-between mt-0.5 border-t border-gray-200 pt-1">
                               <Text className="text-xs font-semibold text-gray-700">Total:</Text>

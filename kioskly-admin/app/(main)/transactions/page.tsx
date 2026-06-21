@@ -11,6 +11,7 @@ import {
   getPaymentMethodLabel,
   getPaymentStatusLabel,
   getPaymentStatusColor,
+  getCombinedDiscount,
 } from "@/lib/utils";
 import {
   Receipt,
@@ -254,6 +255,7 @@ export default function TransactionsPage() {
       "Date",
       "User",
       "Total",
+      "Discount",
       "Payment Method",
       "Status",
     ];
@@ -262,6 +264,7 @@ export default function TransactionsPage() {
       formatDateTime(t.timestamp),
       formatUserName(t.user),
       t.total,
+      getCombinedDiscount(t) || "",
       t.paymentMethod,
       t.paymentStatus || "COMPLETED",
     ]);
@@ -463,6 +466,9 @@ export default function TransactionsPage() {
                       Total
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Discount
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Payment
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -497,6 +503,15 @@ export default function TransactionsPage() {
                         <span className="text-sm font-bold text-gray-900">
                           {formatCurrency(transaction.total)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {getCombinedDiscount(transaction) > 0 ? (
+                          <span className="text-red-600 font-medium">
+                            -{formatCurrency(getCombinedDiscount(transaction))}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {getPaymentMethodLabel(transaction.paymentMethod)}
@@ -880,6 +895,16 @@ export default function TransactionsPage() {
                                 })}
                               </>
                             )}
+
+                            {/* Item discount */}
+                            {item.discountAmount != null && item.discountAmount > 0 && (
+                              <div className="flex justify-between items-center gap-2 text-xs sm:text-sm text-red-600">
+                                <span className="truncate">Item discount</span>
+                                <span className="flex-shrink-0">
+                                  -{formatCurrency(item.discountAmount)}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -899,11 +924,11 @@ export default function TransactionsPage() {
                       {formatCurrency(selectedTransaction.subtotal)}
                     </span>
                   </div>
-                  {selectedTransaction.discountAmount != null && selectedTransaction.discountAmount > 0 && (
+                  {getCombinedDiscount(selectedTransaction) > 0 && (
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-xs sm:text-sm text-red-600">Discount</span>
                       <span className="text-xs sm:text-sm font-medium text-red-600">
-                        -{formatCurrency(selectedTransaction.discountAmount)}
+                        -{formatCurrency(getCombinedDiscount(selectedTransaction))}
                       </span>
                     </div>
                   )}

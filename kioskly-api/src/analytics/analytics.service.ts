@@ -111,7 +111,7 @@ export class AnalyticsService {
     const grouped = await this.prisma.transactionItem.groupBy({
       by: ['productId'],
       where: { transactionId: { in: txIds } },
-      _sum: { quantity: true, subtotal: true },
+      _sum: { quantity: true, subtotal: true, discountAmount: true },
       orderBy: { _sum: { quantity: 'desc' } },
       take: 10,
     });
@@ -126,7 +126,7 @@ export class AnalyticsService {
       productId: g.productId,
       productName: productMap.get(g.productId) ?? 'Unknown',
       unitsSold: g._sum.quantity ?? 0,
-      totalRevenue: g._sum.subtotal ?? 0,
+      totalRevenue: (g._sum.subtotal ?? 0) - (g._sum.discountAmount ?? 0),
     }));
   }
 

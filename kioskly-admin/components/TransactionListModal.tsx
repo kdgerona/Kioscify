@@ -3,7 +3,7 @@
 import React from "react";
 import { X } from "lucide-react";
 import { Transaction } from "@/types";
-import { formatCurrency, getPaymentMethodLabel, formatUserName } from "@/lib/utils";
+import { formatCurrency, getPaymentMethodLabel, formatUserName, getCombinedDiscount } from "@/lib/utils";
 
 interface TransactionListModalProps {
   isOpen: boolean;
@@ -193,6 +193,16 @@ export default function TransactionListModal({
                                   )}
                                 </>
                               )}
+
+                              {/* Item discount */}
+                              {item.discountAmount != null && item.discountAmount > 0 && (
+                                <div className="flex justify-between items-center gap-2 text-xs text-red-600">
+                                  <span className="truncate">Item discount</span>
+                                  <span className="flex-shrink-0">
+                                    -{formatCurrency(item.discountAmount)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -206,26 +216,24 @@ export default function TransactionListModal({
                             {formatCurrency(transaction.subtotal)}
                           </span>
                         </div>
-                        {transaction.discountAmount != null && transaction.discountAmount > 0 && (
+                        {getCombinedDiscount(transaction) > 0 && (
                           <div className="flex justify-between items-center gap-2">
                             <span className="text-xs sm:text-sm text-red-600">
                               Discount:
                             </span>
                             <span className="text-xs sm:text-sm font-medium text-red-600">
-                              -{formatCurrency(transaction.discountAmount)}
+                              -{formatCurrency(getCombinedDiscount(transaction))}
                             </span>
                           </div>
                         )}
-                        {transaction.discountAmount != null && transaction.discountAmount > 0 && (
-                          <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-200">
-                            <span className="text-xs sm:text-sm font-bold text-gray-900">
-                              Total:
-                            </span>
-                            <span className="text-xs sm:text-sm font-bold text-gray-900">
-                              {formatCurrency(transaction.total)}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-200">
+                          <span className="text-xs sm:text-sm font-bold text-gray-900">
+                            Total:
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-gray-900">
+                            {formatCurrency(transaction.total)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}

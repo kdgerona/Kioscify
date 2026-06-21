@@ -405,7 +405,7 @@ export class ReportsService {
             };
           }
           acc[productId].quantity += item.quantity;
-          acc[productId].revenue += item.subtotal;
+          acc[productId].revenue += item.subtotal - ((item as any).discountAmount ?? 0);
         });
         return acc;
       },
@@ -433,7 +433,7 @@ export class ReportsService {
         const name = item.size?.name ?? 'No Size';
         const entry = sizeMap.get(key) ?? { name, quantity: 0, revenue: 0 };
         entry.quantity += item.quantity;
-        entry.revenue += item.subtotal;
+        entry.revenue += item.subtotal - ((item as any).discountAmount ?? 0);
         sizeMap.set(key, entry);
       }
     }

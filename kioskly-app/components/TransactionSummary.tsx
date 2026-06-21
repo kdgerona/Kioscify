@@ -3,6 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { type Product, type Size, type Addon } from "../data/mockData";
 import { useTenant } from "@/contexts/TenantContext";
+import { type ItemDiscount } from "@/utils/discount";
 
 type OrderItem = {
   id: string;
@@ -11,6 +12,7 @@ type OrderItem = {
   selectedSize?: Size;
   selectedAddons: Addon[];
   selectedPreference?: { id: string; name: string };
+  itemDiscount?: ItemDiscount;
 };
 
 type PaymentMethodType = "cash" | "gcash" | "paymaya" | "online" | "foodpanda" | "grab";
@@ -21,6 +23,7 @@ type TransactionData = {
   items: OrderItem[];
   subtotal: number;
   total: number;
+  discountAmount?: number;
   paymentMethod: PaymentMethodType;
   cashReceived?: number;
   change?: number;
@@ -175,12 +178,20 @@ export default function TransactionSummary({
                           <Text className="text-sm text-gray-600 mb-1">
                             Qty: {item.quantity}
                           </Text>
-                          <Text className="font-bold text-gray-900">
-                            ₱
-                            {(calculateItemPrice(item) * item.quantity).toFixed(
-                              2
-                            )}
-                          </Text>
+                          {item.itemDiscount ? (
+                            <>
+                              <Text className="text-xs text-gray-400 line-through">
+                                ₱{(calculateItemPrice(item) * item.quantity).toFixed(2)}
+                              </Text>
+                              <Text className="font-bold text-red-600">
+                                ₱{(calculateItemPrice(item) * item.quantity - item.itemDiscount.amount).toFixed(2)}
+                              </Text>
+                            </>
+                          ) : (
+                            <Text className="font-bold text-gray-900">
+                              ₱{(calculateItemPrice(item) * item.quantity).toFixed(2)}
+                            </Text>
+                          )}
                         </View>
                       </View>
 
@@ -218,6 +229,16 @@ export default function TransactionSummary({
                             </Text>
                           </View>
                         ))}
+                        {item.itemDiscount && (
+                          <View className="flex-row justify-between mb-1">
+                            <Text className="text-xs text-red-500">
+                              Item Discount:
+                            </Text>
+                            <Text className="text-xs text-red-500 font-medium">
+                              -₱{item.itemDiscount.amount.toFixed(2)}
+                            </Text>
+                          </View>
+                        )}
                         <View className="border-t border-gray-300 pt-2 mt-1">
                           <View className="flex-row justify-between">
                             <Text className="text-xs font-semibold text-gray-700">
@@ -264,6 +285,27 @@ export default function TransactionSummary({
                   ₱{transaction.subtotal.toFixed(2)}
                 </Text>
               </View>
+
+              {(() => {
+                const itemDiscountTotal = transaction.items.reduce(
+                  (s, i) => s + (i.itemDiscount?.amount ?? 0),
+                  0,
+                );
+                const combinedDiscount = (transaction.discountAmount ?? 0) + itemDiscountTotal;
+                return combinedDiscount > 0 ? (
+                  <View
+                    className="flex-row justify-between items-center mb-3 pb-3 border-b"
+                    style={{ borderColor: `${primaryColor}80` }}
+                  >
+                    <Text className="text-base font-semibold text-red-500">
+                      Total Discount
+                    </Text>
+                    <Text className="text-base font-semibold text-red-500">
+                      -₱{combinedDiscount.toFixed(2)}
+                    </Text>
+                  </View>
+                ) : null;
+              })()}
 
               <View className="flex-row justify-between items-center mb-3">
                 <Text

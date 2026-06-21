@@ -9,6 +9,7 @@ import {
   ValidateNested,
   IsInt,
   IsDateString,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -45,6 +46,12 @@ class TransactionItemDto {
   })
   @IsNumber()
   subtotal: number;
+
+  @ApiProperty({ example: 10, required: false, description: 'Discount amount applied to this line item' })
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  discountAmount?: number;
 
   @ApiProperty({ type: [TransactionItemAddonDto], required: false })
   @IsArray()
