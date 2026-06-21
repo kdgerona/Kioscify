@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 import { safeReactotron } from "../utils/reactotron";
+import { setUnauthorizedHandler } from "../utils/authEvents";
 
 const TOKEN_KEY = "@kioscify:auth_token";
 const USER_KEY = "@kioscify:user";
@@ -165,6 +167,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   React.useEffect(() => {
     loadStoredAuth();
   }, [loadStoredAuth]);
+
+  // Any authenticated request that comes back 401 (expired/invalid token) logs the user out
+  React.useEffect(() => {
+    setUnauthorizedHandler(() => {
+      logout();
+      router.replace("/");
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [logout]);
 
   const clearError = useCallback(() => {
     setError(null);

@@ -29,6 +29,7 @@ import { enqueue, uuidv4 } from "@/services/syncEngine";
 import { submitShiftInventoryReport } from "@/services/shiftInventoryReportService";
 import LastSubmissionBanner from "@/components/LastSubmissionBanner";
 import { formatUserName } from "@/utils/formatUserName";
+import { useDeviceType } from "@/hooks/useDeviceType";
 import { InventoryInput } from "@/components/inventory/types";
 import {
   generateBatchId,
@@ -56,6 +57,7 @@ export default function InventoryScreen() {
 
   const { tenant, brand } = useTenant();
   const { user } = useAuth();
+  const isPhone = useDeviceType() === 'phone';
   const primaryColor =
     brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const textColor =
@@ -366,10 +368,10 @@ export default function InventoryScreen() {
             <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
           <View>
-            <Text style={{ fontSize: 22, fontWeight: "700", color: textColor }}>
+            <Text style={{ fontSize: 24, fontWeight: "700", color: textColor }}>
               Daily Inventory
             </Text>
-            <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+            <Text style={{ fontSize: 14, color: textColor, marginTop: 4 }}>
               {new Date().toLocaleDateString("en-US", {
                 month: "long",
                 day: "numeric",
@@ -381,6 +383,7 @@ export default function InventoryScreen() {
         {countedCount > 0 && (
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TouchableOpacity
+              accessibilityLabel="Shift Inventory Report"
               style={{
                 backgroundColor: primaryColor,
                 borderRadius: 8,
@@ -397,13 +400,16 @@ export default function InventoryScreen() {
                 size={18}
                 color="#000000"
               />
-              <Text
-                style={{ color: "#000000", fontWeight: "600", marginLeft: 6 }}
-              >
-                Shift Inventory Report
-              </Text>
+              {!isPhone && (
+                <Text
+                  style={{ color: "#000000", fontWeight: "600", marginLeft: 6 }}
+                >
+                  Shift Inventory Report
+                </Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
+              accessibilityLabel="Inventory Report"
               style={{
                 backgroundColor: primaryColor,
                 borderRadius: 8,
@@ -417,11 +423,13 @@ export default function InventoryScreen() {
               disabled={saving}
             >
               <Ionicons name="document-text" size={18} color="#000000" />
-              <Text
-                style={{ color: "#000000", fontWeight: "600", marginLeft: 6 }}
-              >
-                Inventory Report
-              </Text>
+              {!isPhone && (
+                <Text
+                  style={{ color: "#000000", fontWeight: "600", marginLeft: 6 }}
+                >
+                  Inventory Report
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         )}

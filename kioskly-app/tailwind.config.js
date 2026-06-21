@@ -3,6 +3,12 @@ module.exports = {
   content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      // No custom `screens` breakpoints here on purpose: NativeWind v2's responsive
+      // (`sm:`/`md:`/etc.) class re-evaluation crashes on rotation with this RN/Hermes +
+      // New Architecture combo ("TypeError: cannot add a new property" in
+      // nativewind/dist/style-sheet/runtime.js, prepare/reEvaluate mutating a style array
+      // that Fabric has already frozen after first render). Use hooks/useDeviceType.ts +
+      // a plain JS className ternary for phone/tablet differences instead.
       colors: {
         primary: {
           DEFAULT: '#FF9B00',

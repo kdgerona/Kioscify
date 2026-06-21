@@ -114,6 +114,7 @@ export default function Index() {
   const primaryColor =
     brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
   const apiBase =
+    process.env.EXPO_PUBLIC_STORAGE_URL ||
     process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") ||
     "http://localhost:3000";
   const resolveLogoUrl = (raw: string | null | undefined): string | null => {

@@ -28,6 +28,7 @@ interface StoreOption {
 function resolveLogoUrl(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const apiBase =
+    process.env.EXPO_PUBLIC_STORAGE_URL ||
     process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") ||
     "http://localhost:3000";
   try {

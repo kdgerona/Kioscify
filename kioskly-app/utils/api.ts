@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { notifyUnauthorized } from "./authEvents";
 
 const TOKEN_KEY = "@kioscify:auth_token";
 
@@ -57,6 +58,10 @@ export const apiRequest = async (
     ...restOptions,
     headers: requestHeaders,
   });
+
+  if (requiresAuth && response.status === 401) {
+    notifyUnauthorized();
+  }
 
   return response;
 };
