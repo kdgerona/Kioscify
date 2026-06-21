@@ -147,6 +147,7 @@ export class BrandsService {
         data: {
           tenantId: storeId,
           brandId,
+          templateId: template.id,
           isTemplate: false,
           name: template.name,
           category: template.category,

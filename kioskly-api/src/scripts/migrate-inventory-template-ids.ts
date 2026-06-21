@@ -40,15 +40,16 @@ async function main() {
     const tenantIds = stores.map((s) => s.id);
     if (tenantIds.length === 0) continue;
 
-    const unlinkedCopies = await prisma.inventoryItem.findMany({
+    // Filter templateId in JS — MongoDB's $eq:null doesn't reliably match missing fields
+    const candidates = await prisma.inventoryItem.findMany({
       where: {
         tenantId: { in: tenantIds },
         isTemplate: false,
         tombstone: { not: 1 },
-        templateId: null,
         name: template.name,
       },
     });
+    const unlinkedCopies = candidates.filter((c) => !c.templateId);
 
     if (unlinkedCopies.length === 0) continue;
 
