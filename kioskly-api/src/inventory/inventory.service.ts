@@ -81,31 +81,40 @@ export class InventoryService {
     }
 
     // Fallback: find and link store copies not yet linked via templateId (legacy production data)
+    // Legacy items may have brandId: null, so match by tenantId (stores under the brand) + name.
     if (template.brandId) {
-      const unlinkedCopies = await this.prisma.inventoryItem.findMany({
-        where: {
-          brandId: template.brandId,
-          isTemplate: false,
-          tombstone: { not: 1 },
-          templateId: null,
-          name: template.name,
-        },
+      const stores = await this.prisma.tenant.findMany({
+        where: { brandId: template.brandId },
+        select: { id: true },
       });
+      const tenantIds = stores.map((s) => s.id);
 
-      for (const copy of unlinkedCopies) {
-        const propagated: Record<string, any> = { templateId: id };
-        if (dto.name !== undefined) propagated.name = dto.name;
-        if (dto.category !== undefined) propagated.category = dto.category;
-        if (dto.unit !== undefined) propagated.unit = dto.unit;
-        if (dto.description !== undefined) propagated.description = dto.description;
-        if (dto.requiresExpirationDate !== undefined) propagated.requiresExpirationDate = dto.requiresExpirationDate;
-        if (dto.minStockLevel !== undefined && !copy.minStockLevelCustomized) {
-          propagated.minStockLevel = dto.minStockLevel;
+      if (tenantIds.length > 0) {
+        const unlinkedCopies = await this.prisma.inventoryItem.findMany({
+          where: {
+            tenantId: { in: tenantIds },
+            isTemplate: false,
+            tombstone: { not: 1 },
+            templateId: null,
+            name: template.name,
+          },
+        });
+
+        for (const copy of unlinkedCopies) {
+          const propagated: Record<string, any> = { templateId: id, brandId: template.brandId };
+          if (dto.name !== undefined) propagated.name = dto.name;
+          if (dto.category !== undefined) propagated.category = dto.category;
+          if (dto.unit !== undefined) propagated.unit = dto.unit;
+          if (dto.description !== undefined) propagated.description = dto.description;
+          if (dto.requiresExpirationDate !== undefined) propagated.requiresExpirationDate = dto.requiresExpirationDate;
+          if (dto.minStockLevel !== undefined && !copy.minStockLevelCustomized) {
+            propagated.minStockLevel = dto.minStockLevel;
+          }
+          if (dto.expirationWarningDays !== undefined && !copy.expirationWarningDaysCustomized) {
+            propagated.expirationWarningDays = dto.expirationWarningDays;
+          }
+          await this.prisma.inventoryItem.update({ where: { id: copy.id }, data: propagated });
         }
-        if (dto.expirationWarningDays !== undefined && !copy.expirationWarningDaysCustomized) {
-          propagated.expirationWarningDays = dto.expirationWarningDays;
-        }
-        await this.prisma.inventoryItem.update({ where: { id: copy.id }, data: propagated });
       }
     }
 

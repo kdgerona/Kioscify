@@ -32,9 +32,16 @@ async function main() {
       continue;
     }
 
+    const stores = await prisma.tenant.findMany({
+      where: { brandId: template.brandId },
+      select: { id: true },
+    });
+    const tenantIds = stores.map((s) => s.id);
+    if (tenantIds.length === 0) continue;
+
     const unlinkedCopies = await prisma.inventoryItem.findMany({
       where: {
-        brandId: template.brandId,
+        tenantId: { in: tenantIds },
         isTemplate: false,
         tombstone: { not: 1 },
         templateId: null,
@@ -52,7 +59,7 @@ async function main() {
       if (!DRY_RUN) {
         await prisma.inventoryItem.update({
           where: { id: copy.id },
-          data: { templateId: template.id },
+          data: { templateId: template.id, brandId: template.brandId },
         });
       }
       linked++;
