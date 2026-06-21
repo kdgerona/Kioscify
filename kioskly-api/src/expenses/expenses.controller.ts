@@ -212,6 +212,7 @@ export class ExpensesController {
       req.user.tenantId,
       req.user.id,
       requestVoidDto.reason,
+      req.user.role,
     );
   }
 

@@ -338,6 +338,7 @@ export class ExpensesService {
     tenantId: string,
     userId: string,
     reason: string,
+    userRole?: string,
   ) {
     const expense = await this.prisma.expense.findFirst({
       where: { id: expenseId, tenantId },
@@ -357,16 +358,20 @@ export class ExpensesService {
       );
     }
 
+    // Admins bypass review — void is approved immediately
+    const isAdmin = userRole === 'STORE_ADMIN' || userRole === 'ADMIN';
+    const now = new Date();
+
     const updated = await this.prisma.expense.update({
       where: { id: expenseId },
       data: {
-        voidStatus: VoidStatus.PENDING,
+        voidStatus: isAdmin ? VoidStatus.APPROVED : VoidStatus.PENDING,
         voidReason: reason,
         voidRequestedBy: userId,
-        voidRequestedAt: new Date(),
+        voidRequestedAt: now,
         voidRejectionReason: null,
-        voidReviewedBy: null,
-        voidReviewedAt: null,
+        voidReviewedBy: isAdmin ? userId : null,
+        voidReviewedAt: isAdmin ? now : null,
       },
       include: {
         user: {
