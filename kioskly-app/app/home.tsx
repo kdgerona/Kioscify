@@ -21,6 +21,7 @@ import { createTransactionOffline } from "../services/transactionService";
 import { cacheCategories, getCachedCategories, cacheProducts, getCachedProducts } from "../lib/localCache";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
+import { useDeviceType } from "../hooks/useDeviceType";
 
 type Size = {
   id: string;
@@ -96,6 +97,8 @@ type TransactionData = {
   referenceNumber?: string;
 };
 
+const HEADER_MENU_WIDTH = 280;
+
 const generateTransactionId = (): string => {
   const timestamp = Date.now();
   const random = Math.floor(Math.random() * 10000)
@@ -126,6 +129,12 @@ export default function Home() {
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [showQueuedConfirm, setShowQueuedConfirm] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>('regular');
+  const deviceType = useDeviceType();
+  const isPhone = deviceType === 'phone';
+  const [phoneActiveTab, setPhoneActiveTab] = useState<'menu' | 'cart'>('menu');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const headerMenuAnim = useRef(new Animated.Value(HEADER_MENU_WIDTH)).current;
 
   // Fetch categories and products from API, fall back to local cache when offline
   useEffect(() => {
@@ -193,6 +202,14 @@ export default function Home() {
     router.replace("/");
   };
 
+  const closeHeaderMenu = () => {
+    Animated.timing(headerMenuAnim, {
+      toValue: HEADER_MENU_WIDTH,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => setShowHeaderMenu(false));
+  };
+
   if (!tenant || !user) {
     return null; // Will redirect to login or tenant-setup
   }
@@ -212,9 +229,10 @@ export default function Home() {
   const hasGrab = enabledPlatforms.includes('GRAB');
   const showOrderTypeSelector = hasFoodPanda || hasGrab;
 
-  // Resolve logo URL using the app's apiBase — strips any mismatched host from
-  // server-formatted URLs (BASE_URL may differ from the client's EXPO_PUBLIC_API_URL)
+  // Resolve logo/image URLs against the storage origin — strips any mismatched host from
+  // server-formatted URLs (e.g. kioscify.localhost, unreachable from emulators/devices)
   const apiBase =
+    process.env.EXPO_PUBLIC_STORAGE_URL ||
     process.env.EXPO_PUBLIC_API_URL?.replace("/api/v1", "") ||
     "http://localhost:3000";
   const resolveLogoUrl = (raw: string | null | undefined): string | null => {
@@ -337,6 +355,93 @@ export default function Home() {
   const getCategoryName = (categoryId: string): string => {
     const category = categories.find((c) => c.id === categoryId);
     return category ? category.name : "";
+  };
+
+  const orderTypeOptions: {
+    value: OrderType;
+    label: string;
+    color: string;
+    selectedTextColor: string;
+  }[] = [
+    { value: 'regular', label: 'In-store', color: primaryColor, selectedTextColor: '#000000' },
+    ...(hasFoodPanda ? [{ value: 'foodpanda' as OrderType, label: 'FoodPanda', color: '#ec4899', selectedTextColor: '#ffffff' }] : []),
+    ...(hasGrab ? [{ value: 'grab' as OrderType, label: 'Grab', color: '#00B14F', selectedTextColor: '#ffffff' }] : []),
+  ];
+
+  const handleOrderTypeChange = (value: OrderType) => {
+    if (orders.length > 0) {
+      Alert.alert(
+        'Switch Order Type',
+        'Switching order type will clear the current cart. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Switch', style: 'destructive', onPress: () => { setOrders([]); setOrderType(value); } },
+        ]
+      );
+    } else {
+      setOrderType(value);
+    }
+  };
+
+  const renderProductCard = (product: Product, widthClass: string) => {
+    const imageUri = (() => {
+      if (!product.image) return null;
+      try {
+        const path = product.image.startsWith("http")
+          ? new URL(product.image).pathname
+          : product.image;
+        return `${apiBase}${path}`;
+      } catch {
+        return product.image;
+      }
+    })();
+    return (
+      <TouchableOpacity
+        key={product.id}
+        className={widthClass}
+        onPress={() => openCustomizeModal(product)}
+      >
+        <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-64">
+          <View className={`h-40 mb-3 justify-center items-center rounded-lg overflow-hidden${imageUri ? '' : ' bg-gray-100'}`}>
+            {imageUri ? (
+              <Image
+                source={{ uri: imageUri }}
+                className="w-full h-full"
+                resizeMode="contain"
+              />
+            ) : (
+              <Text className="text-gray-500 text-xs">
+                No Image
+              </Text>
+            )}
+          </View>
+          <View className="flex-1">
+            <View className="flex flex-row justify-between">
+              <Text
+                className="font-semibold text-base flex-1 mr-2"
+                style={{ color: textColor }}
+                numberOfLines={1}
+              >
+                {product.name}
+              </Text>
+              <Text
+                className="font-bold text-base"
+                style={{ color: textColor }}
+              >
+                ₱{getEffectiveProductPrice(product).toFixed(2)}
+              </Text>
+            </View>
+            <Text
+              className="text-xs font-medium"
+              style={{ color: textColor }}
+              numberOfLines={1}
+            >
+              {getCategoryName(product.categoryId)}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   // Swipeable Order Item Component
@@ -471,6 +576,59 @@ export default function Home() {
     );
   };
 
+  // Shared cart content reused by the tablet side panel and the phone full-screen cart tab.
+  // On phone the Cart tab is reachable any time (not gated on orders.length like the tablet
+  // side panel is), so this needs its own empty state.
+  const OrdersPanelContent = () => {
+    if (orders.length === 0) {
+      return (
+        <View className="flex-1 justify-center items-center">
+          <Ionicons name="cart-outline" size={40} color="#d1d5db" />
+          <Text className="text-gray-500 mt-2">Cart is empty</Text>
+        </View>
+      );
+    }
+
+    return (
+    <>
+      <Text className="text-lg font-bold mb-4" style={{ color: textColor }}>
+        Orders
+      </Text>
+      <ScrollView className="flex-1">
+        {orders.map((item) => (
+          <SwipeableOrderItem
+            key={item.id}
+            item={item}
+            onRemove={removeFromOrder}
+            onUpdateQuantity={updateQuantity}
+          />
+        ))}
+      </ScrollView>
+
+      {/* Total and Checkout */}
+      <View className="border-t border-gray-200 pt-4 mt-4">
+        <View className="flex-row justify-between mb-4">
+          <Text className="text-xl font-bold" style={{ color: textColor }}>
+            Total:
+          </Text>
+          <Text className="text-xl font-bold" style={{ color: textColor }}>
+            ₱{totalAmount.toFixed(2)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          className="rounded-lg py-3 items-center"
+          style={{ backgroundColor: primaryColor }}
+          onPress={handleCheckout}
+        >
+          <Text className="text-lg font-bold" style={{ color: textColor }}>
+            Checkout
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </>
+    );
+  };
+
   const handleCheckout = () => {
     if (orders.length === 0) {
       return;
@@ -587,6 +745,7 @@ export default function Home() {
     setShowTransactionSummary(false);
     setCurrentTransaction(null);
     setOrders([]);
+    setPhoneActiveTab('menu');
   };
 
   return (
@@ -613,283 +772,460 @@ export default function Home() {
 
       {/* Header */}
       <View
-        className="px-6 py-4 flex-row justify-between items-center"
+        className={isPhone ? "px-4 py-3 flex-row justify-between items-center" : "px-6 py-4 flex-row justify-between items-center"}
         style={{ backgroundColor: backgroundColor }}
       >
-        <View className="flex-row items-center">
+        <View className="flex-row items-center flex-1 mr-2">
           {logoUri && (
             <Image
               source={{ uri: logoUri }}
-              className="w-12 h-12 mr-3 rounded-lg"
+              className={isPhone ? "w-9 h-9 mr-2 rounded-lg" : "w-12 h-12 mr-3 rounded-lg"}
               resizeMode="contain"
             />
           )}
-          <View>
-            <Text className="text-2xl font-bold" style={{ color: textColor }}>
+          <View className="flex-1">
+            <Text
+              className="text-2xl font-bold"
+              numberOfLines={1}
+              style={{ color: textColor }}
+            >
               {tenant.name}
             </Text>
           </View>
         </View>
-        <View className="flex-row gap-6">
-          <TouchableOpacity
-            className="p-2"
-            onPress={() => router.push("/transactions" as Href)}
-          >
-            <Ionicons name="receipt-outline" size={24} color={textColor} />
+        {isPhone ? (
+          <TouchableOpacity className="p-2" onPress={() => setShowHeaderMenu(true)}>
+            <Ionicons name="menu" size={28} color={textColor} />
           </TouchableOpacity>
-          <TouchableOpacity
-            className="p-2"
-            onPress={() => router.push("/expenses" as Href)}
-          >
-            <Ionicons name="wallet-outline" size={24} color={textColor} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="p-2"
-            onPress={() => router.push("/inventory" as Href)}
-          >
-            <Ionicons name="cube-outline" size={24} color={textColor} />
-          </TouchableOpacity>
-          <View className="w-px bg-black self-stretch" />
-          <TouchableOpacity
-            className="p-2"
-            onPress={() => router.push("/settings" as Href)}
-          >
-            <Ionicons name="settings-outline" size={24} color={textColor} />
-          </TouchableOpacity>
-          <View className="w-px bg-black self-stretch mx-2" />
-          <TouchableOpacity className="p-2" onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color={textColor} />
-          </TouchableOpacity>
-        </View>
+        ) : (
+          <View className="flex-row items-center gap-6">
+            <TouchableOpacity
+              className="p-2"
+              onPress={() => router.push("/transactions" as Href)}
+            >
+              <Ionicons name="receipt-outline" size={24} color={textColor} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="p-2"
+              onPress={() => router.push("/expenses" as Href)}
+            >
+              <Ionicons name="wallet-outline" size={24} color={textColor} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="p-2"
+              onPress={() => router.push("/inventory" as Href)}
+            >
+              <Ionicons name="cube-outline" size={24} color={textColor} />
+            </TouchableOpacity>
+            <View className="w-px bg-black self-stretch" />
+            <TouchableOpacity
+              className="p-2"
+              onPress={() => router.push("/settings" as Href)}
+            >
+              <Ionicons name="settings-outline" size={24} color={textColor} />
+            </TouchableOpacity>
+            <View className="w-px bg-black self-stretch mx-2" />
+            <TouchableOpacity className="p-2" onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color={textColor} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      {/* Main Content */}
-      <View className="flex-1 flex-row">
-        {/* Category Panel */}
-        <View className="w-1/5 bg-white border-r border-gray-200 p-4">
-          {/* Order Type Selector */}
-          {showOrderTypeSelector && (
-            <>
-              <Text className="text-base font-bold mb-4" style={{ color: textColor }}>
-                Order Type
-              </Text>
-              {([
-                { value: 'regular' as OrderType, label: 'In-store', color: primaryColor, selectedTextColor: '#000000' },
-                ...(hasFoodPanda ? [{ value: 'foodpanda' as OrderType, label: 'FoodPanda', color: '#ec4899', selectedTextColor: '#ffffff' }] : []),
-                ...(hasGrab ? [{ value: 'grab' as OrderType, label: 'Grab', color: '#00B14F', selectedTextColor: '#ffffff' }] : []),
-              ]).map((opt) => (
+      {/* Header Menu (phone only) — slide-in side panel */}
+      <Modal
+        visible={showHeaderMenu}
+        transparent
+        animationType="none"
+        onRequestClose={closeHeaderMenu}
+        onShow={() => {
+          headerMenuAnim.setValue(HEADER_MENU_WIDTH);
+          Animated.timing(headerMenuAnim, {
+            toValue: 0,
+            duration: 220,
+            useNativeDriver: true,
+          }).start();
+        }}
+      >
+        <View style={{ flex: 1, flexDirection: 'row' }}>
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }}
+            activeOpacity={1}
+            onPress={closeHeaderMenu}
+          />
+          <Animated.View
+            style={{
+              width: HEADER_MENU_WIDTH,
+              backgroundColor: 'white',
+              transform: [{ translateX: headerMenuAnim }],
+            }}
+          >
+            <AppSafeAreaView style={{ flex: 1 }}>
+              <View className="px-4 py-4 flex-row items-center justify-between border-b border-gray-100">
+                <Text className="text-lg font-bold" style={{ color: textColor }}>
+                  Menu
+                </Text>
+                <TouchableOpacity onPress={closeHeaderMenu} className="p-1">
+                  <Ionicons name="close" size={24} color={textColor} />
+                </TouchableOpacity>
+              </View>
+              {[
+                { icon: 'receipt-outline' as const, label: 'Transactions', onPress: () => router.push("/transactions" as Href) },
+                { icon: 'wallet-outline' as const, label: 'Expenses', onPress: () => router.push("/expenses" as Href) },
+                { icon: 'cube-outline' as const, label: 'Inventory', onPress: () => router.push("/inventory" as Href) },
+                { icon: 'settings-outline' as const, label: 'Settings', onPress: () => router.push("/settings" as Href) },
+              ].map((item) => (
                 <TouchableOpacity
-                  key={opt.value}
-                  className="p-3 rounded-lg mb-2"
-                  style={{ backgroundColor: orderType === opt.value ? opt.color : '#f3f4f6' }}
+                  key={item.label}
+                  className="flex-row items-center px-4 py-4"
+                  style={{ borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}
                   onPress={() => {
-                    if (orders.length > 0) {
-                      Alert.alert(
-                        'Switch Order Type',
-                        'Switching order type will clear the current cart. Continue?',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Switch', style: 'destructive', onPress: () => { setOrders([]); setOrderType(opt.value); } },
-                        ]
-                      );
-                    } else {
-                      setOrderType(opt.value);
-                    }
+                    closeHeaderMenu();
+                    item.onPress();
                   }}
                 >
+                  <Ionicons name={item.icon} size={22} color={textColor} />
+                  <Text className="text-base font-medium ml-3" style={{ color: textColor }}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                className="flex-row items-center px-4 py-4 mt-auto border-t border-gray-100"
+                onPress={() => {
+                  closeHeaderMenu();
+                  handleLogout();
+                }}
+              >
+                <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+                <Text className="text-base font-medium ml-3" style={{ color: '#ef4444' }}>
+                  Log Out
+                </Text>
+              </TouchableOpacity>
+            </AppSafeAreaView>
+          </Animated.View>
+        </View>
+      </Modal>
+
+      {/* Main Content */}
+      {isPhone ? (
+        <View className="flex-1">
+          {phoneActiveTab === 'menu' && showOrderTypeSelector && (
+            <View className="flex-row gap-2 px-4 pt-3">
+              {orderTypeOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  className="flex-1 p-2.5 rounded-lg items-center"
+                  style={{ backgroundColor: orderType === opt.value ? opt.color : '#f3f4f6' }}
+                  onPress={() => handleOrderTypeChange(opt.value)}
+                >
                   <Text
-                    className="font-semibold"
+                    className="font-semibold text-sm"
                     style={{ color: orderType === opt.value ? opt.selectedTextColor : textColor }}
                   >
                     {opt.label}
                   </Text>
                 </TouchableOpacity>
               ))}
-              <View style={{ borderTopWidth: 1, borderTopColor: '#e5e7eb', marginTop: 8, marginBottom: 12 }} />
-            </>
-          )}
-          <Text className="text-base font-bold mb-4" style={{ color: textColor }}>
-            Categories
-          </Text>
-          <ScrollView style={{ flex: 1 }}>
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                className="p-3 rounded-lg mb-2"
-                style={{
-                  backgroundColor:
-                    selectedCategory === category.id ? primaryColor : "#f3f4f6",
-                }}
-                onPress={() => setSelectedCategory(category.id)}
-              >
-                <Text
-                  className="font-semibold"
-                  style={{
-                    color:
-                      selectedCategory === category.id ? "black" : textColor,
-                  }}
-                >
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <View
-            style={{
-              paddingTop: 12,
-              marginTop: 8,
-              borderTopWidth: 1,
-              borderTopColor: "#f3f4f6",
-              alignItems: "center",
-              flexDirection: "row",
-              justifyContent: "center",
-              gap: 6,
-            }}
-          >
-            <Image
-              source={require("../assets/images/logo-with-appname.png")}
-              style={{ width: 20, height: 20 }}
-              resizeMode="contain"
-            />
-            <Text style={{ fontSize: 11, color: "#9ca3af" }}>
-              Powered by{" "}
-              <Text style={{ fontWeight: "600", color: "#4b5563" }}>
-                Kioscify
-              </Text>
-            </Text>
-          </View>
-        </View>
-
-        {/* Products Panel */}
-        <View className={orders.length > 0 ? "w-2/5 p-4" : "flex-1 p-4"}>
-          <Text className="text-lg font-bold mb-4" style={{ color: textColor }}>
-            Products
-          </Text>
-          {isLoadingData ? (
-            <View className="flex-1 justify-center items-center">
-              <ActivityIndicator size="large" color={primaryColor} />
-              <Text className="mt-2 text-gray-500">Loading products...</Text>
             </View>
-          ) : (
-            <ScrollView>
-              <View className="flex-row flex-wrap">
-                {filteredProducts.map((product) => {
-                  const imageUri = (() => {
-                    if (!product.image) return null;
-                    try {
-                      const path = product.image.startsWith("http")
-                        ? new URL(product.image).pathname
-                        : product.image;
-                      return `${apiBase}${path}`;
-                    } catch {
-                      return product.image;
-                    }
-                  })();
-                  return (
-                    <TouchableOpacity
-                      key={product.id}
-                      className={orders.length > 0 ? "w-1/2 p-2" : "w-1/3 p-2"}
-                      onPress={() => openCustomizeModal(product)}
-                    >
-                      <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-64">
-                        <View className={`h-40 mb-3 justify-center items-center rounded-lg overflow-hidden${imageUri ? '' : ' bg-gray-100'}`}>
-                          {imageUri ? (
-                            <Image
-                              source={{ uri: imageUri }}
-                              className="w-full h-full"
-                              resizeMode="contain"
-                            />
-                          ) : (
-                            <Text className="text-gray-500 text-xs">
-                              No Image
-                            </Text>
-                          )}
-                        </View>
-                        <View className="flex-1">
-                          <View className="flex flex-row justify-between">
-                            <Text
-                              className="font-semibold text-base flex-1 mr-2"
-                              style={{ color: textColor }}
-                              numberOfLines={1}
-                            >
-                              {product.name}
-                            </Text>
-                            <Text
-                              className="font-bold"
-                              style={{ color: textColor }}
-                            >
-                              ₱{getEffectiveProductPrice(product).toFixed(2)}
-                            </Text>
-                          </View>
-                          <Text
-                            className="text-xs font-medium"
-                            style={{ color: textColor }}
-                            numberOfLines={1}
-                          >
-                            {getCategoryName(product.categoryId)}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </ScrollView>
           )}
-        </View>
 
-        {/* Orders Panel - Only shows if there are orders */}
-        {orders.length > 0 && (
-          <View className="w-2/5 bg-white border-l border-gray-200 p-4">
-            <Text
-              className="text-lg font-bold mb-4"
-              style={{ color: textColor }}
+          {phoneActiveTab === 'menu' && (
+            <View className="px-4 pt-3 pb-1">
+              <TouchableOpacity
+                className="flex-row items-center justify-between p-3 rounded-lg"
+                style={{ backgroundColor: "#f3f4f6" }}
+                onPress={() => setShowCategoryDropdown(true)}
+              >
+                <Text className="font-semibold text-base" style={{ color: textColor }}>
+                  {getCategoryName(selectedCategory) || "Select Category"}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color={textColor} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {phoneActiveTab === 'menu' ? (
+            isLoadingData ? (
+              <View className="flex-1 justify-center items-center">
+                <ActivityIndicator size="large" color={primaryColor} />
+                <Text className="mt-2 text-gray-500">Loading products...</Text>
+              </View>
+            ) : (
+              <ScrollView className="px-2 flex-1">
+                <View className="flex-row flex-wrap">
+                  {filteredProducts.map((product) => renderProductCard(product, "w-1/2 p-2"))}
+                </View>
+              </ScrollView>
+            )
+          ) : (
+            <View className="flex-1 px-4 pt-2 pb-3">
+              <OrdersPanelContent />
+            </View>
+          )}
+
+          {/* Bottom Tab Bar */}
+          <View className="flex-row border-t border-gray-200 bg-white">
+            <TouchableOpacity
+              className="flex-1 items-center py-2"
+              onPress={() => setPhoneActiveTab('menu')}
             >
-              Orders
-            </Text>
-            <ScrollView className="flex-1">
-              {orders.map((item) => (
-                <SwipeableOrderItem
-                  key={item.id}
-                  item={item}
-                  onRemove={removeFromOrder}
-                  onUpdateQuantity={updateQuantity}
+              <Ionicons
+                name="grid-outline"
+                size={22}
+                color={phoneActiveTab === 'menu' ? textColor : '#9ca3af'}
+              />
+              <Text
+                className="text-xs mt-1"
+                style={{
+                  color: phoneActiveTab === 'menu' ? textColor : '#9ca3af',
+                  fontWeight: phoneActiveTab === 'menu' ? '700' : '400',
+                }}
+              >
+                Menu
+              </Text>
+              <View
+                style={{
+                  width: 24,
+                  height: 3,
+                  borderRadius: 2,
+                  marginTop: 4,
+                  backgroundColor: primaryColor,
+                  opacity: phoneActiveTab === 'menu' ? 1 : 0,
+                }}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 items-center py-2"
+              onPress={() => setPhoneActiveTab('cart')}
+            >
+              <View>
+                <Ionicons
+                  name="cart-outline"
+                  size={22}
+                  color={phoneActiveTab === 'cart' ? textColor : '#9ca3af'}
                 />
+                {orders.length > 0 && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -10,
+                      backgroundColor: '#ef4444',
+                      borderRadius: 8,
+                      minWidth: 16,
+                      height: 16,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 3,
+                    }}
+                  >
+                    <Text style={{ color: 'white', fontSize: 10, fontWeight: '700' }}>
+                      {orders.length}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                className="text-xs mt-1"
+                style={{
+                  color: phoneActiveTab === 'cart' ? textColor : '#9ca3af',
+                  fontWeight: phoneActiveTab === 'cart' ? '700' : '400',
+                }}
+              >
+                Cart
+              </Text>
+              <View
+                style={{
+                  width: 24,
+                  height: 3,
+                  borderRadius: 2,
+                  marginTop: 4,
+                  backgroundColor: primaryColor,
+                  opacity: phoneActiveTab === 'cart' ? 1 : 0,
+                }}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="flex-1 items-center py-2"
+              disabled={orders.length === 0}
+              onPress={handleCheckout}
+            >
+              <Ionicons
+                name="card-outline"
+                size={22}
+                color={orders.length === 0 ? '#d1d5db' : textColor}
+              />
+              <Text
+                className="text-xs mt-1"
+                style={{ color: orders.length === 0 ? '#d1d5db' : textColor }}
+              >
+                Pay
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Category Dropdown List */}
+          <Modal
+            visible={showCategoryDropdown}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowCategoryDropdown(false)}
+          >
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center' }}
+              activeOpacity={1}
+              onPress={() => setShowCategoryDropdown(false)}
+            >
+              <View
+                style={{
+                  backgroundColor: 'white',
+                  marginHorizontal: 16,
+                  borderRadius: 12,
+                  maxHeight: '60%',
+                  overflow: 'hidden',
+                }}
+              >
+                <ScrollView>
+                  {categories.map((category) => (
+                    <TouchableOpacity
+                      key={category.id}
+                      className="p-4 border-b border-gray-100"
+                      style={{
+                        backgroundColor:
+                          selectedCategory === category.id ? primaryColor : 'white',
+                      }}
+                      onPress={() => {
+                        setSelectedCategory(category.id);
+                        setShowCategoryDropdown(false);
+                      }}
+                    >
+                      <Text
+                        className="font-semibold text-base"
+                        style={{
+                          color: selectedCategory === category.id ? 'black' : textColor,
+                        }}
+                      >
+                        {category.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        </View>
+      ) : (
+        <View className="flex-1 flex-row">
+          {/* Category Panel */}
+          <View className="w-1/5 bg-white border-r border-gray-200 p-4">
+            {/* Order Type + Categories share one scrollable region so a short
+                viewport (e.g. landscape phone) can still reach every category
+                instead of Order Type claiming a fixed slice outside the scroll area. */}
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12 }}>
+              {showOrderTypeSelector && (
+                <>
+                  <Text className="text-base font-bold mb-4" style={{ color: textColor }}>
+                    Order Type
+                  </Text>
+                  {orderTypeOptions.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      className="p-3 rounded-lg mb-2"
+                      style={{ backgroundColor: orderType === opt.value ? opt.color : '#f3f4f6' }}
+                      onPress={() => handleOrderTypeChange(opt.value)}
+                    >
+                      <Text
+                        className="font-semibold"
+                        style={{ color: orderType === opt.value ? opt.selectedTextColor : textColor }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  <View style={{ borderTopWidth: 1, borderTopColor: '#e5e7eb', marginTop: 8, marginBottom: 12 }} />
+                </>
+              )}
+              <Text className="text-base font-bold mb-4" style={{ color: textColor }}>
+                Categories
+              </Text>
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  className="p-3 rounded-lg mb-2"
+                  style={{
+                    backgroundColor:
+                      selectedCategory === category.id ? primaryColor : "#f3f4f6",
+                  }}
+                  onPress={() => setSelectedCategory(category.id)}
+                >
+                  <Text
+                    className="font-semibold"
+                    style={{
+                      color:
+                        selectedCategory === category.id ? "black" : textColor,
+                    }}
+                  >
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
               ))}
             </ScrollView>
-
-            {/* Total and Checkout */}
-            <View className="border-t border-gray-200 pt-4 mt-4">
-              <View className="flex-row justify-between mb-4">
-                <Text
-                  className="text-xl font-bold"
-                  style={{ color: textColor }}
-                >
-                  Total:
+            <View
+              style={{
+                paddingTop: 12,
+                marginTop: 8,
+                borderTopWidth: 1,
+                borderTopColor: "#f3f4f6",
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              <Image
+                source={require("../assets/images/logo-with-appname.png")}
+                style={{ width: 20, height: 20 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 11, color: "#9ca3af" }}>
+                Powered by{" "}
+                <Text style={{ fontWeight: "600", color: "#4b5563" }}>
+                  Kioscify
                 </Text>
-                <Text
-                  className="text-xl font-bold"
-                  style={{ color: textColor }}
-                >
-                  ₱{totalAmount.toFixed(2)}
-                </Text>
-              </View>
-              <TouchableOpacity
-                className="rounded-lg py-3 items-center"
-                style={{ backgroundColor: primaryColor }}
-                onPress={handleCheckout}
-              >
-                <Text
-                  className="text-lg font-bold"
-                  style={{ color: textColor }}
-                >
-                  Checkout
-                </Text>
-              </TouchableOpacity>
+              </Text>
             </View>
           </View>
-        )}
-      </View>
+
+          {/* Products Panel */}
+          <View className={orders.length > 0 ? "w-2/5 p-4" : "flex-1 p-4"}>
+            <Text className="text-lg font-bold mb-4" style={{ color: textColor }}>
+              Products
+            </Text>
+            {isLoadingData ? (
+              <View className="flex-1 justify-center items-center">
+                <ActivityIndicator size="large" color={primaryColor} />
+                <Text className="mt-2 text-gray-500">Loading products...</Text>
+              </View>
+            ) : (
+              <ScrollView>
+                <View className="flex-row flex-wrap">
+                  {filteredProducts.map((product) =>
+                    renderProductCard(product, orders.length > 0 ? "w-1/2 p-2" : "w-1/3 p-2"),
+                  )}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+
+          {/* Orders Panel - Only shows if there are orders */}
+          {orders.length > 0 && (
+            <View className="w-2/5 bg-white border-l border-gray-200 p-4">
+              <OrdersPanelContent />
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Customize Product Modal */}
       <Modal

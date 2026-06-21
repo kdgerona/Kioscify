@@ -29,12 +29,14 @@ import {
   getPaymentMethodBadgeStyle,
 } from "../utils/paymentMethod";
 import { formatUserName } from "../utils/formatUserName";
+import { useDeviceType } from "../hooks/useDeviceType";
 
 export default function Transactions() {
   const router = useRouter();
   const { tenant, brand } = useTenant();
   const { user } = useAuth();
   const { pendingCount } = useSync();
+  const isPhone = useDeviceType() === 'phone';
   const [transactions, setTransactions] = useState<
     (TransactionResponse & { pendingSync?: boolean })[]
   >([]);
@@ -315,6 +317,7 @@ export default function Transactions() {
         </View>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <TouchableOpacity
+            accessibilityLabel="Shift Sales Report"
             style={{
               backgroundColor: primaryColor,
               flexDirection: "row",
@@ -327,11 +330,14 @@ export default function Transactions() {
             onPress={handleShiftReport}
           >
             <Ionicons name="person-circle-outline" size={18} color="#000000" />
-            <Text className="font-semibold text-black ml-1.5">
-              Shift Sales Report
-            </Text>
+            {!isPhone && (
+              <Text className="font-semibold text-black ml-1.5">
+                Shift Sales Report
+              </Text>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
+            accessibilityLabel="Sales Report"
             style={{
               backgroundColor: primaryColor,
               flexDirection: "row",
@@ -344,7 +350,9 @@ export default function Transactions() {
             onPress={handleGenerateReport}
           >
             <Ionicons name="document-text" size={18} color="#000000" />
-            <Text className="font-semibold text-black ml-1.5">Sales Report</Text>
+            {!isPhone && (
+              <Text className="font-semibold text-black ml-1.5">Sales Report</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>

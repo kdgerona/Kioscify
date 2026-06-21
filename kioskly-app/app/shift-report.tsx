@@ -36,6 +36,7 @@ import { useSync } from "../contexts/SyncContext";
 import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paymentMethod";
 import { formatUserName } from "../utils/formatUserName";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
+import { useDeviceType } from "../hooks/useDeviceType";
 
 // Build a DailyReportResponse from locally cached transactions and expenses,
 // filtered to the current user's records only.
@@ -107,6 +108,7 @@ export default function ShiftReport() {
   const { tenant, brand } = useTenant();
   const { isOnline, triggerSync } = useSync();
   const { user } = useAuth();
+  const isPhone = useDeviceType() === 'phone';
   const [reportData, setReportData] = useState<DailyReportResponse | null>(null);
   const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
   const [expenses, setExpenses] = useState<ExpenseResponse[]>([]);
@@ -220,6 +222,16 @@ export default function ShiftReport() {
   const primaryColor = brand?.themeColors?.primary ?? tenant.themeColors?.primary ?? "#ea580c";
   const textColor = brand?.themeColors?.text ?? tenant.themeColors?.text ?? "#1f2937";
   const backgroundColor = brand?.themeColors?.background ?? tenant.themeColors?.background ?? "#ffffff";
+
+  // This report was designed for a wide tablet layout; on phone the same sizes/padding
+  // read as oversized, so scale section chrome, headers, and amounts down a step.
+  const sectionClass = isPhone ? "rounded-lg p-4 mb-4" : "rounded-lg p-5 mb-6";
+  const sectionHeaderClass = isPhone ? "text-base font-bold mb-3" : "text-xl font-bold mb-4";
+  const primaryAmountSize = isPhone ? "text-xl" : "text-2xl";
+  const rowLabelSize = isPhone ? "text-sm" : "text-lg";
+  const secondaryAmountSize = isPhone ? "text-base" : "text-lg";
+  const subHeaderSize = isPhone ? "text-sm" : "text-base";
+  const bodyTextSize = isPhone ? "text-sm" : "text-base";
 
   const formatCurrency = (amount: number) => `₱${amount.toFixed(2)}`;
 
@@ -374,6 +386,7 @@ export default function ShiftReport() {
         </View>
         {!isLoading && reportData && (
           <TouchableOpacity
+            accessibilityLabel="Submit Report"
             onPress={handleSubmitReport}
             disabled={isSubmitting}
             className="ml-2 px-4 py-2 rounded-lg"
@@ -387,7 +400,9 @@ export default function ShiftReport() {
             ) : (
               <View className="flex-row items-center">
                 <Ionicons name="cloud-upload" size={20} color="#000000" />
-                <Text className="text-black font-semibold ml-2">Submit</Text>
+                {!isPhone && (
+                  <Text className="text-black font-semibold ml-2">Submit Report</Text>
+                )}
               </View>
             )}
           </TouchableOpacity>
@@ -463,19 +478,19 @@ export default function ShiftReport() {
           <View>
             {/* Summary Section */}
             <View
-              className="rounded-lg p-5 mb-6"
+              className={sectionClass}
               style={{
                 backgroundColor: reportData.summary.grossProfit >= 0 ? "#d1fae5" : "#fee2e2",
                 borderWidth: 2,
                 borderColor: reportData.summary.grossProfit >= 0 ? "#10b981" : "#ef4444",
               }}
             >
-              <Text className="text-xl font-bold mb-4 text-gray-900">📊 Summary</Text>
+              <Text className={`${sectionHeaderClass} text-gray-900`}>📊 Summary</Text>
               <View className="space-y-3">
                 <View className="flex-row justify-between items-center py-3">
-                  <Text className="text-lg font-semibold text-gray-800">Gross Profit:</Text>
+                  <Text className={`${rowLabelSize} font-semibold text-gray-800`}>Gross Profit:</Text>
                   <Text
-                    className="text-2xl font-bold"
+                    className={`${primaryAmountSize} font-bold`}
                     style={{ color: reportData.summary.grossProfit >= 0 ? "#059669" : "#dc2626" }}
                   >
                     {formatCurrency(reportData.summary.grossProfit)}
@@ -489,33 +504,33 @@ export default function ShiftReport() {
               const cashSales = reportData.sales.paymentMethodBreakdown["CASH"]?.total ?? 0;
               const netCash = cashSales - reportData.expenses.totalAmount;
               return (
-                <View className="bg-green-50 rounded-lg p-5 mb-6 border-2 border-green-300">
-                  <Text className="text-xl font-bold mb-4 text-green-900">💵 Cash Summary</Text>
+                <View className={`bg-green-50 border-2 border-green-300 ${sectionClass}`}>
+                  <Text className={`${sectionHeaderClass} text-green-900`}>💵 Cash Summary</Text>
                   <View className="space-y-3">
                     <View className="flex-row justify-between items-center py-3 border-b-2 border-green-400">
-                      <Text className="text-lg font-semibold text-green-800">Cash Sales:</Text>
-                      <Text className="text-2xl font-bold" style={{ color: textColor }}>
+                      <Text className={`${rowLabelSize} font-semibold text-green-800`}>Cash Sales:</Text>
+                      <Text className={`${primaryAmountSize} font-bold`} style={{ color: textColor }}>
                         {formatCurrency(cashSales)}
                       </Text>
                     </View>
                     <View className="mt-2">
-                      <Text className="text-base font-bold mb-2 text-red-700">Deducted Expenses:</Text>
+                      <Text className={`${subHeaderSize} font-bold mb-2 text-red-700`}>Deducted Expenses:</Text>
                       {expenses.length > 0 ? expenses.map((expense) => (
                         <View key={expense.id} className="flex-row justify-between items-center py-2 px-3 bg-white rounded-lg mb-2">
-                          <Text className="text-base text-red-600 flex-1 mr-2">{expense.description}</Text>
-                          <Text className="text-base font-semibold text-red-600">-{formatCurrency(expense.amount)}</Text>
+                          <Text className={`${bodyTextSize} text-red-600 flex-1 mr-2`}>{expense.description}</Text>
+                          <Text className={`${bodyTextSize} font-semibold text-red-600`}>-{formatCurrency(expense.amount)}</Text>
                         </View>
                       )) : (
                         <View className="flex-row justify-between items-center py-2 px-3 bg-white rounded-lg mb-2">
-                          <Text className="text-base text-gray-400 italic flex-1 mr-2">No expenses</Text>
-                          <Text className="text-base font-semibold text-gray-400">-{formatCurrency(0)}</Text>
+                          <Text className={`${bodyTextSize} text-gray-400 italic flex-1 mr-2`}>No expenses</Text>
+                          <Text className={`${bodyTextSize} font-semibold text-gray-400`}>-{formatCurrency(0)}</Text>
                         </View>
                       )}
                     </View>
                     <View className="flex-row justify-between items-center py-3 border-t-2 border-green-400">
-                      <Text className="text-lg font-semibold text-green-800">Net Cash:</Text>
+                      <Text className={`${rowLabelSize} font-semibold text-green-800`}>Net Cash:</Text>
                       <Text
-                        className="text-2xl font-bold"
+                        className={`${primaryAmountSize} font-bold`}
                         style={{ color: netCash >= 0 ? "#059669" : "#dc2626" }}
                       >
                         {formatCurrency(netCash)}
@@ -527,19 +542,19 @@ export default function ShiftReport() {
             })()}
 
             {/* Sales Section */}
-            <View className="bg-blue-50 rounded-lg p-5 mb-6 border-2 border-blue-300">
-              <Text className="text-xl font-bold mb-4 text-blue-900">💰 Sales</Text>
+            <View className={`bg-blue-50 border-2 border-blue-300 ${sectionClass}`}>
+              <Text className={`${sectionHeaderClass} text-blue-900`}>💰 Sales</Text>
               <View className="space-y-3">
                 <View className="flex-row justify-between items-center py-3 border-b-2 border-blue-400">
-                  <Text className="text-lg font-semibold text-blue-800">Total Sales:</Text>
-                  <Text className="text-2xl font-bold" style={{ color: textColor }}>
+                  <Text className={`${rowLabelSize} font-semibold text-blue-800`}>Total Sales:</Text>
+                  <Text className={`${primaryAmountSize} font-bold`} style={{ color: textColor }}>
                     {formatCurrency(reportData.sales.totalAmount)}
                   </Text>
                 </View>
 
                 {Object.keys(reportData.sales.paymentMethodBreakdown).length > 0 && (
                   <View className="mt-3">
-                    <Text className="text-base font-bold mb-3 text-blue-900">
+                    <Text className={`${subHeaderSize} font-bold mb-3 text-blue-900`}>
                       Payment Method Breakdown:
                     </Text>
                     {Object.entries(reportData.sales.paymentMethodBreakdown).map(([method, data]) => (
@@ -548,12 +563,12 @@ export default function ShiftReport() {
                         className="flex-row justify-between items-center py-3 px-4 bg-white rounded-lg mb-2 border border-blue-200"
                       >
                         <View className="flex-1">
-                          <Text className="text-base font-semibold text-blue-900">{method}</Text>
+                          <Text className={`${subHeaderSize} font-semibold text-blue-900`}>{method}</Text>
                           <Text className="text-xs text-blue-600 mt-1">
                             {data.count} {data.count === 1 ? "transaction" : "transactions"}
                           </Text>
                         </View>
-                        <Text className="text-lg font-bold text-blue-900">
+                        <Text className={`${secondaryAmountSize} font-bold text-blue-900`}>
                           {formatCurrency(data.total)}
                         </Text>
                       </View>
@@ -563,20 +578,20 @@ export default function ShiftReport() {
 
                 <View className="border-t-2 border-blue-400 pt-3 mt-3">
                   <View className="flex-row justify-between items-center py-2">
-                    <Text className="text-base text-blue-700">Total Transactions:</Text>
-                    <Text className="text-lg font-semibold text-blue-900">
+                    <Text className={`${bodyTextSize} text-blue-700`}>Total Transactions:</Text>
+                    <Text className={`${secondaryAmountSize} font-semibold text-blue-900`}>
                       {reportData.sales.transactionCount}
                     </Text>
                   </View>
                   <View className="flex-row justify-between items-center py-2">
-                    <Text className="text-base text-blue-700">Items Sold:</Text>
-                    <Text className="text-lg font-semibold text-blue-900">
+                    <Text className={`${bodyTextSize} text-blue-700`}>Items Sold:</Text>
+                    <Text className={`${secondaryAmountSize} font-semibold text-blue-900`}>
                       {reportData.sales.totalItemsSold}
                     </Text>
                   </View>
                   <View className="flex-row justify-between items-center py-2">
-                    <Text className="text-base text-blue-700">Avg Transaction:</Text>
-                    <Text className="text-lg font-semibold text-blue-900">
+                    <Text className={`${bodyTextSize} text-blue-700`}>Avg Transaction:</Text>
+                    <Text className={`${secondaryAmountSize} font-semibold text-blue-900`}>
                       {formatCurrency(reportData.sales.averageTransaction)}
                     </Text>
                   </View>
@@ -585,25 +600,25 @@ export default function ShiftReport() {
             </View>
 
             {/* Expenses Section */}
-            <View className="bg-red-50 rounded-lg p-5 mb-6 border-2 border-red-300">
-              <Text className="text-xl font-bold mb-4 text-red-900">💸 Expenses</Text>
+            <View className={`bg-red-50 border-2 border-red-300 ${sectionClass}`}>
+              <Text className={`${sectionHeaderClass} text-red-900`}>💸 Expenses</Text>
               <View className="space-y-3">
                 <View className="flex-row justify-between items-center py-3 border-b border-red-300">
-                  <Text className="text-lg font-semibold text-red-800">Total Expenses:</Text>
-                  <Text className="text-2xl font-bold" style={{ color: textColor }}>
+                  <Text className={`${rowLabelSize} font-semibold text-red-800`}>Total Expenses:</Text>
+                  <Text className={`${primaryAmountSize} font-bold`} style={{ color: textColor }}>
                     {formatCurrency(reportData.expenses.totalAmount)}
                   </Text>
                 </View>
                 <View className="flex-row justify-between items-center py-2">
-                  <Text className="text-base text-red-700">Expense Count:</Text>
-                  <Text className="text-lg font-semibold text-red-900">
+                  <Text className={`${bodyTextSize} text-red-700`}>Expense Count:</Text>
+                  <Text className={`${secondaryAmountSize} font-semibold text-red-900`}>
                     {reportData.expenses.expenseCount}
                   </Text>
                 </View>
                 {reportData.expenses.expenseCount > 0 && (
                   <View className="flex-row justify-between items-center py-2">
-                    <Text className="text-base text-red-700">Avg Expense:</Text>
-                    <Text className="text-lg font-semibold text-red-900">
+                    <Text className={`${bodyTextSize} text-red-700`}>Avg Expense:</Text>
+                    <Text className={`${secondaryAmountSize} font-semibold text-red-900`}>
                       {formatCurrency(reportData.expenses.averageExpense)}
                     </Text>
                   </View>
@@ -611,16 +626,16 @@ export default function ShiftReport() {
 
                 {Object.keys(reportData.expenses.categoryBreakdown).length > 0 && (
                   <View className="mt-4 pt-4 border-t border-red-300">
-                    <Text className="text-base font-bold mb-3 text-red-900">Categories:</Text>
+                    <Text className={`${subHeaderSize} font-bold mb-3 text-red-900`}>Categories:</Text>
                     {Object.entries(reportData.expenses.categoryBreakdown).map(([category, data]) => (
                       <View
                         key={category}
                         className="flex-row justify-between items-center py-2 px-3 bg-white rounded-lg mb-2"
                       >
-                        <Text className="text-base text-red-700">
+                        <Text className={`${bodyTextSize} text-red-700`}>
                           {category} ({data.count}):
                         </Text>
-                        <Text className="text-base font-semibold text-red-900">
+                        <Text className={`${bodyTextSize} font-semibold text-red-900`}>
                           {formatCurrency(data.total)}
                         </Text>
                       </View>
@@ -631,8 +646,8 @@ export default function ShiftReport() {
             </View>
 
             {/* Transactions List */}
-            <View className="bg-white rounded-lg p-5 mb-6 border-2 border-gray-300">
-              <Text className="text-xl font-bold mb-4 text-gray-900">
+            <View className={`bg-white border-2 border-gray-300 ${sectionClass}`}>
+              <Text className={`${sectionHeaderClass} text-gray-900`}>
                 📋 My Transactions ({transactions.length})
               </Text>
 
@@ -647,10 +662,10 @@ export default function ShiftReport() {
                       <View className="py-3">
                         <View className="flex-row justify-between items-start mb-2">
                           <View className="flex-1">
-                            <Text className="text-base font-bold" style={{ color: textColor }}>
+                            <Text className={`${subHeaderSize} font-bold`} style={{ color: textColor }}>
                               {transaction.transactionId}
                             </Text>
-                            <Text className="text-sm text-gray-600 mt-1">
+                            <Text className="text-xs text-gray-600 mt-1">
                               {formatTransactionTime(transaction.timestamp)}
                             </Text>
                           </View>
@@ -661,7 +676,7 @@ export default function ShiftReport() {
                                   {formatCurrency(transaction.subtotal)}
                                 </Text>
                               )}
-                            <Text className="text-lg font-bold" style={{ color: textColor }}>
+                            <Text className={`${secondaryAmountSize} font-bold`} style={{ color: textColor }}>
                               {formatCurrency(transaction.total)}
                             </Text>
                             <View
@@ -744,8 +759,8 @@ export default function ShiftReport() {
             </View>
 
             {/* Expenses List */}
-            <View className="bg-white rounded-lg p-5 mb-6 border-2 border-gray-300">
-              <Text className="text-xl font-bold mb-4 text-gray-900">
+            <View className={`bg-white border-2 border-gray-300 ${sectionClass}`}>
+              <Text className={`${sectionHeaderClass} text-gray-900`}>
                 💸 My Expense Records ({expenses.length})
               </Text>
 
@@ -760,7 +775,7 @@ export default function ShiftReport() {
                       <View className="py-3">
                         <View className="flex-row justify-between items-start mb-2">
                           <View className="flex-1 mr-3">
-                            <Text className="text-base font-bold" style={{ color: textColor }}>
+                            <Text className={`${subHeaderSize} font-bold`} style={{ color: textColor }}>
                               {expense.description}
                             </Text>
                             <View className="flex-row items-center mt-1">
@@ -771,7 +786,7 @@ export default function ShiftReport() {
                               </View>
                             </View>
                           </View>
-                          <Text className="text-lg font-bold" style={{ color: "#dc2626" }}>
+                          <Text className={`${secondaryAmountSize} font-bold`} style={{ color: "#dc2626" }}>
                             {formatCurrency(expense.amount)}
                           </Text>
                         </View>

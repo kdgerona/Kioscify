@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { useTenant } from "@/contexts/TenantContext";
+import { useDeviceType } from "@/hooks/useDeviceType";
 
 export type PaymentMethod =
   | "cash"
@@ -71,6 +72,15 @@ export default function CheckoutModal({
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
   const backgroundColor = brand?.themeColors?.background ?? tenant?.themeColors?.background ?? "#ffffff";
+  const isPhone = useDeviceType() === 'phone';
+
+  // This modal was designed for a wide tablet dialog (up to 800px); on a phone-width
+  // modal the same sizes read as oversized, so scale the most prominent text down a step.
+  const headingSize = isPhone ? "text-base" : "text-lg";
+  const amountSize = isPhone ? "text-xl" : "text-2xl";
+  const titleSize = isPhone ? "text-base" : "text-xl";
+  const inputTextSize = isPhone ? "text-base" : "text-lg";
+  const methodLabelSize = isPhone ? "text-base" : "text-xl";
 
   // Reset form when modal is closed (visible changes to false)
   useEffect(() => {
@@ -251,13 +261,13 @@ export default function CheckoutModal({
               <View className="flex flex-row items-center justify-center">
                 {paymentMethod && !initialPaymentMethod && (
                   <TouchableOpacity onPress={handleBack} className="mr-3">
-                    <Text className="text-black text-2xl font-bold mb-3">
+                    <Text className={`text-black font-bold mb-3 ${isPhone ? "text-xl" : "text-2xl"}`}>
                       ←
                     </Text>
                   </TouchableOpacity>
                 )}
                 <Text
-                  className="text-xl font-bold"
+                  className={`${titleSize} font-bold`}
                   style={{ color: textColor }}
                 >
                   Checkout
@@ -270,7 +280,7 @@ export default function CheckoutModal({
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Text
-                  className="text-3xl font-bold leading-none"
+                  className={`font-bold leading-none ${isPhone ? "text-2xl" : "text-3xl"}`}
                   style={{ color: textColor }}
                 >
                   ×
@@ -296,23 +306,23 @@ export default function CheckoutModal({
                   <>
                     <View className="flex-row justify-between items-center mb-1">
                       <Text
-                        className="text-base font-medium"
+                        className={`font-medium ${isPhone ? "text-sm" : "text-base"}`}
                         style={{ color: textColor }}
                       >
                         Subtotal:
                       </Text>
                       <Text
-                        className="text-base font-medium"
+                        className={`font-medium ${isPhone ? "text-sm" : "text-base"}`}
                         style={{ color: textColor }}
                       >
                         ₱{totalAmount.toFixed(2)}
                       </Text>
                     </View>
                     <View className="flex-row justify-between items-center mb-2">
-                      <Text className="text-base font-medium text-red-600">
+                      <Text className={`font-medium text-red-600 ${isPhone ? "text-sm" : "text-base"}`}>
                         Discount ({discountLabel()}):
                       </Text>
-                      <Text className="text-base font-medium text-red-600">
+                      <Text className={`font-medium text-red-600 ${isPhone ? "text-sm" : "text-base"}`}>
                         -₱{computedDiscount().toFixed(2)}
                       </Text>
                     </View>
@@ -322,13 +332,13 @@ export default function CheckoutModal({
                     />
                     <View className="flex-row justify-between items-center">
                       <Text
-                        className="text-lg font-bold"
+                        className={`${headingSize} font-bold`}
                         style={{ color: textColor }}
                       >
                         Total Due:
                       </Text>
                       <Text
-                        className="text-2xl font-bold"
+                        className={`${amountSize} font-bold`}
                         style={{ color: textColor }}
                       >
                         ₱{finalTotal.toFixed(2)}
@@ -338,13 +348,13 @@ export default function CheckoutModal({
                 ) : (
                   <View className="flex-row justify-between items-center">
                     <Text
-                      className="text-lg font-semibold"
+                      className={`font-semibold ${headingSize}`}
                       style={{ color: textColor }}
                     >
                       Total Due:
                     </Text>
                     <Text
-                      className="text-2xl font-bold"
+                      className={`${amountSize} font-bold`}
                       style={{ color: textColor }}
                     >
                       ₱{finalTotal.toFixed(2)}
@@ -438,7 +448,7 @@ export default function CheckoutModal({
               {/* Payment Method Selection */}
               {!paymentMethod && (
                 <View>
-                  <Text className="text-lg font-bold mb-3 text-gray-800">
+                  <Text className={`font-bold mb-3 text-gray-800 ${headingSize}`}>
                     Select Payment Method
                   </Text>
 
@@ -448,7 +458,7 @@ export default function CheckoutModal({
                         className="bg-green-500 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("cash")}
                       >
-                        <Text className="text-white text-xl font-bold mb-1">
+                        <Text className={`text-white font-bold mb-1 ${methodLabelSize}`}>
                           Cash
                         </Text>
                         <Text className="text-green-50 text-xs text-center">
@@ -462,7 +472,7 @@ export default function CheckoutModal({
                         className="bg-gray-600 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("online")}
                       >
-                        <Text className="text-white text-xl font-bold mb-1">
+                        <Text className={`text-white font-bold mb-1 ${methodLabelSize}`}>
                           Online
                         </Text>
                         <Text className="text-gray-200 text-xs text-center">
@@ -476,7 +486,7 @@ export default function CheckoutModal({
                         className="bg-blue-600 rounded-lg py-4 px-3 items-center shadow-sm"
                         onPress={() => handlePaymentMethodSelect("gcash")}
                       >
-                        <Text className="text-white text-xl font-bold mb-1">
+                        <Text className={`text-white font-bold mb-1 ${methodLabelSize}`}>
                           GCash
                         </Text>
                         <Text className="text-blue-100 text-xs text-center">
@@ -491,7 +501,7 @@ export default function CheckoutModal({
                         style={{ backgroundColor: "#202122" }}
                         onPress={() => handlePaymentMethodSelect("paymaya")}
                       >
-                        <Text className="text-xl font-bold mb-1" style={{ color: "#50B16B" }}>
+                        <Text className={`font-bold mb-1 ${methodLabelSize}`} style={{ color: "#50B16B" }}>
                           Maya
                         </Text>
                         <Text className="text-white text-xs text-center opacity-80">
@@ -506,7 +516,7 @@ export default function CheckoutModal({
                           className="bg-pink-500 rounded-lg py-4 px-3 items-center shadow-sm"
                           onPress={() => handlePaymentMethodSelect("foodpanda")}
                         >
-                          <Text className="text-white text-xl font-bold mb-1">
+                          <Text className={`text-white font-bold mb-1 ${methodLabelSize}`}>
                             FoodPanda
                           </Text>
                           <Text className="text-pink-100 text-xs text-center">
@@ -523,7 +533,7 @@ export default function CheckoutModal({
                           style={{ backgroundColor: "#00B14F" }}
                           onPress={() => handlePaymentMethodSelect("grab")}
                         >
-                          <Text className="text-white text-xl font-bold mb-1">
+                          <Text className={`text-white font-bold mb-1 ${methodLabelSize}`}>
                             Grab
                           </Text>
                           <Text className="text-white text-xs text-center opacity-80">
@@ -540,7 +550,7 @@ export default function CheckoutModal({
               {paymentMethod === "cash" && (
                 <View>
                   <Text
-                    className="text-lg font-bold mb-4"
+                    className={`font-bold mb-4 ${headingSize}`}
                     style={{ color: textColor }}
                   >
                     Cash Payment
@@ -554,7 +564,7 @@ export default function CheckoutModal({
                       Cash Received
                     </Text>
                     <TextInput
-                      className="bg-gray-100 rounded-lg px-4 py-4 text-lg border-2 border-gray-200"
+                      className={`bg-gray-100 rounded-lg px-4 py-4 border-2 border-gray-200 ${inputTextSize}`}
                       placeholder="Enter amount"
                       value={cashReceived}
                       onChangeText={(text) => {
@@ -574,7 +584,7 @@ export default function CheckoutModal({
                     >
                       Quick Select
                     </Text>
-                    <View className="flex-row">
+                    <View className="flex-row flex-wrap">
                       {[100, 200, 500, 1000].map((amount) => (
                         <TouchableOpacity
                           key={amount}
@@ -620,11 +630,11 @@ export default function CheckoutModal({
                       </View>
                       <View className="border-t border-blue-300 pt-2 mt-2">
                         <View className="flex-row justify-between items-center">
-                          <Text className="text-lg font-bold text-gray-800">
+                          <Text className={`font-bold text-gray-800 ${headingSize}`}>
                             Change:
                           </Text>
                           <Text
-                            className={`text-2xl font-bold ${
+                            className={`font-bold ${amountSize} ${
                               calculateChange() >= 0
                                 ? "text-green-600"
                                 : "text-red-600"
@@ -642,7 +652,7 @@ export default function CheckoutModal({
               {/* Non-Cash Payment Form */}
               {paymentMethod && paymentMethod !== "cash" && (
                 <View>
-                  <Text className="text-lg font-bold mb-4 text-gray-800">
+                  <Text className={`font-bold mb-4 text-gray-800 ${headingSize}`}>
                     {paymentMethod === "gcash" && "GCash Payment"}
                     {paymentMethod === "paymaya" && "Maya Payment"}
                     {paymentMethod === "online" && "Online Transaction"}
@@ -655,7 +665,7 @@ export default function CheckoutModal({
                       Reference / Order Number
                     </Text>
                     <TextInput
-                      className="bg-gray-100 rounded-lg px-4 py-4 text-lg border-2 border-gray-200"
+                      className={`bg-gray-100 rounded-lg px-4 py-4 border-2 border-gray-200 ${inputTextSize}`}
                       placeholder={
                         paymentMethod === "gcash"
                           ? "Enter GCash reference number"
@@ -759,7 +769,7 @@ export default function CheckoutModal({
                   disabled={isLoading}
                 >
                   <Text
-                    className="text-lg font-bold"
+                    className={`font-bold ${headingSize}`}
                     style={{ color: textColor }}
                     numberOfLines={1}
                   >
