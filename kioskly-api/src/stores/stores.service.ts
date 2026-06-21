@@ -134,7 +134,11 @@ export class StoresService {
         throw new BadRequestException(`Platform(s) not enabled on this brand: ${invalid.join(', ')}`);
       }
     }
-    const updated = await this.prisma.tenant.update({ where: { id }, data: dto });
+    const updated = await this.prisma.tenant.update({
+      where: { id },
+      data: dto,
+      include: { priceTier: { select: { id: true, name: true, isDefault: true } } },
+    });
     return this.formatLogoUrl(updated);
   }
 

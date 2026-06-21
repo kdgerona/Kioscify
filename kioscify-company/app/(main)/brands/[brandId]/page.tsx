@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'preferences' | 'inventory' | 'stores' | 'settings';
+type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'preferences' | 'inventory' | 'stores' | 'price-tiers' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -28,6 +28,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'preferences', label: 'Preferences' },
   { id: 'inventory', label: 'Inventory Items' },
   { id: 'stores', label: 'Stores' },
+  { id: 'price-tiers', label: 'Price Tiers' },
   { id: 'settings', label: 'Settings' },
 ];
 
@@ -369,8 +370,8 @@ export default function BrandDetailPage() {
   const [editingTierId, setEditingTierId] = useState<string | null>(null);
   const [editingTierName, setEditingTierName] = useState('');
 
-  // Store price-tier edit
-  const [editingStorePriceTierId, setEditingStorePriceTierId] = useState<string | null>(null);
+  // Store price-tier edit — pending value while the row is in edit mode, committed on row Save
+  const [editingStorePriceTierValue, setEditingStorePriceTierValue] = useState<string | null>(null);
 
   // Modal state
   const [modal, setModal] = useState<{
@@ -525,13 +526,26 @@ export default function BrandDetailPage() {
     loadTab(activeTab);
   }, [activeTab, loadTab]);
 
-  const handleSaveStoreName = async (storeId: string) => {
+  const startEditingStore = (store: Store) => {
+    setEditingStoreId(store.id);
+    setEditingStoreName(store.name);
+    setEditingStorePriceTierValue(store.priceTier?.id ?? null);
+  };
+
+  const handleSaveStoreRow = async (storeId: string) => {
     if (!editingStoreName.trim()) return;
     try {
-      const updated = await api.updateStore(storeId, { name: editingStoreName.trim() });
-      setStores(prev => prev.map(s => s.id === storeId ? { ...s, name: updated.name } : s));
+      const payload: { name: string; priceTierId?: string | null } = { name: editingStoreName.trim() };
+      if (priceTiers.length > 0) {
+        payload.priceTierId = editingStorePriceTierValue;
+      }
+      const updated = await api.updateStore(storeId, payload);
+      setStores(prev => prev.map(s => s.id === storeId ? { ...s, name: updated.name, priceTier: updated.priceTier } : s));
       setEditingStoreId(null);
-    } catch { /* silent */ }
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosErr?.response?.data?.message || 'Failed to update store');
+    }
   };
 
   const openDeliveryModal = (store: Store) => {
@@ -624,17 +638,6 @@ export default function BrandDetailPage() {
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       toast.error(axiosErr?.response?.data?.message || 'Failed to delete tier');
-    }
-  };
-
-  const handleSaveStorePriceTier = async (storeId: string, tierId: string | null) => {
-    try {
-      const updated = await api.updateStore(storeId, { priceTierId: tierId });
-      setStores(prev => prev.map(s => s.id === storeId ? { ...s, priceTier: updated.priceTier } : s));
-      setEditingStorePriceTierId(null);
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr?.response?.data?.message || 'Failed to update store price tier');
     }
   };
 
@@ -932,7 +935,7 @@ export default function BrandDetailPage() {
                           value={editingStoreName}
                           onChange={e => setEditingStoreName(e.target.value)}
                           onKeyDown={e => {
-                            if (e.key === 'Enter') handleSaveStoreName(store.id);
+                            if (e.key === 'Enter') handleSaveStoreRow(store.id);
                             if (e.key === 'Escape') setEditingStoreId(null);
                           }}
                           className="px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white w-full max-w-xs"
@@ -945,27 +948,24 @@ export default function BrandDetailPage() {
                     <td className="px-6 py-4 text-sm text-gray-500 font-mono">{store.slug}</td>
                     {priceTiers.length > 0 && (
                       <td className="px-6 py-4">
-                        {canWrite && editingStorePriceTierId === store.id ? (
-                          <div className="flex items-center gap-2">
-                            <Select
-                              value={store.priceTier?.id ?? 'none'}
-                              onValueChange={v => handleSaveStorePriceTier(store.id, v === 'none' ? null : v)}
-                            >
-                              <SelectTrigger className="w-36 h-8 text-xs">
-                                <SelectValue placeholder="— None —" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">— None —</SelectItem>
-                                {priceTiers.map(t => (
-                                  <SelectItem key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (Default)' : ''}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <button onClick={() => setEditingStorePriceTierId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-                          </div>
+                        {canWrite && editingStoreId === store.id ? (
+                          <Select
+                            value={editingStorePriceTierValue ?? 'none'}
+                            onValueChange={v => setEditingStorePriceTierValue(v === 'none' ? null : v)}
+                          >
+                            <SelectTrigger className="w-36 h-8 text-xs">
+                              <SelectValue placeholder="— None —" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">— None —</SelectItem>
+                              {priceTiers.map(t => (
+                                <SelectItem key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (Default)' : ''}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         ) : (
                           <button
-                            onClick={canWrite ? () => setEditingStorePriceTierId(store.id) : undefined}
+                            onClick={canWrite ? () => startEditingStore(store) : undefined}
                             className={`text-sm ${store.priceTier ? 'text-gray-700' : 'text-gray-400'} ${canWrite ? 'hover:opacity-70 cursor-pointer' : 'cursor-default'}`}
                           >
                             {store.priceTier ? (
@@ -1015,12 +1015,12 @@ export default function BrandDetailPage() {
                         {canWrite && (
                           editingStoreId === store.id ? (
                             <div className="flex gap-3">
-                              <button onClick={() => handleSaveStoreName(store.id)} className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}>Save</button>
+                              <button onClick={() => handleSaveStoreRow(store.id)} className="text-sm font-medium hover:opacity-80" style={{ color: 'var(--company-primary, #ea580c)' }}>Save</button>
                               <button onClick={() => setEditingStoreId(null)} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
                             </div>
                           ) : (
                             <button
-                              onClick={() => { setEditingStoreId(store.id); setEditingStoreName(store.name); }}
+                              onClick={() => startEditingStore(store)}
                               className="text-sm text-gray-400 hover:text-gray-600"
                             >
                               Edit
@@ -1273,8 +1273,12 @@ export default function BrandDetailPage() {
                 )}
               </form>
             </div>
+          </div>
+        )}
 
-            {/* Price Tiers */}
+        {/* Price Tiers */}
+        {activeTab === 'price-tiers' && (
+          <div className="max-w-2xl">
             <div className="bg-white rounded-lg border">
               <div className="px-6 py-4 border-b">
                 <h2 className="font-semibold text-gray-900">Price Tiers</h2>
@@ -1866,7 +1870,7 @@ function ProductModal({
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
                   )}
                 </div>
-                <div className={`grid gap-2 ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
+                <div className={`grid gap-2 items-end ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Base Price</label>
                     <input
@@ -2175,7 +2179,7 @@ function SizeModal({
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
                   )}
                 </div>
-                <div className={`grid gap-2 ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
+                <div className={`grid gap-2 items-end ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Price Modifier (+₱)</label>
                     <input
@@ -2385,7 +2389,7 @@ function AddonModal({
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
                   )}
                 </div>
-                <div className={`grid gap-2 ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
+                <div className={`grid gap-2 items-end ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Price (+₱)</label>
                     <input
