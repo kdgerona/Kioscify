@@ -86,6 +86,11 @@ export default function TransactionsPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessingVoid, setIsProcessingVoid] = useState(false);
 
+  // Request void state (from transaction detail)
+  const [showVoidRequestForm, setShowVoidRequestForm] = useState(false);
+  const [voidRequestReason, setVoidRequestReason] = useState("");
+  const [isSubmittingVoidRequest, setIsSubmittingVoidRequest] = useState(false);
+
   // Debounce search term to avoid too many API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const isFirstTransactionLoad = useRef(true);
@@ -169,6 +174,12 @@ export default function TransactionsPage() {
     }
   }, [voidStatusFilter]);
 
+  // Reset void request form when selected transaction changes
+  useEffect(() => {
+    setShowVoidRequestForm(false);
+    setVoidRequestReason("");
+  }, [selectedTransaction]);
+
   // Load void requests when tab is switched or filter changes
   useEffect(() => {
     if (showVoidRequests) {
@@ -232,6 +243,25 @@ export default function TransactionsPage() {
       alert("Failed to reject void request");
     } finally {
       setIsProcessingVoid(false);
+    }
+  };
+
+  // Submit a new void request from transaction detail
+  const handleRequestVoid = async () => {
+    if (!selectedTransaction || voidRequestReason.trim().length < 10) return;
+    setIsSubmittingVoidRequest(true);
+    try {
+      await api.requestVoidTransaction(selectedTransaction.id, voidRequestReason.trim());
+      alert("Transaction voided successfully");
+      setShowVoidRequestForm(false);
+      setVoidRequestReason("");
+      setSelectedTransaction(null);
+      loadTransactions(false);
+    } catch (error) {
+      console.error("Failed to submit void request:", error);
+      alert("Failed to submit void request");
+    } finally {
+      setIsSubmittingVoidRequest(false);
     }
   };
 
@@ -1103,6 +1133,66 @@ export default function TransactionsPage() {
                           </div>
                         )}
                     </div>
+                  </div>
+                )}
+
+              {/* Request Void */}
+              {(!selectedTransaction.voidStatus ||
+                selectedTransaction.voidStatus === "NONE") &&
+                canWrite && (
+                  <div className="pt-2">
+                    {!showVoidRequestForm ? (
+                      <button
+                        onClick={() => setShowVoidRequestForm(true)}
+                        className="w-full py-2 px-4 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+                      >
+                        Request Void
+                      </button>
+                    ) : (
+                      <div className="border border-red-200 rounded-lg p-3 sm:p-4 space-y-3 bg-red-50">
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          Request Void
+                        </h4>
+                        <div>
+                          <label className="block text-xs sm:text-sm text-gray-600 mb-1">
+                            Reason <span className="text-gray-400">(min. 10 characters)</span>
+                          </label>
+                          <textarea
+                            value={voidRequestReason}
+                            onChange={(e) => setVoidRequestReason(e.target.value)}
+                            rows={3}
+                            maxLength={500}
+                            placeholder="Describe the reason for voiding this transaction..."
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                          />
+                          <p className="text-xs text-gray-400 text-right mt-1">
+                            {voidRequestReason.length}/500
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setShowVoidRequestForm(false);
+                              setVoidRequestReason("");
+                            }}
+                            disabled={isSubmittingVoidRequest}
+                            className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleRequestVoid}
+                            disabled={
+                              isSubmittingVoidRequest ||
+                              voidRequestReason.trim().length < 10
+                            }
+                            className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isSubmittingVoidRequest ? "Submitting..." : "Submit"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
             </div>

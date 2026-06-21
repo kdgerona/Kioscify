@@ -209,6 +209,14 @@ class ApiClient {
     return data;
   }
 
+  async requestVoidTransaction(id: string, reason: string): Promise<Transaction> {
+    const { data } = await this.client.post<Transaction>(
+      `/transactions/${id}/void-request`,
+      { reason }
+    );
+    return data;
+  }
+
   // Expenses endpoints
   async getExpenses(params?: {
     startDate?: string;
@@ -251,6 +259,14 @@ class ApiClient {
     const { data } = await this.client.patch<Expense>(
       `/expenses/void-requests/${id}/reject`,
       { rejectionReason }
+    );
+    return data;
+  }
+
+  async requestVoidExpense(id: string, reason: string): Promise<Expense> {
+    const { data } = await this.client.post<Expense>(
+      `/expenses/${id}/void-request`,
+      { reason }
     );
     return data;
   }

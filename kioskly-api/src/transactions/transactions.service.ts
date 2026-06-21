@@ -424,6 +424,7 @@ export class TransactionsService {
     tenantId: string,
     userId: string,
     reason: string,
+    userRole?: string,
   ) {
     // Find transaction
     const transaction = await this.prisma.transaction.findFirst({
@@ -445,14 +446,19 @@ export class TransactionsService {
       throw new BadRequestException('Void request already pending');
     }
 
+    // Admins bypass review — void is approved immediately
+    const isAdmin = userRole === 'STORE_ADMIN' || userRole === 'ADMIN';
+    const now = new Date();
+
     // Update transaction with void request
     const updated = await this.prisma.transaction.update({
       where: { id: transactionId },
       data: {
-        voidStatus: 'PENDING',
+        voidStatus: isAdmin ? 'APPROVED' : 'PENDING',
         voidReason: reason,
         voidRequestedBy: userId,
-        voidRequestedAt: new Date(),
+        voidRequestedAt: now,
+        ...(isAdmin && { voidReviewedBy: userId, voidReviewedAt: now }),
       } as any,
       include: {
         user: {
