@@ -228,12 +228,14 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://kioscify.com/api/v1}
+        NEXT_PUBLIC_UPLOAD_URL: ${NEXT_PUBLIC_UPLOAD_URL:-https://uploads.kioscify.com/api/v1}
     container_name: kioscify-platform
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 3002
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://kioscify.com/api/v1}
+      NEXT_PUBLIC_UPLOAD_URL: ${NEXT_PUBLIC_UPLOAD_URL:-https://uploads.kioscify.com/api/v1}
     networks:
       - kioskly-frontend
     security_opt:

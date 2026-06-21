@@ -16,6 +16,9 @@ import type {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
+const UPLOAD_BASE_URL =
+  process.env.NEXT_PUBLIC_UPLOAD_URL || API_BASE_URL;
+
 class ApiClient {
   private client: AxiosInstance;
   private token: string | null = null;
@@ -397,9 +400,18 @@ class ApiClient {
   }
 
   async uploadAppRelease(formData: FormData): Promise<AppRelease> {
-    const { data } = await this.client.post<AppRelease>('/app-releases', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const token =
+      typeof window !== 'undefined' ? localStorage.getItem('auth_token') : this.token;
+    const { data } = await axios.post<AppRelease>(
+      `${UPLOAD_BASE_URL}/app-releases`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      },
+    );
     return data;
   }
 
