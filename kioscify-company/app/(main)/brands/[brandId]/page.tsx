@@ -1872,7 +1872,7 @@ function ProductModal({
                 </div>
                 <div className={`grid gap-2 items-end ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Base Price</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Regular Price</label>
                     <input
                       type="number"
                       value={tierPrices[tier.id]?.price ?? ''}
@@ -1894,7 +1894,7 @@ function ProductModal({
                         onChange={e => setTierField(tier.id, 'foodpandaPrice', e.target.value)}
                         min="0"
                         step="0.01"
-                        placeholder="Same as base"
+                        placeholder="Same as regular"
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
                         style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
                       />
@@ -1909,7 +1909,7 @@ function ProductModal({
                         onChange={e => setTierField(tier.id, 'grabPrice', e.target.value)}
                         min="0"
                         step="0.01"
-                        placeholder="Same as base"
+                        placeholder="Same as regular"
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
                         style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
                       />
@@ -1941,7 +1941,7 @@ function ProductModal({
                       onChange={e => setFlatFoodpandaPrice(e.target.value)}
                       min="0"
                       step="0.01"
-                      placeholder="Same as base price"
+                      placeholder="Same as regular price"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
                       style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
                     />
@@ -1958,7 +1958,7 @@ function ProductModal({
                       onChange={e => setFlatGrabPrice(e.target.value)}
                       min="0"
                       step="0.01"
-                      placeholder="Same as base price"
+                      placeholder="Same as regular price"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
                       style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
                     />
@@ -2201,7 +2201,7 @@ function SizeModal({
                         onChange={e => setTierField(tier.id, 'foodpandaPrice', e.target.value)}
                         min="0"
                         step="0.01"
-                        placeholder="Same as base"
+                        placeholder="Same as regular"
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
                         style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
                       />
@@ -2216,7 +2216,7 @@ function SizeModal({
                         onChange={e => setTierField(tier.id, 'grabPrice', e.target.value)}
                         min="0"
                         step="0.01"
-                        placeholder="Same as base"
+                        placeholder="Same as regular"
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
                         style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
                       />
@@ -2245,7 +2245,7 @@ function SizeModal({
                     <input
                       type="number" value={flatFoodpandaPrice}
                       onChange={e => setFlatFoodpandaPrice(e.target.value)}
-                      min="0" step="0.01" placeholder="Same as base"
+                      min="0" step="0.01" placeholder="Same as regular"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
                       style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
                     />
@@ -2259,7 +2259,7 @@ function SizeModal({
                     <input
                       type="number" value={flatGrabPrice}
                       onChange={e => setFlatGrabPrice(e.target.value)}
-                      min="0" step="0.01" placeholder="Same as base"
+                      min="0" step="0.01" placeholder="Same as regular"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
                       style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
                     />
@@ -2411,7 +2411,7 @@ function AddonModal({
                         onChange={e => setTierField(tier.id, 'foodpandaPrice', e.target.value)}
                         min="0"
                         step="0.01"
-                        placeholder="Same as base"
+                        placeholder="Same as regular"
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
                         style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
                       />
@@ -2426,7 +2426,7 @@ function AddonModal({
                         onChange={e => setTierField(tier.id, 'grabPrice', e.target.value)}
                         min="0"
                         step="0.01"
-                        placeholder="Same as base"
+                        placeholder="Same as regular"
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
                         style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
                       />
@@ -2458,7 +2458,7 @@ function AddonModal({
                       onChange={e => setFlatFoodpandaPrice(e.target.value)}
                       min="0"
                       step="0.01"
-                      placeholder="Same as base price"
+                      placeholder="Same as regular price"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
                       style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
                     />
@@ -2475,7 +2475,7 @@ function AddonModal({
                       onChange={e => setFlatGrabPrice(e.target.value)}
                       min="0"
                       step="0.01"
-                      placeholder="Same as base price"
+                      placeholder="Same as regular price"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
                       style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
                     />

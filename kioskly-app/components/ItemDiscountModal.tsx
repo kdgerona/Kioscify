@@ -103,7 +103,7 @@ export default function ItemDiscountModal({
                 Item Discount
               </Text>
               <Text style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
-                Base total: ₱{baseLineTotal.toFixed(2)}
+                Regular total: ₱{baseLineTotal.toFixed(2)}
               </Text>
 
               {/* Percentage chips */}

@@ -199,7 +199,7 @@ export default function TransactionSummary({
                       <View className="bg-gray-50 rounded-lg p-2 mt-2">
                         <View className="flex-row justify-between mb-1">
                           <Text className="text-xs text-gray-600">
-                            Base Price:
+                            Regular Price:
                           </Text>
                           <Text className="text-xs text-gray-800 font-medium">
                             ₱{item.product.price.toFixed(2)}

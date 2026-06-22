@@ -629,7 +629,7 @@ export default function SubmittedReportsPage() {
                                     </div>
                                     <div className="ml-3 space-y-0.5">
                                       <div className="flex justify-between items-center text-[10px] text-gray-600">
-                                        <span>Base × {item.quantity}</span>
+                                        <span>Regular × {item.quantity}</span>
                                         <span>{formatCurrency((item.product?.price || 0) * item.quantity)}</span>
                                       </div>
                                       {item.size && item.size.priceModifier !== 0 && (

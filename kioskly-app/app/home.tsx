@@ -1368,7 +1368,7 @@ export default function Home() {
                         >
                           {getEffectiveSizeModifier(size) > 0
                             ? `+₱${getEffectiveSizeModifier(size).toFixed(2)}`
-                            : "Base"}
+                            : ""}
                         </Text>
                         {size.volume && (
                           <Text
