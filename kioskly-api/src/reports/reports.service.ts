@@ -106,7 +106,9 @@ export class ReportsService {
         } as any,
       },
       include: {
-        items: true,
+        items: {
+          include: { product: true, size: true },
+        },
       },
     });
 
@@ -152,6 +154,25 @@ export class ReportsService {
       0,
     );
 
+    // Sales by product+size breakdown
+    const productMap: Record<string, { productName: string; sizeName?: string; quantity: number; amount: number }> = {};
+    for (const t of transactions) {
+      for (const item of t.items) {
+        const key = `${item.productId}|${item.sizeId ?? ''}`;
+        if (!productMap[key]) {
+          productMap[key] = {
+            productName: (item as any).product?.name ?? item.productId,
+            sizeName: (item as any).size?.name,
+            quantity: 0,
+            amount: 0,
+          };
+        }
+        productMap[key].quantity += item.quantity;
+        productMap[key].amount += item.subtotal - ((item as any).discountAmount ?? 0);
+      }
+    }
+    const salesByProduct = Object.values(productMap).sort((a, b) => b.amount - a.amount);
+
     // Calculate expense metrics
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const expenseCount = expenses.length;
@@ -187,6 +208,7 @@ export class ReportsService {
         averageTransaction,
         totalItemsSold,
         paymentMethodBreakdown,
+        salesByProduct,
       },
       expenses: {
         totalAmount: totalExpenses,
@@ -227,7 +249,7 @@ export class ReportsService {
           timestamp: { gte: startOfDay, lte: endOfDay },
           voidStatus: { not: 'APPROVED' } as any,
         },
-        include: { items: true },
+        include: { items: { include: { product: true, size: true } } },
       }),
       this.prisma.expense.findMany({
         where: {
@@ -259,6 +281,25 @@ export class ReportsService {
       0,
     );
 
+    // Sales by product+size breakdown
+    const shiftProductMap: Record<string, { productName: string; sizeName?: string; quantity: number; amount: number }> = {};
+    for (const t of transactions) {
+      for (const item of t.items) {
+        const key = `${item.productId}|${item.sizeId ?? ''}`;
+        if (!shiftProductMap[key]) {
+          shiftProductMap[key] = {
+            productName: (item as any).product?.name ?? item.productId,
+            sizeName: (item as any).size?.name,
+            quantity: 0,
+            amount: 0,
+          };
+        }
+        shiftProductMap[key].quantity += item.quantity;
+        shiftProductMap[key].amount += item.subtotal - ((item as any).discountAmount ?? 0);
+      }
+    }
+    const shiftSalesByProduct = Object.values(shiftProductMap).sort((a, b) => b.amount - a.amount);
+
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const expenseCount = expenses.length;
     const averageExpense = expenseCount > 0 ? totalExpenses / expenseCount : 0;
@@ -289,6 +330,7 @@ export class ReportsService {
         averageTransaction,
         totalItemsSold,
         paymentMethodBreakdown,
+        salesByProduct: shiftSalesByProduct,
       },
       expenses: {
         totalAmount: totalExpenses,

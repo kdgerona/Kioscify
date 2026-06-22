@@ -534,6 +534,33 @@ export default function SubmittedReportsPage() {
                     </div>
                   </div>
                 </div>
+                {Array.isArray(selectedReport.salesSnapshot.salesByProduct) && selectedReport.salesSnapshot.salesByProduct.length > 0 && (
+                  <div className="bg-purple-50 p-4 sm:p-6 rounded-xl border-2 border-purple-200">
+                    <h3 className="text-base sm:text-lg font-bold text-purple-900 mb-1">Sales By Product</h3>
+                    <p className="text-xs sm:text-sm text-purple-600 mb-3 sm:mb-4">Quantity x Product</p>
+                    <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 text-xs font-bold text-purple-700 pb-2 border-b border-purple-300 mb-1">
+                      <span className="text-center">Qty</span><span>Product</span><span className="text-right">Amount</span>
+                    </div>
+                    {selectedReport.salesSnapshot.salesByProduct.map((entry, idx) => (
+                      <div key={idx} className="grid grid-cols-[auto_1fr_auto] gap-x-3 py-1.5 border-b border-purple-100 text-sm">
+                        <span className="text-center text-purple-800 font-semibold">{entry.quantity}</span>
+                        <span className="text-purple-900">
+                          {entry.productName}{entry.sizeName ? ` ${entry.sizeName}` : ''}
+                        </span>
+                        <span className="text-right text-purple-900 font-semibold">{formatCurrency(entry.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 pt-2 mt-1 border-t-2 border-purple-300 text-sm font-bold">
+                      <span className="text-center text-purple-800">
+                        {selectedReport.salesSnapshot.salesByProduct.reduce((s, e) => s + e.quantity, 0)}
+                      </span>
+                      <span className="text-purple-900">Total</span>
+                      <span className="text-right text-purple-900">
+                        {formatCurrency(selectedReport.salesSnapshot.salesByProduct.reduce((s, e) => s + e.amount, 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <div className="bg-red-50 p-4 sm:p-6 rounded-xl border-2 border-red-200">
                   <h3 className="text-base sm:text-lg font-bold text-red-900 mb-3 sm:mb-4">Expenses</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -809,6 +836,33 @@ export default function SubmittedReportsPage() {
                     </div>
                   )}
                 </div>
+                {Array.isArray(selectedShiftReport.salesSnapshot.salesByProduct) && selectedShiftReport.salesSnapshot.salesByProduct.length > 0 && (
+                  <div className="bg-purple-50 p-4 sm:p-6 rounded-xl border-2 border-purple-200">
+                    <h3 className="text-base sm:text-lg font-bold text-purple-900 mb-1">Sales By Product</h3>
+                    <p className="text-xs sm:text-sm text-purple-600 mb-3 sm:mb-4">Quantity x Product</p>
+                    <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 text-xs font-bold text-purple-700 pb-2 border-b border-purple-300 mb-1">
+                      <span className="text-center">Qty</span><span>Product</span><span className="text-right">Amount</span>
+                    </div>
+                    {selectedShiftReport.salesSnapshot.salesByProduct.map((entry, idx) => (
+                      <div key={idx} className="grid grid-cols-[auto_1fr_auto] gap-x-3 py-1.5 border-b border-purple-100 text-sm">
+                        <span className="text-center text-purple-800 font-semibold">{entry.quantity}</span>
+                        <span className="text-purple-900">
+                          {entry.productName}{entry.sizeName ? ` ${entry.sizeName}` : ''}
+                        </span>
+                        <span className="text-right text-purple-900 font-semibold">{formatCurrency(entry.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 pt-2 mt-1 border-t-2 border-purple-300 text-sm font-bold">
+                      <span className="text-center text-purple-800">
+                        {selectedShiftReport.salesSnapshot.salesByProduct.reduce((s, e) => s + e.quantity, 0)}
+                      </span>
+                      <span className="text-purple-900">Total</span>
+                      <span className="text-right text-purple-900">
+                        {formatCurrency(selectedShiftReport.salesSnapshot.salesByProduct.reduce((s, e) => s + e.amount, 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <div className="bg-red-50 p-4 sm:p-6 rounded-xl border-2 border-red-200">
                   <h3 className="text-base sm:text-lg font-bold text-red-900 mb-3 sm:mb-4">Expenses</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">

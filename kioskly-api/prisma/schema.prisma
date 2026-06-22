@@ -708,6 +708,7 @@ type SalesSnapshot {
   averageTransaction     Float
   totalItemsSold         Int
   paymentMethodBreakdown Json
+  salesByProduct         Json?
 }
 
 type ExpensesSnapshot {

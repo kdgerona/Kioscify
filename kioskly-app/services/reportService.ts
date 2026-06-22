@@ -8,6 +8,13 @@ interface PaymentMethodBreakdown {
   };
 }
 
+export interface SalesByProductEntry {
+  productName: string;
+  sizeName?: string;
+  quantity: number;
+  amount: number;
+}
+
 interface ExpenseCategoryBreakdown {
   [category: string]: {
     total: number;
@@ -27,6 +34,7 @@ export interface DailyReportResponse {
     averageTransaction: number;
     totalItemsSold: number;
     paymentMethodBreakdown: PaymentMethodBreakdown;
+    salesByProduct?: SalesByProductEntry[];
   };
   expenses: {
     totalAmount: number;
@@ -69,6 +77,7 @@ export interface SubmitReportData {
     averageTransaction: number;
     totalItemsSold: number;
     paymentMethodBreakdown: PaymentMethodBreakdown;
+    salesByProduct?: SalesByProductEntry[];
   };
   expensesSnapshot: {
     totalAmount: number;

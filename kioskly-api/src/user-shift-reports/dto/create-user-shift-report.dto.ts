@@ -10,6 +10,25 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+class SalesByProductEntry {
+  @ApiProperty()
+  @IsString()
+  productName: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sizeName?: string;
+
+  @ApiProperty()
+  @IsNumber()
+  quantity: number;
+
+  @ApiProperty()
+  @IsNumber()
+  amount: number;
+}
+
 class PaymentMethodBreakdownItem {
   @ApiProperty()
   @IsNumber()
@@ -40,6 +59,13 @@ class SalesSnapshotDto {
   @ApiProperty({ type: 'object', additionalProperties: true })
   @IsObject()
   paymentMethodBreakdown: Record<string, PaymentMethodBreakdownItem>;
+
+  @ApiPropertyOptional({ type: [SalesByProductEntry] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SalesByProductEntry)
+  salesByProduct?: SalesByProductEntry[];
 }
 
 class CategoryBreakdownItem {

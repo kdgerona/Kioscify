@@ -62,6 +62,19 @@ function computeLocalReport(
     paymentBreakdown[m].count += 1;
   });
 
+  const productMap: Record<string, { productName: string; sizeName?: string; quantity: number; amount: number }> = {};
+  activeTxns.forEach((t) => {
+    (t.items ?? []).forEach((item) => {
+      const key = `${item.productId}|${(item as any).sizeId ?? ''}`;
+      const productName = (item as any).product?.name ?? item.productId;
+      const sizeName = (item as any).size?.name;
+      if (!productMap[key]) productMap[key] = { productName, sizeName, quantity: 0, amount: 0 };
+      productMap[key].quantity += item.quantity;
+      productMap[key].amount += item.subtotal - ((item as any).discountAmount ?? 0);
+    });
+  });
+  const salesByProduct = Object.values(productMap).sort((a, b) => b.amount - a.amount);
+
   const activeExps = exps.filter((e) => e.voidStatus !== "APPROVED");
   const totalExpenses = activeExps.reduce((s, e) => s + e.amount, 0);
   const expCount = activeExps.length;
@@ -83,6 +96,7 @@ function computeLocalReport(
       averageTransaction: txnCount > 0 ? totalSales / txnCount : 0,
       totalItemsSold,
       paymentMethodBreakdown: paymentBreakdown,
+      salesByProduct,
     },
     expenses: {
       totalAmount: totalExpenses,
@@ -333,6 +347,7 @@ export default function DailyReport() {
         averageTransaction: workingReport.sales.averageTransaction,
         totalItemsSold: workingReport.sales.totalItemsSold,
         paymentMethodBreakdown: workingReport.sales.paymentMethodBreakdown,
+        salesByProduct: workingReport.sales.salesByProduct,
       },
       expensesSnapshot: {
         totalAmount: workingReport.expenses.totalAmount,
@@ -634,6 +649,45 @@ export default function DailyReport() {
                 </View>
               </View>
             </View>
+
+            {/* Sales By Product Section */}
+            {reportData.sales.salesByProduct && reportData.sales.salesByProduct.length > 0 && (
+              <View className={`bg-purple-50 border-2 border-purple-300 ${sectionClass}`}>
+                <Text className={`${sectionHeaderClass} text-purple-900`}>
+                  📦 Sales By Product
+                </Text>
+                <Text className={`${bodyTextSize} text-purple-600 -mt-2 mb-3`}>Quantity x Product</Text>
+                {/* Header row */}
+                <View className="flex-row items-center pb-2 border-b border-purple-300 mb-1">
+                  <Text className={`${subHeaderSize} font-bold text-purple-800 w-10 text-center`}>Qty</Text>
+                  <Text className={`${subHeaderSize} font-bold text-purple-800 flex-1 ml-2`}>Product</Text>
+                  <Text className={`${subHeaderSize} font-bold text-purple-800 w-24 text-right`}>Amount</Text>
+                </View>
+                {reportData.sales.salesByProduct.map((entry, idx) => (
+                  <View key={idx} className="flex-row items-center py-2 border-b border-purple-100">
+                    <Text className={`${bodyTextSize} font-semibold text-purple-800 w-10 text-center`}>
+                      {entry.quantity}
+                    </Text>
+                    <Text className={`${bodyTextSize} text-purple-900 flex-1 ml-2 mr-2`}>
+                      {entry.productName}{entry.sizeName ? ` ${entry.sizeName}` : ''}
+                    </Text>
+                    <Text className={`${bodyTextSize} font-semibold text-purple-900 w-24 text-right`}>
+                      {formatCurrency(entry.amount)}
+                    </Text>
+                  </View>
+                ))}
+                {/* Total row */}
+                <View className="flex-row items-center pt-2 mt-1">
+                  <Text className={`${bodyTextSize} font-bold text-purple-800 w-10 text-center`}>
+                    {reportData.sales.salesByProduct.reduce((s, e) => s + e.quantity, 0)}
+                  </Text>
+                  <Text className={`${bodyTextSize} font-bold text-purple-900 flex-1 ml-2 mr-2`}>Total</Text>
+                  <Text className={`${bodyTextSize} font-bold text-purple-900 w-24 text-right`}>
+                    {formatCurrency(reportData.sales.salesByProduct.reduce((s, e) => s + e.amount, 0))}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Expenses Section */}
             <View className={`bg-red-50 border-2 border-red-300 ${sectionClass}`}>

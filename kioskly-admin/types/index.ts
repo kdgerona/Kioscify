@@ -326,12 +326,20 @@ export interface InventorySnapshot {
 }
 
 // Submitted Reports types
+export interface SalesByProductEntry {
+  productName: string;
+  sizeName?: string;
+  quantity: number;
+  amount: number;
+}
+
 export interface SalesSnapshot {
   totalAmount: number;
   transactionCount: number;
   averageTransaction: number;
   totalItemsSold: number;
   paymentMethodBreakdown: Record<string, { total: number; count: number }>;
+  salesByProduct?: SalesByProductEntry[];
 }
 
 export interface ExpensesSnapshot {
