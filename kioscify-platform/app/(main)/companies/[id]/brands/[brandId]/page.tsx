@@ -906,7 +906,36 @@ export default function BrandDetailPage() {
           </TabSection>
         )}
 
-        {!['overview', 'categories', 'products', 'sizes', 'addons', 'preferences'].includes(activeTab) && (
+        {/* Inventory Items */}
+        {activeTab === 'inventory' && !tabLoading && (
+          <TabSection
+            title="Inventory Items"
+            onAdd={() => setModal({ type: 'inventory', mode: 'create' })}
+            showAdd={canWrite}
+          >
+            {invItems.length === 0 ? (
+              <EmptyState message="No inventory items yet" />
+            ) : (
+              invItems.map(item => (
+                <CRUDRow
+                  key={item.id}
+                  label={item.name}
+                  sublabel={`${item.unit}${item.category ? ` · ${item.category}` : ''}`}
+                  onEdit={() => setModal({ type: 'inventory', mode: 'edit', item })}
+                  onDelete={async () => {
+                    if (!confirm(`Delete "${item.name}"?`)) return;
+                    await api.deleteInventoryBrandTemplate(item.id);
+                    setInvItems(prev => prev.filter(i => i.id !== item.id));
+                  }}
+                  showEdit={canWrite}
+                  showDelete={canDelete}
+                />
+              ))
+            )}
+          </TabSection>
+        )}
+
+        {!['overview', 'categories', 'products', 'sizes', 'addons', 'preferences', 'inventory'].includes(activeTab) && (
           <div className="bg-white rounded-lg border py-16 text-center text-gray-400 text-sm">
             {TABS.find(t => t.id === activeTab)?.label} — coming soon
           </div>
@@ -1008,6 +1037,24 @@ export default function BrandDetailPage() {
               setPreferences(prev => [...prev, pref]);
             } else {
               setPreferences(prev => prev.map(p => (p.id === pref.id ? pref : p)));
+            }
+            closeModal();
+          }}
+        />
+      )}
+
+      {modal.type === 'inventory' && (
+        <InventoryModal
+          mode={modal.mode}
+          item={modal.item as InventoryBrandTemplate | undefined}
+          brandId={brandId}
+          categories={invCategories}
+          onClose={closeModal}
+          onSave={item => {
+            if (modal.mode === 'create') {
+              setInvItems(prev => [...prev, item]);
+            } else {
+              setInvItems(prev => prev.map(i => (i.id === item.id ? item : i)));
             }
             closeModal();
           }}
@@ -2021,6 +2068,132 @@ function PreferenceModal({
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
             style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
           />
+        </div>
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
+            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function InventoryModal({
+  mode,
+  item,
+  brandId,
+  categories,
+  onClose,
+  onSave,
+}: {
+  mode: 'create' | 'edit';
+  item?: InventoryBrandTemplate;
+  brandId: string;
+  categories: Category[];
+  onClose: () => void;
+  onSave: (item: InventoryBrandTemplate) => void;
+}) {
+  const [name, setName] = useState(item?.name || '');
+  const [unit, setUnit] = useState(item?.unit || '');
+  const [category, setCategory] = useState(item?.category || '');
+  const [minStockLevel, setMinStockLevel] = useState(item?.minStockLevel?.toString() || '');
+  const [requiresExpirationDate, setRequiresExpirationDate] = useState(item?.requiresExpirationDate ?? false);
+  const [expirationWarningDays, setExpirationWarningDays] = useState(
+    item?.expirationWarningDays?.toString() || ''
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const body = {
+        name,
+        unit,
+        category: category || undefined,
+        minStockLevel: minStockLevel ? parseInt(minStockLevel) : undefined,
+        requiresExpirationDate,
+        expirationWarningDays: requiresExpirationDate && expirationWarningDays ? parseInt(expirationWarningDays) : undefined,
+      };
+      let result: InventoryBrandTemplate;
+      if (mode === 'create') {
+        result = await api.createInventoryBrandTemplate({ ...body, brandId });
+      } else {
+        result = await api.updateInventoryBrandTemplate(item!.id, body);
+      }
+      onSave(result);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr?.response?.data?.message || 'Failed to save');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title={mode === 'create' ? 'New Inventory Item' : 'Edit Inventory Item'} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} required
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+          <input type="text" value={unit} onChange={e => setUnit(e.target.value)} required
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            placeholder="e.g. kg, liters, bags"
+            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Category (optional)</label>
+          <select
+            value={category || 'none'}
+            onChange={e => setCategory(e.target.value === 'none' ? '' : e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="none">— None —</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Min Stock Level</label>
+          <input type="number" value={minStockLevel} onChange={e => setMinStockLevel(e.target.value)} min="0"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
+        </div>
+        <div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={requiresExpirationDate}
+              onChange={e => setRequiresExpirationDate(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300" style={{ accentColor: '#4f46e5' }}
+            />
+            <span className="text-sm font-medium text-gray-700">Track expiration dates</span>
+          </label>
+          {requiresExpirationDate && (
+            <div className="mt-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Expiry Warning (days before)
+              </label>
+              <input type="number" value={expirationWarningDays} onChange={e => setExpirationWarningDays(e.target.value)} min="1"
+                placeholder="7"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
+              <p className="mt-1 text-xs text-gray-400">
+                How many days before expiry to show a warning. Defaults to 7 days if left blank.
+              </p>
+            </div>
+          )}
         </div>
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
