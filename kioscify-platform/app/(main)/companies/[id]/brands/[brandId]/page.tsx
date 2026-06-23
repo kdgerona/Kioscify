@@ -803,7 +803,110 @@ export default function BrandDetailPage() {
           </TabSection>
         )}
 
-        {!['overview', 'categories', 'products'].includes(activeTab) && (
+        {activeTab === 'sizes' && !tabLoading && (
+          <TabSection
+            title="Sizes"
+            onAdd={() => setModal({ type: 'sizes', mode: 'create' })}
+            showAdd={canWrite}
+          >
+            {sizes.length === 0 ? (
+              <EmptyState message="No sizes yet" />
+            ) : (
+              sizes.map((size, i) => (
+                <ReorderRow
+                  key={size.id}
+                  label={size.name}
+                  sublabel={`Price modifier: +₱${size.priceModifier.toFixed(2)}`}
+                  index={i}
+                  total={sizes.length}
+                  onMoveUp={() => reorderItem(sizes, setSizes, i, 'up', (id, seq) => api.updateSize(id, { sequenceNo: seq }))}
+                  onMoveDown={() => reorderItem(sizes, setSizes, i, 'down', (id, seq) => api.updateSize(id, { sequenceNo: seq }))}
+                  onEdit={() => setModal({ type: 'sizes', mode: 'edit', item: size })}
+                  onDelete={async () => {
+                    if (!confirm(`Delete "${size.name}"?`)) return;
+                    await api.deleteSize(size.id);
+                    setSizes(prev => prev.filter(s => s.id !== size.id));
+                  }}
+                  showEdit={canWrite}
+                  showDelete={canDelete}
+                />
+              ))
+            )}
+          </TabSection>
+        )}
+
+        {/* Addons */}
+        {activeTab === 'addons' && !tabLoading && (
+          <TabSection
+            title="Add-ons"
+            onAdd={() => setModal({ type: 'addons', mode: 'create' })}
+            showAdd={canWrite}
+          >
+            {addons.length === 0 ? (
+              <EmptyState message="No add-ons yet" />
+            ) : (
+              addons.map((addon, i) => (
+                <ReorderRow
+                  key={addon.id}
+                  label={addon.name}
+                  sublabel={`₱${addon.price.toFixed(2)}`}
+                  index={i}
+                  total={addons.length}
+                  onMoveUp={() => reorderItem(addons, setAddons, i, 'up', (id, seq) => api.updateAddon(id, { sequenceNo: seq }))}
+                  onMoveDown={() => reorderItem(addons, setAddons, i, 'down', (id, seq) => api.updateAddon(id, { sequenceNo: seq }))}
+                  onEdit={() => setModal({ type: 'addons', mode: 'edit', item: addon })}
+                  onDelete={async () => {
+                    if (!confirm(`Delete "${addon.name}"?`)) return;
+                    await api.deleteAddon(addon.id);
+                    setAddons(prev => prev.filter(a => a.id !== addon.id));
+                  }}
+                  showEdit={canWrite}
+                  showDelete={canDelete}
+                />
+              ))
+            )}
+          </TabSection>
+        )}
+
+        {/* Preferences */}
+        {activeTab === 'preferences' && !tabLoading && (
+          <TabSection
+            title="Preferences"
+            onAdd={() => setModal({ type: 'preferences', mode: 'create' })}
+            showAdd={canWrite}
+          >
+            {preferences.length === 0 ? (
+              <EmptyState message="No preference options yet" />
+            ) : (
+              preferences.map((pref, i) => (
+                <ReorderRow
+                  key={pref.id}
+                  label={pref.name}
+                  sublabel={pref.isDefault ? 'Default' : undefined}
+                  index={i}
+                  total={preferences.length}
+                  isDefault={pref.isDefault}
+                  onSetDefault={canWrite ? async () => {
+                    const updated = await api.updatePreference(pref.id, { isDefault: true });
+                    setPreferences(prev => prev.map(p => ({ ...p, isDefault: p.id === updated.id })));
+                  } : undefined}
+                  onMoveUp={() => reorderItem(preferences, setPreferences, i, 'up', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
+                  onMoveDown={() => reorderItem(preferences, setPreferences, i, 'down', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
+                  onEdit={() => setModal({ type: 'preferences', mode: 'edit', item: pref })}
+                  onDelete={async () => {
+                    if (!confirm(`Delete "${pref.name}"?`)) return;
+                    await api.deletePreference(pref.id);
+                    setPreferences(prev => prev.filter(p => p.id !== pref.id));
+                  }}
+                  showEdit={canWrite}
+                  showDelete={canDelete}
+                />
+              ))
+            )}
+          </TabSection>
+        )}
+
+        {!['overview', 'categories', 'products', 'sizes', 'addons', 'preferences'].includes(activeTab) && (
           <div className="bg-white rounded-lg border py-16 text-center text-gray-400 text-sm">
             {TABS.find(t => t.id === activeTab)?.label} — coming soon
           </div>
@@ -850,6 +953,61 @@ export default function BrandDetailPage() {
               setProducts(prev => [...prev, prod]);
             } else {
               setProducts(prev => prev.map(p => (p.id === prod.id ? prod : p)));
+            }
+            closeModal();
+          }}
+        />
+      )}
+
+      {modal.type === 'sizes' && (
+        <SizeModal
+          mode={modal.mode}
+          item={modal.item as Size | undefined}
+          brandId={brandId}
+          brand={brand}
+          priceTiers={priceTiers}
+          onClose={closeModal}
+          onSave={size => {
+            if (modal.mode === 'create') {
+              setSizes(prev => [...prev, size]);
+            } else {
+              setSizes(prev => prev.map(s => (s.id === size.id ? size : s)));
+            }
+            closeModal();
+          }}
+        />
+      )}
+
+      {modal.type === 'addons' && (
+        <AddonModal
+          mode={modal.mode}
+          item={modal.item as Addon | undefined}
+          brandId={brandId}
+          brand={brand}
+          priceTiers={priceTiers}
+          onClose={closeModal}
+          onSave={addon => {
+            if (modal.mode === 'create') {
+              setAddons(prev => [...prev, addon]);
+            } else {
+              setAddons(prev => prev.map(a => (a.id === addon.id ? addon : a)));
+            }
+            closeModal();
+          }}
+        />
+      )}
+
+      {modal.type === 'preferences' && (
+        <PreferenceModal
+          mode={modal.mode}
+          item={modal.item as Preference | undefined}
+          brandId={brandId}
+          onClose={closeModal}
+          onSave={pref => {
+            if (modal.mode === 'create') {
+              setPreferences(prev => [...prev, pref]);
+            } else {
+              setPreferences(prev => prev.map(p => (p.id === pref.id ? pref : p)));
             }
             closeModal();
           }}
