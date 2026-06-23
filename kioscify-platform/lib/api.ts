@@ -229,7 +229,7 @@ class ApiClient {
 
   async updateBrand(
     id: string,
-    payload: Partial<{ name: string; description: string; themeColors: ThemeColors; isActive: boolean }>
+    payload: Partial<{ name: string; description: string; themeColors: ThemeColors; isActive: boolean; enabledDeliveryPlatforms: string[]; preferenceLabel: string }>
   ): Promise<Brand> {
     const { data } = await this.client.patch<Brand>(`/brands/${id}`, payload);
     return data;
