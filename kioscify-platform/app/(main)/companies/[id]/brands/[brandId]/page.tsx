@@ -1374,3 +1374,504 @@ function ProductModal({
   );
 }
 
+function SizeModal({
+  mode,
+  item,
+  brandId,
+  brand,
+  priceTiers,
+  onClose,
+  onSave,
+}: {
+  mode: 'create' | 'edit';
+  item?: Size;
+  brandId: string;
+  brand: Brand | null;
+  priceTiers: PriceTier[];
+  onClose: () => void;
+  onSave: (size: Size) => void;
+}) {
+  const [name, setName] = useState(item?.name || '');
+  const [flatPriceModifier, setFlatPriceModifier] = useState(item?.priceModifier?.toString() || '0');
+  const [flatFoodpandaPrice, setFlatFoodpandaPrice] = useState(
+    item?.foodpandaPrice != null ? item.foodpandaPrice.toString() : ''
+  );
+  const [flatGrabPrice, setFlatGrabPrice] = useState(
+    item?.grabPrice != null ? item.grabPrice.toString() : ''
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const hasTiers = priceTiers.length > 0;
+
+  const [tierPrices, setTierPrices] = useState<Record<string, { priceModifier: string; foodpandaPrice: string; grabPrice: string }>>(() => {
+    const init: Record<string, { priceModifier: string; foodpandaPrice: string; grabPrice: string }> = {};
+    for (const tier of priceTiers) {
+      const existing = item?.priceTiers?.find(pt => pt.tierId === tier.id);
+      init[tier.id] = {
+        priceModifier: existing?.priceModifier != null ? existing.priceModifier.toString() : (tier.isDefault && item?.priceModifier != null ? item.priceModifier.toString() : '0'),
+        foodpandaPrice: existing?.foodpandaPrice != null ? existing.foodpandaPrice.toString() : '',
+        grabPrice: existing?.grabPrice != null ? existing.grabPrice.toString() : '',
+      };
+    }
+    return init;
+  });
+
+  const setTierField = (tierId: string, field: 'priceModifier' | 'foodpandaPrice' | 'grabPrice', value: string) => {
+    setTierPrices(prev => ({ ...prev, [tierId]: { ...prev[tierId], [field]: value } }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const parseOptionalPrice = (val: string): number | null =>
+      val.trim() === '' ? null : parseFloat(val);
+    try {
+      let result: Size;
+      if (hasTiers) {
+        const builtTiers: SizePriceTier[] = priceTiers.map(tier => ({
+          tierId: tier.id,
+          priceModifier: parseFloat(tierPrices[tier.id]?.priceModifier || '0') || 0,
+          foodpandaPrice: parseOptionalPrice(tierPrices[tier.id]?.foodpandaPrice ?? ''),
+          grabPrice: parseOptionalPrice(tierPrices[tier.id]?.grabPrice ?? ''),
+        }));
+        const defaultTier = priceTiers.find(t => t.isDefault);
+        const defaultModStr = defaultTier ? (tierPrices[defaultTier.id]?.priceModifier || '0') : '0';
+        if (mode === 'create') {
+          result = await api.createSize({ name, priceModifier: parseFloat(defaultModStr) || 0, brandId, priceTiers: builtTiers });
+        } else {
+          result = await api.updateSize(item!.id, { name, priceModifier: parseFloat(defaultModStr) || 0, priceTiers: builtTiers });
+        }
+      } else {
+        if (mode === 'create') {
+          result = await api.createSize({
+            name,
+            priceModifier: parseFloat(flatPriceModifier),
+            foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice),
+            grabPrice: parseOptionalPrice(flatGrabPrice),
+            brandId,
+          });
+        } else {
+          result = await api.updateSize(item!.id, {
+            name,
+            priceModifier: parseFloat(flatPriceModifier),
+            foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice),
+            grabPrice: parseOptionalPrice(flatGrabPrice),
+          });
+        }
+      }
+      onSave(result);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr?.response?.data?.message || 'Failed to save');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title={mode === 'create' ? 'New Size' : 'Edit Size'} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} required
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            placeholder="e.g. Small, Medium, Large"
+            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
+        </div>
+
+        {/* Price modifier inputs: per-tier if tiers exist, else flat */}
+        {hasTiers ? (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-gray-700">Price Modifiers by Tier</p>
+            {priceTiers.map(tier => (
+              <div key={tier.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-semibold text-gray-700">{tier.name}</span>
+                  {tier.isDefault && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
+                  )}
+                </div>
+                <div className={`grid gap-2 items-end ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Price Modifier (+₱)</label>
+                    <input
+                      type="number"
+                      value={tierPrices[tier.id]?.priceModifier ?? '0'}
+                      onChange={e => setTierField(tier.id, 'priceModifier', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                      style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+                    />
+                  </div>
+                  {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">FoodPanda Mod. <span className="text-gray-400 font-normal">(opt.)</span></label>
+                      <input
+                        type="number"
+                        value={tierPrices[tier.id]?.foodpandaPrice ?? ''}
+                        onChange={e => setTierField(tier.id, 'foodpandaPrice', e.target.value)}
+                        min="0"
+                        step="0.01"
+                        placeholder="Same as regular"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                        style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
+                      />
+                    </div>
+                  )}
+                  {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Grab Mod. <span className="text-gray-400 font-normal">(opt.)</span></label>
+                      <input
+                        type="number"
+                        value={tierPrices[tier.id]?.grabPrice ?? ''}
+                        onChange={e => setTierField(tier.id, 'grabPrice', e.target.value)}
+                        min="0"
+                        step="0.01"
+                        placeholder="Same as regular"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                        style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Price Modifier (+₱)</label>
+              <input type="number" value={flatPriceModifier} onChange={e => setFlatPriceModifier(e.target.value)} required min="0" step="0.01"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
+            </div>
+            {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
+              brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
+              <div className="grid grid-cols-2 gap-3">
+                {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      FoodPanda Modifier <span className="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="number" value={flatFoodpandaPrice}
+                      onChange={e => setFlatFoodpandaPrice(e.target.value)}
+                      min="0" step="0.01" placeholder="Same as regular"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                      style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
+                    />
+                  </div>
+                )}
+                {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Grab Modifier <span className="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="number" value={flatGrabPrice}
+                      onChange={e => setFlatGrabPrice(e.target.value)}
+                      min="0" step="0.01" placeholder="Same as regular"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                      style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
+            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function AddonModal({
+  mode,
+  item,
+  brandId,
+  brand,
+  priceTiers,
+  onClose,
+  onSave,
+}: {
+  mode: 'create' | 'edit';
+  item?: Addon;
+  brandId: string;
+  brand: Brand | null;
+  priceTiers: PriceTier[];
+  onClose: () => void;
+  onSave: (addon: Addon) => void;
+}) {
+  const [name, setName] = useState(item?.name || '');
+  const [flatPrice, setFlatPrice] = useState(item?.price?.toString() || '0');
+  const [flatFoodpandaPrice, setFlatFoodpandaPrice] = useState(
+    item?.foodpandaPrice != null ? item.foodpandaPrice.toString() : ''
+  );
+  const [flatGrabPrice, setFlatGrabPrice] = useState(
+    item?.grabPrice != null ? item.grabPrice.toString() : ''
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const hasTiers = priceTiers.length > 0;
+
+  const [tierPrices, setTierPrices] = useState<Record<string, { price: string; foodpandaPrice: string; grabPrice: string }>>(() => {
+    const init: Record<string, { price: string; foodpandaPrice: string; grabPrice: string }> = {};
+    for (const tier of priceTiers) {
+      const existing = item?.priceTiers?.find(pt => pt.tierId === tier.id);
+      init[tier.id] = {
+        price: existing?.price != null ? existing.price.toString() : (tier.isDefault && item?.price != null ? item.price.toString() : '0'),
+        foodpandaPrice: existing?.foodpandaPrice != null ? existing.foodpandaPrice.toString() : '',
+        grabPrice: existing?.grabPrice != null ? existing.grabPrice.toString() : '',
+      };
+    }
+    return init;
+  });
+
+  const setTierField = (tierId: string, field: 'price' | 'foodpandaPrice' | 'grabPrice', value: string) => {
+    setTierPrices(prev => ({ ...prev, [tierId]: { ...prev[tierId], [field]: value } }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const parseOptionalPrice = (val: string): number | null =>
+      val.trim() === '' ? null : parseFloat(val);
+    try {
+      let result: Addon;
+      if (hasTiers) {
+        const builtTiers: AddonPriceTier[] = priceTiers.map(tier => ({
+          tierId: tier.id,
+          price: parseFloat(tierPrices[tier.id]?.price || '0') || 0,
+          foodpandaPrice: parseOptionalPrice(tierPrices[tier.id]?.foodpandaPrice ?? ''),
+          grabPrice: parseOptionalPrice(tierPrices[tier.id]?.grabPrice ?? ''),
+        }));
+        const defaultTier = priceTiers.find(t => t.isDefault);
+        const defaultPriceStr = defaultTier ? (tierPrices[defaultTier.id]?.price || '0') : '0';
+        if (mode === 'create') {
+          result = await api.createAddon({ name, price: parseFloat(defaultPriceStr) || 0, brandId, priceTiers: builtTiers });
+        } else {
+          result = await api.updateAddon(item!.id, { name, price: parseFloat(defaultPriceStr) || 0, priceTiers: builtTiers });
+        }
+      } else {
+        if (mode === 'create') {
+          result = await api.createAddon({ name, price: parseFloat(flatPrice), brandId, foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice), grabPrice: parseOptionalPrice(flatGrabPrice) });
+        } else {
+          result = await api.updateAddon(item!.id, { name, price: parseFloat(flatPrice), foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice), grabPrice: parseOptionalPrice(flatGrabPrice) });
+        }
+      }
+      onSave(result);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr?.response?.data?.message || 'Failed to save');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title={mode === 'create' ? 'New Add-on' : 'Edit Add-on'} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} required
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            placeholder="e.g. Tapioca, Jelly"
+            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
+        </div>
+
+        {/* Price inputs: per-tier if tiers exist, else flat */}
+        {hasTiers ? (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-gray-700">Prices by Tier</p>
+            {priceTiers.map(tier => (
+              <div key={tier.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-semibold text-gray-700">{tier.name}</span>
+                  {tier.isDefault && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
+                  )}
+                </div>
+                <div className={`grid gap-2 items-end ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Price (+₱)</label>
+                    <input
+                      type="number"
+                      value={tierPrices[tier.id]?.price ?? '0'}
+                      onChange={e => setTierField(tier.id, 'price', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                      style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+                    />
+                  </div>
+                  {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">FoodPanda <span className="text-gray-400 font-normal">(opt.)</span></label>
+                      <input
+                        type="number"
+                        value={tierPrices[tier.id]?.foodpandaPrice ?? ''}
+                        onChange={e => setTierField(tier.id, 'foodpandaPrice', e.target.value)}
+                        min="0"
+                        step="0.01"
+                        placeholder="Same as regular"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                        style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
+                      />
+                    </div>
+                  )}
+                  {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Grab <span className="text-gray-400 font-normal">(opt.)</span></label>
+                      <input
+                        type="number"
+                        value={tierPrices[tier.id]?.grabPrice ?? ''}
+                        onChange={e => setTierField(tier.id, 'grabPrice', e.target.value)}
+                        min="0"
+                        step="0.01"
+                        placeholder="Same as regular"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                        style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Price (+₱)</label>
+              <input type="number" value={flatPrice} onChange={e => setFlatPrice(e.target.value)} required min="0" step="0.01"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+                style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
+            </div>
+            {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
+              brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
+              <div className="grid grid-cols-2 gap-3">
+                {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      FoodPanda Price <span className="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={flatFoodpandaPrice}
+                      onChange={e => setFlatFoodpandaPrice(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="Same as regular price"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                      style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
+                    />
+                  </div>
+                )}
+                {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Grab Price <span className="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={flatGrabPrice}
+                      onChange={e => setFlatGrabPrice(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="Same as regular price"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
+                      style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
+            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function PreferenceModal({
+  mode,
+  item,
+  brandId,
+  onClose,
+  onSave,
+}: {
+  mode: 'create' | 'edit';
+  item?: Preference;
+  brandId: string;
+  onClose: () => void;
+  onSave: (pref: Preference) => void;
+}) {
+  const [name, setName] = useState(item?.name || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      let result: Preference;
+      if (mode === 'create') {
+        result = await api.createPreference({ name, brandId });
+      } else {
+        result = await api.updatePreference(item!.id, { name });
+      }
+      onSave(result);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr?.response?.data?.message || 'Failed to save');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title={mode === 'create' ? 'New Preference' : 'Edit Preference'} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+            placeholder="e.g. Light Sweet (50%)"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+          />
+        </div>
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
+            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
