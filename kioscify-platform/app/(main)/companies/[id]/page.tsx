@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { formatRole } from '@/lib/utils';
-import type { Company, Brand, ThemeColors, Store, OnboardAdminPayload, User } from '@/types';
+import type { Company, Brand, ThemeColors, Store, OnboardAdminPayload, User, CompanyPrivileges } from '@/types';
 import {
   ChevronLeft,
   Plus,
@@ -24,9 +24,12 @@ import {
   BadgeCheck,
   UserCheck,
   UserX,
+  Shield,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
+import { PrivilegesGrid } from '@/components/PrivilegesGrid';
+import { EditPrivilegesModal } from '@/components/EditPrivilegesModal';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { DateRangePicker } from './analytics/components/DateRangePicker';
 import { OverviewCards } from './analytics/components/OverviewCards';
@@ -36,6 +39,13 @@ import { TopStoresWidget } from './analytics/components/TopStoresWidget';
 import { NetworkGrowthChart } from './analytics/components/NetworkGrowthChart';
 
 type Tab = 'settings' | 'brands' | 'stores' | 'analytics' | 'users';
+
+const DEFAULT_PRIVILEGES: CompanyPrivileges = {
+  brands: 'read',
+  analytics: 'read',
+  users: 'read',
+  settings: 'read',
+};
 
 interface StoreUser extends User {
   tenant: { id: string; name: string; slug: string } | null;
@@ -272,6 +282,8 @@ export default function CompanyDetailPage() {
   const [adminUsername, setAdminUsername] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
+  const [adminPrivileges, setAdminPrivileges] = useState<CompanyPrivileges>(DEFAULT_PRIVILEGES);
+  const [editingPrivilegesUser, setEditingPrivilegesUser] = useState<User | null>(null);
 
   // Create brand form
   const [brandName, setBrandName] = useState('');
@@ -420,18 +432,25 @@ export default function CompanyDetailPage() {
     setAdminError(null);
     setAdminLoading(true);
     try {
-      const payload: OnboardAdminPayload = {
+      const payload = {
         firstName: adminFirstName,
         lastName: adminLastName,
         email: adminEmail,
         username: adminUsername,
       };
-      const result = await api.onboardCompanyAdmin(companyId, payload);
+      // The very first admin becomes the unrestricted owner (companyPrivileges stays null
+      // server-side), matching how a brand-new company is set up. Every admin added after
+      // that gets explicit, restrictable privileges — same as a company-admin owner adding
+      // a teammate via their own Users page.
+      const result = companyAdmins.length === 0
+        ? await api.onboardCompanyAdmin(companyId, payload as OnboardAdminPayload)
+        : await api.createCompanyUser(companyId, { ...payload, companyPrivileges: adminPrivileges });
       setAdminPassword(result.temporaryPassword);
       setAdminFirstName('');
       setAdminLastName('');
       setAdminEmail('');
       setAdminUsername('');
+      setAdminPrivileges(DEFAULT_PRIVILEGES);
       setShowOnboardAdmin(false);
       await loadUsers();
     } catch (err: unknown) {
@@ -958,7 +977,7 @@ export default function CompanyDetailPage() {
                 <p className="text-xs text-gray-400 mt-0.5">Create an admin user for this company</p>
               </div>
               <button
-                onClick={() => setShowOnboardAdmin(true)}
+                onClick={() => { setAdminError(null); setAdminPrivileges(DEFAULT_PRIVILEGES); setShowOnboardAdmin(true); }}
                 className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs font-medium"
               >
                 <UserPlus className="w-3.5 h-3.5" />
@@ -1146,7 +1165,7 @@ export default function CompanyDetailPage() {
                     <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{companyAdmins.length}</span>
                   </div>
                   <button
-                    onClick={() => { setAdminError(null); setShowOnboardAdmin(true); }}
+                    onClick={() => { setAdminError(null); setAdminPrivileges(DEFAULT_PRIVILEGES); setShowOnboardAdmin(true); }}
                     className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 rounded px-2.5 py-1.5"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
@@ -1158,7 +1177,7 @@ export default function CompanyDetailPage() {
                 ) : (
                   <div className="divide-y">
                     {companyAdmins.map(user => (
-                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} currentUserId={currentUserId} />
+                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} onEditPrivileges={setEditingPrivilegesUser} currentUserId={currentUserId} />
                     ))}
                   </div>
                 )}
@@ -1247,6 +1266,12 @@ export default function CompanyDetailPage() {
               setEmail={setAdminEmail}
               setUsername={setAdminUsername}
             />
+            {companyAdmins.length > 0 && (
+              <div className="pt-2 border-t">
+                <p className="text-sm font-medium text-gray-700 mb-2">Permissions</p>
+                <PrivilegesGrid value={adminPrivileges} onChange={setAdminPrivileges} disabled={adminLoading} />
+              </div>
+            )}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
@@ -1265,6 +1290,19 @@ export default function CompanyDetailPage() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {editingPrivilegesUser && (
+        <EditPrivilegesModal
+          open={!!editingPrivilegesUser}
+          onClose={() => setEditingPrivilegesUser(null)}
+          onSave={(updated) => {
+            setCompanyAdmins(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+            setEditingPrivilegesUser(null);
+          }}
+          companyId={companyId}
+          user={editingPrivilegesUser}
+        />
       )}
 
       {/* Create brand modal */}
@@ -1719,6 +1757,7 @@ function UserRow({
   resetting,
   onRemove,
   onToggle,
+  onEditPrivileges,
   currentUserId,
 }: {
   user: User;
@@ -1727,6 +1766,7 @@ function UserRow({
   resetting: boolean;
   onRemove: (user: User) => void;
   onToggle: (user: User) => void;
+  onEditPrivileges?: (user: User) => void;
   currentUserId: string | null;
 }) {
   const roleBadge: Record<string, string> = {
@@ -1803,6 +1843,15 @@ function UserRow({
           >
             <KeyRound className="w-3.5 h-3.5" />
             {resetting ? 'Resetting...' : 'Reset Password'}
+          </button>
+        )}
+        {onEditPrivileges && user.role === 'COMPANY_ADMIN' && (
+          <button
+            onClick={() => onEditPrivileges(user)}
+            title="Edit privileges"
+            className="p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
+          >
+            <Shield className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
