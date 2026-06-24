@@ -633,6 +633,13 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const copyStoreLink = async (store: Store) => {
+    const base = process.env.NEXT_PUBLIC_STORE_PORTAL_BASE_URL ?? '';
+    const url = `${base}/${company?.slug ?? ''}/${store.brand?.slug ?? ''}/${store.slug}`;
+    await copyToClipboard(url);
+    toast.success('Store portal link copied!');
+  };
+
   const currentUserId = (() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -1056,53 +1063,67 @@ export default function CompanyDetailPage() {
               No stores yet
             </div>
           ) : (
-            <div className="bg-white rounded-lg border divide-y">
-              {stores.map(store => (
-                <div key={store.id} className="px-5 py-4 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{store.name}</p>
-                    <p className="text-xs text-gray-400">
-                      {store.slug}
-                      {store.brand && (
-                        <span className="ml-2 text-gray-300">·</span>
-                      )}
-                      {store.brand && (
-                        <span className="ml-2 text-indigo-500">{store.brand.name}</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      onClick={() => setQrStore({
-                        storeName: store.name,
-                        companySlug: company!.slug,
-                        brandSlug: store.brand?.slug ?? '',
-                        storeSlug: store.slug,
-                      })}
-                      title="View QR Code"
-                      className="p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
-                    >
-                      <QrCode className="w-4 h-4" />
-                    </button>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      store.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
-                    }`}>
-                      {store.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    <button
-                      onClick={() => handleToggleStoreActive(store)}
-                      title={store.isActive ? 'Deactivate store' : 'Activate store'}
-                      className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${
-                        store.isActive ? 'bg-indigo-600' : 'bg-gray-200'
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                        store.isActive ? 'translate-x-4' : 'translate-x-0'
-                      }`} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-6">
+              {brands
+                .filter(brand => stores.some(s => s.brandId === brand.id))
+                .map(brand => {
+                  const brandStores = stores.filter(s => s.brandId === brand.id);
+                  return (
+                    <div key={brand.id}>
+                      <div className="flex items-center gap-2 px-1 py-2">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{brand.name}</span>
+                        <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{brandStores.length} {brandStores.length === 1 ? 'store' : 'stores'}</span>
+                      </div>
+                      <div className="bg-white rounded-lg border divide-y">
+                        {brandStores.map(store => (
+                          <div key={store.id} className="px-5 py-4 flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{store.name}</p>
+                              <p className="text-xs text-gray-400">{store.slug}</p>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <button
+                                onClick={() => setQrStore({
+                                  storeName: store.name,
+                                  companySlug: company!.slug,
+                                  brandSlug: store.brand?.slug ?? '',
+                                  storeSlug: store.slug,
+                                })}
+                                title="View QR Code"
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
+                              >
+                                <QrCode className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => copyStoreLink(store)}
+                                title="Copy store portal link"
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                store.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                              }`}>
+                                {store.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                              <button
+                                onClick={() => handleToggleStoreActive(store)}
+                                title={store.isActive ? 'Deactivate store' : 'Activate store'}
+                                className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${
+                                  store.isActive ? 'bg-indigo-600' : 'bg-gray-200'
+                                }`}
+                              >
+                                <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                                  store.isActive ? 'translate-x-4' : 'translate-x-0'
+                                }`} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>
