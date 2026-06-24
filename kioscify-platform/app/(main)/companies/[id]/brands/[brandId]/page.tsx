@@ -1240,7 +1240,7 @@ export default function BrandDetailPage() {
                 <div className="w-20 h-20 rounded-xl border border-gray-200 flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
                   {brand.logoUrl ? (
                     <img
-                      src={brand.logoUrl.startsWith('http') ? brand.logoUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'}${brand.logoUrl}`}
+                      src={brand.logoUrl.startsWith('http') ? brand.logoUrl : `${apiBase}${brand.logoUrl}`}
                       alt="Brand logo"
                       className="w-full h-full object-contain"
                     />

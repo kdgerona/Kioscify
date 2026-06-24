@@ -277,74 +277,6 @@ export default function CompanyDetailPage() {
   const [themeSaving, setThemeSaving] = useState(false);
   const [themeSuccess, setThemeSuccess] = useState(false);
 
-  // Edit brand modal
-  const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [editBrandName, setEditBrandName] = useState('');
-  const [editBrandDescription, setEditBrandDescription] = useState('');
-  const [editBrandTheme, setEditBrandTheme] = useState<ThemeColors>({});
-  const [editBrandThemeHex, setEditBrandThemeHex] = useState<Record<string, string>>({});
-  const [editBrandLoading, setEditBrandLoading] = useState(false);
-  const [editBrandError, setEditBrandError] = useState<string | null>(null);
-  const [editBrandLogoUploading, setEditBrandLogoUploading] = useState(false);
-  const [editBrandLogoUploadError, setEditBrandLogoUploadError] = useState<string | null>(null);
-
-  const openEditBrand = (brand: Brand) => {
-    setEditingBrand(brand);
-    setEditBrandName(brand.name);
-    setEditBrandDescription(brand.description || '');
-    setEditBrandTheme(brand.themeColors || {});
-    setEditBrandThemeHex({ ...(brand.themeColors || {}) });
-    setEditBrandError(null);
-  };
-
-  const handleSaveBrand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingBrand) return;
-    setEditBrandError(null);
-    setEditBrandLoading(true);
-    try {
-      const updated = await api.updateBrand(editingBrand.id, {
-        name: editBrandName,
-        description: editBrandDescription || undefined,
-        themeColors: Object.keys(editBrandTheme).length ? editBrandTheme : undefined,
-      });
-      setBrands(prev => prev.map(b => b.id === updated.id ? { ...b, ...updated } : b));
-      setEditingBrand(null);
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setEditBrandError(axiosErr?.response?.data?.message || 'Failed to update brand');
-    } finally {
-      setEditBrandLoading(false);
-    }
-  };
-
-  const handleBrandLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !editingBrand) return;
-    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
-      setEditBrandLogoUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
-      e.target.value = '';
-      return;
-    }
-    if (file.size > UPLOAD_MAX_SIZE) {
-      setEditBrandLogoUploadError('File too large. Maximum size is 5 MB.');
-      e.target.value = '';
-      return;
-    }
-    setEditBrandLogoUploadError(null);
-    setEditBrandLogoUploading(true);
-    try {
-      const updated = await api.uploadBrandLogo(editingBrand.id, file);
-      setEditingBrand(prev => prev ? { ...prev, logoUrl: updated.logoUrl } : prev);
-      setBrands(prev => prev.map(b => b.id === updated.id ? { ...b, logoUrl: updated.logoUrl } : b));
-    } catch {
-      // no-op
-    } finally {
-      setEditBrandLogoUploading(false);
-      e.target.value = '';
-    }
-  };
-
   // Onboard store form
   const [storeNameField, setStoreNameField] = useState('');
   const [storeSlugField, setStoreSlugField] = useState('');
@@ -1061,13 +993,13 @@ export default function CompanyDetailPage() {
                       <span className="text-xs text-gray-500">
                         {brand.storeCount ?? 0} store{(brand.storeCount ?? 0) !== 1 ? 's' : ''}
                       </span>
-                      <button
-                        onClick={() => openEditBrand(brand)}
+                      <Link
+                        href={`/companies/${companyId}/brands/${brand.id}`}
                         className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-indigo-700 font-medium border border-gray-200 rounded px-2.5 py-1.5"
                       >
                         <Pencil className="w-3.5 h-3.5" />
-                        Edit
-                      </button>
+                        Manage
+                      </Link>
                       <button
                         onClick={() =>
                           setShowOnboardStore({ brandId: brand.id, brandName: brand.name })
@@ -1292,127 +1224,6 @@ export default function CompanyDetailPage() {
               </button>
             </div>
           </form>
-        </Modal>
-      )}
-
-      {/* Edit brand modal */}
-      {editingBrand && (
-        <Modal title={`Edit Brand — ${editingBrand.name}`} onClose={() => setEditingBrand(null)}>
-          <div className="space-y-5">
-            {/* Logo */}
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
-                {editingBrand.logoUrl ? (
-                  <img
-                    src={editingBrand.logoUrl.startsWith('http') ? editingBrand.logoUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'}${editingBrand.logoUrl}`}
-                    alt="Brand logo"
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <span className="text-2xl font-bold text-gray-300">{editingBrand.name[0]?.toUpperCase()}</span>
-                )}
-              </div>
-              <div>
-                <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
-                  editBrandLogoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                }`}>
-                  <Upload className="w-3.5 h-3.5" />
-                  {editBrandLogoUploading ? 'Uploading...' : 'Upload Logo'}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    className="sr-only"
-                    disabled={editBrandLogoUploading}
-                    onChange={handleBrandLogoUpload}
-                  />
-                </label>
-                <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · Max 5 MB</p>
-                {editBrandLogoUploadError && <p className="text-red-500 text-xs mt-1">{editBrandLogoUploadError}</p>}
-              </div>
-            </div>
-
-            <form onSubmit={handleSaveBrand} className="space-y-4">
-              {editBrandError && <p className="text-red-600 text-sm">{editBrandError}</p>}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Brand Name</label>
-                <input
-                  type="text"
-                  value={editBrandName}
-                  onChange={e => setEditBrandName(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={editBrandDescription}
-                  onChange={e => setEditBrandDescription(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
-                />
-              </div>
-
-              {/* Theme colors */}
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Theme Colors</p>
-                <div className="grid grid-cols-1 gap-2">
-                  {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => {
-                    const defaultColor = key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : '#ea580c';
-                    const colorValue = editBrandTheme[key] || defaultColor;
-                    const hexValue = editBrandThemeHex[key] ?? colorValue;
-                    return (
-                      <div key={key} className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={colorValue}
-                          onChange={e => {
-                            setEditBrandTheme(prev => ({ ...prev, [key]: e.target.value }));
-                            setEditBrandThemeHex(prev => ({ ...prev, [key]: e.target.value }));
-                          }}
-                          className="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0"
-                        />
-                        <input
-                          type="text"
-                          value={hexValue}
-                          onChange={e => {
-                            const v = e.target.value;
-                            setEditBrandThemeHex(prev => ({ ...prev, [key]: v }));
-                            if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-                              setEditBrandTheme(prev => ({ ...prev, [key]: v }));
-                            }
-                          }}
-                          maxLength={7}
-                          placeholder={defaultColor}
-                          spellCheck={false}
-                          className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        />
-                        <label className="text-xs text-gray-600 capitalize">{key}</label>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">These colors are used as branding in the Store Portal and App</p>
-              </div>
-
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setEditingBrand(null)}
-                  className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={editBrandLoading}
-                  className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {editBrandLoading ? 'Saving...' : 'Save Brand'}
-                </button>
-              </div>
-            </form>
-          </div>
         </Modal>
       )}
 
