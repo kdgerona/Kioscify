@@ -283,8 +283,9 @@ export class UsersService {
     requestingCompanyId: string,
     dto: CreateCompanyUserDto,
     requestingPrivileges: Record<string, string> | null,
+    requestingRole: string = 'COMPANY_ADMIN',
   ) {
-    if (companyId !== requestingCompanyId) throw new ForbiddenException('Access denied');
+    if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) throw new ForbiddenException('Access denied');
 
     const existing = await this.prisma.user.findFirst({
       where: { companyId, username: dto.username, tenantId: null },
