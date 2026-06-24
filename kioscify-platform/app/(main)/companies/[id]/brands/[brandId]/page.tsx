@@ -1228,9 +1228,186 @@ export default function BrandDetailPage() {
           </div>
         )}
 
-        {!['overview', 'categories', 'products', 'sizes', 'addons', 'preferences', 'inventory', 'stores', 'price-tiers'].includes(activeTab) && (
-          <div className="bg-white rounded-lg border py-16 text-center text-gray-400 text-sm">
-            {TABS.find(t => t.id === activeTab)?.label} — coming soon
+        {activeTab === 'settings' && (
+          <div className="space-y-6 max-w-xl">
+            {/* Logo */}
+            <div className="bg-white rounded-lg border">
+              <div className="px-6 py-4 border-b">
+                <h2 className="font-semibold text-gray-900">Brand Logo</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Displayed on the Store Portal login page</p>
+              </div>
+              <div className="p-6 flex items-center gap-6">
+                <div className="w-20 h-20 rounded-xl border border-gray-200 flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
+                  {brand.logoUrl ? (
+                    <img
+                      src={brand.logoUrl.startsWith('http') ? brand.logoUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'}${brand.logoUrl}`}
+                      alt="Brand logo"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-3xl font-bold text-gray-300">{brand.name[0]?.toUpperCase()}</span>
+                  )}
+                </div>
+                <div>
+                  {canWrite && (
+                    <label
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                        logoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-white hover:brightness-90'
+                      }`}
+                      style={logoUploading ? undefined : { backgroundColor: '#4f46e5' }}
+                    >
+                      <Upload className="w-4 h-4" />
+                      {logoUploading ? 'Uploading...' : 'Upload Logo'}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="sr-only"
+                        disabled={logoUploading}
+                        onChange={handleLogoUpload}
+                      />
+                    </label>
+                  )}
+                  <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP or GIF · Max 5 MB</p>
+                  {logoUploadError && <p className="text-red-500 text-xs mt-1">{logoUploadError}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Info + Theme */}
+            <div className="bg-white rounded-lg border">
+              <div className="px-6 py-4 border-b">
+                <h2 className="font-semibold text-gray-900">Brand Settings</h2>
+              </div>
+              <form onSubmit={handleSaveSettings} className="p-6 space-y-4">
+                {settingsSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+                    Settings saved
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Brand Name</label>
+                  <input
+                    type="text"
+                    value={settingsName}
+                    onChange={e => setSettingsName(e.target.value)}
+                    required
+                    disabled={!canWrite}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={settingsDescription}
+                    onChange={e => setSettingsDescription(e.target.value)}
+                    rows={2}
+                    disabled={!canWrite}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+                  />
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Theme Colors</p>
+                  <p className="text-xs text-gray-400 mb-3">These colors are used as branding in the Store Portal and App</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => {
+                      const defaultColor = key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : '#ea580c';
+                      const colorValue = settingsTheme?.[key] || defaultColor;
+                      const hexValue = settingsThemeHex[key] ?? colorValue;
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={colorValue}
+                            disabled={!canWrite}
+                            onChange={e => {
+                              setSettingsTheme(prev => ({ ...prev, [key]: e.target.value }));
+                              setSettingsThemeHex(prev => ({ ...prev, [key]: e.target.value }));
+                            }}
+                            className="w-9 h-9 rounded cursor-pointer border border-gray-200 p-0.5 shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
+                          />
+                          <input
+                            type="text"
+                            value={hexValue}
+                            disabled={!canWrite}
+                            onChange={e => {
+                              const v = e.target.value;
+                              setSettingsThemeHex(prev => ({ ...prev, [key]: v }));
+                              if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                                setSettingsTheme(prev => ({ ...prev, [key]: v }));
+                              }
+                            }}
+                            maxLength={7}
+                            placeholder={defaultColor}
+                            spellCheck={false}
+                            className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed" style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+                          />
+                          <span className="text-sm text-gray-600 capitalize">{key}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Delivery Platforms</h4>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Enable delivery platforms to set separate pricing for those orders.
+                  </p>
+                  <div className="space-y-2">
+                    <label className={`flex items-center gap-3 ${canWrite ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+                      <input
+                        type="checkbox"
+                        checked={enableFoodPanda}
+                        disabled={!canWrite}
+                        onChange={e => setEnableFoodPanda(e.target.checked)}
+                        className="rounded border-gray-300 text-pink-500 focus:ring-pink-500 disabled:cursor-not-allowed"
+                      />
+                      <span className="text-sm font-medium text-gray-700">FoodPanda</span>
+                    </label>
+                    <label className={`flex items-center gap-3 ${canWrite ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+                      <input
+                        type="checkbox"
+                        checked={enableGrab}
+                        disabled={!canWrite}
+                        onChange={e => setEnableGrab(e.target.checked)}
+                        className="rounded border-gray-300 text-green-500 focus:ring-green-500 disabled:cursor-not-allowed"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Grab</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Preference Label</h4>
+                  <p className="text-xs text-gray-500 mb-3">
+                    The heading shown to customers when selecting a preference in the app (e.g., &quot;Sugar Level&quot;). Defaults to &quot;Preference&quot; if left blank.
+                  </p>
+                  <input
+                    type="text"
+                    value={settingsPreferenceLabel}
+                    disabled={!canWrite}
+                    onChange={e => setSettingsPreferenceLabel(e.target.value)}
+                    placeholder="e.g. Sugar Level"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed"
+                    style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+                  />
+                </div>
+
+                {canWrite && (
+                  <button
+                    type="submit"
+                    disabled={settingsSaving}
+                    className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:brightness-90 disabled:opacity-50 text-sm font-medium" style={{ backgroundColor: '#4f46e5' }}
+                  >
+                    <Save className="w-4 h-4" />
+                    {settingsSaving ? 'Saving...' : 'Save Settings'}
+                  </button>
+                )}
+              </form>
+            </div>
           </div>
         )}
       </div>
