@@ -27,8 +27,15 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
+import { startOfMonth, endOfMonth } from 'date-fns';
+import { DateRangePicker } from './analytics/components/DateRangePicker';
+import { OverviewCards } from './analytics/components/OverviewCards';
+import { TopBrandsWidget } from './analytics/components/TopBrandsWidget';
+import { TopProductsWidget } from './analytics/components/TopProductsWidget';
+import { TopStoresWidget } from './analytics/components/TopStoresWidget';
+import { NetworkGrowthChart } from './analytics/components/NetworkGrowthChart';
 
-type Tab = 'settings' | 'brands' | 'stores' | 'users';
+type Tab = 'settings' | 'brands' | 'stores' | 'analytics' | 'users';
 
 interface StoreUser extends User {
   tenant: { id: string; name: string; slug: string } | null;
@@ -197,6 +204,9 @@ export default function CompanyDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('settings');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [analyticsStartDate, setAnalyticsStartDate] = useState(startOfMonth(new Date()).toISOString());
+  const [analyticsEndDate, setAnalyticsEndDate] = useState(endOfMonth(new Date()).toISOString());
 
   // Password banners
   const [adminPassword, setAdminPassword] = useState<string | null>(null);
@@ -745,7 +755,7 @@ export default function CompanyDetailPage() {
       {/* Tabs */}
       <div className="border-b">
         <nav className="flex gap-1">
-          {(['settings', 'brands', 'stores', 'users'] as Tab[]).map(tab => (
+          {(['settings', 'brands', 'stores', 'analytics', 'users'] as Tab[]).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -960,6 +970,36 @@ export default function CompanyDetailPage() {
               password will be generated.
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Analytics tab */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Analytics</h2>
+              <p className="text-sm text-gray-500 mt-1">Cross-brand performance overview for this company</p>
+            </div>
+            <DateRangePicker
+              initialPreset="this_month"
+              onChange={(start, end) => {
+                setAnalyticsStartDate(start);
+                setAnalyticsEndDate(end);
+              }}
+            />
+          </div>
+
+          <OverviewCards companyId={companyId} startDate={analyticsStartDate} endDate={analyticsEndDate} />
+
+          <TopBrandsWidget companyId={companyId} startDate={analyticsStartDate} endDate={analyticsEndDate} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TopProductsWidget companyId={companyId} startDate={analyticsStartDate} endDate={analyticsEndDate} />
+            <TopStoresWidget companyId={companyId} startDate={analyticsStartDate} endDate={analyticsEndDate} />
+          </div>
+
+          <NetworkGrowthChart companyId={companyId} startDate={analyticsStartDate} endDate={analyticsEndDate} />
         </div>
       )}
 
