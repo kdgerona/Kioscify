@@ -26,6 +26,7 @@ import type {
   TopProductItem,
   TopStoreItem,
   GrowthDataPoint,
+  CompanyPrivileges,
 } from '@/types';
 
 const API_BASE_URL =
@@ -570,6 +571,26 @@ class ApiClient {
 
   async updateCompanyUser(companyId: string, userId: string, payload: { isActive: boolean }): Promise<User> {
     const { data } = await this.client.patch(`/users/companies/${companyId}/${userId}`, payload);
+    return data;
+  }
+
+  async createCompanyUser(
+    companyId: string,
+    payload: { firstName: string; lastName: string; email: string; username: string; companyPrivileges?: CompanyPrivileges | null }
+  ): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/users/companies/${companyId}`, payload);
+    return data;
+  }
+
+  async updateCompanyUserPrivileges(
+    companyId: string,
+    userId: string,
+    companyPrivileges: CompanyPrivileges | null,
+  ): Promise<User> {
+    const { data } = await this.client.patch<User>(
+      `/users/companies/${companyId}/${userId}`,
+      { companyPrivileges },
+    );
     return data;
   }
 

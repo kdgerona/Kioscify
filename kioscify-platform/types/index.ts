@@ -1,3 +1,13 @@
+export type PrivilegeLevel = 'no_access' | 'read' | 'write' | 'all';
+export type PrivilegeSection = 'brands' | 'analytics' | 'users' | 'settings';
+
+export interface CompanyPrivileges {
+  brands: PrivilegeLevel;
+  analytics: PrivilegeLevel;
+  users: PrivilegeLevel;
+  settings: PrivilegeLevel;
+}
+
 export interface User {
   id: string;
   username: string;
@@ -11,6 +21,7 @@ export interface User {
   companyId?: string;
   createdAt: string;
   updatedAt: string;
+  companyPrivileges?: CompanyPrivileges | null;
 }
 
 export interface Company {
