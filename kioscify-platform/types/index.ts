@@ -236,3 +236,39 @@ export interface InventoryBrandTemplate {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface AnalyticsOverview {
+  totalBrands: number;
+  totalStores: number;
+  activeStores: number;
+}
+
+export interface TopBrandItem {
+  brandId: string;
+  brandName: string;
+  primaryColor?: string;
+  storeCount: number;
+  unitsSold: number;
+}
+
+export interface TopProductItem {
+  productId: string;
+  productName: string;
+  unitsSold: number;
+  totalRevenue: number;
+}
+
+export interface TopStoreItem {
+  storeId: string;
+  storeName: string;
+  brandId: string;
+  brandName: string;
+  totalRevenue: number;
+  transactionCount: number;
+}
+
+export interface GrowthDataPoint {
+  date: string;
+  storeCount: number;
+  brandCount: number;
+}
