@@ -117,7 +117,7 @@ export default function ChangePasswordPage() {
             Platform Administration — manage companies, stores, and users across Kioscify.
           </p>
           <div className="flex flex-wrap justify-center gap-2 mt-8">
-            {['Companies', 'Stores', 'Users', 'Analytics'].map(f => (
+            {['Companies', 'Stores', 'Users'].map(f => (
               <span
                 key={f}
                 className="text-xs font-medium px-3 py-1 rounded-full"

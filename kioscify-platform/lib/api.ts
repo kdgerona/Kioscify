@@ -21,11 +21,6 @@ import type {
   ProductPriceTier,
   SizePriceTier,
   AddonPriceTier,
-  AnalyticsOverview,
-  TopBrandItem,
-  TopProductItem,
-  TopStoreItem,
-  GrowthDataPoint,
   CompanyPrivileges,
 } from '@/types';
 
@@ -671,42 +666,6 @@ class ApiClient {
     await this.client.delete(`/app-releases/${id}`);
   }
 
-  // ─── Analytics ────────────────────────────────────────────────────────────
-
-  async getAnalyticsOverview(companyId: string, startDate: string, endDate: string): Promise<AnalyticsOverview> {
-    const { data } = await this.client.get<AnalyticsOverview>('/analytics/company/overview', {
-      params: { companyId, startDate, endDate },
-    });
-    return data;
-  }
-
-  async getTopBrands(companyId: string, startDate: string, endDate: string): Promise<TopBrandItem[]> {
-    const { data } = await this.client.get<TopBrandItem[]>('/analytics/company/top-brands', {
-      params: { companyId, startDate, endDate },
-    });
-    return data;
-  }
-
-  async getTopProducts(companyId: string, brandId: string, startDate: string, endDate: string): Promise<TopProductItem[]> {
-    const { data } = await this.client.get<TopProductItem[]>('/analytics/company/top-products', {
-      params: { companyId, brandId, startDate, endDate },
-    });
-    return data;
-  }
-
-  async getTopStores(companyId: string, startDate: string, endDate: string): Promise<TopStoreItem[]> {
-    const { data } = await this.client.get<TopStoreItem[]>('/analytics/company/top-stores', {
-      params: { companyId, startDate, endDate },
-    });
-    return data;
-  }
-
-  async getNetworkGrowth(companyId: string, startDate: string, endDate: string): Promise<GrowthDataPoint[]> {
-    const { data } = await this.client.get<GrowthDataPoint[]>('/analytics/company/growth', {
-      params: { companyId, startDate, endDate },
-    });
-    return data;
-  }
 }
 
 export const api = new ApiClient();

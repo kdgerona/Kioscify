@@ -1,6 +1,6 @@
 // kioskly-api/src/analytics/analytics.controller.ts
-import { Controller, Get, Query, Request, UseGuards, UnauthorizedException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryDto, TopProductsQueryDto } from './dto/analytics-query.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -13,28 +13,16 @@ import { CompanyId } from '../common/decorators/tenant.decorator';
 @ApiTags('analytics')
 @Controller('analytics/company')
 @UseGuards(JwtAuthGuard, RolesGuard, PrivilegeGuard)
-@Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+@Roles('COMPANY_ADMIN')
 @RequirePrivilege('analytics', 'read')
 @ApiBearerAuth()
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
-  private resolveCompanyId(req, jwtCompanyId: string, queryCompanyId: string): string {
-    const companyId = req.user.role === 'PLATFORM_ADMIN' ? queryCompanyId : jwtCompanyId;
-    if (!companyId) throw new UnauthorizedException('Invalid company token');
-    return companyId;
-  }
-
   @Get('overview')
   @ApiOperation({ summary: 'KPI overview: total brands, stores, active stores' })
-  @ApiQuery({ name: 'companyId', required: false, description: 'Required for PLATFORM_ADMIN' })
-  overview(
-    @CompanyId() jwtCompanyId: string,
-    @Query('companyId') queryCompanyId: string,
-    @Query() query: AnalyticsQueryDto,
-    @Request() req,
-  ) {
-    const companyId = this.resolveCompanyId(req, jwtCompanyId, queryCompanyId);
+  overview(@CompanyId() companyId: string, @Query() query: AnalyticsQueryDto) {
+    if (!companyId) throw new UnauthorizedException('Invalid company token');
     return this.analyticsService.getOverview(
       companyId,
       new Date(query.startDate),
@@ -44,14 +32,8 @@ export class AnalyticsController {
 
   @Get('top-brands')
   @ApiOperation({ summary: 'Brands ranked by aggregate revenue in period' })
-  @ApiQuery({ name: 'companyId', required: false, description: 'Required for PLATFORM_ADMIN' })
-  topBrands(
-    @CompanyId() jwtCompanyId: string,
-    @Query('companyId') queryCompanyId: string,
-    @Query() query: AnalyticsQueryDto,
-    @Request() req,
-  ) {
-    const companyId = this.resolveCompanyId(req, jwtCompanyId, queryCompanyId);
+  topBrands(@CompanyId() companyId: string, @Query() query: AnalyticsQueryDto) {
+    if (!companyId) throw new UnauthorizedException('Invalid company token');
     return this.analyticsService.getTopBrands(
       companyId,
       new Date(query.startDate),
@@ -61,14 +43,8 @@ export class AnalyticsController {
 
   @Get('top-products')
   @ApiOperation({ summary: 'Top 10 products by units sold within a brand' })
-  @ApiQuery({ name: 'companyId', required: false, description: 'Required for PLATFORM_ADMIN' })
-  topProducts(
-    @CompanyId() jwtCompanyId: string,
-    @Query('companyId') queryCompanyId: string,
-    @Query() query: TopProductsQueryDto,
-    @Request() req,
-  ) {
-    const companyId = this.resolveCompanyId(req, jwtCompanyId, queryCompanyId);
+  topProducts(@CompanyId() companyId: string, @Query() query: TopProductsQueryDto) {
+    if (!companyId) throw new UnauthorizedException('Invalid company token');
     return this.analyticsService.getTopProducts(
       companyId,
       query.brandId,
@@ -79,14 +55,8 @@ export class AnalyticsController {
 
   @Get('top-stores')
   @ApiOperation({ summary: 'Stores ranked by aggregate revenue in period' })
-  @ApiQuery({ name: 'companyId', required: false, description: 'Required for PLATFORM_ADMIN' })
-  topStores(
-    @CompanyId() jwtCompanyId: string,
-    @Query('companyId') queryCompanyId: string,
-    @Query() query: AnalyticsQueryDto,
-    @Request() req,
-  ) {
-    const companyId = this.resolveCompanyId(req, jwtCompanyId, queryCompanyId);
+  topStores(@CompanyId() companyId: string, @Query() query: AnalyticsQueryDto) {
+    if (!companyId) throw new UnauthorizedException('Invalid company token');
     return this.analyticsService.getTopStores(
       companyId,
       new Date(query.startDate),
@@ -96,14 +66,8 @@ export class AnalyticsController {
 
   @Get('growth')
   @ApiOperation({ summary: 'Cumulative store and brand count time series' })
-  @ApiQuery({ name: 'companyId', required: false, description: 'Required for PLATFORM_ADMIN' })
-  growth(
-    @CompanyId() jwtCompanyId: string,
-    @Query('companyId') queryCompanyId: string,
-    @Query() query: AnalyticsQueryDto,
-    @Request() req,
-  ) {
-    const companyId = this.resolveCompanyId(req, jwtCompanyId, queryCompanyId);
+  growth(@CompanyId() companyId: string, @Query() query: AnalyticsQueryDto) {
+    if (!companyId) throw new UnauthorizedException('Invalid company token');
     return this.analyticsService.getNetworkGrowth(
       companyId,
       new Date(query.startDate),
