@@ -1116,7 +1116,119 @@ export default function BrandDetailPage() {
           </div>
         )}
 
-        {!['overview', 'categories', 'products', 'sizes', 'addons', 'preferences', 'inventory', 'stores'].includes(activeTab) && (
+        {activeTab === 'price-tiers' && (
+          <div className="max-w-2xl">
+            <div className="bg-white rounded-lg border">
+              <div className="px-6 py-4 border-b">
+                <h2 className="font-semibold text-gray-900">Price Tiers</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Define pricing tiers and assign stores to them. The default tier is used when a store has no specific tier assigned.</p>
+              </div>
+              <div className="divide-y">
+                {priceTiers.length === 0 && (
+                  <div className="py-8 text-center text-gray-400 text-sm">No price tiers yet</div>
+                )}
+                {priceTiers.map(tier => (
+                  <div key={tier.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
+                    {editingTierId === tier.id ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editingTierName}
+                        onChange={e => setEditingTierName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleRenameTier(tier.id);
+                          if (e.key === 'Escape') setEditingTierId(null);
+                        }}
+                        className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:border-transparent"
+                        style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+                      />
+                    ) : (
+                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-medium text-gray-900 truncate">{tier.name}</span>
+                        {tier.isDefault && (
+                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
+                        )}
+                      </div>
+                    )}
+                    {canWrite && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        {editingTierId === tier.id ? (
+                          <>
+                            <button
+                              onClick={() => handleRenameTier(tier.id)}
+                              className="text-xs px-2 py-1 rounded font-medium hover:opacity-80"
+                              style={{ color: '#4f46e5' }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingTierId(null)}
+                              className="text-xs px-2 py-1 rounded text-gray-400 hover:text-gray-600"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {!tier.isDefault && (
+                              <button
+                                onClick={() => handleSetDefaultTier(tier.id)}
+                                title="Set as default"
+                                className="p-1.5 text-gray-300 hover:text-amber-500 rounded"
+                              >
+                                <Star className="w-3.5 h-3.5" fill="none" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { setEditingTierId(tier.id); setEditingTierName(tier.name); }}
+                              className="p-1.5 text-gray-400 hover:opacity-70 rounded"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            {canDelete && (
+                              <button
+                                onClick={() => handleDeleteTier(tier)}
+                                className="p-1.5 text-gray-400 hover:text-red-600 rounded"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {canWrite && (
+                <div className="px-4 py-3 border-t bg-gray-50">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newTierName}
+                      onChange={e => setNewTierName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateTier(); } }}
+                      placeholder="New tier name (e.g. Airport)"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:border-transparent bg-white"
+                      style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+                    />
+                    <button
+                      onClick={handleCreateTier}
+                      disabled={newTierSaving || !newTierName.trim()}
+                      className="flex items-center gap-1.5 px-3 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50"
+                      style={{ backgroundColor: '#4f46e5' }}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {newTierSaving ? 'Adding...' : 'Add'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!['overview', 'categories', 'products', 'sizes', 'addons', 'preferences', 'inventory', 'stores', 'price-tiers'].includes(activeTab) && (
           <div className="bg-white rounded-lg border py-16 text-center text-gray-400 text-sm">
             {TABS.find(t => t.id === activeTab)?.label} — coming soon
           </div>
