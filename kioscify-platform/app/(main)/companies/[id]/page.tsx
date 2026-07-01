@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { formatRole } from '@/lib/utils';
-import type { Company, Brand, ThemeColors, Store, OnboardAdminPayload, User } from '@/types';
+import type { Company, Brand, ThemeColors, Store, OnboardAdminPayload, User, CompanyPrivileges } from '@/types';
 import {
   ChevronLeft,
   Plus,
@@ -23,11 +24,21 @@ import {
   BadgeCheck,
   UserCheck,
   UserX,
+  Shield,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
+import { PrivilegesGrid } from '@/components/PrivilegesGrid';
+import { EditPrivilegesModal } from '@/components/EditPrivilegesModal';
 
 type Tab = 'settings' | 'brands' | 'stores' | 'users';
+
+const DEFAULT_PRIVILEGES: CompanyPrivileges = {
+  brands: 'read',
+  analytics: 'read',
+  users: 'read',
+  settings: 'read',
+};
 
 interface StoreUser extends User {
   tenant: { id: string; name: string; slug: string } | null;
@@ -131,7 +142,7 @@ function AdminFields({
 
 // ─── Clipboard helper ─────────────────────────────────────────────────────
 
-const copyToClipboard = async (text: string) => {
+const copyToClipboard = async (text: string, successMessage = 'Password copied to clipboard!') => {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -144,7 +155,7 @@ const copyToClipboard = async (text: string) => {
     document.execCommand('copy');
     document.body.removeChild(el);
   }
-  toast.success('Password copied to clipboard!');
+  toast.success(successMessage);
 };
 
 // ─── Password result banner ───────────────────────────────────────────────
@@ -196,6 +207,7 @@ export default function CompanyDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('settings');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
 
   // Password banners
   const [adminPassword, setAdminPassword] = useState<string | null>(null);
@@ -261,6 +273,8 @@ export default function CompanyDetailPage() {
   const [adminUsername, setAdminUsername] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
+  const [adminPrivileges, setAdminPrivileges] = useState<CompanyPrivileges>(DEFAULT_PRIVILEGES);
+  const [editingPrivilegesUser, setEditingPrivilegesUser] = useState<User | null>(null);
 
   // Create brand form
   const [brandName, setBrandName] = useState('');
@@ -275,74 +289,6 @@ export default function CompanyDetailPage() {
   const [companyThemeHex, setCompanyThemeHex] = useState<Record<string, string>>({});
   const [themeSaving, setThemeSaving] = useState(false);
   const [themeSuccess, setThemeSuccess] = useState(false);
-
-  // Edit brand modal
-  const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [editBrandName, setEditBrandName] = useState('');
-  const [editBrandDescription, setEditBrandDescription] = useState('');
-  const [editBrandTheme, setEditBrandTheme] = useState<ThemeColors>({});
-  const [editBrandThemeHex, setEditBrandThemeHex] = useState<Record<string, string>>({});
-  const [editBrandLoading, setEditBrandLoading] = useState(false);
-  const [editBrandError, setEditBrandError] = useState<string | null>(null);
-  const [editBrandLogoUploading, setEditBrandLogoUploading] = useState(false);
-  const [editBrandLogoUploadError, setEditBrandLogoUploadError] = useState<string | null>(null);
-
-  const openEditBrand = (brand: Brand) => {
-    setEditingBrand(brand);
-    setEditBrandName(brand.name);
-    setEditBrandDescription(brand.description || '');
-    setEditBrandTheme(brand.themeColors || {});
-    setEditBrandThemeHex({ ...(brand.themeColors || {}) });
-    setEditBrandError(null);
-  };
-
-  const handleSaveBrand = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingBrand) return;
-    setEditBrandError(null);
-    setEditBrandLoading(true);
-    try {
-      const updated = await api.updateBrand(editingBrand.id, {
-        name: editBrandName,
-        description: editBrandDescription || undefined,
-        themeColors: Object.keys(editBrandTheme).length ? editBrandTheme : undefined,
-      });
-      setBrands(prev => prev.map(b => b.id === updated.id ? { ...b, ...updated } : b));
-      setEditingBrand(null);
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setEditBrandError(axiosErr?.response?.data?.message || 'Failed to update brand');
-    } finally {
-      setEditBrandLoading(false);
-    }
-  };
-
-  const handleBrandLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !editingBrand) return;
-    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
-      setEditBrandLogoUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
-      e.target.value = '';
-      return;
-    }
-    if (file.size > UPLOAD_MAX_SIZE) {
-      setEditBrandLogoUploadError('File too large. Maximum size is 5 MB.');
-      e.target.value = '';
-      return;
-    }
-    setEditBrandLogoUploadError(null);
-    setEditBrandLogoUploading(true);
-    try {
-      const updated = await api.uploadBrandLogo(editingBrand.id, file);
-      setEditingBrand(prev => prev ? { ...prev, logoUrl: updated.logoUrl } : prev);
-      setBrands(prev => prev.map(b => b.id === updated.id ? { ...b, logoUrl: updated.logoUrl } : b));
-    } catch {
-      // no-op
-    } finally {
-      setEditBrandLogoUploading(false);
-      e.target.value = '';
-    }
-  };
 
   // Onboard store form
   const [storeNameField, setStoreNameField] = useState('');
@@ -477,18 +423,25 @@ export default function CompanyDetailPage() {
     setAdminError(null);
     setAdminLoading(true);
     try {
-      const payload: OnboardAdminPayload = {
+      const payload = {
         firstName: adminFirstName,
         lastName: adminLastName,
         email: adminEmail,
         username: adminUsername,
       };
-      const result = await api.onboardCompanyAdmin(companyId, payload);
+      // The very first admin becomes the unrestricted owner (companyPrivileges stays null
+      // server-side), matching how a brand-new company is set up. Every admin added after
+      // that gets explicit, restrictable privileges — same as a company-admin owner adding
+      // a teammate via their own Users page.
+      const result = companyAdmins.length === 0
+        ? await api.onboardCompanyAdmin(companyId, payload as OnboardAdminPayload)
+        : await api.createCompanyUser(companyId, { ...payload, companyPrivileges: adminPrivileges });
       setAdminPassword(result.temporaryPassword);
       setAdminFirstName('');
       setAdminLastName('');
       setAdminEmail('');
       setAdminUsername('');
+      setAdminPrivileges(DEFAULT_PRIVILEGES);
       setShowOnboardAdmin(false);
       await loadUsers();
     } catch (err: unknown) {
@@ -680,6 +633,12 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const copyStoreLink = async (store: Store) => {
+    const base = process.env.NEXT_PUBLIC_STORE_PORTAL_BASE_URL ?? '';
+    const url = `${base}/${company?.slug ?? ''}/${store.brand?.slug ?? ''}/${store.slug}`;
+    await copyToClipboard(url, 'Store portal link copied!');
+  };
+
   const currentUserId = (() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -733,9 +692,9 @@ export default function CompanyDetailPage() {
     <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <a href="/companies" className="text-gray-400 hover:text-gray-600">
+        <Link href="/companies" className="text-gray-400 hover:text-gray-600">
           <ChevronLeft className="w-5 h-5" />
-        </a>
+        </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{company.name}</h1>
           <div className="flex items-center gap-1.5">
@@ -1015,7 +974,7 @@ export default function CompanyDetailPage() {
                 <p className="text-xs text-gray-400 mt-0.5">Create an admin user for this company</p>
               </div>
               <button
-                onClick={() => setShowOnboardAdmin(true)}
+                onClick={() => { setAdminError(null); setAdminPrivileges(DEFAULT_PRIVILEGES); setShowOnboardAdmin(true); }}
                 className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs font-medium"
               >
                 <UserPlus className="w-3.5 h-3.5" />
@@ -1060,13 +1019,13 @@ export default function CompanyDetailPage() {
                       <span className="text-xs text-gray-500">
                         {brand.storeCount ?? 0} store{(brand.storeCount ?? 0) !== 1 ? 's' : ''}
                       </span>
-                      <button
-                        onClick={() => openEditBrand(brand)}
+                      <Link
+                        href={`/companies/${companyId}/brands/${brand.id}`}
                         className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-indigo-700 font-medium border border-gray-200 rounded px-2.5 py-1.5"
                       >
                         <Pencil className="w-3.5 h-3.5" />
-                        Edit
-                      </button>
+                        Manage
+                      </Link>
                       <button
                         onClick={() =>
                           setShowOnboardStore({ brandId: brand.id, brandName: brand.name })
@@ -1103,53 +1062,67 @@ export default function CompanyDetailPage() {
               No stores yet
             </div>
           ) : (
-            <div className="bg-white rounded-lg border divide-y">
-              {stores.map(store => (
-                <div key={store.id} className="px-5 py-4 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{store.name}</p>
-                    <p className="text-xs text-gray-400">
-                      {store.slug}
-                      {store.brand && (
-                        <span className="ml-2 text-gray-300">·</span>
-                      )}
-                      {store.brand && (
-                        <span className="ml-2 text-indigo-500">{store.brand.name}</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      onClick={() => setQrStore({
-                        storeName: store.name,
-                        companySlug: company!.slug,
-                        brandSlug: store.brand?.slug ?? '',
-                        storeSlug: store.slug,
-                      })}
-                      title="View QR Code"
-                      className="p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
-                    >
-                      <QrCode className="w-4 h-4" />
-                    </button>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      store.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
-                    }`}>
-                      {store.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    <button
-                      onClick={() => handleToggleStoreActive(store)}
-                      title={store.isActive ? 'Deactivate store' : 'Activate store'}
-                      className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${
-                        store.isActive ? 'bg-indigo-600' : 'bg-gray-200'
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                        store.isActive ? 'translate-x-4' : 'translate-x-0'
-                      }`} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-6">
+              {brands
+                .filter(brand => stores.some(s => s.brandId === brand.id))
+                .map(brand => {
+                  const brandStores = stores.filter(s => s.brandId === brand.id);
+                  return (
+                    <div key={brand.id}>
+                      <div className="flex items-center gap-2 px-1 py-2">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{brand.name}</span>
+                        <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{brandStores.length} {brandStores.length === 1 ? 'store' : 'stores'}</span>
+                      </div>
+                      <div className="bg-white rounded-lg border divide-y">
+                        {brandStores.map(store => (
+                          <div key={store.id} className="px-5 py-4 flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{store.name}</p>
+                              <p className="text-xs text-gray-400">{store.slug}</p>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <button
+                                onClick={() => setQrStore({
+                                  storeName: store.name,
+                                  companySlug: company!.slug,
+                                  brandSlug: store.brand?.slug ?? '',
+                                  storeSlug: store.slug,
+                                })}
+                                title="View QR Code"
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
+                              >
+                                <QrCode className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => copyStoreLink(store)}
+                                title="Copy store portal link"
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                store.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                              }`}>
+                                {store.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                              <button
+                                onClick={() => handleToggleStoreActive(store)}
+                                title={store.isActive ? 'Deactivate store' : 'Activate store'}
+                                className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${
+                                  store.isActive ? 'bg-indigo-600' : 'bg-gray-200'
+                                }`}
+                              >
+                                <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                                  store.isActive ? 'translate-x-4' : 'translate-x-0'
+                                }`} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>
@@ -1173,7 +1146,7 @@ export default function CompanyDetailPage() {
                     <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{companyAdmins.length}</span>
                   </div>
                   <button
-                    onClick={() => { setAdminError(null); setShowOnboardAdmin(true); }}
+                    onClick={() => { setAdminError(null); setAdminPrivileges(DEFAULT_PRIVILEGES); setShowOnboardAdmin(true); }}
                     className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium border border-indigo-200 rounded px-2.5 py-1.5"
                   >
                     <UserPlus className="w-3.5 h-3.5" />
@@ -1185,7 +1158,7 @@ export default function CompanyDetailPage() {
                 ) : (
                   <div className="divide-y">
                     {companyAdmins.map(user => (
-                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} currentUserId={currentUserId} />
+                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} onEditPrivileges={setEditingPrivilegesUser} currentUserId={currentUserId} />
                     ))}
                   </div>
                 )}
@@ -1274,6 +1247,12 @@ export default function CompanyDetailPage() {
               setEmail={setAdminEmail}
               setUsername={setAdminUsername}
             />
+            {companyAdmins.length > 0 && (
+              <div className="pt-2 border-t">
+                <p className="text-sm font-medium text-gray-700 mb-2">Permissions</p>
+                <PrivilegesGrid value={adminPrivileges} onChange={setAdminPrivileges} disabled={adminLoading} />
+              </div>
+            )}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
@@ -1294,125 +1273,17 @@ export default function CompanyDetailPage() {
         </Modal>
       )}
 
-      {/* Edit brand modal */}
-      {editingBrand && (
-        <Modal title={`Edit Brand — ${editingBrand.name}`} onClose={() => setEditingBrand(null)}>
-          <div className="space-y-5">
-            {/* Logo */}
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
-                {editingBrand.logoUrl ? (
-                  <img
-                    src={editingBrand.logoUrl.startsWith('http') ? editingBrand.logoUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'}${editingBrand.logoUrl}`}
-                    alt="Brand logo"
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <span className="text-2xl font-bold text-gray-300">{editingBrand.name[0]?.toUpperCase()}</span>
-                )}
-              </div>
-              <div>
-                <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
-                  editBrandLogoUploading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                }`}>
-                  <Upload className="w-3.5 h-3.5" />
-                  {editBrandLogoUploading ? 'Uploading...' : 'Upload Logo'}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    className="sr-only"
-                    disabled={editBrandLogoUploading}
-                    onChange={handleBrandLogoUpload}
-                  />
-                </label>
-                <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · Max 5 MB</p>
-                {editBrandLogoUploadError && <p className="text-red-500 text-xs mt-1">{editBrandLogoUploadError}</p>}
-              </div>
-            </div>
-
-            <form onSubmit={handleSaveBrand} className="space-y-4">
-              {editBrandError && <p className="text-red-600 text-sm">{editBrandError}</p>}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Brand Name</label>
-                <input
-                  type="text"
-                  value={editBrandName}
-                  onChange={e => setEditBrandName(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={editBrandDescription}
-                  onChange={e => setEditBrandDescription(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
-                />
-              </div>
-
-              {/* Theme colors */}
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Theme Colors</p>
-                <div className="grid grid-cols-1 gap-2">
-                  {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => {
-                    const defaultColor = key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : '#ea580c';
-                    const colorValue = editBrandTheme[key] || defaultColor;
-                    const hexValue = editBrandThemeHex[key] ?? colorValue;
-                    return (
-                      <div key={key} className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={colorValue}
-                          onChange={e => {
-                            setEditBrandTheme(prev => ({ ...prev, [key]: e.target.value }));
-                            setEditBrandThemeHex(prev => ({ ...prev, [key]: e.target.value }));
-                          }}
-                          className="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0"
-                        />
-                        <input
-                          type="text"
-                          value={hexValue}
-                          onChange={e => {
-                            const v = e.target.value;
-                            setEditBrandThemeHex(prev => ({ ...prev, [key]: v }));
-                            if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-                              setEditBrandTheme(prev => ({ ...prev, [key]: v }));
-                            }
-                          }}
-                          maxLength={7}
-                          placeholder={defaultColor}
-                          spellCheck={false}
-                          className="w-24 px-2 py-1 text-xs border border-gray-200 rounded-md font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                        />
-                        <label className="text-xs text-gray-600 capitalize">{key}</label>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">These colors are used as branding in the Store Portal and App</p>
-              </div>
-
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setEditingBrand(null)}
-                  className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={editBrandLoading}
-                  className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {editBrandLoading ? 'Saving...' : 'Save Brand'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
+      {editingPrivilegesUser && (
+        <EditPrivilegesModal
+          open={!!editingPrivilegesUser}
+          onClose={() => setEditingPrivilegesUser(null)}
+          onSave={(updated) => {
+            setCompanyAdmins(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+            setEditingPrivilegesUser(null);
+          }}
+          companyId={companyId}
+          user={editingPrivilegesUser}
+        />
       )}
 
       {/* Create brand modal */}
@@ -1867,6 +1738,7 @@ function UserRow({
   resetting,
   onRemove,
   onToggle,
+  onEditPrivileges,
   currentUserId,
 }: {
   user: User;
@@ -1875,6 +1747,7 @@ function UserRow({
   resetting: boolean;
   onRemove: (user: User) => void;
   onToggle: (user: User) => void;
+  onEditPrivileges?: (user: User) => void;
   currentUserId: string | null;
 }) {
   const roleBadge: Record<string, string> = {
@@ -1951,6 +1824,15 @@ function UserRow({
           >
             <KeyRound className="w-3.5 h-3.5" />
             {resetting ? 'Resetting...' : 'Reset Password'}
+          </button>
+        )}
+        {onEditPrivileges && user.role === 'COMPANY_ADMIN' && (
+          <button
+            onClick={() => onEditPrivileges(user)}
+            title="Edit privileges"
+            className="p-1.5 text-gray-400 hover:text-indigo-600 rounded transition-colors"
+          >
+            <Shield className="w-3.5 h-3.5" />
           </button>
         )}
       </div>

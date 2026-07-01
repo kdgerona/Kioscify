@@ -361,6 +361,23 @@ describe('UsersService', () => {
         }),
       );
     });
+
+    it('throws ForbiddenException for a non-PLATFORM_ADMIN requester whose companyId does not match', async () => {
+      await expect(
+        service.createCompanyUser('co1', 'co2', { firstName: 'Dan', lastName: 'Ng', email: 'dan@co.com', username: 'dan' }, null, 'COMPANY_ADMIN'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows a PLATFORM_ADMIN requester to create a user in a company whose JWT carries no companyId', async () => {
+      mockPrisma.user.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.user.create.mockResolvedValue({ id: 'u4', username: 'erin', firstName: 'Erin', lastName: 'Cruz', email: 'erin@co.com', role: 'COMPANY_ADMIN', isFirstLogin: true });
+
+      await service.createCompanyUser('co1', undefined, { firstName: 'Erin', lastName: 'Cruz', email: 'erin@co.com', username: 'erin' }, null, 'PLATFORM_ADMIN');
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ companyId: 'co1', role: 'COMPANY_ADMIN' }) }),
+      );
+    });
   });
 
   describe('updateCompanyUser', () => {

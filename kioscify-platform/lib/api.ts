@@ -11,6 +11,17 @@ import type {
   OnboardAdminPayload,
   OnboardStorePayload,
   AppRelease,
+  Category,
+  Product,
+  Size,
+  Addon,
+  Preference,
+  InventoryBrandTemplate,
+  PriceTier,
+  ProductPriceTier,
+  SizePriceTier,
+  AddonPriceTier,
+  CompanyPrivileges,
 } from '@/types';
 
 const API_BASE_URL =
@@ -219,7 +230,7 @@ class ApiClient {
 
   async updateBrand(
     id: string,
-    payload: Partial<{ name: string; description: string; themeColors: ThemeColors; isActive: boolean }>
+    payload: Partial<{ name: string; description: string; themeColors: ThemeColors; isActive: boolean; enabledDeliveryPlatforms: string[]; preferenceLabel: string }>
   ): Promise<Brand> {
     const { data } = await this.client.patch<Brand>(`/brands/${id}`, payload);
     return data;
@@ -232,6 +243,214 @@ class ApiClient {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return data;
+  }
+
+  // ─── Categories ───────────────────────────────────────────────────────────
+
+  async getCategories(brandId: string, type?: 'PRODUCT' | 'INVENTORY'): Promise<Category[]> {
+    const { data } = await this.client.get<Category[]>('/categories', {
+      params: { brandId, ...(type ? { type } : {}) },
+    });
+    return data;
+  }
+
+  async createCategory(payload: { name: string; description?: string; brandId: string; type?: 'PRODUCT' | 'INVENTORY' }): Promise<Category> {
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Category>('/categories', body, { params: { brandId } });
+    return data;
+  }
+
+  async updateCategory(id: string, payload: { name?: string; description?: string; sequenceNo?: number }): Promise<Category> {
+    const { data } = await this.client.patch<Category>(`/categories/${id}`, payload);
+    return data;
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    await this.client.delete(`/categories/${id}`);
+  }
+
+  // ─── Products ─────────────────────────────────────────────────────────────
+
+  async getProducts(brandId: string): Promise<Product[]> {
+    const { data } = await this.client.get<Product[]>('/products', { params: { brandId } });
+    return data;
+  }
+
+  async createProduct(payload: {
+    name: string;
+    price: number;
+    foodpandaPrice?: number | null;
+    grabPrice?: number | null;
+    categoryId?: string;
+    brandId: string;
+    sizeIds?: string[];
+    addonIds?: string[];
+    preferenceIds?: string[];
+    priceTiers?: ProductPriceTier[];
+  }): Promise<Product> {
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Product>('/products', body, { params: { brandId } });
+    return data;
+  }
+
+  async updateProduct(
+    id: string,
+    payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; categoryId: string; sizeIds: string[]; addonIds: string[]; preferenceIds: string[]; priceTiers: ProductPriceTier[] }>
+  ): Promise<Product> {
+    const { data } = await this.client.patch<Product>(`/products/${id}`, payload);
+    return data;
+  }
+
+  async uploadProductImage(id: string, brandId: string, file: File): Promise<Product> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const { data } = await this.client.post<Product>(`/products/${id}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      params: { brandId },
+    });
+    return data;
+  }
+
+  async removeProductImage(id: string, brandId: string): Promise<Product> {
+    const { data } = await this.client.delete<Product>(`/products/${id}/image`, { params: { brandId } });
+    return data;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await this.client.delete(`/products/${id}`);
+  }
+
+  // ─── Sizes ────────────────────────────────────────────────────────────────
+
+  async getSizes(brandId: string): Promise<Size[]> {
+    const { data } = await this.client.get<Size[]>('/sizes', { params: { brandId } });
+    return data;
+  }
+
+  async createSize(payload: {
+    name: string;
+    priceModifier: number;
+    foodpandaPrice?: number | null;
+    grabPrice?: number | null;
+    brandId: string;
+    priceTiers?: SizePriceTier[];
+  }): Promise<Size> {
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Size>('/sizes', body, { params: { brandId } });
+    return data;
+  }
+
+  async updateSize(id: string, payload: Partial<{ name: string; priceModifier: number; foodpandaPrice: number | null; grabPrice: number | null; sequenceNo: number; priceTiers: SizePriceTier[] }>): Promise<Size> {
+    const { data } = await this.client.patch<Size>(`/sizes/${id}`, payload);
+    return data;
+  }
+
+  async deleteSize(id: string): Promise<void> {
+    await this.client.delete(`/sizes/${id}`);
+  }
+
+  // ─── Addons ───────────────────────────────────────────────────────────────
+
+  async getAddons(brandId: string): Promise<Addon[]> {
+    const { data } = await this.client.get<Addon[]>('/addons', { params: { brandId } });
+    return data;
+  }
+
+  async createAddon(payload: {
+    name: string;
+    price: number;
+    foodpandaPrice?: number | null;
+    grabPrice?: number | null;
+    brandId: string;
+    priceTiers?: AddonPriceTier[];
+  }): Promise<Addon> {
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Addon>('/addons', body, { params: { brandId } });
+    return data;
+  }
+
+  async updateAddon(id: string, payload: Partial<{ name: string; price: number; foodpandaPrice: number | null; grabPrice: number | null; sequenceNo: number; priceTiers: AddonPriceTier[] }>): Promise<Addon> {
+    const { data } = await this.client.patch<Addon>(`/addons/${id}`, payload);
+    return data;
+  }
+
+  async deleteAddon(id: string): Promise<void> {
+    await this.client.delete(`/addons/${id}`);
+  }
+
+  // ─── Preferences ──────────────────────────────────────────────────────────
+
+  async getPreferences(brandId: string): Promise<Preference[]> {
+    const { data } = await this.client.get<Preference[]>('/preferences', { params: { brandId } });
+    return data;
+  }
+
+  async createPreference(payload: { name: string; brandId: string }): Promise<Preference> {
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<Preference>('/preferences', body, { params: { brandId } });
+    return data;
+  }
+
+  async updatePreference(id: string, payload: Partial<{ name: string; sequenceNo: number; isDefault: boolean }>): Promise<Preference> {
+    const { data } = await this.client.patch<Preference>(`/preferences/${id}`, payload);
+    return data;
+  }
+
+  async deletePreference(id: string): Promise<void> {
+    await this.client.delete(`/preferences/${id}`);
+  }
+
+  // ─── Inventory brand templates ────────────────────────────────────────────
+
+  async getInventoryBrandTemplates(brandId: string): Promise<InventoryBrandTemplate[]> {
+    const { data } = await this.client.get<InventoryBrandTemplate[]>('/inventory/brand-templates', { params: { brandId } });
+    return data;
+  }
+
+  async createInventoryBrandTemplate(payload: {
+    name: string;
+    unit: string;
+    category?: string;
+    minStockLevel?: number;
+    expirationWarningDays?: number;
+    brandId: string;
+  }): Promise<InventoryBrandTemplate> {
+    const { brandId, ...body } = payload;
+    const { data } = await this.client.post<InventoryBrandTemplate>('/inventory/brand-templates', body, { params: { brandId } });
+    return data;
+  }
+
+  async updateInventoryBrandTemplate(
+    id: string,
+    payload: Partial<{ name: string; unit: string; category: string; minStockLevel: number; expirationWarningDays: number }>
+  ): Promise<InventoryBrandTemplate> {
+    const { data } = await this.client.patch<InventoryBrandTemplate>(`/inventory/brand-templates/${id}`, payload);
+    return data;
+  }
+
+  async deleteInventoryBrandTemplate(id: string): Promise<void> {
+    await this.client.delete(`/inventory/brand-templates/${id}`);
+  }
+
+  // ─── Price Tiers ──────────────────────────────────────────────────────────
+
+  async getPriceTiers(brandId: string): Promise<PriceTier[]> {
+    const { data } = await this.client.get<PriceTier[]>(`/brands/${brandId}/price-tiers`);
+    return data;
+  }
+
+  async createPriceTier(brandId: string, payload: { name: string; isDefault?: boolean }): Promise<PriceTier> {
+    const { data } = await this.client.post<PriceTier>(`/brands/${brandId}/price-tiers`, payload);
+    return data;
+  }
+
+  async updatePriceTier(brandId: string, tierId: string, payload: { name?: string; isDefault?: boolean }): Promise<PriceTier> {
+    const { data } = await this.client.patch<PriceTier>(`/brands/${brandId}/price-tiers/${tierId}`, payload);
+    return data;
+  }
+
+  async deletePriceTier(brandId: string, tierId: string): Promise<void> {
+    await this.client.delete(`/brands/${brandId}/price-tiers/${tierId}`);
   }
 
   // ─── Stores ───────────────────────────────────────────────────────────────
@@ -252,7 +471,7 @@ class ApiClient {
 
   async updateStore(
     id: string,
-    payload: Partial<{ name: string; isActive: boolean }>
+    payload: Partial<{ name: string; isActive: boolean; enabledDeliveryPlatforms: string[]; priceTierId: string | null }>
   ): Promise<Store> {
     const { data } = await this.client.patch<Store>(`/stores/${id}`, payload);
     return data;
@@ -350,6 +569,26 @@ class ApiClient {
     return data;
   }
 
+  async createCompanyUser(
+    companyId: string,
+    payload: { firstName: string; lastName: string; email: string; username: string; companyPrivileges?: CompanyPrivileges | null }
+  ): Promise<{ user: User; temporaryPassword: string }> {
+    const { data } = await this.client.post(`/users/companies/${companyId}`, payload);
+    return data;
+  }
+
+  async updateCompanyUserPrivileges(
+    companyId: string,
+    userId: string,
+    companyPrivileges: CompanyPrivileges | null,
+  ): Promise<User> {
+    const { data } = await this.client.patch<User>(
+      `/users/companies/${companyId}/${userId}`,
+      { companyPrivileges },
+    );
+    return data;
+  }
+
   async deleteUser(userId: string): Promise<{ message: string }> {
     const { data } = await this.client.delete(`/users/${userId}`);
     return data;
@@ -426,6 +665,7 @@ class ApiClient {
   async deleteAppRelease(id: string): Promise<void> {
     await this.client.delete(`/app-releases/${id}`);
   }
+
 }
 
 export const api = new ApiClient();

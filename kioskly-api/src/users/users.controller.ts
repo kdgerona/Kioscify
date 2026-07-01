@@ -153,7 +153,7 @@ export class UsersController {
 
   @Post('companies/:companyId')
   @UseGuards(RolesGuard, PrivilegeGuard)
-  @Roles('COMPANY_ADMIN')
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @RequirePrivilege('users', 'write')
   @ApiOperation({ summary: 'Create additional COMPANY_ADMIN user (returns temporary password)' })
   createCompanyUser(
@@ -162,7 +162,7 @@ export class UsersController {
     @CompanyId() requestingCompanyId: string,
     @Request() req,
   ) {
-    return this.usersService.createCompanyUser(companyId, requestingCompanyId, dto, req.user.companyPrivileges ?? null);
+    return this.usersService.createCompanyUser(companyId, requestingCompanyId, dto, req.user.companyPrivileges ?? null, req.user.role);
   }
 
   @Patch('companies/:companyId/:userId')
