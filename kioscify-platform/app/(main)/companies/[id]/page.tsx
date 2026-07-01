@@ -142,7 +142,7 @@ function AdminFields({
 
 // ─── Clipboard helper ─────────────────────────────────────────────────────
 
-const copyToClipboard = async (text: string) => {
+const copyToClipboard = async (text: string, successMessage = 'Password copied to clipboard!') => {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -155,7 +155,7 @@ const copyToClipboard = async (text: string) => {
     document.execCommand('copy');
     document.body.removeChild(el);
   }
-  toast.success('Password copied to clipboard!');
+  toast.success(successMessage);
 };
 
 // ─── Password result banner ───────────────────────────────────────────────
@@ -636,8 +636,7 @@ export default function CompanyDetailPage() {
   const copyStoreLink = async (store: Store) => {
     const base = process.env.NEXT_PUBLIC_STORE_PORTAL_BASE_URL ?? '';
     const url = `${base}/${company?.slug ?? ''}/${store.brand?.slug ?? ''}/${store.slug}`;
-    await copyToClipboard(url);
-    toast.success('Store portal link copied!');
+    await copyToClipboard(url, 'Store portal link copied!');
   };
 
   const currentUserId = (() => {
