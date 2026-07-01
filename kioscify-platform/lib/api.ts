@@ -22,6 +22,10 @@ import type {
   SizePriceTier,
   AddonPriceTier,
   CompanyPrivileges,
+  SubscriptionMonthEntry,
+  SubscriptionListItem,
+  SubscriptionDetail,
+  SubscriptionStats,
 } from '@/types';
 
 const API_BASE_URL =
@@ -141,6 +145,47 @@ class ApiClient {
     dto: Partial<MaintenanceStatus>
   ): Promise<MaintenanceStatus> {
     const { data } = await this.client.patch<MaintenanceStatus>('/platform/maintenance-status', dto);
+    return data;
+  }
+
+  // ─── Subscriptions ────────────────────────────────────────────────────────
+
+  async getSubscriptionStats(): Promise<SubscriptionStats> {
+    const { data } = await this.client.get<SubscriptionStats>('/platform/subscriptions/stats');
+    return data;
+  }
+
+  async getSubscriptions(filters: {
+    companyId?: string;
+    brandId?: string;
+    status?: 'activated' | 'pending';
+    paid?: 'paid' | 'overdue';
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    data: SubscriptionListItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const { data } = await this.client.get('/platform/subscriptions', { params: filters });
+    return data;
+  }
+
+  async getSubscriptionDetail(tenantId: string): Promise<SubscriptionDetail> {
+    const { data } = await this.client.get<SubscriptionDetail>(`/platform/subscriptions/${tenantId}`);
+    return data;
+  }
+
+  async setStoreActivation(tenantId: string, activatedAt: string | null): Promise<{ activatedAt: string | null }> {
+    const { data } = await this.client.patch(`/platform/subscriptions/${tenantId}/activation`, { activatedAt });
+    return data;
+  }
+
+  async upsertSubscriptionPayment(
+    tenantId: string,
+    month: string,
+    payload: { paid: boolean; note?: string },
+  ): Promise<SubscriptionMonthEntry> {
+    const { data } = await this.client.put(`/platform/subscriptions/${tenantId}/payments/${month}`, payload);
     return data;
   }
 

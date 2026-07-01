@@ -92,6 +92,41 @@ export interface PlatformStats {
   monthlyActiveStores: number;
 }
 
+export interface SubscriptionMonthEntry {
+  month: string; // 'YYYY-MM'
+  paid: boolean;
+  paidAt: string | null;
+  note: string | null;
+}
+
+export interface SubscriptionListItem {
+  tenantId: string;
+  storeName: string;
+  storeSlug: string;
+  company: { id: string; name: string } | null;
+  brand: { id: string; name: string } | null;
+  activatedAt: string | null;
+  paidThisMonth: boolean | null;
+}
+
+export interface SubscriptionDetail {
+  tenantId: string;
+  storeName: string;
+  storeSlug: string;
+  company: { id: string; name: string } | null;
+  brand: { id: string; name: string } | null;
+  activatedAt: string | null;
+  months: SubscriptionMonthEntry[];
+}
+
+export interface SubscriptionStats {
+  totalStores: number;
+  activated: number;
+  pendingActivation: number;
+  paidThisMonth: number;
+  overdue: number;
+}
+
 export interface MaintenanceStatus {
   storePortalMaintenance: boolean;
   companyPortalMaintenance: boolean;
