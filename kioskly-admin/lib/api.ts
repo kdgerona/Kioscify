@@ -25,6 +25,7 @@ import type {
   StorePrivileges,
   UserSession,
   SessionStatus,
+  StaffTimeLog,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -763,6 +764,22 @@ class ApiClient {
     pagination: { page: number; limit: number; total: number; totalPages: number };
   }> {
     const { data } = await this.client.get(`/users/stores/${storeId}/sessions`, { params: filters });
+    return data;
+  }
+
+  // ─── Staff time logs (attendance) ──────────────────────────────────────────
+
+  async getStaffTimeLogs(tenantId: string, filters: {
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    data: StaffTimeLog[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const { data } = await this.client.get(`/staff-time-logs`, { params: filters });
     return data;
   }
 

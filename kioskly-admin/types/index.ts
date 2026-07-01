@@ -113,6 +113,26 @@ export interface UserSession {
   status: SessionStatus;
 }
 
+export type TimeLogEventType = "TIME_IN" | "TIME_OUT";
+
+export interface StaffTimeLog {
+  id: string;
+  tenantId: string;
+  userId: string;
+  eventType: TimeLogEventType;
+  photoUrl: string;
+  latitude: number;
+  longitude: number;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+    role: string;
+  };
+}
+
 export interface Category {
   id: string;
   tenantId: string;
