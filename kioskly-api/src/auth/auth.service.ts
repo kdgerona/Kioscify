@@ -17,6 +17,12 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { SessionsService } from '../sessions/sessions.service';
+
+export interface RequestMeta {
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}
 
 const BCRYPT_ROUNDS = 12;
 
@@ -30,6 +36,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private tokenBlacklist: TokenBlacklistService,
+    private sessionsService: SessionsService,
     @InjectPinoLogger(AuthService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -57,17 +64,46 @@ export class AuthService {
     return [...required, ...rest].sort(() => crypto.randomInt(3) - 1).join('');
   }
 
-  private buildJwt(payload: object): string {
-    return this.jwtService.sign({ ...payload, jti: crypto.randomUUID() });
+  // Builds the JWT and records a Session row for it in one step — every
+  // login/switch-store path needs both, and expiresAt must come from the
+  // signed token so it matches JWT_EXPIRES_IN exactly.
+  private async issueTokenAndRecordSession(
+    payload: {
+      sub: string;
+      role: string;
+      tenantId?: string | null;
+      brandId?: string | null;
+      companyId?: string | null;
+    },
+    meta?: RequestMeta,
+  ): Promise<string> {
+    const jti = crypto.randomUUID();
+    const accessToken = this.jwtService.sign({ ...payload, jti });
+    const decoded = this.jwtService.decode<{ exp: number }>(accessToken);
+
+    await this.sessionsService.recordSession({
+      userId: payload.sub,
+      jti,
+      role: payload.role as any,
+      tenantId: payload.tenantId ?? null,
+      companyId: payload.companyId ?? null,
+      brandId: payload.brandId ?? null,
+      ipAddress: meta?.ipAddress ?? null,
+      userAgent: meta?.userAgent ?? null,
+      expiresAt: new Date(decoded.exp * 1000),
+    });
+
+    return accessToken;
   }
 
   async logout(jti: string, exp: number): Promise<void> {
     await this.tokenBlacklist.blacklist(jti, exp);
+    await this.sessionsService.endSession(jti);
   }
 
   // ─── Store Login ──────────────────────────────────────────────────────────
 
-  async loginStore(dto: LoginDto) {
+  async loginStore(dto: LoginDto, meta?: RequestMeta) {
     // Resolve store by slug (optionally scoped to company for uniqueness)
     const storeWhere = dto.companySlug
       ? {
@@ -178,7 +214,7 @@ export class AuthService {
     );
 
     return {
-      accessToken: this.buildJwt(payload),
+      accessToken: await this.issueTokenAndRecordSession(payload, meta),
       mustChangePassword: user.isFirstLogin,
       stores: accessibleStores,
       user: {
@@ -199,7 +235,7 @@ export class AuthService {
 
   // ─── Switch Store (multi-store STORE_ADMIN) ───────────────────────────────
 
-  async switchStore(userId: string, targetStoreId: string) {
+  async switchStore(userId: string, targetStoreId: string, oldJti?: string, meta?: RequestMeta) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -240,8 +276,12 @@ export class AuthService {
       mustChangePassword: user.isFirstLogin,
     };
 
+    if (oldJti) {
+      await this.sessionsService.endSession(oldJti);
+    }
+
     return {
-      accessToken: this.buildJwt(payload),
+      accessToken: await this.issueTokenAndRecordSession(payload, meta),
       activeStore: targetStore,
     };
   }
@@ -304,7 +344,7 @@ export class AuthService {
 
   // ─── Company Login ────────────────────────────────────────────────────────
 
-  async loginCompany(dto: CompanyLoginDto) {
+  async loginCompany(dto: CompanyLoginDto, meta?: RequestMeta) {
     const company = await this.prisma.company.findFirst({
       where: { slug: dto.companySlug, isActive: true },
     });
@@ -351,7 +391,7 @@ export class AuthService {
     );
 
     return {
-      accessToken: this.buildJwt(payload),
+      accessToken: await this.issueTokenAndRecordSession(payload, meta),
       mustChangePassword: user.isFirstLogin,
       user: {
         id: user.id,
@@ -369,7 +409,7 @@ export class AuthService {
 
   // ─── Platform Login ───────────────────────────────────────────────────────
 
-  async loginPlatform(dto: PlatformLoginDto) {
+  async loginPlatform(dto: PlatformLoginDto, meta?: RequestMeta) {
     const user = await this.prisma.user.findFirst({
       where: { username: dto.username, role: 'PLATFORM_ADMIN', isActive: true },
     });
@@ -395,7 +435,7 @@ export class AuthService {
     );
 
     return {
-      accessToken: this.buildJwt(payload),
+      accessToken: await this.issueTokenAndRecordSession(payload, meta),
       mustChangePassword: user.isFirstLogin,
       user: {
         id: user.id,

@@ -34,6 +34,7 @@ import { AppReleasesModule } from './app-releases/app-releases.module';
 import { StorageModule } from './storage/storage.module';
 import { PriceTiersModule } from './price-tiers/price-tiers.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     UsersModule,
     PlatformModule,
     SubscriptionsModule,
+    SessionsModule,
     AnalyticsModule,
 
     // Catalog (brand-scoped)

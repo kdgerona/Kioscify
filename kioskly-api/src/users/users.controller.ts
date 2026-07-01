@@ -13,8 +13,10 @@ import {
   HttpStatus,
   ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { SessionsService } from '../sessions/sessions.service';
+import type { SessionStatus } from '../sessions/sessions.service';
 import {
   CreateStoreUserDto,
   UpdateStoreUserDto,
@@ -35,7 +37,10 @@ import { TenantId, CompanyId } from '../common/decorators/tenant.decorator';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    private sessionsService: SessionsService,
+  ) {}
 
   // ─── Store users (STORE_ADMIN manages their own store) ────────────────────
 
@@ -46,6 +51,25 @@ export class UsersController {
   @ApiOperation({ summary: 'List users in a store' })
   getStoreUsers(@Param('storeId') storeId: string, @Request() req) {
     return this.usersService.getStoreUsers(storeId, req.user.role, req.user.id);
+  }
+
+  @Get('stores/:storeId/sessions')
+  @UseGuards(RolesGuard, StorePrivilegeGuard)
+  @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
+  @RequireStorePrivilege('users', 'read')
+  @ApiOperation({ summary: "List a store's login sessions (Store Admins/Cashiers)" })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'ENDED', 'EXPIRED'] })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  getStoreSessions(
+    @Param('storeId') storeId: string,
+    @Query('search') search?: string,
+    @Query('status') status?: SessionStatus,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.sessionsService.listForStore(storeId, { search, status, page, limit });
   }
 
   @Get('stores/:storeId/assignable-pool')
@@ -131,6 +155,27 @@ export class UsersController {
     @Request() req,
   ) {
     return this.usersService.getCompanyUsers(companyId, requestingCompanyId, req.user.role);
+  }
+
+  // ─── Platform: login sessions across companies ────────────────────────────
+
+  @Get('sessions')
+  @UseGuards(RolesGuard)
+  @Roles('PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'List login sessions for Company Admins and Store users, filterable by company' })
+  @ApiQuery({ name: 'companyId', required: false })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'ENDED', 'EXPIRED'] })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  getPlatformSessions(
+    @Query('companyId') companyId?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: SessionStatus,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.sessionsService.listForCompany({ companyId, search, status, page, limit });
   }
 
   // ─── Platform: all users for a company ────────────────────────────────────

@@ -175,6 +175,35 @@ model UserStoreAccess {
   @@map("user_store_access")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SESSION — one row per issued JWT, for login history/audit views.
+// tenantId/companyId/brandId are denormalized from the JWT payload so list
+// queries can filter without joining through User. Status is derived at read
+// time (not stored): loggedOutAt set → ENDED, expiresAt < now → EXPIRED, else ACTIVE.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Session {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @db.ObjectId
+  jti         String    @unique
+  role        Role
+  tenantId    String?   @db.ObjectId
+  companyId   String?   @db.ObjectId
+  brandId     String?   @db.ObjectId
+  ipAddress   String?
+  userAgent   String?
+  loginAt     DateTime  @default(now())
+  expiresAt   DateTime
+  loggedOutAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([tenantId])
+  @@map("sessions")
+}
+
 type ThemeColors {
   primary    String @default("#ea580c")
   secondary  String @default("#fb923c")
@@ -226,6 +255,7 @@ model User {
   expenseVoidRequestsCreated  Expense[]    @relation("ExpenseVoidRequests")
   expenseVoidRequestsReviewed Expense[]    @relation("ExpenseVoidReviews")
   storeAccess               UserStoreAccess[]
+  sessions                  Session[]
 
   @@unique([tenantId, username])
   @@unique([tenantId, email])

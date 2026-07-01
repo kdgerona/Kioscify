@@ -25,6 +25,7 @@ import {
   Users,
   ChevronsUpDown,
   Check,
+  Clock,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
@@ -65,6 +66,7 @@ const ALL_NAVIGATION: NavigationItem[] = [
     ],
   },
   { name: "Users", href: "/users", icon: Users, section: "users" },
+  { name: "Sessions", href: "/sessions", icon: Clock, section: "users" },
   { name: "Settings", href: "/settings", icon: Settings, section: null },
 ];
 

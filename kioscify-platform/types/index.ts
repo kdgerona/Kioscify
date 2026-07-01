@@ -127,6 +127,28 @@ export interface SubscriptionStats {
   overdue: number;
 }
 
+export type SessionStatus = 'ACTIVE' | 'ENDED' | 'EXPIRED';
+
+export interface SessionListItem {
+  id: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+    email: string;
+    role: string;
+  };
+  company: { id: string; name: string } | null;
+  tenantId: string | null;
+  loginAt: string;
+  loggedOutAt: string | null;
+  expiresAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  status: SessionStatus;
+}
+
 export interface MaintenanceStatus {
   storePortalMaintenance: boolean;
   companyPortalMaintenance: boolean;

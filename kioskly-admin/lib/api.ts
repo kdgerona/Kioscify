@@ -23,6 +23,8 @@ import type {
   AssignableUser,
   StoreAccess,
   StorePrivileges,
+  UserSession,
+  SessionStatus,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -748,6 +750,19 @@ class ApiClient {
 
   async updateStoreUserPrivileges(storeId: string, userId: string, storePrivileges: StorePrivileges | null): Promise<User> {
     const { data } = await this.client.patch<User>(`/users/stores/${storeId}/${userId}`, { storePrivileges });
+    return data;
+  }
+
+  async getStoreSessions(storeId: string, filters: {
+    search?: string;
+    status?: SessionStatus;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    data: UserSession[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const { data } = await this.client.get(`/users/stores/${storeId}/sessions`, { params: filters });
     return data;
   }
 

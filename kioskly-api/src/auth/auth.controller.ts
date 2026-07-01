@@ -48,8 +48,11 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 429, description: 'Too many login attempts' })
-  login(@Body() dto: LoginDto) {
-    return this.authService.loginStore(dto);
+  login(@Body() dto: LoginDto, @Request() req) {
+    return this.authService.loginStore(dto, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   @Post('company-login')
@@ -60,8 +63,11 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 429, description: 'Too many login attempts' })
-  companyLogin(@Body() dto: CompanyLoginDto) {
-    return this.authService.loginCompany(dto);
+  companyLogin(@Body() dto: CompanyLoginDto, @Request() req) {
+    return this.authService.loginCompany(dto, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   @Post('platform-login')
@@ -72,8 +78,11 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 429, description: 'Too many login attempts' })
-  platformLogin(@Body() dto: PlatformLoginDto) {
-    return this.authService.loginPlatform(dto);
+  platformLogin(@Body() dto: PlatformLoginDto, @Request() req) {
+    return this.authService.loginPlatform(dto, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   @Post('switch-store')
@@ -84,7 +93,10 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'New JWT with updated store context' })
   @ApiResponse({ status: 403, description: 'No access to that store' })
   switchStore(@Body() dto: SwitchStoreDto, @Request() req) {
-    return this.authService.switchStore(req.user.id, dto.targetStoreId);
+    return this.authService.switchStore(req.user.id, dto.targetStoreId, req.user.jti, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
   }
 
   @Post('change-password')

@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { SessionsModule } from '../sessions/sessions.module';
 import { auth } from '../constants/env.constants';
 
 @Module({
@@ -15,6 +16,7 @@ import { auth } from '../constants/env.constants';
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       signOptions: { expiresIn: (process.env[auth.jwt_expires_in] || '7d') as any },
     }),
+    SessionsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, TokenBlacklistService],
