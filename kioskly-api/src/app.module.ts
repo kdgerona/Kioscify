@@ -24,6 +24,7 @@ import { AddonsModule } from './addons/addons.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { StaffTimeLogsModule } from './staff-time-logs/staff-time-logs.module';
 import { ReportsModule } from './reports/reports.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SubmittedReportsModule } from './submitted-reports/submitted-reports.module';
@@ -96,6 +97,7 @@ import { SessionsModule } from './sessions/sessions.module';
     // Store operations
     TransactionsModule,
     ExpensesModule,
+    StaffTimeLogsModule,
     ReportsModule,
     InventoryModule,
     SubmittedReportsModule,
