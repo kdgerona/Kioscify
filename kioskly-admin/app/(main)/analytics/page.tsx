@@ -1381,7 +1381,7 @@ export default function ReportsPage() {
                 dataKey="hour"
                 stroke="#6b7280"
                 style={{ fontSize: "11px" }}
-                interval={0}
+                interval="preserveStartEnd"
                 tick={{ fontSize: 11 }}
               />
               <YAxis
