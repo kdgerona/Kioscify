@@ -29,11 +29,16 @@ export function buildSubscriptionMonths(
   const months: SubscriptionMonthEntry[] = [];
   let cursorStart = getZonedMonthBounds(activatedAt).start;
   const endKey = getZonedMonthKey(now);
+  const startKey = getZonedMonthKey(cursorStart);
+
+  // Activation month is after "now" (bad data, clock skew, or a future-dated
+  // activation) — nothing has been billable yet, so there's nothing to list.
+  if (startKey > endKey) return [];
 
   // Safety cap: 100 years of months. Prevents any pathological infinite loop
   // from a bad activatedAt value from hanging the request.
+  let key = startKey;
   for (let i = 0; i < 1200; i++) {
-    const key = getZonedMonthKey(cursorStart);
     const record = paymentsByKey.get(key);
     months.push({
       month: key,
@@ -47,6 +52,7 @@ export function buildSubscriptionMonths(
     // of month length), then re-derive that month's store-local start.
     const next = new Date(cursorStart.getTime() + 32 * 24 * 60 * 60 * 1000);
     cursorStart = getZonedMonthBounds(next).start;
+    key = getZonedMonthKey(cursorStart);
   }
 
   return months;

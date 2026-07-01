@@ -44,4 +44,11 @@ describe('buildSubscriptionMonths', () => {
     const result = buildSubscriptionMonths(activatedAt, now, []);
     expect(result).toEqual([{ month: '2026-07', paid: false, paidAt: null, note: null }]);
   });
+
+  it('returns no months when activatedAt is after now (e.g. bad data or future activation)', () => {
+    const activatedAt = new Date('2026-08-01T00:00:00.000Z');
+    const now = new Date('2026-07-01T00:00:00.000Z');
+    const result = buildSubscriptionMonths(activatedAt, now, []);
+    expect(result).toEqual([]);
+  });
 });
