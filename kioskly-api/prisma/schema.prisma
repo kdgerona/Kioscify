@@ -109,6 +109,7 @@ model Tenant {
   submittedInventoryReports SubmittedInventoryReport[]
   userShiftReports          UserShiftReport[]
   userShiftInventoryReports UserShiftInventoryReport[]
+  staffTimeLogs             StaffTimeLog[]
 
   // Catalog relations kept during migration period (will be removed once catalog fully moves to Brand)
   categories  Category[]
@@ -250,6 +251,7 @@ model User {
   submittedInventoryReports SubmittedInventoryReport[]
   userShiftReports          UserShiftReport[]
   userShiftInventoryReports UserShiftInventoryReport[]
+  staffTimeLogs             StaffTimeLog[]
   voidRequestsCreated       Transaction[]  @relation("VoidRequests")
   voidRequestsReviewed      Transaction[]  @relation("VoidReviews")
   expenseVoidRequestsCreated  Expense[]    @relation("ExpenseVoidRequests")
@@ -764,6 +766,26 @@ model UserShiftInventoryReport {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// STAFF TIME LOG — attendance tracking with clock-in/clock-out and photo
+// ─────────────────────────────────────────────────────────────────────────────
+
+model StaffTimeLog {
+  id        String            @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String            @db.ObjectId
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String            @db.ObjectId
+  user      User              @relation(fields: [userId], references: [id])
+  eventType TimeLogEventType
+  photoUrl  String
+  latitude  Float
+  longitude Float
+  createdAt DateTime          @default(now())
+
+  @@index([tenantId, userId, createdAt])
+  @@map("staff_time_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EMBEDDED TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -867,6 +889,11 @@ enum ExpenseCategory {
   MAINTENANCE
   TRANSPORTATION
   MISCELLANEOUS
+}
+
+enum TimeLogEventType {
+  TIME_IN
+  TIME_OUT
 }
 
 model PlatformConfig {
