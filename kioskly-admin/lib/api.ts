@@ -769,7 +769,7 @@ class ApiClient {
 
   // ─── Staff time logs (attendance) ──────────────────────────────────────────
 
-  async getStaffTimeLogs(tenantId: string, filters: {
+  async getStaffTimeLogs(filters: {
     userId?: string;
     startDate?: string;
     endDate?: string;

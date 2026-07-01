@@ -82,13 +82,20 @@ export default function AttendancePage() {
           setIsFiltering(true);
         }
 
+        // The backend doesn't support filtering by eventType (only userId/date
+        // range), so it's applied client-side. When an event-type filter is
+        // active, server-side pagination is disabled: instead of paginating
+        // through unfiltered pages (whose page count wouldn't correspond to
+        // what's shown after filtering), fetch a single large page and show
+        // all matching results flat, with no pagination controls.
+        const isEventTypeFiltered = filterEventType !== "ALL";
         const params: {
           userId?: string;
           startDate?: string;
           endDate?: string;
           page?: number;
           limit?: number;
-        } = { page, limit: 50 };
+        } = isEventTypeFiltered ? { page: 1, limit: 500 } : { page, limit: 50 };
 
         if (filterUserId !== "ALL") {
           params.userId = filterUserId;
@@ -104,16 +111,12 @@ export default function AttendancePage() {
           params.endDate = end.toISOString();
         }
 
-        // The backend doesn't support filtering by eventType (only userId/date
-        // range), so it's applied client-side over the fetched page. Pagination
-        // (page/totalPages) reflects the unfiltered server-side result set.
-        const result = await api.getStaffTimeLogs(tenant.id, params);
-        const filtered =
-          filterEventType === "ALL"
-            ? result.data
-            : result.data.filter((log) => log.eventType === filterEventType);
+        const result = await api.getStaffTimeLogs(params);
+        const filtered = isEventTypeFiltered
+          ? result.data.filter((log) => log.eventType === filterEventType)
+          : result.data;
         setLogs(filtered);
-        setTotalPages(result.pagination.totalPages);
+        setTotalPages(isEventTypeFiltered ? 1 : result.pagination.totalPages);
       } catch (error) {
         console.error("Failed to load staff time logs:", error);
       } finally {
@@ -351,8 +354,11 @@ export default function AttendancePage() {
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+      {/* Pagination — hidden while an event-type filter is active, since results
+          are then a client-side filtered flat list (up to 500 records) rather
+          than a server-paginated set; showing page counts here would not
+          correspond to what's actually displayed. */}
+      {filterEventType === "ALL" && totalPages > 1 && (
         <div className="flex justify-center gap-2 mt-4">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -372,6 +378,11 @@ export default function AttendancePage() {
             Next
           </button>
         </div>
+      )}
+      {filterEventType !== "ALL" && logs.length > 0 && (
+        <p className="text-center text-xs text-gray-500 mt-4">
+          Showing all matching records (up to 500) for the selected event type.
+        </p>
       )}
 
       {/* Photo Lightbox */}
