@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { VoidFiltersDto, VoidStatusFilter } from './dto/void-filters.dto';
 import { Prisma } from '@prisma/client';
+import { getZonedDayBounds, getZonedMonthBounds } from '../common/utils/timezone';
 
 // Type for transaction with all includes
 type TransactionWithIncludes = Prisma.TransactionGetPayload<{
@@ -302,7 +303,7 @@ export class TransactionsService {
 
     switch (period) {
       case 'daily':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        startDate = getZonedDayBounds(now).start;
         break;
       case 'weekly':
         weekAgo = new Date(now);
@@ -310,7 +311,7 @@ export class TransactionsService {
         startDate = weekAgo;
         break;
       case 'monthly':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate = getZonedMonthBounds(now).start;
         break;
     }
 

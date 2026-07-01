@@ -9,6 +9,7 @@ import {
   InventoryProgressionQueryDto,
   ViewMode,
 } from './dto/inventory-progression-query.dto';
+import { getZonedMonthBounds } from '../common/utils/timezone';
 
 @Injectable()
 export class SubmittedInventoryReportsService {
@@ -17,19 +18,22 @@ export class SubmittedInventoryReportsService {
   private aggregateToWeekly(dailyData: any[]): any[] {
     if (dailyData.length === 0) return [];
 
-    // Helper function to get week start date (Monday)
+    // Helper function to get week start date (Monday). `date` is derived from
+    // an already-formatted YYYY-MM-DD string (parsed as UTC midnight), so we
+    // use UTC getters/setters throughout — this is calendar-date arithmetic,
+    // not a store-timezone conversion, and must not depend on server TZ.
     const getWeekStart = (date: Date): string => {
       const d = new Date(date);
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-      d.setDate(diff);
+      const day = d.getUTCDay();
+      const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+      d.setUTCDate(diff);
       return d.toISOString().split('T')[0];
     };
 
     // Helper function to get week end date (Sunday)
     const getWeekEnd = (weekStart: string): string => {
       const d = new Date(weekStart);
-      d.setDate(d.getDate() + 6);
+      d.setUTCDate(d.getUTCDate() + 6);
       return d.toISOString().split('T')[0];
     };
 
@@ -590,7 +594,7 @@ export class SubmittedInventoryReportsService {
         tenantId,
         ...mirrorFilter,
         submittedAt: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          gte: getZonedMonthBounds(new Date()).start,
         },
       },
     });

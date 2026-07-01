@@ -4,6 +4,7 @@ import { AuthService } from '../auth/auth.service';
 import { UpdateMaintenanceStatusDto } from './dto/update-maintenance-status.dto';
 import { CreatePlatformAdminDto } from './dto/create-platform-admin.dto';
 import * as bcrypt from 'bcrypt';
+import { getZonedMonthBounds } from '../common/utils/timezone';
 
 @Injectable()
 export class PlatformService {
@@ -14,7 +15,7 @@ export class PlatformService {
 
   async getStats() {
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfMonth = getZonedMonthBounds(now).start;
 
     const [totalCompanies, totalBrands, totalStores, activeCompanies, newStoresThisMonth, newCompaniesThisMonth] =
       await Promise.all([

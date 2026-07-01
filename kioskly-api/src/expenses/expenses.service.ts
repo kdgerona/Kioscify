@@ -9,6 +9,7 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpenseVoidStatusFilter } from './dto/expense-void-filters.dto';
 import { Prisma, VoidStatus } from '@prisma/client';
+import { getZonedDayBounds, getZonedMonthBounds } from '../common/utils/timezone';
 
 type ExpenseWithUser = Prisma.ExpenseGetPayload<{
   include: {
@@ -282,7 +283,7 @@ export class ExpensesService {
 
     switch (period) {
       case 'daily':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        startDate = getZonedDayBounds(now).start;
         break;
       case 'weekly':
         const weekAgo = new Date(now);
@@ -290,7 +291,7 @@ export class ExpensesService {
         startDate = weekAgo;
         break;
       case 'monthly':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate = getZonedMonthBounds(now).start;
         break;
     }
 
