@@ -97,6 +97,8 @@ model Tenant {
   priceTierId String?    @db.ObjectId
   priceTier   PriceTier? @relation(fields: [priceTierId], references: [id])
 
+  subscription StoreSubscription?
+
   users                     User[]
   userAccess                UserStoreAccess[]
   transactions              Transaction[]
@@ -116,6 +118,39 @@ model Tenant {
   preferences Preference[]
 
   @@map("tenants")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORE SUBSCRIPTION — tracks subscription status and payment history
+// ─────────────────────────────────────────────────────────────────────────────
+
+model StoreSubscription {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String    @unique @db.ObjectId
+  activatedAt DateTime? // null = pending activation, no billing yet
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payments    SubscriptionPayment[]
+
+  @@map("store_subscriptions")
+}
+
+model SubscriptionPayment {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  subscriptionId String    @db.ObjectId
+  month          DateTime  // store-local first-of-month, normalized via getZonedMonthBounds(...).start
+  paid           Boolean   @default(true)
+  paidAt         DateTime?
+  note           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  subscription   StoreSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, month])
+  @@map("subscription_payments")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
