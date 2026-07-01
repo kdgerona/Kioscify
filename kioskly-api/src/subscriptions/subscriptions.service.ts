@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getZonedMonthBounds } from '../common/utils/timezone';
+import { buildSubscriptionMonths } from './subscription-months.util';
+import { UpsertPaymentDto } from './dto/upsert-payment.dto';
 
 export interface SubscriptionListFilters {
   companyId?: string;
@@ -109,5 +111,79 @@ export class SubscriptionsService {
     const data = filtered.slice(start, start + limit);
 
     return { data, pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } };
+  }
+
+  async getDetail(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        company: { select: { id: true, name: true } },
+        brand: { select: { id: true, name: true } },
+        subscription: { select: { activatedAt: true, payments: true } },
+      },
+    });
+    if (!tenant) throw new NotFoundException(`Store ${tenantId} not found`);
+
+    const activatedAt = tenant.subscription?.activatedAt ?? null;
+    const months = activatedAt
+      ? buildSubscriptionMonths(activatedAt, new Date(), tenant.subscription!.payments)
+      : [];
+
+    return {
+      tenantId: tenant.id,
+      storeName: tenant.name,
+      storeSlug: tenant.slug,
+      company: tenant.company,
+      brand: tenant.brand,
+      activatedAt,
+      months,
+    };
+  }
+
+  async setActivation(tenantId: string, activatedAt: string | null) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException(`Store ${tenantId} not found`);
+
+    const parsed = activatedAt ? new Date(activatedAt) : null;
+    return this.prisma.storeSubscription.upsert({
+      where: { tenantId },
+      update: { activatedAt: parsed },
+      create: { tenantId, activatedAt: parsed },
+    });
+  }
+
+  async upsertPayment(tenantId: string, month: string, dto: UpsertPaymentDto) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      throw new BadRequestException('month must be in YYYY-MM format');
+    }
+
+    const subscription = await this.prisma.storeSubscription.findUnique({ where: { tenantId } });
+    if (!subscription) {
+      throw new NotFoundException(`Store ${tenantId} has no subscription yet — set an activation date first`);
+    }
+
+    const [year, monthNum] = month.split('-').map(Number);
+    // The 15th is always safely inside the target month regardless of DST/offset —
+    // getZonedMonthBounds then derives the exact store-local month-start instant.
+    const monthStart = getZonedMonthBounds(new Date(Date.UTC(year, monthNum - 1, 15))).start;
+
+    return this.prisma.subscriptionPayment.upsert({
+      where: { subscriptionId_month: { subscriptionId: subscription.id, month: monthStart } },
+      update: {
+        paid: dto.paid,
+        paidAt: dto.paid ? new Date() : null,
+        note: dto.note ?? null,
+      },
+      create: {
+        subscriptionId: subscription.id,
+        month: monthStart,
+        paid: dto.paid,
+        paidAt: dto.paid ? new Date() : null,
+        note: dto.note ?? null,
+      },
+    });
   }
 }
