@@ -33,6 +33,7 @@ import { UserShiftInventoryReportsModule } from './user-shift-inventory-reports/
 import { AppReleasesModule } from './app-releases/app-releases.module';
 import { StorageModule } from './storage/storage.module';
 import { PriceTiersModule } from './price-tiers/price-tiers.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { PriceTiersModule } from './price-tiers/price-tiers.module';
     StoresModule,
     UsersModule,
     PlatformModule,
+    SubscriptionsModule,
     AnalyticsModule,
 
     // Catalog (brand-scoped)
