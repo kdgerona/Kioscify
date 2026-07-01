@@ -873,6 +873,12 @@ export default function Home() {
             >
               <Ionicons name="cube-outline" size={24} color={textColor} />
             </TouchableOpacity>
+            <TouchableOpacity
+              className="p-2"
+              onPress={() => router.push("/time-clock" as Href)}
+            >
+              <Ionicons name="time-outline" size={24} color={textColor} />
+            </TouchableOpacity>
             <View className="w-px bg-black self-stretch" />
             <TouchableOpacity
               className="p-2"
@@ -929,6 +935,7 @@ export default function Home() {
                 { icon: 'receipt-outline' as const, label: 'Transactions', onPress: () => router.push("/transactions" as Href) },
                 { icon: 'wallet-outline' as const, label: 'Expenses', onPress: () => router.push("/expenses" as Href) },
                 { icon: 'cube-outline' as const, label: 'Inventory', onPress: () => router.push("/inventory" as Href) },
+                { icon: 'time-outline' as const, label: 'Time Clock', onPress: () => router.push("/time-clock" as Href) },
                 { icon: 'settings-outline' as const, label: 'Settings', onPress: () => router.push("/settings" as Href) },
               ].map((item) => (
                 <TouchableOpacity
