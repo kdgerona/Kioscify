@@ -22,7 +22,6 @@ import type {
   SizePriceTier,
   AddonPriceTier,
   CompanyPrivileges,
-  SubscriptionMonthEntry,
   SubscriptionListItem,
   SubscriptionDetail,
   SubscriptionStats,
@@ -175,18 +174,16 @@ class ApiClient {
     return data;
   }
 
-  async setStoreActivation(tenantId: string, activatedAt: string | null): Promise<{ activatedAt: string | null }> {
-    const { data } = await this.client.patch(`/platform/subscriptions/${tenantId}/activation`, { activatedAt });
-    return data;
+  async setStoreActivation(tenantId: string, activatedAt: string | null): Promise<void> {
+    await this.client.patch(`/platform/subscriptions/${tenantId}/activation`, { activatedAt });
   }
 
   async upsertSubscriptionPayment(
     tenantId: string,
     month: string,
     payload: { paid: boolean; note?: string },
-  ): Promise<SubscriptionMonthEntry> {
-    const { data } = await this.client.put(`/platform/subscriptions/${tenantId}/payments/${month}`, payload);
-    return data;
+  ): Promise<void> {
+    await this.client.put(`/platform/subscriptions/${tenantId}/payments/${month}`, payload);
   }
 
   // ─── Companies ────────────────────────────────────────────────────────────
