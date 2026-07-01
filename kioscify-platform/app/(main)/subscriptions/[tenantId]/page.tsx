@@ -90,7 +90,7 @@ export default function SubscriptionDetailPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{detail.storeName}</h1>
-          <p className="text-sm text-gray-500">{detail.company?.name} · {detail.brand?.name}</p>
+          <p className="text-sm text-gray-500">{[detail.company?.name, detail.brand?.name].filter(Boolean).join(' · ')}</p>
         </div>
       </div>
 

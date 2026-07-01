@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import type { SubscriptionListItem, SubscriptionStats, Company } from '@/types';
+import type { SubscriptionListItem, SubscriptionStats, Company, Brand } from '@/types';
 import { CreditCard, CheckCircle2, XCircle, Clock, LucideIcon } from 'lucide-react';
 
 type StatusFilter = '' | 'activated' | 'pending';
@@ -14,6 +14,8 @@ export default function SubscriptionsPage() {
   const [rows, setRows] = useState<SubscriptionListItem[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyId, setCompanyId] = useState('');
+  const [brandId, setBrandId] = useState('');
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [status, setStatus] = useState<StatusFilter>('');
   const [paid, setPaid] = useState<PaidFilter>('');
   const [page, setPage] = useState(1);
@@ -25,6 +27,7 @@ export default function SubscriptionsPage() {
     try {
       const result = await api.getSubscriptions({
         companyId: companyId || undefined,
+        brandId: brandId || undefined,
         status: status || undefined,
         paid: paid || undefined,
         page,
@@ -35,12 +38,21 @@ export default function SubscriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, status, paid, page]);
+  }, [companyId, brandId, status, paid, page]);
 
   useEffect(() => {
     api.getSubscriptionStats().then(setStats);
     api.getCompanies().then(setCompanies);
   }, []);
+
+  useEffect(() => {
+    setBrandId('');
+    if (!companyId) {
+      setBrands([]);
+      return;
+    }
+    api.getBrandsByCompany(companyId).then(setBrands);
+  }, [companyId]);
 
   useEffect(() => {
     loadList();
@@ -71,6 +83,15 @@ export default function SubscriptionsPage() {
         >
           <option value="">All Companies</option>
           {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select
+          value={brandId}
+          onChange={e => { setBrandId(e.target.value); setPage(1); }}
+          disabled={!companyId}
+          className="px-3 py-2 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="">All Brands</option>
+          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
         <select
           value={status}
@@ -108,7 +129,7 @@ export default function SubscriptionsPage() {
             >
               <div className="min-w-0">
                 <p className="font-medium text-gray-900 truncate">{row.storeName}</p>
-                <p className="text-xs text-gray-400">{row.company?.name} · {row.brand?.name}</p>
+                <p className="text-xs text-gray-400">{[row.company?.name, row.brand?.name].filter(Boolean).join(' · ')}</p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-xs text-gray-500">
