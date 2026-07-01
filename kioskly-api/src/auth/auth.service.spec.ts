@@ -11,7 +11,7 @@ jest.mock('bcrypt');
 const bcryptCompare = bcrypt.compare as jest.Mock;
 
 const mockPrisma = {
-  tenant: { findFirst: jest.fn(), findUnique: jest.fn() },
+  tenant: { findFirst: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
   user: { findFirst: jest.fn(), findUnique: jest.fn() },
   userStoreAccess: { findFirst: jest.fn() },
   company: { findFirst: jest.fn() },
@@ -62,7 +62,7 @@ describe('AuthService — logging', () => {
 
   describe('loginStore', () => {
     it('logs warn with reason store_not_found when store does not exist', async () => {
-      mockPrisma.tenant.findFirst.mockResolvedValue(null);
+      mockPrisma.tenant.findMany.mockResolvedValue([]);
 
       await expect(
         service.loginStore({ storeSlug: 'ghost-store', username: 'john', password: 'x' }),
@@ -74,8 +74,21 @@ describe('AuthService — logging', () => {
       );
     });
 
+    it('logs warn with reason ambiguous_store_slug when multiple stores match', async () => {
+      mockPrisma.tenant.findMany.mockResolvedValue([mockStore, { ...mockStore, id: 'store-2' }]);
+
+      await expect(
+        service.loginStore({ storeSlug: 'store-1', username: 'john', password: 'x' }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ storeSlug: 'store-1', reason: 'ambiguous_store_slug' }),
+        expect.any(String),
+      );
+    });
+
     it('logs warn with reason user_not_found when user does not exist', async () => {
-      mockPrisma.tenant.findFirst.mockResolvedValue(mockStore);
+      mockPrisma.tenant.findMany.mockResolvedValue([mockStore]);
       mockPrisma.user.findFirst.mockResolvedValue(null);
       mockPrisma.userStoreAccess.findFirst.mockResolvedValue(null);
 
@@ -90,7 +103,7 @@ describe('AuthService — logging', () => {
     });
 
     it('logs warn with reason invalid_password on bad password', async () => {
-      mockPrisma.tenant.findFirst.mockResolvedValue(mockStore);
+      mockPrisma.tenant.findMany.mockResolvedValue([mockStore]);
       mockPrisma.user.findFirst.mockResolvedValue(mockUser);
       bcryptCompare.mockResolvedValue(false);
 
@@ -105,7 +118,7 @@ describe('AuthService — logging', () => {
     });
 
     it('logs info on successful store login', async () => {
-      mockPrisma.tenant.findFirst.mockResolvedValue(mockStore);
+      mockPrisma.tenant.findMany.mockResolvedValue([mockStore]);
       mockPrisma.user.findFirst.mockResolvedValue(mockUser);
       bcryptCompare.mockResolvedValue(true);
       mockPrisma.userStoreAccess.findFirst.mockResolvedValue(null);

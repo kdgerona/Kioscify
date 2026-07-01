@@ -80,15 +80,18 @@ export class StoresService {
     if (companySlug) where.company = { slug: companySlug };
     if (brandSlug) where.brand = { slug: brandSlug };
 
-    const store = await this.prisma.tenant.findFirst({
+    const matches = await this.prisma.tenant.findMany({
       where,
       include: {
         brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true, enabledDeliveryPlatforms: true, preferenceLabel: true } },
         company: { select: { id: true, name: true, slug: true, logoUrl: true } },
       },
     });
-    if (!store) throw new NotFoundException(`Store not found`);
-    return this.formatLogoUrl(store);
+    if (matches.length === 0) throw new NotFoundException(`Store not found`);
+    if (matches.length > 1) {
+      throw new ConflictException('Multiple stores match this slug — specify companySlug and/or brandSlug to disambiguate');
+    }
+    return this.formatLogoUrl(matches[0]);
   }
 
   async create(
@@ -107,12 +110,12 @@ export class StoresService {
       }
     }
 
-    // Enforce slug uniqueness per company
+    // Enforce slug uniqueness per company + brand
     if (dto.companyId) {
       const existing = await this.prisma.tenant.findFirst({
-        where: { slug: dto.slug, companyId: dto.companyId },
+        where: { slug: dto.slug, companyId: dto.companyId, brandId: dto.brandId ?? null },
       });
-      if (existing) throw new ConflictException('Store slug already exists in this company');
+      if (existing) throw new ConflictException('Store slug already exists in this company and brand');
     }
 
     const store = await this.prisma.tenant.create({ data: dto });
@@ -127,6 +130,15 @@ export class StoresService {
 
   async update(id: string, dto: UpdateStoreDto) {
     const store = await this.findOne(id);
+    if (dto.slug !== undefined || dto.companyId !== undefined || dto.brandId !== undefined) {
+      const slug = dto.slug ?? store.slug;
+      const companyId = dto.companyId ?? store.companyId ?? null;
+      const brandId = dto.brandId ?? store.brandId ?? null;
+      const conflict = await this.prisma.tenant.findFirst({
+        where: { slug, companyId, brandId, id: { not: id } },
+      });
+      if (conflict) throw new ConflictException('Store slug already exists in this company and brand');
+    }
     if (dto.enabledDeliveryPlatforms !== undefined) {
       const brandPlatforms = (store as any).brand?.enabledDeliveryPlatforms ?? [];
       const invalid = dto.enabledDeliveryPlatforms.filter(p => !brandPlatforms.includes(p));

@@ -113,14 +113,22 @@ export class AuthService {
         }
       : { slug: dto.storeSlug, isActive: true };
 
-    const store = await this.prisma.tenant.findFirst({ where: storeWhere });
-    if (!store) {
+    const matches = await this.prisma.tenant.findMany({ where: storeWhere });
+    if (matches.length === 0) {
       this.logger.warn(
         { storeSlug: dto.storeSlug, reason: 'store_not_found' },
         'Store login failed',
       );
       throw new UnauthorizedException('Invalid credentials');
     }
+    if (matches.length > 1) {
+      this.logger.warn(
+        { storeSlug: dto.storeSlug, reason: 'ambiguous_store_slug' },
+        'Store login failed',
+      );
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const store = matches[0];
 
     // Simple lookup — no complex nested includes (Prisma MongoDB can silently return
     // null when include chains are too deep). Tenant data is fetched separately.

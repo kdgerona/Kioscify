@@ -70,7 +70,7 @@ model Brand {
 // ─────────────────────────────────────────────────────────────────────────────
 // TENANT (Store) — operational unit under a Brand
 // brandId / companyId are nullable during migration; required after
-// slug is globally unique now; will change to @@unique([companyId, slug]) post-migration
+// slug is unique within a company+brand (see @@unique below)
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Tenant {
@@ -78,7 +78,7 @@ model Tenant {
   brandId     String?     @db.ObjectId
   companyId   String?     @db.ObjectId
   name        String
-  slug        String      @unique
+  slug        String
   description String?
   logoUrl     String?
   contactEmail  String?
@@ -118,6 +118,7 @@ model Tenant {
   addons      Addon[]
   preferences Preference[]
 
+  @@unique([companyId, brandId, slug])
   @@map("tenants")
 }
 
