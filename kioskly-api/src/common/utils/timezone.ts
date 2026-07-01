@@ -21,6 +21,12 @@ export function getZonedDateString(date: Date): string {
   return toZoned(date).toISOString().split('T')[0];
 }
 
+/** Calendar month (YYYY-MM) of `date` in the store's local timezone. */
+export function getZonedMonthKey(date: Date): string {
+  const zoned = toZoned(date);
+  return `${zoned.getUTCFullYear()}-${String(zoned.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 /**
  * UTC instants bounding the store-local calendar day that `date` falls in
  * (00:00:00.000 to 23:59:59.999 local time).

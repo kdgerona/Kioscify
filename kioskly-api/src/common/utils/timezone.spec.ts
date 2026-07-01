@@ -5,6 +5,7 @@ import {
   getZonedWeekBounds,
   getZonedMonthBounds,
   getZonedYearBounds,
+  getZonedMonthKey,
 } from './timezone';
 
 describe('getZonedHour', () => {
@@ -56,5 +57,23 @@ describe('getZonedYearBounds', () => {
     const { start, end } = getZonedYearBounds(new Date('2026-07-01T01:00:00.000Z'));
     expect(getZonedDateString(start)).toBe('2026-01-01');
     expect(getZonedDateString(end)).toBe('2026-12-31');
+  });
+});
+
+describe('getZonedMonthKey', () => {
+  it('returns the store-local YYYY-MM, not the UTC one', () => {
+    // 2026-07-01T01:00:00.000Z is 2026-07-01 09:00 in Asia/Manila (UTC+8) —
+    // same calendar month as UTC here, so also check the actual boundary case below.
+    expect(getZonedMonthKey(new Date('2026-07-01T01:00:00.000Z'))).toBe('2026-07');
+  });
+
+  it('rolls over to the next month before UTC midnight, due to the +8 offset', () => {
+    // 2026-06-30T16:30:00.000Z is 2026-07-01 00:30 in Asia/Manila — July locally,
+    // June in UTC. This is the exact class of bug fixed in commit fe5bbab.
+    expect(getZonedMonthKey(new Date('2026-06-30T16:30:00.000Z'))).toBe('2026-07');
+  });
+
+  it('pads single-digit months', () => {
+    expect(getZonedMonthKey(new Date('2026-01-15T04:00:00.000Z'))).toBe('2026-01');
   });
 });
