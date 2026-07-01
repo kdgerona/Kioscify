@@ -12,11 +12,13 @@ import {
   X,
   Users,
   Smartphone,
+  CreditCard,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/companies', label: 'Companies', icon: Building2 },
+  { href: '/subscriptions', label: 'Subscriptions', icon: CreditCard },
   { href: '/users', label: 'Users', icon: Users },
   { href: '/app-releases', label: 'Kiosk App', icon: Smartphone },
   { href: '/settings', label: 'Settings', icon: Settings },
