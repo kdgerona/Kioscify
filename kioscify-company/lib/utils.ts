@@ -36,3 +36,8 @@ export function resolveLogoUrl(logoUrl: string | null | undefined): string | nul
   const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000';
   return `${apiBase}${logoUrl}`;
 }
+
+export function getErrorMessage(err: unknown, fallback: string): string {
+  const axiosErr = err as { response?: { data?: { message?: string } } };
+  return axiosErr?.response?.data?.message || fallback;
+}

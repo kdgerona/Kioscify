@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { hasPrivilege } from '@/lib/privileges';
-import { formatRole } from '@/lib/utils';
+import { formatRole, getErrorMessage } from '@/lib/utils';
 import { useCompany } from '@/contexts/CompanyContext';
 import type { Company, ThemeColors, User } from '@/types';
 import { Save, KeyRound } from 'lucide-react';
@@ -17,7 +18,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   // Editable fields
   const [name, setName] = useState('');
@@ -28,8 +28,6 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState<ThemeColors>({});
   const [themeHex, setThemeHex] = useState<Record<string, string>>({});
   const [themeSaving, setThemeSaving] = useState(false);
-  const [themeSuccess, setThemeSuccess] = useState(false);
-  const [themeError, setThemeError] = useState<string | null>(null);
 
   const primaryColor = company?.themeColors?.primary ?? '#ea580c';
 
@@ -39,8 +37,6 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
-  const [pwError, setPwError] = useState<string | null>(null);
-  const [pwSuccess, setPwSuccess] = useState(false);
 
   const canViewCompany = hasPrivilege('settings', 'read');
 
@@ -67,27 +63,24 @@ export default function SettingsPage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPwError(null);
     if (newPassword !== confirmPassword) {
-      setPwError('New passwords do not match');
+      toast.error('New passwords do not match');
       return;
     }
     if (newPassword.length < 8) {
-      setPwError('New password must be at least 8 characters');
+      toast.error('New password must be at least 8 characters');
       return;
     }
     setPwSaving(true);
     try {
       await api.changePassword(currentPassword, newPassword);
-      setPwSuccess(true);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setShowChangePassword(false);
-      setTimeout(() => setPwSuccess(false), 3000);
+      toast.success('Password changed successfully');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setPwError(axiosErr?.response?.data?.message || 'Failed to change password');
+      toast.error(getErrorMessage(err, 'Failed to change password'));
     } finally {
       setPwSaving(false);
     }
@@ -96,17 +89,14 @@ export default function SettingsPage() {
   const handleSaveTheme = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!company) return;
-    setThemeError(null);
     setThemeSaving(true);
     try {
       const updated = await api.updateCompany(company.id, { themeColors: theme });
       setCompany(updated);
       await refetchCompany();
-      setThemeSuccess(true);
-      setTimeout(() => setThemeSuccess(false), 3000);
+      toast.success('Branding colors saved');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setThemeError(axiosErr?.response?.data?.message || 'Failed to save branding');
+      toast.error(getErrorMessage(err, 'Failed to save branding'));
     } finally {
       setThemeSaving(false);
     }
@@ -124,11 +114,9 @@ export default function SettingsPage() {
         description,
       });
       setCompany(updated);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      toast.success('Settings saved successfully');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save settings');
+      toast.error(getErrorMessage(err, 'Failed to save settings'));
     } finally {
       setSaving(false);
     }
@@ -155,12 +143,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg text-sm">
-          Settings saved successfully
-        </div>
-      )}
-
       {/* My Account */}
       <div className="bg-white rounded-lg border">
         <div className="px-6 py-4 border-b">
@@ -173,11 +155,6 @@ export default function SettingsPage() {
           <DetailRow label="Role" value={formatRole(currentUser?.role)} />
         </div>
         <div className="px-6 pb-4">
-          {pwSuccess && (
-            <div className="mb-3 bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm">
-              Password changed successfully
-            </div>
-          )}
           {!showChangePassword ? (
             <button
               onClick={() => setShowChangePassword(true)}
@@ -188,9 +165,6 @@ export default function SettingsPage() {
             </button>
           ) : (
             <form onSubmit={handleChangePassword} className="space-y-3 pt-2 border-t">
-              {pwError && (
-                <p className="text-red-600 text-sm">{pwError}</p>
-              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
                 <input
@@ -227,7 +201,7 @@ export default function SettingsPage() {
               <div className="flex gap-3 pt-1">
                 <button
                   type="button"
-                  onClick={() => { setShowChangePassword(false); setPwError(null); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); }}
+                  onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); }}
                   className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
                 >
                   Cancel
@@ -314,16 +288,6 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-400 mt-0.5">Customize your company portal colors</p>
         </div>
         <form onSubmit={handleSaveTheme} className="p-6 space-y-4">
-          {themeError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">
-              {themeError}
-            </div>
-          )}
-          {themeSuccess && (
-            <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm">
-              Branding colors saved
-            </div>
-          )}
           <div className="grid grid-cols-1 gap-3">
             {(['primary', 'secondary', 'accent', 'background', 'text'] as const).map(key => {
               const defaultColor = key === 'background' ? '#ffffff' : key === 'text' ? '#1f2937' : key === 'secondary' ? '#fb923c' : key === 'accent' ? '#fdba74' : '#ea580c';

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { hasPrivilege } from '@/lib/privileges';
+import { getErrorMessage } from '@/lib/utils';
 import type { Brand, Company } from '@/types';
 import { Plus, ArrowRight, Store, X } from 'lucide-react';
 
@@ -65,9 +67,11 @@ export default function BrandsPage() {
       setFormSlug('');
       setFormDescription('');
       setShowForm(false);
+      toast.success('Brand created');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setFormError(axiosErr?.response?.data?.message || 'Failed to create brand');
+      const message = getErrorMessage(err, 'Failed to create brand');
+      setFormError(message);
+      toast.error(message);
     } finally {
       setFormLoading(false);
     }

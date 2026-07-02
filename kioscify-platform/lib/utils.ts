@@ -15,6 +15,11 @@ export function formatRole(role: string | undefined | null): string {
   }
 }
 
+export function getErrorMessage(err: unknown, fallback: string): string {
+  const axiosErr = err as { response?: { data?: { message?: string } } };
+  return axiosErr?.response?.data?.message || fallback;
+}
+
 export function getContrastColor(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);

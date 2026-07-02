@@ -7,6 +7,7 @@ import type { User, Company, CompanyPrivileges } from '@/types';
 import { Plus, X, Copy, KeyRound, Trash2, UserCheck, UserX, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { hasPrivilege } from '@/lib/privileges';
+import { getErrorMessage } from '@/lib/utils';
 import { PrivilegesGrid } from '@/components/PrivilegesGrid';
 import { EditPrivilegesModal } from '@/components/EditPrivilegesModal';
 
@@ -100,9 +101,11 @@ export default function UsersPage() {
       setUsername('');
       setNewPrivileges(DEFAULT_PRIVILEGES);
       setShowForm(false);
+      toast.success('User created');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setFormError(axiosErr?.response?.data?.message || 'Failed to create user');
+      const message = getErrorMessage(err, 'Failed to create user');
+      setFormError(message);
+      toast.error(message);
     } finally {
       setFormLoading(false);
     }
@@ -111,8 +114,10 @@ export default function UsersPage() {
   const handleToggleActive = async (user: User) => {
     if (!company) return;
     try {
-      await api.updateCompanyUser(company.id, user.id, { isActive: !user.isActive });
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: !user.isActive } : u));
+      const nextActive = !user.isActive;
+      await api.updateCompanyUser(company.id, user.id, { isActive: nextActive });
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: nextActive } : u));
+      toast.success(nextActive ? 'User enabled' : 'User disabled');
     } catch {
       toast.error('Failed to update user. Please try again.');
     }
@@ -139,6 +144,7 @@ export default function UsersPage() {
     try {
       await api.deactivateCompanyUser(company.id, user.id);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isActive: false } : u));
+      toast.success('User removed');
     } catch {
       toast.error('Failed to remove user. Please try again.');
     }
@@ -149,8 +155,9 @@ export default function UsersPage() {
     try {
       const result = await api.resetCompanyUserPassword(company.id, user.id);
       setNewPassword(result.temporaryPassword);
-    } catch {
-      // silent
+      toast.success('Password reset');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to reset password'));
     }
   };
 

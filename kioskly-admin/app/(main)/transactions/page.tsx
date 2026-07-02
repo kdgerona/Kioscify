@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
 import {
@@ -12,6 +13,7 @@ import {
   getPaymentStatusLabel,
   getPaymentStatusColor,
   getCombinedDiscount,
+  getErrorMessage,
 } from "@/lib/utils";
 import {
   Receipt,
@@ -168,7 +170,7 @@ export default function TransactionsPage() {
       setVoidRequests(requests);
     } catch (error) {
       console.error("Failed to load void requests:", error);
-      alert("Failed to load void requests");
+      toast.error(getErrorMessage(error, "Failed to load void requests"));
     } finally {
       setLoadingVoidRequests(false);
     }
@@ -200,14 +202,14 @@ export default function TransactionsPage() {
     setIsProcessingVoid(true);
     try {
       await api.approveVoidRequest(transaction.id);
-      alert("Void request approved successfully");
+      toast.success("Void request approved successfully");
       loadVoidRequests(); // Reload void requests
       if (!showVoidRequests) {
         loadTransactions(false); // Reload transactions if on transactions tab
       }
     } catch (error) {
       console.error("Failed to approve void request:", error);
-      alert("Failed to approve void request");
+      toast.error(getErrorMessage(error, "Failed to approve void request"));
     } finally {
       setIsProcessingVoid(false);
     }
@@ -230,7 +232,7 @@ export default function TransactionsPage() {
         selectedVoidRequest.id,
         rejectionReason.trim() || undefined
       );
-      alert("Void request rejected");
+      toast.success("Void request rejected");
       setShowRejectModal(false);
       setSelectedVoidRequest(null);
       setRejectionReason("");
@@ -240,7 +242,7 @@ export default function TransactionsPage() {
       }
     } catch (error) {
       console.error("Failed to reject void request:", error);
-      alert("Failed to reject void request");
+      toast.error(getErrorMessage(error, "Failed to reject void request"));
     } finally {
       setIsProcessingVoid(false);
     }
@@ -252,14 +254,14 @@ export default function TransactionsPage() {
     setIsSubmittingVoidRequest(true);
     try {
       await api.requestVoidTransaction(selectedTransaction.id, voidRequestReason.trim());
-      alert("Transaction voided successfully");
+      toast.success("Transaction voided successfully");
       setShowVoidRequestForm(false);
       setVoidRequestReason("");
       setSelectedTransaction(null);
       loadTransactions(false);
     } catch (error) {
       console.error("Failed to submit void request:", error);
-      alert("Failed to submit void request");
+      toast.error(getErrorMessage(error, "Failed to submit void request"));
     } finally {
       setIsSubmittingVoidRequest(false);
     }

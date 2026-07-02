@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { formatRole } from '@/lib/utils';
+import { formatRole, getErrorMessage } from '@/lib/utils';
 import type { Company, Brand, ThemeColors, Store, OnboardAdminPayload, User, CompanyPrivileges } from '@/types';
 import {
   ChevronLeft,
@@ -368,8 +368,9 @@ export default function CompanyDetailPage() {
       setCompany(updated);
       setSettingsSuccess(true);
       setTimeout(() => setSettingsSuccess(false), 3000);
-    } catch {
-      // no-op
+      toast.success('Company settings saved');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to save company settings'));
     } finally {
       setSettingsSaving(false);
     }
@@ -383,8 +384,9 @@ export default function CompanyDetailPage() {
       setCompany(updated);
       setThemeSuccess(true);
       setTimeout(() => setThemeSuccess(false), 3000);
-    } catch {
-      // no-op
+      toast.success('Branding colors saved');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to save branding colors'));
     } finally {
       setThemeSaving(false);
     }
@@ -410,8 +412,9 @@ export default function CompanyDetailPage() {
       setCompany(updated);
       setLogoSuccess(true);
       setTimeout(() => setLogoSuccess(false), 3000);
-    } catch {
-      // no-op
+      toast.success('Logo updated');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to upload logo'));
     } finally {
       setLogoUploading(false);
       e.target.value = '';
@@ -444,9 +447,11 @@ export default function CompanyDetailPage() {
       setAdminPrivileges(DEFAULT_PRIVILEGES);
       setShowOnboardAdmin(false);
       await loadUsers();
+      toast.success('Company admin onboarded');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setAdminError(axiosErr?.response?.data?.message || 'Failed to onboard admin');
+      toast.error(getErrorMessage(err, 'Failed to onboard admin'));
     } finally {
       setAdminLoading(false);
     }
@@ -469,9 +474,11 @@ export default function CompanyDetailPage() {
       setBrandSlugTouched(false);
       setBrandDescription('');
       setShowCreateBrand(false);
+      toast.success('Brand created');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setBrandError(axiosErr?.response?.data?.message || 'Failed to create brand');
+      toast.error(getErrorMessage(err, 'Failed to create brand'));
     } finally {
       setBrandLoading(false);
     }
@@ -562,9 +569,11 @@ export default function CompanyDetailPage() {
       }
       resetStoreForm();
       setShowOnboardStore(null);
+      toast.success('Store onboarded');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setStoreError(axiosErr?.response?.data?.message || 'Failed to onboard store');
+      toast.error(getErrorMessage(err, 'Failed to onboard store'));
     } finally {
       setStoreLoading(false);
     }
@@ -580,8 +589,9 @@ export default function CompanyDetailPage() {
       });
       // Refresh users list to update status badge
       await loadUsers();
-    } catch {
-      // no-op — leave banner closed
+      toast.success('Password reset');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to reset password'));
     } finally {
       setResetingUserId(null);
     }
@@ -616,9 +626,11 @@ export default function CompanyDetailPage() {
       setCashierStoreId('');
       setShowAddCashier(false);
       await loadUsers();
+      toast.success('Cashier added');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setCashierError(axiosErr?.response?.data?.message || 'Failed to add staff member');
+      toast.error(getErrorMessage(err, 'Failed to add staff member'));
     } finally {
       setCashierLoading(false);
     }
@@ -628,8 +640,9 @@ export default function CompanyDetailPage() {
     try {
       const updated = await api.updateStore(store.id, { isActive: !store.isActive });
       setStores(prev => prev.map(s => s.id === store.id ? updated : s));
-    } catch {
-      // no-op — toggle reverts visually on next render
+      toast.success('Store status updated');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update store status'));
     }
   };
 
@@ -653,6 +666,7 @@ export default function CompanyDetailPage() {
     try {
       await api.deleteUser(user.id);
       await loadUsers();
+      toast.success('User removed');
     } catch (err) {
       console.error('Failed to remove user:', err);
       toast.error('Failed to remove user. Please try again.');
@@ -664,6 +678,7 @@ export default function CompanyDetailPage() {
     try {
       await api.updateCompanyUser(company.id, user.id, { isActive: !user.isActive });
       await loadUsers();
+      toast.success('User status updated');
     } catch (err) {
       console.error('Failed to update user:', err);
       toast.error('Failed to update user. Please try again.');

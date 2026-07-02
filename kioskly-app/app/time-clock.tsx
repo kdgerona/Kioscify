@@ -11,6 +11,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { getTimeLogStatus, submitTimeLog, TimeLogEventType } from "../services/timeLogService";
 import { formatUserName } from "../utils/formatUserName";
 import { formatDateTime } from "../utils/formatDateTime";
+import { showSuccessToast, showErrorToast } from "../utils/toast";
 
 // Composite pending capture — the resized photo plus everything needed to
 // render the watermark overlay and, once ViewShot captures it, submit it.
@@ -36,8 +37,6 @@ export default function TimeClockScreen() {
   const [showCamera, setShowCamera] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState("");
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [composite, setComposite] = useState<PendingComposite | null>(null);
   const [now, setNow] = useState(new Date());
 
@@ -104,7 +103,7 @@ export default function TimeClockScreen() {
         if (cancelled) return;
 
         setNextEventType(result.eventType === "TIME_IN" ? "TIME_OUT" : "TIME_IN");
-        setSuccessMessage(
+        showSuccessToast(
           result.eventType === "TIME_IN" ? "Clocked in successfully." : "Clocked out successfully.",
         );
         setComposite(null);
@@ -116,7 +115,7 @@ export default function TimeClockScreen() {
         }, 1200);
       } catch (err) {
         if (cancelled) return;
-        setSubmitError(err instanceof Error ? err.message : "Failed to submit time log");
+        showErrorToast(err instanceof Error ? err.message : "Failed to submit time log");
         setComposite(null);
         setProcessing(false);
         setProcessingStep("");
@@ -131,8 +130,6 @@ export default function TimeClockScreen() {
   }, [composite]);
 
   const handleOpenCamera = () => {
-    setSubmitError(null);
-    setSuccessMessage(null);
     setShowCamera(true);
   };
 
@@ -141,8 +138,6 @@ export default function TimeClockScreen() {
   const handleCapture = async (photoUri: string, latitude: number, longitude: number) => {
     setShowCamera(false);
     setProcessing(true);
-    setSubmitError(null);
-    setSuccessMessage(null);
 
     try {
       setProcessingStep("Preparing photo...");
@@ -164,7 +159,7 @@ export default function TimeClockScreen() {
     } catch (err) {
       setProcessing(false);
       setProcessingStep("");
-      setSubmitError(err instanceof Error ? err.message : "Failed to capture photo");
+      showErrorToast(err instanceof Error ? err.message : "Failed to capture photo");
     }
   };
 
@@ -215,20 +210,6 @@ export default function TimeClockScreen() {
             {statusError && (
               <View className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 w-full max-w-sm">
                 <Text className="text-red-600 text-sm text-center">{statusError}</Text>
-              </View>
-            )}
-
-            {successMessage && (
-              <View className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 w-full max-w-sm">
-                <Text className="text-green-700 text-sm text-center font-semibold">
-                  {successMessage}
-                </Text>
-              </View>
-            )}
-
-            {submitError && (
-              <View className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 w-full max-w-sm">
-                <Text className="text-red-600 text-sm text-center">{submitError}</Text>
               </View>
             )}
 

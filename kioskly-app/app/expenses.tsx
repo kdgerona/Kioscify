@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Alert,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -28,6 +29,7 @@ import {
 } from "@/services/expenseService";
 import ExpenseModal from "@/components/ExpenseModal";
 import { formatUserName } from "@/utils/formatUserName";
+import { showSuccessToast, showErrorToast } from "@/utils/toast";
 
 export default function ExpensesScreen() {
   const [expenses, setExpenses] = useState<(ExpenseResponse & { pendingSync?: boolean })[]>([]);
@@ -138,6 +140,7 @@ export default function ExpensesScreen() {
     try {
       setIsSubmitting(true);
       await createExpense(expenseData);
+      showSuccessToast("Expense added");
       setIsModalVisible(false);
       await loadExpenses(); // Reload to include newly queued/created expense
     } catch (err) {
@@ -173,11 +176,11 @@ export default function ExpensesScreen() {
   const openVoidModal = (expense: ExpenseResponse) => {
     // Validate void status
     if (expense.voidStatus === "APPROVED") {
-      alert("This expense is already voided.");
+      Alert.alert("This expense is already voided.");
       return;
     }
     if (expense.voidStatus === "PENDING") {
-      alert("A void request is already pending for this expense.");
+      Alert.alert("A void request is already pending for this expense.");
       return;
     }
 
@@ -196,7 +199,7 @@ export default function ExpensesScreen() {
     if (!selectedVoidExpense) return;
 
     if (voidReason.trim().length < 10) {
-      alert("Please provide a reason of at least 10 characters.");
+      Alert.alert("Please provide a reason of at least 10 characters.");
       return;
     }
 
@@ -213,10 +216,10 @@ export default function ExpensesScreen() {
       );
 
       closeVoidModal();
-      alert("Void request submitted successfully!");
+      showSuccessToast("Void request submitted successfully!");
     } catch (err) {
       console.error("Failed to submit void request:", err);
-      alert("Failed to submit void request. Please try again.");
+      showErrorToast("Failed to submit void request. Please try again.");
     } finally {
       setIsSubmittingVoid(false);
     }

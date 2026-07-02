@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { Store, User, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 import type { User as UserType } from '@/types';
 import { useTenant } from '@/contexts/TenantContext';
 import { api } from '@/lib/api';
-import { formatRole } from '@/lib/utils';
+import { formatRole, getErrorMessage } from '@/lib/utils';
 import { hasPrivilege } from '@/lib/privileges';
 
 export default function SettingsPage() {
@@ -23,21 +24,20 @@ export default function SettingsPage() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pwLoading, setPwLoading] = useState(false);
-  const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPwError(null);
-    if (newPassword !== confirmPassword) { setPwError('New passwords do not match'); return; }
+    if (newPassword !== confirmPassword) { toast.error('New passwords do not match'); return; }
     setPwLoading(true);
     try {
       await api.changePassword(currentPassword, newPassword);
       setPwSuccess(true);
+      toast.success('Password changed successfully');
       setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
       setTimeout(() => { setPwSuccess(false); setShowChangePassword(false); }, 2500);
-    } catch (err: any) {
-      setPwError(err?.response?.data?.message || 'Failed to change password');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to change password'));
     } finally {
       setPwLoading(false);
     }
@@ -126,7 +126,7 @@ export default function SettingsPage() {
             <div className="pt-2 border-t border-gray-100">
               {!showChangePassword ? (
                 <button
-                  onClick={() => { setShowChangePassword(true); setPwError(null); setPwSuccess(false); }}
+                  onClick={() => { setShowChangePassword(true); setPwSuccess(false); }}
                   className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition"
                 >
                   <KeyRound className="h-4 w-4" />
@@ -135,8 +135,6 @@ export default function SettingsPage() {
               ) : (
                 <form onSubmit={handleChangePassword} className="space-y-3">
                   <p className="text-sm font-medium text-gray-700">Change Password</p>
-                  {pwError && <p className="text-xs text-red-600">{pwError}</p>}
-                  {pwSuccess && <p className="text-xs text-green-600">Password changed successfully.</p>}
                   {[
                     { label: 'Current Password', val: currentPassword, set: setCurrentPassword, show: showCurrent, toggle: () => setShowCurrent(v => !v) },
                     { label: 'New Password', val: newPassword, set: setNewPassword, show: showNew, toggle: () => setShowNew(v => !v) },
@@ -171,7 +169,7 @@ export default function SettingsPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPwError(null); }}
+                      onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); }}
                       className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                     >
                       Cancel

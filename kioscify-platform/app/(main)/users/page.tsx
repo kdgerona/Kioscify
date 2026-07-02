@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 import type { User } from '@/types';
 import { Plus, KeyRound, Trash2, Copy, Check, UserX, UserCheck } from 'lucide-react';
 
@@ -69,9 +71,12 @@ function CreateAdminModal({
     try {
       const result = await api.createPlatformAdmin(form);
       onCreated(result.temporaryPassword);
+      toast.success('Platform admin created');
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
-      setError(status === 409 ? 'Username or email already exists.' : 'Failed to create admin. Please try again.');
+      const message = status === 409 ? 'Username or email already exists.' : 'Failed to create admin. Please try again.';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -212,12 +217,12 @@ export default function UsersPage() {
 
   async function handleToggleActive(admin: User) {
     setTogglingId(admin.id);
-    setActionError('');
     try {
       const updated = await api.updatePlatformAdmin(admin.id, { isActive: !admin.isActive });
       setAdmins(prev => prev.map(a => (a.id === updated.id ? { ...a, isActive: updated.isActive } : a)));
-    } catch {
-      setActionError('Failed to update status.');
+      toast.success(updated.isActive ? 'Admin enabled' : 'Admin disabled');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update status.'));
     } finally {
       setTogglingId(null);
     }
@@ -225,24 +230,24 @@ export default function UsersPage() {
 
   async function handleResetPassword(admin: User) {
     setConfirmReset(null);
-    setActionError('');
     try {
       const result = await api.resetPlatformAdminPassword(admin.id);
       setTempPassword(result.temporaryPassword);
+      toast.success('Password reset');
       refreshAdmins().catch(() => {});
-    } catch {
-      setActionError('Failed to reset password.');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to reset password.'));
     }
   }
 
   async function handleDelete(admin: User) {
     setConfirmDelete(null);
-    setActionError('');
     try {
       await api.deletePlatformAdmin(admin.id);
       setAdmins(prev => prev.filter(a => a.id !== admin.id));
-    } catch {
-      setActionError('Failed to delete admin.');
+      toast.success('Admin deleted');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to delete admin.'));
     }
   }
 

@@ -4,7 +4,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Image,
 } from "react-native";
 import { useState, useEffect } from "react";
@@ -14,6 +13,7 @@ import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import LogoWithAppName from "../assets/images/logo-with-appname.png";
+import { showSuccessToast, showErrorToast } from "../utils/toast";
 
 interface StoreOption {
   id: string;
@@ -69,9 +69,10 @@ export default function StorePicker() {
       const data = await resp.json();
       await AsyncStorage.setItem("@kioscify:auth_token", data.accessToken);
       await fetchTenantBySlug(store.slug);
+      showSuccessToast("Store switched");
       router.replace("/home" as Href);
     } catch {
-      Alert.alert("Error", "Failed to switch store. Please try again.");
+      showErrorToast("Failed to switch store. Please try again.");
     } finally {
       setSwitching(null);
     }
