@@ -260,8 +260,8 @@ model User {
   storeAccess               UserStoreAccess[]
   sessions                  Session[]
 
-  @@unique([tenantId, username])
-  @@unique([tenantId, email])
+  @@unique([tenantId, companyId, username])
+  @@unique([tenantId, companyId, email])
   @@map("users")
 }
 
