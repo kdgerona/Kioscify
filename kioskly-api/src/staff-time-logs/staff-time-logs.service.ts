@@ -16,28 +16,35 @@ const USER_SELECT = {
 export class StaffTimeLogsService {
   constructor(private prisma: PrismaService) {}
 
+  // Not atomic: a near-simultaneous duplicate request from the same user could pass this check
+  // before either write lands. Accepted tradeoff for this simple record-and-view feature; not
+  // worth transaction complexity today.
+  async validateSequencing(tenantId: string, userId: string, eventType: TimeLogEventType) {
+    const lastLog = await this.prisma.staffTimeLog.findFirst({
+      where: { tenantId, userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (eventType === TimeLogEventType.TIME_IN && lastLog?.eventType === TimeLogEventType.TIME_IN) {
+      throw new BadRequestException('Already timed in — time out before timing in again');
+    }
+
+    if (
+      eventType === TimeLogEventType.TIME_OUT &&
+      (!lastLog || lastLog.eventType === TimeLogEventType.TIME_OUT)
+    ) {
+      throw new BadRequestException('No open time-in found — time in before timing out');
+    }
+
+    return lastLog;
+  }
+
   async create(
     dto: Pick<CreateStaffTimeLogDto, 'eventType' | 'latitude' | 'longitude'>,
     userId: string,
     tenantId: string,
     photoUrl: string,
   ) {
-    const lastLog = await this.prisma.staffTimeLog.findFirst({
-      where: { tenantId, userId },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (dto.eventType === TimeLogEventType.TIME_IN && lastLog?.eventType === TimeLogEventType.TIME_IN) {
-      throw new BadRequestException('Already timed in — time out before timing in again');
-    }
-
-    if (
-      dto.eventType === TimeLogEventType.TIME_OUT &&
-      (!lastLog || lastLog.eventType === TimeLogEventType.TIME_OUT)
-    ) {
-      throw new BadRequestException('No open time-in found — time in before timing out');
-    }
-
     return this.prisma.staffTimeLog.create({
       data: {
         tenantId,
@@ -67,6 +74,10 @@ export class StaffTimeLogsService {
 
     if (query.userId) {
       where.userId = query.userId;
+    }
+
+    if (query.eventType) {
+      where.eventType = query.eventType;
     }
 
     if (query.startDate || query.endDate) {

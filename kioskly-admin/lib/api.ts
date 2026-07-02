@@ -26,6 +26,7 @@ import type {
   UserSession,
   SessionStatus,
   StaffTimeLog,
+  TimeLogEventType,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -771,6 +772,7 @@ class ApiClient {
 
   async getStaffTimeLogs(filters: {
     userId?: string;
+    eventType?: TimeLogEventType | "TIME_IN" | "TIME_OUT";
     startDate?: string;
     endDate?: string;
     page?: number;

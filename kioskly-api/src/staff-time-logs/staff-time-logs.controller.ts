@@ -63,6 +63,10 @@ export class StaffTimeLogsController {
   ) {
     if (!file) throw new BadRequestException('No photo uploaded');
 
+    // Validate sequencing before touching storage so a rejected request never leaves an
+    // orphaned selfie file behind.
+    await this.staffTimeLogsService.validateSequencing(tenantId, req.user.id, createStaffTimeLogDto.eventType);
+
     const filename = `staff-${req.user.id}-${Date.now()}${extname(file.originalname)}`;
     const photoUrl = await this.storage.upload('staff-selfies', filename, file.buffer, file.mimetype);
 

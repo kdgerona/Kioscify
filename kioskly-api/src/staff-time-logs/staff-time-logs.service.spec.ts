@@ -24,13 +24,7 @@ describe('StaffTimeLogsService', () => {
     service = module.get<StaffTimeLogsService>(StaffTimeLogsService);
   });
 
-  describe('create', () => {
-    const baseInput = {
-      eventType: TimeLogEventType.TIME_IN,
-      latitude: 14.5995,
-      longitude: 120.9842,
-    };
-
+  describe('validateSequencing', () => {
     it('rejects TIME_IN when the most recent record is also TIME_IN', async () => {
       mockPrisma.staffTimeLog.findFirst.mockResolvedValue({
         id: 'log-1',
@@ -38,12 +32,7 @@ describe('StaffTimeLogsService', () => {
       });
 
       await expect(
-        service.create(
-          { ...baseInput, eventType: TimeLogEventType.TIME_IN },
-          'user-1',
-          'tenant-1',
-          'https://storage/staff-selfies/photo.jpg',
-        ),
+        service.validateSequencing('tenant-1', 'user-1', TimeLogEventType.TIME_IN),
       ).rejects.toThrow(BadRequestException);
 
       expect(mockPrisma.staffTimeLog.create).not.toHaveBeenCalled();
@@ -53,12 +42,7 @@ describe('StaffTimeLogsService', () => {
       mockPrisma.staffTimeLog.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.create(
-          { ...baseInput, eventType: TimeLogEventType.TIME_OUT },
-          'user-1',
-          'tenant-1',
-          'https://storage/staff-selfies/photo.jpg',
-        ),
+        service.validateSequencing('tenant-1', 'user-1', TimeLogEventType.TIME_OUT),
       ).rejects.toThrow(BadRequestException);
 
       expect(mockPrisma.staffTimeLog.create).not.toHaveBeenCalled();
@@ -71,12 +55,7 @@ describe('StaffTimeLogsService', () => {
       });
 
       await expect(
-        service.create(
-          { ...baseInput, eventType: TimeLogEventType.TIME_OUT },
-          'user-1',
-          'tenant-1',
-          'https://storage/staff-selfies/photo.jpg',
-        ),
+        service.validateSequencing('tenant-1', 'user-1', TimeLogEventType.TIME_OUT),
       ).rejects.toThrow(BadRequestException);
 
       expect(mockPrisma.staffTimeLog.create).not.toHaveBeenCalled();
@@ -84,16 +63,52 @@ describe('StaffTimeLogsService', () => {
 
     it('accepts TIME_IN when there is no most-recent record', async () => {
       mockPrisma.staffTimeLog.findFirst.mockResolvedValue(null);
+
+      const result = await service.validateSequencing('tenant-1', 'user-1', TimeLogEventType.TIME_IN);
+
+      expect(result).toBeNull();
+    });
+
+    it('accepts TIME_OUT when the most recent record is TIME_IN (valid alternating sequence)', async () => {
+      const lastLog = { id: 'log-1', eventType: TimeLogEventType.TIME_IN };
+      mockPrisma.staffTimeLog.findFirst.mockResolvedValue(lastLog);
+
+      const result = await service.validateSequencing('tenant-1', 'user-1', TimeLogEventType.TIME_OUT);
+
+      expect(result).toEqual(lastLog);
+    });
+
+    it('scopes the most-recent lookup to the acting user within the tenant, ordered by createdAt desc', async () => {
+      mockPrisma.staffTimeLog.findFirst.mockResolvedValue(null);
+
+      await service.validateSequencing('tenant-1', 'user-1', TimeLogEventType.TIME_IN);
+
+      expect(mockPrisma.staffTimeLog.findFirst).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-1', userId: 'user-1' },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
+
+  describe('create', () => {
+    const baseInput = {
+      eventType: TimeLogEventType.TIME_IN,
+      latitude: 14.5995,
+      longitude: 120.9842,
+    };
+
+    it('writes the time log record with the given data, without re-checking sequencing', async () => {
       const created = { id: 'log-2', eventType: TimeLogEventType.TIME_IN };
       mockPrisma.staffTimeLog.create.mockResolvedValue(created);
 
       const result = await service.create(
-        { ...baseInput, eventType: TimeLogEventType.TIME_IN },
+        baseInput,
         'user-1',
         'tenant-1',
         'https://storage/staff-selfies/photo.jpg',
       );
 
+      expect(mockPrisma.staffTimeLog.findFirst).not.toHaveBeenCalled();
       expect(mockPrisma.staffTimeLog.create).toHaveBeenCalledWith({
         data: {
           tenantId: 'tenant-1',
@@ -107,12 +122,8 @@ describe('StaffTimeLogsService', () => {
       expect(result).toEqual(created);
     });
 
-    it('accepts TIME_OUT when the most recent record is TIME_IN (valid alternating sequence)', async () => {
-      mockPrisma.staffTimeLog.findFirst.mockResolvedValue({
-        id: 'log-1',
-        eventType: TimeLogEventType.TIME_IN,
-      });
-      const created = { id: 'log-2', eventType: TimeLogEventType.TIME_OUT };
+    it('writes a TIME_OUT record the same way', async () => {
+      const created = { id: 'log-3', eventType: TimeLogEventType.TIME_OUT };
       mockPrisma.staffTimeLog.create.mockResolvedValue(created);
 
       const result = await service.create(
@@ -124,18 +135,6 @@ describe('StaffTimeLogsService', () => {
 
       expect(mockPrisma.staffTimeLog.create).toHaveBeenCalled();
       expect(result).toEqual(created);
-    });
-
-    it('scopes the most-recent lookup to the acting user within the tenant, ordered by createdAt desc', async () => {
-      mockPrisma.staffTimeLog.findFirst.mockResolvedValue(null);
-      mockPrisma.staffTimeLog.create.mockResolvedValue({});
-
-      await service.create(baseInput, 'user-1', 'tenant-1', 'https://storage/photo.jpg');
-
-      expect(mockPrisma.staffTimeLog.findFirst).toHaveBeenCalledWith({
-        where: { tenantId: 'tenant-1', userId: 'user-1' },
-        orderBy: { createdAt: 'desc' },
-      });
     });
   });
 
@@ -210,6 +209,22 @@ describe('StaffTimeLogsService', () => {
           },
           skip: 10,
           take: 10,
+        }),
+      );
+    });
+
+    it('applies the eventType filter when passed', async () => {
+      mockPrisma.staffTimeLog.findMany.mockResolvedValue([]);
+      mockPrisma.staffTimeLog.count.mockResolvedValue(0);
+
+      await service.findAll('tenant-1', { eventType: TimeLogEventType.TIME_IN });
+
+      expect(mockPrisma.staffTimeLog.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            tenantId: 'tenant-1',
+            eventType: TimeLogEventType.TIME_IN,
+          },
         }),
       );
     });
