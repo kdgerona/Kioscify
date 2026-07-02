@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
 import { formatDateTime, formatUserName } from "@/lib/utils";
-import { Clock, X, RefreshCw, LogIn, LogOut, ImageOff } from "lucide-react";
+import { Clock, X, RefreshCw, LogIn, LogOut, ImageOff, MapPin } from "lucide-react";
 import type { StaffTimeLog, TimeLogEventType, User } from "@/types";
 import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -29,6 +29,10 @@ const EVENT_TYPE_CLASS: Record<TimeLogEventType, string> = {
 
 function formatCoordinates(latitude: number, longitude: number): string {
   return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+}
+
+function googleMapsUrl(latitude: number, longitude: number): string {
+  return `https://www.google.com/maps?q=${latitude},${longitude}`;
 }
 
 export default function AttendancePage() {
@@ -287,7 +291,7 @@ export default function AttendancePage() {
                     Coordinates
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Selfie
+                    Photo
                   </th>
                 </tr>
               </thead>
@@ -313,19 +317,28 @@ export default function AttendancePage() {
                       {formatDateTime(log.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">
-                      {formatCoordinates(log.latitude, log.longitude)}
+                      <a
+                        href={googleMapsUrl(log.latitude, log.longitude)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                        title="Open in Google Maps"
+                      >
+                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                        {formatCoordinates(log.latitude, log.longitude)}
+                      </a>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {log.photoUrl ? (
                         <button
                           onClick={() => setLightboxUrl(log.photoUrl)}
                           className="block w-12 h-12 rounded-lg overflow-hidden border border-gray-200 hover:opacity-80 transition"
-                          title="View selfie"
+                          title="View photo"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={log.photoUrl}
-                            alt={`${formatUserName(log.user)} selfie`}
+                            alt={`${formatUserName(log.user)} photo`}
                             className="w-full h-full object-cover"
                           />
                         </button>
@@ -382,7 +395,7 @@ export default function AttendancePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900">Selfie</h2>
+              <h2 className="text-lg font-bold text-gray-900">Photo</h2>
               <button
                 onClick={() => setLightboxUrl(null)}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -393,7 +406,7 @@ export default function AttendancePage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={lightboxUrl}
-              alt="Staff selfie"
+              alt="Staff photo"
               className="w-full h-auto rounded-lg"
             />
           </div>

@@ -2,7 +2,6 @@ import { View, Text, TouchableOpacity, ActivityIndicator, ImageBackground } from
 import { useEffect, useRef, useState } from "react";
 import { useRouter, Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import * as Location from "expo-location";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import ViewShot from "react-native-view-shot";
 import AppSafeAreaView from "../components/AppSafeAreaView";
@@ -11,6 +10,7 @@ import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import { getTimeLogStatus, submitTimeLog, TimeLogEventType } from "../services/timeLogService";
 import { formatUserName } from "../utils/formatUserName";
+import { formatDateTime } from "../utils/formatDateTime";
 
 // Composite pending capture — the resized photo plus everything needed to
 // render the watermark overlay and, once ViewShot captures it, submit it.
@@ -23,17 +23,6 @@ interface PendingComposite {
   timestamp: Date;
   eventType: TimeLogEventType;
 }
-
-const formatDateTime = (date: Date) =>
-  date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
 
 export default function TimeClockScreen() {
   const router = useRouter();
@@ -50,8 +39,15 @@ export default function TimeClockScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [composite, setComposite] = useState<PendingComposite | null>(null);
+  const [now, setNow] = useState(new Date());
 
   const viewShotRef = useRef<ViewShot>(null);
+
+  // Live-ticking clock shown on the main screen before the camera opens.
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
@@ -142,21 +138,13 @@ export default function TimeClockScreen() {
 
   const handleCancelCamera = () => setShowCamera(false);
 
-  const handleCapture = async (photoUri: string) => {
+  const handleCapture = async (photoUri: string, latitude: number, longitude: number) => {
     setShowCamera(false);
     setProcessing(true);
     setSubmitError(null);
     setSuccessMessage(null);
 
     try {
-      setProcessingStep("Getting location...");
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) {
-        throw new Error("Location permission is required to clock in or out.");
-      }
-      const position = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = position.coords;
-
       setProcessingStep("Preparing photo...");
       const resized = await manipulateAsync(photoUri, [{ resize: { width: 800 } }], {
         compress: 0.8,
@@ -199,14 +187,26 @@ export default function TimeClockScreen() {
           <Ionicons name="arrow-back" size={24} color={textColor} />
         </TouchableOpacity>
         <Text className="text-2xl font-bold" style={{ color: textColor }}>
-          Time Clock
+          Attendance
         </Text>
       </View>
 
       {/* Content */}
       <View className="flex-1 px-6 py-8 items-center justify-center">
         <Text className="text-gray-700 text-base font-semibold">{formatUserName(user)}</Text>
-        <Text className="text-gray-400 text-xs mb-8">{tenant.name}</Text>
+        <Text className="text-gray-400 text-xs mb-6">{tenant.name}</Text>
+
+        <View className="items-center mb-8">
+          <Text
+            className="text-gray-900 text-6xl font-semibold"
+            style={{ letterSpacing: -1 }}
+          >
+            {now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+          </Text>
+          <Text className="text-gray-500 text-sm font-medium mt-1">
+            {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          </Text>
+        </View>
 
         {statusLoading ? (
           <ActivityIndicator size="large" color={primaryColor} />

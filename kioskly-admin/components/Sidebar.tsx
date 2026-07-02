@@ -65,9 +65,9 @@ const ALL_NAVIGATION: NavigationItem[] = [
       { name: "Alerts", href: "/inventory-alerts", icon: AlertTriangle },
     ],
   },
+  { name: "Attendance", href: "/attendance", icon: Clock, section: "users" },
   { name: "Users", href: "/users", icon: Users, section: "users" },
   { name: "Sessions", href: "/sessions", icon: Clock, section: "users" },
-  { name: "Attendance", href: "/attendance", icon: Clock, section: "users" },
   { name: "Settings", href: "/settings", icon: Settings, section: null },
 ];
 
