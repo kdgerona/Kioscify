@@ -163,6 +163,7 @@ export default function SessionsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Login Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Logout Time</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Device</th>
@@ -180,6 +181,9 @@ export default function SessionsPage() {
                       <Clock className="h-3.5 w-3.5 inline mr-1.5 text-gray-400" />
                       {new Date(session.loginAt).toLocaleString()}
                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                      {session.loggedOutAt ? new Date(session.loggedOutAt).toLocaleString() : "—"}
+                    </td>
                     <td className={`px-6 py-4 text-sm ${STATUS_CLASS[session.status]}`}>
                       {STATUS_LABEL[session.status]}
                     </td>
@@ -189,7 +193,7 @@ export default function SessionsPage() {
                 ))}
                 {sessions.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                       No sessions found.
                     </td>
                   </tr>

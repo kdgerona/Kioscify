@@ -97,11 +97,20 @@ class ApiClient {
     if (typeof window !== 'undefined') localStorage.removeItem('auth_token');
   }
 
-  logout() {
-    this.clearToken();
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  async logout() {
+    try {
+      // Revoke the token server-side (blacklist + end session record) before
+      // clearing local state. Ignore failures — the token may already be
+      // expired/invalid, but the user must still be logged out locally.
+      await this.client.post('/auth/logout');
+    } catch {
+      // no-op
+    } finally {
+      this.clearToken();
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
   }
 

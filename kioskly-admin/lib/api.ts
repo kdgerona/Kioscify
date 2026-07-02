@@ -137,15 +137,24 @@ class ApiClient {
     return data;
   }
 
-  logout() {
-    this.clearToken();
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("user");
-      localStorage.removeItem("kioscify_accessible_stores");
-      const companySlug = localStorage.getItem("kioscify_portal_company_slug");
-      const brandSlug = localStorage.getItem("kioscify_portal_brand_slug");
-      window.location.href =
-        companySlug && brandSlug ? `/${companySlug}/${brandSlug}` : "/login";
+  async logout() {
+    try {
+      // Revoke the token server-side (blacklist + end session record) before
+      // clearing local state. Ignore failures — the token may already be
+      // expired/invalid, but the user must still be logged out locally.
+      await this.client.post("/auth/logout");
+    } catch {
+      // no-op
+    } finally {
+      this.clearToken();
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("user");
+        localStorage.removeItem("kioscify_accessible_stores");
+        const companySlug = localStorage.getItem("kioscify_portal_company_slug");
+        const brandSlug = localStorage.getItem("kioscify_portal_brand_slug");
+        window.location.href =
+          companySlug && brandSlug ? `/${companySlug}/${brandSlug}` : "/login";
+      }
     }
   }
 

@@ -118,6 +118,7 @@ export default function SessionsPage() {
               <th className="px-5 py-3 font-medium">User</th>
               <th className="px-5 py-3 font-medium">Company</th>
               <th className="px-5 py-3 font-medium">Login Time</th>
+              <th className="px-5 py-3 font-medium">Logout Time</th>
               <th className="px-5 py-3 font-medium">Status</th>
               <th className="px-5 py-3 font-medium">IP Address</th>
               <th className="px-5 py-3 font-medium">Device</th>
@@ -126,7 +127,7 @@ export default function SessionsPage() {
           <tbody className="divide-y">
             {loading ? (
               <tr>
-                <td colSpan={6} className="py-12">
+                <td colSpan={7} className="py-12">
                   <div className="flex justify-center">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600" />
                   </div>
@@ -134,7 +135,7 @@ export default function SessionsPage() {
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-16 text-center text-gray-400">
+                <td colSpan={7} className="py-16 text-center text-gray-400">
                   No sessions match these filters
                 </td>
               </tr>
@@ -154,6 +155,9 @@ export default function SessionsPage() {
                   <td className="px-5 py-4 text-gray-600 whitespace-nowrap">
                     <Clock className="w-3.5 h-3.5 inline mr-1.5 text-gray-400" />
                     {new Date(row.loginAt).toLocaleString()}
+                  </td>
+                  <td className="px-5 py-4 text-gray-600 whitespace-nowrap">
+                    {row.loggedOutAt ? new Date(row.loggedOutAt).toLocaleString() : '—'}
                   </td>
                   <td className="px-5 py-4">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_BADGE[row.status]}`}>
