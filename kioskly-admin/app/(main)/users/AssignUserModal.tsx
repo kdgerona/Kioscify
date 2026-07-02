@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { X, Search, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 import type { AssignableUser } from '@/types';
 import {
   Select,
@@ -73,11 +75,13 @@ export default function AssignUserModal({ isOpen, onClose, storeId, primaryColor
     setSubmitError(null);
     try {
       await api.assignUserToStore(storeId, { username: selectedUser.username, role: selectedRole });
+      toast.success('User assigned to store');
       onAssigned();
       onClose();
     } catch (err: unknown) {
-      const apiErr = err as { response?: { data?: { message?: string } } };
-      setSubmitError(apiErr?.response?.data?.message || 'Failed to assign user');
+      const message = getErrorMessage(err, 'Failed to assign user');
+      setSubmitError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }

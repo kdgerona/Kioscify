@@ -24,6 +24,7 @@ import { AddonsModule } from './addons/addons.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { StaffTimeLogsModule } from './staff-time-logs/staff-time-logs.module';
 import { ReportsModule } from './reports/reports.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SubmittedReportsModule } from './submitted-reports/submitted-reports.module';
@@ -33,6 +34,8 @@ import { UserShiftInventoryReportsModule } from './user-shift-inventory-reports/
 import { AppReleasesModule } from './app-releases/app-releases.module';
 import { StorageModule } from './storage/storage.module';
 import { PriceTiersModule } from './price-tiers/price-tiers.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { SessionsModule } from './sessions/sessions.module';
 
 @Module({
   imports: [
@@ -80,6 +83,8 @@ import { PriceTiersModule } from './price-tiers/price-tiers.module';
     StoresModule,
     UsersModule,
     PlatformModule,
+    SubscriptionsModule,
+    SessionsModule,
     AnalyticsModule,
 
     // Catalog (brand-scoped)
@@ -92,6 +97,7 @@ import { PriceTiersModule } from './price-tiers/price-tiers.module';
     // Store operations
     TransactionsModule,
     ExpensesModule,
+    StaffTimeLogsModule,
     ReportsModule,
     InventoryModule,
     SubmittedReportsModule,

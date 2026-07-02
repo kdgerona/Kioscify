@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubmittedReportDto } from '../submitted-reports/dto/create-submitted-report.dto';
 import { UserShiftReportFiltersDto } from './dto/user-shift-report-filters.dto';
+import { getZonedDateString, getZonedMonthBounds } from '../common/utils/timezone';
 
 @Injectable()
 export class UserShiftReportsService {
@@ -127,7 +128,7 @@ export class UserShiftReportsService {
         where: {
           tenantId,
           userId,
-          submittedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+          submittedAt: { gte: getZonedMonthBounds(new Date()).start },
         },
       }),
       this.prisma.userShiftReport.findFirst({
@@ -147,7 +148,7 @@ export class UserShiftReportsService {
   }
 
   async getTodayCount(userId: string, tenantId: string) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getZonedDateString(new Date());
     return this.prisma.userShiftReport.count({
       where: { tenantId, userId, reportDate: today },
     });

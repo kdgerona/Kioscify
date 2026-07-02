@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimePeriod } from './dto/analytics-query.dto';
+import {
+  getZonedHour,
+  getZonedDateString,
+  getZonedDayBounds,
+  getZonedWeekBounds,
+  getZonedMonthBounds,
+  getZonedYearBounds,
+} from '../common/utils/timezone';
 
 @Injectable()
 export class ReportsService {
@@ -21,54 +29,33 @@ export class ReportsService {
       return { start: new Date(startDate), end: new Date(endDate) };
     }
 
-    // Server-side fallback (reached only when no dates are provided)
+    // Server-side fallback (reached only when no dates are provided) — all
+    // boundaries are computed in the store's local timezone (Asia/Manila),
+    // not the server process's timezone.
     const now = new Date();
-    let start: Date;
-    let end: Date = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      23,
-      59,
-      59,
-      999,
-    );
 
     switch (period) {
       case TimePeriod.DAILY:
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-        break;
+        return getZonedDayBounds(now);
 
       case TimePeriod.YESTERDAY:
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
-        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
-        break;
+        return getZonedDayBounds(new Date(now.getTime() - 24 * 60 * 60 * 1000));
 
-      case TimePeriod.WEEKLY: {
-        const dayOfWeek = now.getDay();
-        const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        start = new Date(now);
-        start.setDate(now.getDate() - diffToMonday);
-        start.setHours(0, 0, 0, 0);
-        break;
-      }
+      case TimePeriod.WEEKLY:
+        return getZonedWeekBounds(now);
 
       case TimePeriod.MONTHLY:
-        start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-        break;
+        return getZonedMonthBounds(now);
 
       case TimePeriod.YEARLY:
-        start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-        break;
+        return getZonedYearBounds(now);
 
       case TimePeriod.CUSTOM:
         throw new Error('Start and end dates are required for custom period');
 
       default:
-        start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        return getZonedMonthBounds(now);
     }
-
-    return { start, end };
   }
 
   /**
@@ -77,20 +64,7 @@ export class ReportsService {
    */
   async getDailyReport(tenantId: string, date?: Date) {
     const targetDate = date || new Date();
-    const startOfDay = new Date(
-      targetDate.getFullYear(),
-      targetDate.getMonth(),
-      targetDate.getDate(),
-    );
-    const endOfDay = new Date(
-      targetDate.getFullYear(),
-      targetDate.getMonth(),
-      targetDate.getDate(),
-      23,
-      59,
-      59,
-      999,
-    );
+    const { start: startOfDay, end: endOfDay } = getZonedDayBounds(targetDate);
 
     // Fetch transactions for the day
     const transactions = await this.prisma.transaction.findMany({
@@ -197,7 +171,7 @@ export class ReportsService {
     const profitMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
 
     return {
-      date: targetDate.toISOString().split('T')[0],
+      date: getZonedDateString(targetDate),
       period: {
         start: startOfDay.toISOString(),
         end: endOfDay.toISOString(),
@@ -226,20 +200,7 @@ export class ReportsService {
 
   async getUserShiftReport(userId: string, tenantId: string, date?: string) {
     const targetDate = date ? new Date(date) : new Date();
-    const startOfDay = new Date(
-      targetDate.getFullYear(),
-      targetDate.getMonth(),
-      targetDate.getDate(),
-    );
-    const endOfDay = new Date(
-      targetDate.getFullYear(),
-      targetDate.getMonth(),
-      targetDate.getDate(),
-      23,
-      59,
-      59,
-      999,
-    );
+    const { start: startOfDay, end: endOfDay } = getZonedDayBounds(targetDate);
 
     const [transactions, expenses] = await Promise.all([
       this.prisma.transaction.findMany({
@@ -319,7 +280,7 @@ export class ReportsService {
     const profitMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
 
     return {
-      date: targetDate.toISOString().split('T')[0],
+      date: getZonedDateString(targetDate),
       period: {
         start: startOfDay.toISOString(),
         end: endOfDay.toISOString(),
@@ -516,7 +477,7 @@ export class ReportsService {
     // Sales by day (for charts)
     const salesByDay = transactions.reduce(
       (acc, t) => {
-        const date = new Date(t.timestamp).toISOString().split('T')[0];
+        const date = getZonedDateString(t.timestamp);
         if (!acc[date]) {
           acc[date] = { date, total: 0, count: 0 };
         }
@@ -613,7 +574,7 @@ export class ReportsService {
     }
 
     for (const tx of transactions) {
-      const hour = new Date(tx.timestamp).getHours();
+      const hour = getZonedHour(tx.timestamp);
       hourlyData[hour].count += 1;
       hourlyData[hour].totalRevenue += tx.total;
     }

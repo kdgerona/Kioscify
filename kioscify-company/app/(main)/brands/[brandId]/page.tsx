@@ -9,6 +9,7 @@ import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, 
 import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
 import { hasPrivilege } from '@/lib/privileges';
+import { getErrorMessage } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -416,10 +417,14 @@ export default function BrandDetailPage() {
     const stamped = reordered.map((item, i) => ({ ...item, sequenceNo: i }));
 
     setList(stamped);
-    await Promise.all([
-      updateFn(stamped[index].id, index),
-      updateFn(stamped[swapIndex].id, swapIndex),
-    ]);
+    try {
+      await Promise.all([
+        updateFn(stamped[index].id, index),
+        updateFn(stamped[swapIndex].id, swapIndex),
+      ]);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to reorder'));
+    }
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -440,8 +445,9 @@ export default function BrandDetailPage() {
       setBrand(updated);
       setSettingsSuccess(true);
       setTimeout(() => setSettingsSuccess(false), 3000);
-    } catch {
-      // no-op
+      toast.success('Settings saved');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to save'));
     } finally {
       setSettingsSaving(false);
     }
@@ -465,8 +471,9 @@ export default function BrandDetailPage() {
     try {
       const updated = await api.uploadBrandLogo(brand.id, file);
       setBrand(prev => prev ? { ...prev, logoUrl: updated.logoUrl } : prev);
-    } catch {
-      // no-op
+      toast.success('Logo updated');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to save'));
     } finally {
       setLogoUploading(false);
       e.target.value = '';
@@ -542,9 +549,9 @@ export default function BrandDetailPage() {
       const updated = await api.updateStore(storeId, payload);
       setStores(prev => prev.map(s => s.id === storeId ? { ...s, name: updated.name, priceTier: updated.priceTier } : s));
       setEditingStoreId(null);
+      toast.success('Store updated');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr?.response?.data?.message || 'Failed to update store');
+      toast.error(getErrorMessage(err, 'Failed to update store'));
     }
   };
 
@@ -586,7 +593,10 @@ export default function BrandDetailPage() {
         s.id === deliveryModalStore.id ? { ...s, enabledDeliveryPlatforms: platforms } : s
       ));
       setDeliveryModalStore(null);
-    } catch { /* silent */ }
+      toast.success('Delivery settings updated');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to update delivery settings'));
+    }
   };
 
   const handleCreateTier = async () => {
@@ -613,9 +623,9 @@ export default function BrandDetailPage() {
       const updated = await api.updatePriceTier(brandId, tierId, { name });
       setPriceTiers(prev => prev.map(t => t.id === tierId ? updated : t));
       setEditingTierId(null);
+      toast.success('Tier renamed');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr?.response?.data?.message || 'Failed to rename tier');
+      toast.error(getErrorMessage(err, 'Failed to rename tier'));
     }
   };
 
@@ -623,9 +633,9 @@ export default function BrandDetailPage() {
     try {
       const updated = await api.updatePriceTier(brandId, tierId, { isDefault: true });
       setPriceTiers(prev => prev.map(t => t.id === tierId ? updated : { ...t, isDefault: false }));
+      toast.success('Default tier updated');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr?.response?.data?.message || 'Failed to set default tier');
+      toast.error(getErrorMessage(err, 'Failed to set default tier'));
     }
   };
 
@@ -732,8 +742,13 @@ export default function BrandDetailPage() {
                     onEdit={() => setModal({ type: 'categories', mode: 'edit', item: cat })}
                     onDelete={async () => {
                       if (!confirm(`Delete "${cat.name}"?`)) return;
-                      await api.deleteCategory(cat.id);
-                      setProductCategories(prev => prev.filter(c => c.id !== cat.id));
+                      try {
+                        await api.deleteCategory(cat.id);
+                        setProductCategories(prev => prev.filter(c => c.id !== cat.id));
+                        toast.success('Category deleted');
+                      } catch (err: unknown) {
+                        toast.error(getErrorMessage(err, 'Failed to delete category'));
+                      }
                     }}
                     showEdit={canWrite}
                     showDelete={canDelete}
@@ -762,8 +777,13 @@ export default function BrandDetailPage() {
                     onEdit={() => setModal({ type: 'categories', mode: 'edit', item: cat })}
                     onDelete={async () => {
                       if (!confirm(`Delete "${cat.name}"?`)) return;
-                      await api.deleteCategory(cat.id);
-                      setInvCategories(prev => prev.filter(c => c.id !== cat.id));
+                      try {
+                        await api.deleteCategory(cat.id);
+                        setInvCategories(prev => prev.filter(c => c.id !== cat.id));
+                        toast.success('Category deleted');
+                      } catch (err: unknown) {
+                        toast.error(getErrorMessage(err, 'Failed to delete category'));
+                      }
                     }}
                     showEdit={canWrite}
                     showDelete={canDelete}
@@ -791,8 +811,13 @@ export default function BrandDetailPage() {
                   onEdit={() => setModal({ type: 'products', mode: 'edit', item: prod })}
                   onDelete={async () => {
                     if (!confirm(`Delete "${prod.name}"?`)) return;
-                    await api.deleteProduct(prod.id);
-                    setProducts(prev => prev.filter(p => p.id !== prod.id));
+                    try {
+                      await api.deleteProduct(prod.id);
+                      setProducts(prev => prev.filter(p => p.id !== prod.id));
+                      toast.success('Product deleted');
+                    } catch (err: unknown) {
+                      toast.error(getErrorMessage(err, 'Failed to delete product'));
+                    }
                   }}
                   showEdit={canWrite}
                   showDelete={canDelete}
@@ -824,8 +849,13 @@ export default function BrandDetailPage() {
                   onEdit={() => setModal({ type: 'sizes', mode: 'edit', item: size })}
                   onDelete={async () => {
                     if (!confirm(`Delete "${size.name}"?`)) return;
-                    await api.deleteSize(size.id);
-                    setSizes(prev => prev.filter(s => s.id !== size.id));
+                    try {
+                      await api.deleteSize(size.id);
+                      setSizes(prev => prev.filter(s => s.id !== size.id));
+                      toast.success('Size deleted');
+                    } catch (err: unknown) {
+                      toast.error(getErrorMessage(err, 'Failed to delete size'));
+                    }
                   }}
                   showEdit={canWrite}
                   showDelete={canDelete}
@@ -857,8 +887,13 @@ export default function BrandDetailPage() {
                   onEdit={() => setModal({ type: 'addons', mode: 'edit', item: addon })}
                   onDelete={async () => {
                     if (!confirm(`Delete "${addon.name}"?`)) return;
-                    await api.deleteAddon(addon.id);
-                    setAddons(prev => prev.filter(a => a.id !== addon.id));
+                    try {
+                      await api.deleteAddon(addon.id);
+                      setAddons(prev => prev.filter(a => a.id !== addon.id));
+                      toast.success('Add-on deleted');
+                    } catch (err: unknown) {
+                      toast.error(getErrorMessage(err, 'Failed to delete add-on'));
+                    }
                   }}
                   showEdit={canWrite}
                   showDelete={canDelete}
@@ -895,8 +930,13 @@ export default function BrandDetailPage() {
                   onEdit={() => setModal({ type: 'preferences', mode: 'edit', item: pref })}
                   onDelete={async () => {
                     if (!confirm(`Delete "${pref.name}"?`)) return;
-                    await api.deletePreference(pref.id);
-                    setPreferences(prev => prev.filter(p => p.id !== pref.id));
+                    try {
+                      await api.deletePreference(pref.id);
+                      setPreferences(prev => prev.filter(p => p.id !== pref.id));
+                      toast.success('Preference deleted');
+                    } catch (err: unknown) {
+                      toast.error(getErrorMessage(err, 'Failed to delete preference'));
+                    }
                   }}
                   showEdit={canWrite}
                   showDelete={canDelete}
@@ -1407,8 +1447,13 @@ export default function BrandDetailPage() {
                   onEdit={() => setModal({ type: 'inventory', mode: 'edit', item })}
                   onDelete={async () => {
                     if (!confirm(`Delete "${item.name}"?`)) return;
-                    await api.deleteInventoryBrandTemplate(item.id);
-                    setInvItems(prev => prev.filter(i => i.id !== item.id));
+                    try {
+                      await api.deleteInventoryBrandTemplate(item.id);
+                      setInvItems(prev => prev.filter(i => i.id !== item.id));
+                      toast.success('Inventory item deleted');
+                    } catch (err: unknown) {
+                      toast.error(getErrorMessage(err, 'Failed to delete inventory item'));
+                    }
                   }}
                   showEdit={canWrite}
                   showDelete={canDelete}
@@ -1435,9 +1480,11 @@ export default function BrandDetailPage() {
               } else {
                 setProductCategories(prev => [...prev, cat]);
               }
+              toast.success('Category created');
             } else {
               setProductCategories(prev => prev.map(c => (c.id === cat.id ? cat : c)));
               setInvCategories(prev => prev.map(c => (c.id === cat.id ? cat : c)));
+              toast.success('Category updated');
             }
             closeModal();
           }}
@@ -1459,8 +1506,10 @@ export default function BrandDetailPage() {
           onSave={prod => {
             if (modal.mode === 'create') {
               setProducts(prev => [...prev, prod]);
+              toast.success('Product created');
             } else {
               setProducts(prev => prev.map(p => (p.id === prod.id ? prod : p)));
+              toast.success('Product updated');
             }
             closeModal();
           }}
@@ -1478,8 +1527,10 @@ export default function BrandDetailPage() {
           onSave={size => {
             if (modal.mode === 'create') {
               setSizes(prev => [...prev, size]);
+              toast.success('Size created');
             } else {
               setSizes(prev => prev.map(s => (s.id === size.id ? size : s)));
+              toast.success('Size updated');
             }
             closeModal();
           }}
@@ -1497,8 +1548,10 @@ export default function BrandDetailPage() {
           onSave={addon => {
             if (modal.mode === 'create') {
               setAddons(prev => [...prev, addon]);
+              toast.success('Add-on created');
             } else {
               setAddons(prev => prev.map(a => (a.id === addon.id ? addon : a)));
+              toast.success('Add-on updated');
             }
             closeModal();
           }}
@@ -1514,8 +1567,10 @@ export default function BrandDetailPage() {
           onSave={pref => {
             if (modal.mode === 'create') {
               setPreferences(prev => [...prev, pref]);
+              toast.success('Preference created');
             } else {
               setPreferences(prev => prev.map(p => (p.id === pref.id ? pref : p)));
+              toast.success('Preference updated');
             }
             closeModal();
           }}
@@ -1532,8 +1587,10 @@ export default function BrandDetailPage() {
           onSave={item => {
             if (modal.mode === 'create') {
               setInvItems(prev => [...prev, item]);
+              toast.success('Inventory item created');
             } else {
               setInvItems(prev => prev.map(i => (i.id === item.id ? item : i)));
+              toast.success('Inventory item updated');
             }
             closeModal();
           }}
@@ -1636,8 +1693,9 @@ function CategoryModal({
       }
       onSave(result);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
+      const message = getErrorMessage(err, 'Failed to save');
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -1804,8 +1862,9 @@ function ProductModal({
       }
       onSave(result);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
+      const message = getErrorMessage(err, 'Failed to save');
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -2148,8 +2207,9 @@ function SizeModal({
       }
       onSave(result);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
+      const message = getErrorMessage(err, 'Failed to save');
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -2358,8 +2418,9 @@ function AddonModal({
       }
       onSave(result);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
+      const message = getErrorMessage(err, 'Failed to save');
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -2526,8 +2587,9 @@ function PreferenceModal({
       }
       onSave(result);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
+      const message = getErrorMessage(err, 'Failed to save');
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -2607,8 +2669,9 @@ function InventoryModal({
       }
       onSave(result);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
+      const message = getErrorMessage(err, 'Failed to save');
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }

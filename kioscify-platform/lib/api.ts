@@ -22,6 +22,11 @@ import type {
   SizePriceTier,
   AddonPriceTier,
   CompanyPrivileges,
+  SubscriptionListItem,
+  SubscriptionDetail,
+  SubscriptionStats,
+  SessionListItem,
+  SessionStatus,
 } from '@/types';
 
 const API_BASE_URL =
@@ -92,11 +97,20 @@ class ApiClient {
     if (typeof window !== 'undefined') localStorage.removeItem('auth_token');
   }
 
-  logout() {
-    this.clearToken();
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  async logout() {
+    try {
+      // Revoke the token server-side (blacklist + end session record) before
+      // clearing local state. Ignore failures — the token may already be
+      // expired/invalid, but the user must still be logged out locally.
+      await this.client.post('/auth/logout');
+    } catch {
+      // no-op
+    } finally {
+      this.clearToken();
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
   }
 
@@ -141,6 +155,61 @@ class ApiClient {
     dto: Partial<MaintenanceStatus>
   ): Promise<MaintenanceStatus> {
     const { data } = await this.client.patch<MaintenanceStatus>('/platform/maintenance-status', dto);
+    return data;
+  }
+
+  // ─── Subscriptions ────────────────────────────────────────────────────────
+
+  async getSubscriptionStats(): Promise<SubscriptionStats> {
+    const { data } = await this.client.get<SubscriptionStats>('/platform/subscriptions/stats');
+    return data;
+  }
+
+  async getSubscriptions(filters: {
+    companyId?: string;
+    brandId?: string;
+    status?: 'activated' | 'pending';
+    paid?: 'paid' | 'overdue';
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    data: SubscriptionListItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const { data } = await this.client.get('/platform/subscriptions', { params: filters });
+    return data;
+  }
+
+  async getSubscriptionDetail(tenantId: string): Promise<SubscriptionDetail> {
+    const { data } = await this.client.get<SubscriptionDetail>(`/platform/subscriptions/${tenantId}`);
+    return data;
+  }
+
+  async setStoreActivation(tenantId: string, activatedAt: string | null): Promise<void> {
+    await this.client.patch(`/platform/subscriptions/${tenantId}/activation`, { activatedAt });
+  }
+
+  async upsertSubscriptionPayment(
+    tenantId: string,
+    month: string,
+    payload: { paid: boolean; note?: string },
+  ): Promise<void> {
+    await this.client.put(`/platform/subscriptions/${tenantId}/payments/${month}`, payload);
+  }
+
+  // ─── Sessions ─────────────────────────────────────────────────────────────
+
+  async getSessions(filters: {
+    companyId?: string;
+    search?: string;
+    status?: SessionStatus;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    data: SessionListItem[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const { data } = await this.client.get('/users/sessions', { params: filters });
     return data;
   }
 

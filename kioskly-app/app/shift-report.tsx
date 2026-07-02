@@ -38,6 +38,7 @@ import { formatUserName } from "../utils/formatUserName";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
 import { useDeviceType } from "../hooks/useDeviceType";
 import { getCombinedDiscount } from "../utils/discount";
+import { showSuccessToast } from "../utils/toast";
 
 // Build a DailyReportResponse from locally cached transactions and expenses,
 // filtered to the current user's records only.
@@ -130,7 +131,6 @@ export default function ShiftReport() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reportStats, setReportStats] = useState<ShiftReportStats | null>(null);
   const [todayCount, setTodayCount] = useState<number>(0);
@@ -272,7 +272,6 @@ export default function ShiftReport() {
 
     setIsSubmitting(true);
     setSubmitError(null);
-    setSubmitSuccess(false);
 
     let workingTransactions = transactions;
     let workingExpenses = expenses;
@@ -356,8 +355,7 @@ export default function ShiftReport() {
       ]);
       if (updatedStats) setReportStats(updatedStats);
       setTodayCount(updatedCount);
-      setSubmitSuccess(true);
-      setTimeout(() => setSubmitSuccess(false), 3000);
+      showSuccessToast("Shift report submitted");
     } catch {
       await enqueue(
         "user_shift_report",
@@ -446,15 +444,6 @@ export default function ShiftReport() {
           </View>
         )}
 
-        {/* Success Toast */}
-        {submitSuccess && (
-          <View className="mb-4 bg-green-100 border-2 border-green-500 rounded-lg p-4 flex-row items-center">
-            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-            <Text className="ml-3 text-green-800 font-semibold flex-1">
-              Shift report submitted successfully!
-            </Text>
-          </View>
-        )}
         {submitError && (
           <View className="mb-4 bg-red-100 border-2 border-red-500 rounded-lg p-4">
             <View className="flex-row items-start">

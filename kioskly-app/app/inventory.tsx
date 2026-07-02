@@ -37,6 +37,7 @@ import {
 } from "@/components/inventory/inventoryUtils";
 import InventoryItemRow from "@/components/inventory/InventoryItemRow";
 import InventoryItemSheet from "@/components/inventory/InventoryItemSheet";
+import { showSuccessToast } from "@/utils/toast";
 
 export default function InventoryScreen() {
   const [inventoryItems, setInventoryItems] = useState<LatestInventoryItem[]>(
@@ -198,7 +199,7 @@ export default function InventoryScreen() {
           submittedAt,
         });
 
-        Alert.alert("Success", "Inventory report submitted successfully!");
+        showSuccessToast("Inventory report submitted successfully!");
 
         await loadInventory();
       } catch {
@@ -266,7 +267,7 @@ export default function InventoryScreen() {
         clientId,
         submittedAt,
       });
-      Alert.alert("Success", "Shift inventory report submitted successfully!");
+      showSuccessToast("Shift inventory report submitted successfully!");
     } catch {
       await enqueue(
         "user_shift_inventory_report",

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubmittedReportDto } from './dto/create-submitted-report.dto';
 import { SubmittedReportFiltersDto } from './dto/submitted-report-filters.dto';
+import { getZonedMonthBounds } from '../common/utils/timezone';
 
 @Injectable()
 export class SubmittedReportsService {
@@ -187,7 +188,7 @@ export class SubmittedReportsService {
       where: {
         tenantId,
         submittedAt: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          gte: getZonedMonthBounds(new Date()).start,
         },
       },
     });

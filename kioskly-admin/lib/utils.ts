@@ -102,6 +102,11 @@ export function getCombinedDiscount(transaction: {
   );
 }
 
+export function getErrorMessage(err: unknown, fallback: string): string {
+  const axiosErr = err as { response?: { data?: { message?: string } } };
+  return axiosErr?.response?.data?.message || fallback;
+}
+
 export function getContrastColor(hex: string): string {
   const c = hex.replace("#", "");
   if (c.length !== 6) return "#111827";

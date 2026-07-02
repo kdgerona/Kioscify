@@ -92,6 +92,63 @@ export interface PlatformStats {
   monthlyActiveStores: number;
 }
 
+export interface SubscriptionMonthEntry {
+  month: string; // 'YYYY-MM'
+  paid: boolean;
+  paidAt: string | null;
+  note: string | null;
+}
+
+export interface SubscriptionListItem {
+  tenantId: string;
+  storeName: string;
+  storeSlug: string;
+  company: { id: string; name: string } | null;
+  brand: { id: string; name: string } | null;
+  activatedAt: string | null;
+  paidThisMonth: boolean | null;
+}
+
+export interface SubscriptionDetail {
+  tenantId: string;
+  storeName: string;
+  storeSlug: string;
+  company: { id: string; name: string } | null;
+  brand: { id: string; name: string } | null;
+  activatedAt: string | null;
+  months: SubscriptionMonthEntry[];
+}
+
+export interface SubscriptionStats {
+  totalStores: number;
+  activated: number;
+  pendingActivation: number;
+  paidThisMonth: number;
+  overdue: number;
+}
+
+export type SessionStatus = 'ACTIVE' | 'ENDED' | 'EXPIRED';
+
+export interface SessionListItem {
+  id: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+    email: string;
+    role: string;
+  };
+  company: { id: string; name: string } | null;
+  tenantId: string | null;
+  loginAt: string;
+  loggedOutAt: string | null;
+  expiresAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  status: SessionStatus;
+}
+
 export interface MaintenanceStatus {
   storePortalMaintenance: boolean;
   companyPortalMaintenance: boolean;

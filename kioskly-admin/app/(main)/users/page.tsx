@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
-import { formatRole } from '@/lib/utils';
+import { formatRole, getErrorMessage } from '@/lib/utils';
 import { hasPrivilege } from '@/lib/privileges';
 import type { User, StoreUserCreatePayload } from '@/types';
 import { UserPlus, Eye, EyeOff, UserCheck, UserX, KeyRound, Trash2, Shield } from 'lucide-react';
@@ -100,8 +100,11 @@ export default function UsersPage() {
       setShowCreateForm(false);
       setForm({ firstName: '', lastName: '', email: '', username: '', role: 'CASHIER' });
       await fetchUsers();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to create user');
+      toast.success('User created');
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Failed to create user');
+      setError(message);
+      toast.error(message);
     } finally {
       setFormLoading(false);
     }
@@ -112,8 +115,10 @@ export default function UsersPage() {
     try {
       await api.updateStoreUser(tenant.id, user.id, { isActive: !user.isActive });
       await fetchUsers();
+      toast.success(user.isActive ? 'User deactivated' : 'User activated');
     } catch (err) {
       console.error('Failed to update user:', err);
+      toast.error(getErrorMessage(err, 'Failed to update user'));
     }
   };
 
@@ -122,8 +127,10 @@ export default function UsersPage() {
     try {
       await api.revokeStoreAccess(tenant.id, user.id);
       await fetchUsers();
+      toast.success('Access revoked');
     } catch (err) {
       console.error('Failed to revoke access:', err);
+      toast.error(getErrorMessage(err, 'Failed to revoke access'));
     }
   };
 
@@ -151,8 +158,10 @@ export default function UsersPage() {
     try {
       await api.deactivateStoreUser(tenant.id, user.id);
       await fetchUsers();
+      toast.success('User deactivated');
     } catch (err) {
       console.error('Failed to remove user:', err);
+      toast.error(getErrorMessage(err, 'Failed to remove user'));
     } finally {
       setRemovingUserId(null);
     }
@@ -166,8 +175,10 @@ export default function UsersPage() {
       setCreatedPassword(result.temporaryPassword);
       setShowPassword(true);
       setCopied(false);
+      toast.success('Password reset');
     } catch (err) {
       console.error('Failed to reset password:', err);
+      toast.error(getErrorMessage(err, 'Failed to reset password'));
     } finally {
       setResettingUserId(null);
     }

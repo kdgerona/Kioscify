@@ -37,6 +37,7 @@ import { formatUserName } from "../utils/formatUserName";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
 import { useDeviceType } from "../hooks/useDeviceType";
 import { getCombinedDiscount } from "../utils/discount";
+import { showSuccessToast } from "../utils/toast";
 
 // Build a DailyReportResponse from locally cached transactions and expenses.
 // Used when the API is unreachable so staff can still view and submit the report.
@@ -126,7 +127,6 @@ export default function DailyReport() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reportStats, setReportStats] = useState<DailyReportStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -285,7 +285,6 @@ export default function DailyReport() {
 
     setIsSubmitting(true);
     setSubmitError(null);
-    setSubmitSuccess(false);
 
     let workingTransactions = transactions;
     let workingExpenses = expenses;
@@ -369,8 +368,7 @@ export default function DailyReport() {
       await submitReport(submitData);
       const updatedStats = await getDailyReportStats();
       if (updatedStats) setReportStats(updatedStats);
-      setSubmitSuccess(true);
-      setTimeout(() => setSubmitSuccess(false), 3000);
+      showSuccessToast("Daily report submitted");
     } catch {
       // Network failure — queue for later. Include pending clientIds so the
       // sync engine can resolve them to server IDs at the time of sync.
@@ -451,15 +449,6 @@ export default function DailyReport() {
           textColor={textColor}
         />
 
-        {/* Success/Queued/Error Toast */}
-        {submitSuccess && (
-          <View className="mb-4 bg-green-100 border-2 border-green-500 rounded-lg p-4 flex-row items-center">
-            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-            <Text className="ml-3 text-green-800 font-semibold flex-1">
-              Report submitted successfully!
-            </Text>
-          </View>
-        )}
         {submitError && (
           <View className="mb-4 bg-red-100 border-2 border-red-500 rounded-lg p-4">
             <View className="flex-row items-start">

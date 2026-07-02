@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { UserShiftInventoryReportFiltersDto } from './dto/user-shift-inventory-report-filters.dto';
 import { CreateSubmittedInventoryReportDto } from '../submitted-inventory-reports/dto/create-submitted-inventory-report.dto';
+import { getZonedMonthBounds } from '../common/utils/timezone';
 
 @Injectable()
 export class UserShiftInventoryReportsService {
@@ -107,7 +108,7 @@ export class UserShiftInventoryReportsService {
         where: {
           tenantId,
           userId,
-          submittedAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+          submittedAt: { gte: getZonedMonthBounds(new Date()).start },
         },
       }),
       this.prisma.userShiftInventoryReport.findFirst({

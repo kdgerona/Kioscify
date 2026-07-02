@@ -138,11 +138,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const logout = useCallback(async () => {
-    setUser(null);
-    setToken(null);
-    setError(null);
-    await AsyncStorage.removeItem(TOKEN_KEY);
-    await AsyncStorage.removeItem(USER_KEY);
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+      const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
+      if (apiUrl && storedToken) {
+        // Revoke the token server-side (blacklist + end session record).
+        // Ignore failures — the token may already be expired/invalid, but
+        // the user must still be logged out locally.
+        await fetch(`${apiUrl}/auth/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+      }
+    } catch {
+      // no-op
+    } finally {
+      setUser(null);
+      setToken(null);
+      setError(null);
+      await AsyncStorage.removeItem(TOKEN_KEY);
+      await AsyncStorage.removeItem(USER_KEY);
+    }
   }, []);
 
   const loadStoredAuth = useCallback(async () => {

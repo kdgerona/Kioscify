@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 import type { Company } from '@/types';
 import { Plus, ArrowRight, Building2, X } from 'lucide-react';
 
@@ -54,9 +56,11 @@ export default function CompaniesPage() {
       setFormEmail('');
       setFormDescription('');
       setShowForm(false);
+      toast.success('Company created');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setFormError(axiosErr?.response?.data?.message || 'Failed to create company');
+      toast.error(getErrorMessage(err, 'Failed to create company'));
     } finally {
       setFormLoading(false);
     }

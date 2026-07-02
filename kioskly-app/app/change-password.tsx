@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
 import { useTenant } from "../contexts/TenantContext";
+import { showSuccessToast, showErrorToast } from "../utils/toast";
 
 interface PasswordFieldProps {
   label: string;
@@ -80,24 +81,21 @@ export default function ChangePasswordScreen() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async () => {
-    setError(null);
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setError("All fields are required.");
+      showErrorToast("All fields are required.");
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
+      showErrorToast("New passwords do not match.");
       return;
     }
     setLoading(true);
     try {
       const wasForced = mustChangePassword;
       await changePassword(currentPassword, newPassword);
-      setSuccess(true);
+      showSuccessToast("Password changed successfully!");
       setTimeout(() => {
         if (wasForced) {
           router.replace("/home" as any);
@@ -106,7 +104,7 @@ export default function ChangePasswordScreen() {
         }
       }, 2000);
     } catch (err: any) {
-      setError(err?.message || "Failed to change password.");
+      showErrorToast(err?.message || "Failed to change password.");
     } finally {
       setLoading(false);
     }
@@ -157,73 +155,56 @@ export default function ChangePasswordScreen() {
             )}
             <View style={{ height: mustChangePassword ? 0 : 20 }} />
 
-            {success ? (
-              <View style={{ alignItems: "center", paddingVertical: 32 }}>
-                <Ionicons name="checkmark-circle" size={64} color="#16a34a" />
-                <Text style={{ fontSize: 16, fontWeight: "600", color: "#15803d", marginTop: 16 }}>
-                  Password changed successfully!
+            <PasswordField
+              label="Current Password"
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              show={showCurrent}
+              onToggle={() => setShowCurrent((v) => !v)}
+              textColor={textColor}
+            />
+            <PasswordField
+              label="New Password"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              show={showNew}
+              onToggle={() => setShowNew((v) => !v)}
+              textColor={textColor}
+            />
+            <PasswordField
+              label="Confirm New Password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              show={showConfirm}
+              onToggle={() => setShowConfirm((v) => !v)}
+              textColor={textColor}
+            />
+
+            <Text style={{ fontSize: 12, color: "#9ca3af", marginBottom: 24 }}>
+              Min 10 characters · uppercase · lowercase · number · special character
+            </Text>
+
+            <TouchableOpacity
+              style={{ borderRadius: 10, paddingVertical: 12, alignItems: "center", backgroundColor: loading ? "#9ca3af" : primaryColor }}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={{ fontSize: 15, fontWeight: "600", color: "white" }}>
+                  Change Password
                 </Text>
-              </View>
-            ) : (
-              <>
-                {error && (
-                  <View style={{ backgroundColor: "#fef2f2", borderWidth: 1, borderColor: "#fecaca", borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                    <Text style={{ color: "#dc2626", fontSize: 13 }}>{error}</Text>
-                  </View>
-                )}
+              )}
+            </TouchableOpacity>
 
-                <PasswordField
-                  label="Current Password"
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  show={showCurrent}
-                  onToggle={() => setShowCurrent((v) => !v)}
-                  textColor={textColor}
-                />
-                <PasswordField
-                  label="New Password"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  show={showNew}
-                  onToggle={() => setShowNew((v) => !v)}
-                  textColor={textColor}
-                />
-                <PasswordField
-                  label="Confirm New Password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  show={showConfirm}
-                  onToggle={() => setShowConfirm((v) => !v)}
-                  textColor={textColor}
-                />
-
-                <Text style={{ fontSize: 12, color: "#9ca3af", marginBottom: 24 }}>
-                  Min 10 characters · uppercase · lowercase · number · special character
-                </Text>
-
-                <TouchableOpacity
-                  style={{ borderRadius: 10, paddingVertical: 12, alignItems: "center", backgroundColor: loading ? "#9ca3af" : primaryColor }}
-                  onPress={handleSubmit}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <Text style={{ fontSize: 15, fontWeight: "600", color: "white" }}>
-                      Change Password
-                    </Text>
-                  )}
-                </TouchableOpacity>
-
-                {mustChangePassword && (
-                  <TouchableOpacity
-                    style={{ marginTop: 10, paddingVertical: 12, alignItems: "center", borderRadius: 10 }}
-                    onPress={async () => { await logout(); router.replace("/"); }}
-                  >
-                    <Text style={{ fontSize: 14, fontWeight: "500", color: "#6b7280" }}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-              </>
+            {mustChangePassword && (
+              <TouchableOpacity
+                style={{ marginTop: 10, paddingVertical: 12, alignItems: "center", borderRadius: 10 }}
+                onPress={async () => { await logout(); router.replace("/"); }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: "500", color: "#6b7280" }}>Cancel</Text>
+              </TouchableOpacity>
             )}
           </View>
         </ScrollView>

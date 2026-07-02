@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Alert,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
 import { useRouter, Href, useFocusEffect } from "expo-router";
@@ -31,6 +32,7 @@ import {
 import { formatUserName } from "../utils/formatUserName";
 import { useDeviceType } from "../hooks/useDeviceType";
 import { getCombinedDiscount } from "../utils/discount";
+import { showSuccessToast, showErrorToast } from "../utils/toast";
 
 export default function Transactions() {
   const router = useRouter();
@@ -210,9 +212,10 @@ export default function Transactions() {
       );
 
       closeRemarksModal();
+      showSuccessToast("Remarks updated");
     } catch (err) {
       console.error("Failed to update remarks:", err);
-      alert("Failed to update remarks. Please try again.");
+      showErrorToast("Failed to update remarks. Please try again.");
     } finally {
       setIsUpdating(false);
     }
@@ -221,11 +224,11 @@ export default function Transactions() {
   const openVoidModal = (transaction: TransactionResponse) => {
     // Validate void status
     if (transaction.voidStatus === "APPROVED") {
-      alert("This transaction is already voided.");
+      Alert.alert("This transaction is already voided.");
       return;
     }
     if (transaction.voidStatus === "PENDING") {
-      alert("A void request is already pending for this transaction.");
+      Alert.alert("A void request is already pending for this transaction.");
       return;
     }
 
@@ -244,7 +247,7 @@ export default function Transactions() {
     if (!selectedVoidTransaction) return;
 
     if (voidReason.trim().length < 10) {
-      alert("Please provide a reason of at least 10 characters.");
+      Alert.alert("Please provide a reason of at least 10 characters.");
       return;
     }
 
@@ -261,10 +264,10 @@ export default function Transactions() {
       );
 
       closeVoidModal();
-      alert("Void request submitted successfully!");
+      showSuccessToast("Void request submitted successfully!");
     } catch (err) {
       console.error("Failed to submit void request:", err);
-      alert("Failed to submit void request. Please try again.");
+      showErrorToast("Failed to submit void request. Please try again.");
     } finally {
       setIsSubmittingVoid(false);
     }

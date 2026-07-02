@@ -92,6 +92,47 @@ export interface StoreAccess {
   tenant: StoreRef;
 }
 
+export type SessionStatus = "ACTIVE" | "ENDED" | "EXPIRED";
+
+export interface UserSession {
+  id: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+    email: string;
+    role: string;
+  };
+  tenantId: string | null;
+  loginAt: string;
+  loggedOutAt: string | null;
+  expiresAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  status: SessionStatus;
+}
+
+export type TimeLogEventType = "TIME_IN" | "TIME_OUT";
+
+export interface StaffTimeLog {
+  id: string;
+  tenantId: string;
+  userId: string;
+  eventType: TimeLogEventType;
+  photoUrl: string;
+  latitude: number;
+  longitude: number;
+  createdAt: string;
+  user: {
+    id: string;
+    username: string;
+    firstName?: string;
+    lastName?: string;
+    role: string;
+  };
+}
+
 export interface Category {
   id: string;
   tenantId: string;

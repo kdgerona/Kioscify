@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { X, Shield } from 'lucide-react';
 import { PrivilegesGrid } from './PrivilegesGrid';
 import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 import type { User, CompanyPrivileges } from '@/types';
 
 const DEFAULT_FULL: CompanyPrivileges = {
@@ -44,9 +46,11 @@ export function EditPrivilegesModal({ open, onClose, onSave, companyId, user }: 
       const updated = await api.updateCompanyUserPrivileges(companyId, user.id, privileges);
       onSave(updated);
       onClose();
+      toast.success('Privileges updated');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr?.response?.data?.message || 'Failed to update privileges');
+      toast.error(getErrorMessage(err, 'Failed to update privileges'));
     } finally {
       setSaving(false);
     }

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
+import { getErrorMessage } from "@/lib/utils";
 import { useTenant } from "@/contexts/TenantContext";
 import { InventoryItem, LatestInventoryItem, InventoryStats } from "@/types";
 import {
@@ -154,8 +156,10 @@ export default function InventoryPage() {
       await api.updateStoreInventoryItem(id, thresholdValues);
       setEditingThresholdId(null);
       await loadInventoryItems();
+      toast.success("Threshold updated");
     } catch (error) {
       console.error("Failed to update thresholds:", error);
+      toast.error(getErrorMessage(error, "Failed to update threshold"));
     }
   };
 

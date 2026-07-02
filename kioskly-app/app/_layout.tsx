@@ -12,6 +12,7 @@ import { getApiUrl } from "../utils/api";
 import MaintenanceScreen from "../components/MaintenanceScreen";
 import { AppUpdateProvider } from "../contexts/AppUpdateContext";
 import UpdateDialog from "../components/UpdateDialog";
+import Toast from "react-native-toast-message";
 
 // Inner component — must live inside SyncProvider to call useSync() via OfflineBanner.
 function AppNavigator() {
@@ -62,6 +63,7 @@ export default function RootLayout() {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <MaintenanceScreen />
+        <Toast />
       </GestureHandlerRootView>
     );
   }
@@ -77,6 +79,7 @@ export default function RootLayout() {
           </SyncProvider>
         </AuthProvider>
       </TenantProvider>
+      <Toast />
     </GestureHandlerRootView>
   );
 }

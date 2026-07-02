@@ -23,6 +23,10 @@ import type {
   AssignableUser,
   StoreAccess,
   StorePrivileges,
+  UserSession,
+  SessionStatus,
+  StaffTimeLog,
+  TimeLogEventType,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -133,15 +137,24 @@ class ApiClient {
     return data;
   }
 
-  logout() {
-    this.clearToken();
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("user");
-      localStorage.removeItem("kioscify_accessible_stores");
-      const companySlug = localStorage.getItem("kioscify_portal_company_slug");
-      const brandSlug = localStorage.getItem("kioscify_portal_brand_slug");
-      window.location.href =
-        companySlug && brandSlug ? `/${companySlug}/${brandSlug}` : "/login";
+  async logout() {
+    try {
+      // Revoke the token server-side (blacklist + end session record) before
+      // clearing local state. Ignore failures — the token may already be
+      // expired/invalid, but the user must still be logged out locally.
+      await this.client.post("/auth/logout");
+    } catch {
+      // no-op
+    } finally {
+      this.clearToken();
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("user");
+        localStorage.removeItem("kioscify_accessible_stores");
+        const companySlug = localStorage.getItem("kioscify_portal_company_slug");
+        const brandSlug = localStorage.getItem("kioscify_portal_brand_slug");
+        window.location.href =
+          companySlug && brandSlug ? `/${companySlug}/${brandSlug}` : "/login";
+      }
     }
   }
 
@@ -748,6 +761,36 @@ class ApiClient {
 
   async updateStoreUserPrivileges(storeId: string, userId: string, storePrivileges: StorePrivileges | null): Promise<User> {
     const { data } = await this.client.patch<User>(`/users/stores/${storeId}/${userId}`, { storePrivileges });
+    return data;
+  }
+
+  async getStoreSessions(storeId: string, filters: {
+    search?: string;
+    status?: SessionStatus;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    data: UserSession[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const { data } = await this.client.get(`/users/stores/${storeId}/sessions`, { params: filters });
+    return data;
+  }
+
+  // ─── Staff time logs (attendance) ──────────────────────────────────────────
+
+  async getStaffTimeLogs(filters: {
+    userId?: string;
+    eventType?: TimeLogEventType | "TIME_IN" | "TIME_OUT";
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    data: StaffTimeLog[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const { data } = await this.client.get(`/staff-time-logs`, { params: filters });
     return data;
   }
 

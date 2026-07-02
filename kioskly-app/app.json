@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.kioscify.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Used to scan store QR codes for device setup."
+        "NSCameraUsageDescription": "Used to scan store QR codes for device setup and to capture a selfie when clocking in or out.",
+        "NSLocationWhenInUseUsageDescription": "Used to record your location when clocking in or out."
       }
     },
     "android": {
@@ -32,6 +33,12 @@
     "plugins": [
       "expo-router",
       "expo-camera",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Used to record your location when clocking in or out."
+        }
+      ],
       [
         "expo-splash-screen",
         {

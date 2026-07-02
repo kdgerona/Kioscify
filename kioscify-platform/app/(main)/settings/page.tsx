@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { formatRole } from '@/lib/utils';
+import { toast } from 'sonner';
+import { formatRole, getErrorMessage } from '@/lib/utils';
 import { api } from '@/lib/api';
 import type { MaintenanceStatus } from '@/types';
 
@@ -42,8 +43,10 @@ export default function PlatformSettingsPage() {
     setTogglingKeys(s => new Set(s).add(key));
     try {
       await api.updateMaintenanceStatus({ [key]: next[key] });
-    } catch {
+      toast.success('Maintenance mode updated');
+    } catch (err) {
       setMaintenance(prev);
+      toast.error(getErrorMessage(err, 'Failed to update maintenance status'));
     } finally {
       setTogglingKeys(s => { const n = new Set(s); n.delete(key); return n; });
     }
