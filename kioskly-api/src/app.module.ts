@@ -23,6 +23,7 @@ import { SizesModule } from './sizes/sizes.module';
 import { AddonsModule } from './addons/addons.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { HeldOrdersModule } from './held-orders/held-orders.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { StaffTimeLogsModule } from './staff-time-logs/staff-time-logs.module';
 import { ReportsModule } from './reports/reports.module';
@@ -96,6 +97,7 @@ import { SessionsModule } from './sessions/sessions.module';
 
     // Store operations
     TransactionsModule,
+    HeldOrdersModule,
     ExpensesModule,
     StaffTimeLogsModule,
     ReportsModule,

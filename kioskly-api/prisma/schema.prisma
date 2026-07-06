@@ -110,6 +110,7 @@ model Tenant {
   userShiftReports          UserShiftReport[]
   userShiftInventoryReports UserShiftInventoryReport[]
   staffTimeLogs             StaffTimeLog[]
+  heldOrders                HeldOrder[]
 
   // Catalog relations kept during migration period (will be removed once catalog fully moves to Brand)
   categories  Category[]
@@ -260,6 +261,7 @@ model User {
   expenseVoidRequestsReviewed Expense[]    @relation("ExpenseVoidReviews")
   storeAccess               UserStoreAccess[]
   sessions                  Session[]
+  heldOrders                HeldOrder[]
 
   @@unique([tenantId, companyId, username])
   @@unique([tenantId, companyId, email])
@@ -564,6 +566,36 @@ model TransactionItemAddon {
 
   @@unique([transactionItemId, addonId])
   @@map("transaction_item_addons")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELD ORDERS — store-level (tenantId scoped), ephemeral working state.
+// A held order is a parked cart, not a sale — it never touches Transaction or
+// sales reporting. Hard-deleted on resume/discard (no soft-delete/tombstone
+// needed since it carries no audit/financial history). Also auto-purged daily —
+// see HeldOrdersService.purgeStaleHeldOrders — anything left over from a
+// previous business day is treated as abandoned.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model HeldOrder {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId      String   @db.ObjectId
+  heldByUserId  String   @db.ObjectId
+  clientId      String?  // device-generated UUID for offline dedup, mirrors Transaction.clientId
+  customerLabel String?
+  orderType     String   @default("regular") // 'regular' | 'foodpanda' | 'grab'
+  subtotal      Float
+  total         Float
+  itemCount     Int
+  items         Json     // HeldOrderItem[] snapshot (productId/name/price, size, addons, preference, discount)
+  createdAt     DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  heldBy User   @relation(fields: [heldByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, clientId])
+  @@index([tenantId, createdAt])
+  @@map("held_orders")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
