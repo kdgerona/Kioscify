@@ -10,6 +10,7 @@ import { AuthService } from '../auth/auth.service';
 import { CreateStoreUserDto, UpdateStoreUserDto, CreateCompanyUserDto, UpdateCompanyUserDto } from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
 import { DEFAULT_PRIVILEGES, DEFAULT_STORE_PRIVILEGES, hasPrivilege } from '../common/utils/privileges';
+import { tombstoneUser } from '../common/utils/soft-delete-user';
 
 @Injectable()
 export class UsersService {
@@ -29,13 +30,13 @@ export class UsersService {
     const userSelect = {
       id: true, username: true, firstName: true, lastName: true,
       email: true, role: true, isActive: true, isFirstLogin: true, createdAt: true,
-      storePrivileges: true,
+      storePrivileges: true, tombstone: true,
       tenant: { select: { id: true, name: true, slug: true } },
     };
 
     const [primaryUsers, accessRecords] = await Promise.all([
       this.prisma.user.findMany({
-        where: { tenantId: storeId },
+        where: { tenantId: storeId, tombstone: { not: 1 } },
         select: userSelect,
         orderBy: { createdAt: 'desc' },
       }),
@@ -48,16 +49,19 @@ export class UsersService {
     const primaryIds = new Set(primaryUsers.map(u => u.id));
 
     const assignedUsers = accessRecords
-      .filter(a => !primaryIds.has(a.userId))
-      .map(a => ({
-        ...a.user,
-        isAssigned: true as const,
-        assignedRole: a.role,
-        primaryStore: a.user.tenant,
-      }));
+      .filter(a => !primaryIds.has(a.userId) && a.user.tombstone !== 1)
+      .map(a => {
+        const { tombstone: _tombstone, ...userWithoutTombstone } = a.user;
+        return {
+          ...userWithoutTombstone,
+          isAssigned: true as const,
+          assignedRole: a.role,
+          primaryStore: a.user.tenant,
+        };
+      });
 
     return [
-      ...primaryUsers.map(({ tenant: _tenant, ...u }) => ({ ...u, isAssigned: false as const, assignedRole: undefined, primaryStore: undefined })),
+      ...primaryUsers.map(({ tenant: _tenant, tombstone: _tombstone, ...u }) => ({ ...u, isAssigned: false as const, assignedRole: undefined, primaryStore: undefined })),
       ...assignedUsers,
     ];
   }
@@ -77,6 +81,7 @@ export class UsersService {
     const existing = await this.prisma.user.findFirst({
       where: {
         tenantId: storeId,
+        tombstone: { not: 1 },
         OR: [{ username: dto.username }, { email: dto.email }],
       },
     });
@@ -182,12 +187,21 @@ export class UsersService {
     });
   }
 
+  async permanentlyDeleteStoreUser(storeId: string, userId: string, requestingTenantId: string, requestingUserId: string) {
+    if (storeId !== requestingTenantId) throw new ForbiddenException('Access denied');
+    if (userId === requestingUserId) throw new ForbiddenException('Cannot delete your own account');
+    await this.assertStoreUserExists(userId, storeId);
+
+    await tombstoneUser(this.prisma, userId);
+    return { message: 'User deleted' };
+  }
+
   // ─── Company users ────────────────────────────────────────────────────────
 
   async getCompanyUsers(companyId: string, requestingCompanyId: string, requestingRole?: string) {
     if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) throw new ForbiddenException('Access denied');
     return this.prisma.user.findMany({
-      where: { companyId, role: 'COMPANY_ADMIN' },
+      where: { companyId, role: 'COMPANY_ADMIN', tombstone: { not: 1 } },
       select: {
         id: true,
         username: true,
@@ -252,6 +266,7 @@ export class UsersService {
       where: {
         id: { in: eligibleIds },
         isActive: true,
+        tombstone: { not: 1 },
         ...(query ? {
           OR: [
             { username: { contains: query, mode: 'insensitive' } },
@@ -288,7 +303,7 @@ export class UsersService {
     if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) throw new ForbiddenException('Access denied');
 
     const existing = await this.prisma.user.findFirst({
-      where: { companyId, username: dto.username, tenantId: null },
+      where: { companyId, username: dto.username, tenantId: null, tombstone: { not: 1 } },
     });
     if (existing) throw new ConflictException('Username already exists in this company');
 
@@ -347,7 +362,7 @@ export class UsersService {
     }
     if (requestingUserId === userId) throw new ForbiddenException('Cannot modify your own account');
 
-    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } });
+    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId, tombstone: { not: 1 } } });
     if (!user) throw new NotFoundException('User not found in this company');
 
     if (dto.companyPrivileges !== undefined) {
@@ -389,10 +404,28 @@ export class UsersService {
       throw new ForbiddenException('Access denied');
     }
     if (requestingUserId === userId) throw new ForbiddenException('Cannot remove your own account');
-    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } });
+    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId, tombstone: { not: 1 } } });
     if (!user) throw new NotFoundException('User not found in this company');
     await this.prisma.user.update({ where: { id: userId }, data: { isActive: false } });
     return { message: 'User removed' };
+  }
+
+  async permanentlyDeleteCompanyUser(
+    companyId: string,
+    userId: string,
+    requestingCompanyId: string,
+    requestingRole: string,
+    requestingUserId: string,
+  ) {
+    if (requestingRole !== 'PLATFORM_ADMIN' && companyId !== requestingCompanyId) {
+      throw new ForbiddenException('Access denied');
+    }
+    if (requestingUserId === userId) throw new ForbiddenException('Cannot delete your own account');
+    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId, tombstone: { not: 1 } } });
+    if (!user) throw new NotFoundException('User not found in this company');
+
+    await tombstoneUser(this.prisma, userId);
+    return { message: 'User deleted' };
   }
 
   async resetCompanyUserPassword(
@@ -407,7 +440,7 @@ export class UsersService {
     }
     if (requestingUserId === userId) throw new ForbiddenException('Cannot reset your own password via this endpoint');
     const user = await this.prisma.user.findFirst({
-      where: { id: userId, companyId },
+      where: { id: userId, companyId, tombstone: { not: 1 } },
       select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
     });
     if (!user) throw new NotFoundException('User not found in this company');
@@ -420,9 +453,18 @@ export class UsersService {
   async deleteUser(userId: string, requestingUserId: string) {
     if (requestingUserId === userId) throw new ForbiddenException('Cannot remove your own account');
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user || user.tombstone === 1) throw new NotFoundException('User not found');
     await this.prisma.user.update({ where: { id: userId }, data: { isActive: false } });
     return { message: 'User removed' };
+  }
+
+  async permanentlyDeleteUser(userId: string, requestingUserId: string) {
+    if (requestingUserId === userId) throw new ForbiddenException('Cannot delete your own account');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.tombstone === 1) throw new NotFoundException('User not found');
+
+    await tombstoneUser(this.prisma, userId);
+    return { message: 'User deleted' };
   }
 
   // ─── Multi-store assignment (COMPANY_ADMIN / PLATFORM_ADMIN) ─────────────
@@ -456,7 +498,7 @@ export class UsersService {
       if (!managedIds.includes(storeId)) throw new ForbiddenException('Access denied');
 
       const user = await this.prisma.user.findFirst({
-        where: { username: dto.username, companyId: store.companyId, isActive: true },
+        where: { username: dto.username, companyId: store.companyId, isActive: true, tombstone: { not: 1 } },
       });
       if (!user) throw new NotFoundException(`User "${dto.username}" not found`);
 
@@ -475,7 +517,7 @@ export class UsersService {
     }
 
     const user = await this.prisma.user.findFirst({
-      where: { username: dto.username, companyId: store.companyId, isActive: true },
+      where: { username: dto.username, companyId: store.companyId, isActive: true, tombstone: { not: 1 } },
     });
     if (!user) throw new NotFoundException(`User "${dto.username}" not found in this company`);
 
@@ -531,6 +573,7 @@ export class UsersService {
       where: {
         companyId,
         isActive: true,
+        tombstone: { not: 1 },
         role: { in: ['STORE_ADMIN', 'CASHIER', 'ADMIN'] },
         OR: query
           ? [
@@ -588,7 +631,7 @@ export class UsersService {
 
     const [companyAdmins, storeUsers] = await Promise.all([
       this.prisma.user.findMany({
-        where: { companyId, role: 'COMPANY_ADMIN' },
+        where: { companyId, role: 'COMPANY_ADMIN', tombstone: { not: 1 } },
         select,
         orderBy: { createdAt: 'desc' },
       }),
@@ -596,6 +639,7 @@ export class UsersService {
         where: {
           companyId,
           role: { in: ['STORE_ADMIN', 'ADMIN', 'CASHIER'] },
+          tombstone: { not: 1 },
         },
         select: {
           ...select,
@@ -621,9 +665,10 @@ export class UsersService {
   async resetPassword(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+      select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true, tombstone: true },
     });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user || user.tombstone === 1) throw new NotFoundException('User not found');
+    const { tombstone: _tombstone, ...userWithoutTombstone } = user;
 
     const password = this.authService.generateSecurePassword();
     const hashed = await bcrypt.hash(password, 12);
@@ -634,7 +679,7 @@ export class UsersService {
     });
 
     return {
-      user,
+      user: userWithoutTombstone,
       temporaryPassword: password,
       note: 'User will be required to change this password on next login.',
     };
@@ -656,7 +701,7 @@ export class UsersService {
     }
 
     const user = await this.prisma.user.findFirst({
-      where: { id: userId, tenantId: storeId },
+      where: { id: userId, tenantId: storeId, tombstone: { not: 1 } },
       select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true, isFirstLogin: true },
     });
     if (!user) throw new NotFoundException(`User not found in this store`);
@@ -677,7 +722,7 @@ export class UsersService {
   }
 
   private async assertStoreUserExists(userId: string, storeId: string) {
-    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId: storeId } });
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId: storeId, tombstone: { not: 1 } } });
     if (!user) throw new NotFoundException(`User ${userId} not found in this store`);
     return user;
   }

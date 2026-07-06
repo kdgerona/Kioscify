@@ -64,6 +64,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: true,
         isFirstLogin: true,
         isActive: true,
+        tombstone: true,
         storeAccess: {
           where: { isActive: true },
           select: { tenantId: true },
@@ -71,7 +72,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       },
     });
 
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || user.tombstone === 1) {
       throw new UnauthorizedException();
     }
 

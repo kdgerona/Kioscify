@@ -610,6 +610,10 @@ class ApiClient {
     await this.client.post(`/users/stores/${storeId}/assign`, payload);
   }
 
+  async revokeStoreAccess(storeId: string, userId: string): Promise<void> {
+    await this.client.delete(`/users/stores/${storeId}/${userId}/access`);
+  }
+
   // ─── Platform user management ─────────────────────────────────────────────
 
   async getCompanyAllUsers(companyId: string): Promise<{
@@ -660,6 +664,11 @@ class ApiClient {
 
   async deleteUser(userId: string): Promise<{ message: string }> {
     const { data } = await this.client.delete(`/users/${userId}`);
+    return data;
+  }
+
+  async deleteUserPermanently(userId: string): Promise<{ message: string }> {
+    const { data } = await this.client.delete(`/users/${userId}/permanent`);
     return data;
   }
 

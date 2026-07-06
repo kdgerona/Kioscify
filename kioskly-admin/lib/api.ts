@@ -754,6 +754,11 @@ class ApiClient {
     return data;
   }
 
+  async deleteStoreUserPermanently(storeId: string, userId: string): Promise<{ message: string }> {
+    const { data } = await this.client.delete(`/users/stores/${storeId}/${userId}/permanent`);
+    return data;
+  }
+
   async resetStoreUserPassword(storeId: string, userId: string): Promise<{ user: User; temporaryPassword: string }> {
     const { data } = await this.client.post(`/users/stores/${storeId}/${userId}/reset-password`);
     return data;

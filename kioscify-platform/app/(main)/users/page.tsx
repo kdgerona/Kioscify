@@ -353,7 +353,7 @@ export default function UsersPage() {
                           <KeyRound className="w-3.5 h-3.5" />
                           Reset Password
                         </button>
-                        {!isSelf && (
+                        {!isSelf && !admin.isActive && (
                           <button
                             onClick={() => setConfirmDelete(admin)}
                             title="Delete admin"

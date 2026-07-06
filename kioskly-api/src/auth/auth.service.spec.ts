@@ -3,9 +3,10 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { getLoggerToken } from 'nestjs-pino';
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { SessionsService } from '../sessions/sessions.service';
 
 jest.mock('bcrypt');
 const bcryptCompare = bcrypt.compare as jest.Mock;
@@ -16,9 +17,13 @@ const mockPrisma = {
   userStoreAccess: { findFirst: jest.fn() },
   company: { findFirst: jest.fn() },
 };
-const mockJwt = { sign: jest.fn().mockReturnValue('mock-token') };
+const mockJwt = {
+  sign: jest.fn().mockReturnValue('mock-token'),
+  decode: jest.fn().mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 3600 }),
+};
 const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 const mockTokenBlacklist = { blacklist: jest.fn(), isBlacklisted: jest.fn() };
+const mockSessionsService = { recordSession: jest.fn(), endSession: jest.fn() };
 
 const mockStore = {
   id: 'store-1',
@@ -51,6 +56,7 @@ describe('AuthService — logging', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
         { provide: TokenBlacklistService, useValue: mockTokenBlacklist },
+        { provide: SessionsService, useValue: mockSessionsService },
         { provide: getLoggerToken(AuthService.name), useValue: mockLogger },
       ],
     }).compile();
@@ -58,6 +64,7 @@ describe('AuthService — logging', () => {
     service = module.get<AuthService>(AuthService);
     jest.resetAllMocks();
     mockJwt.sign.mockReturnValue('mock-token');
+    mockJwt.decode.mockReturnValue({ exp: Math.floor(Date.now() / 1000) + 3600 });
   });
 
   describe('loginStore', () => {
@@ -226,6 +233,32 @@ describe('AuthService — logging', () => {
         expect.objectContaining({ username: 'kevin', role: 'PLATFORM_ADMIN' }),
         expect.any(String),
       );
+    });
+  });
+
+  describe('soft-deleted (tombstoned) users are rejected', () => {
+    const tombstonedUser = { ...mockUser, tombstone: 1 };
+
+    it('switchStore throws UnauthorizedException for a tombstoned user', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ ...tombstonedUser, storeAccess: [] });
+
+      await expect(
+        service.switchStore('user-1', 'store-2'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('changePassword throws UnauthorizedException for a tombstoned user', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(tombstonedUser);
+
+      await expect(
+        service.changePassword('user-1', { currentPassword: 'x', newPassword: 'y' } as any),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('getProfile throws UnauthorizedException for a tombstoned user', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(tombstonedUser);
+
+      await expect(service.getProfile('user-1')).rejects.toThrow(UnauthorizedException);
     });
   });
 });

@@ -150,6 +150,20 @@ export default function UsersPage() {
     }
   };
 
+  const handleDeletePermanently = async (user: User) => {
+    if (!company) return;
+    if (!window.confirm(`Permanently delete ${user.firstName} ${user.lastName} (@${user.username})? Their username and email will be freed up for reuse. This cannot be undone from the UI.`)) {
+      return;
+    }
+    try {
+      await api.deleteCompanyUserPermanently(company.id, user.id);
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      toast.success('Account deleted');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to delete account'));
+    }
+  };
+
   const handleResetPassword = async (user: User) => {
     if (!company) return;
     try {
@@ -324,6 +338,16 @@ export default function UsersPage() {
                                 className="p-1.5 text-gray-400 hover:text-green-600 rounded"
                               >
                                 <UserCheck className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                          )}
+                          {canDelete && (
+                            <Tooltip label="Delete account">
+                              <button
+                                onClick={() => handleDeletePermanently(user)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </Tooltip>
                           )}

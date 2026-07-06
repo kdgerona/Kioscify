@@ -5,6 +5,7 @@ import { UpdateMaintenanceStatusDto } from './dto/update-maintenance-status.dto'
 import { CreatePlatformAdminDto } from './dto/create-platform-admin.dto';
 import * as bcrypt from 'bcrypt';
 import { getZonedMonthBounds } from '../common/utils/timezone';
+import { tombstoneUser } from '../common/utils/soft-delete-user';
 
 @Injectable()
 export class PlatformService {
@@ -121,7 +122,7 @@ export class PlatformService {
 
   async getPlatformAdmins() {
     return this.prisma.user.findMany({
-      where: { role: 'PLATFORM_ADMIN' },
+      where: { role: 'PLATFORM_ADMIN', tombstone: { not: 1 } },
       select: {
         id: true,
         username: true,
@@ -140,6 +141,7 @@ export class PlatformService {
     const existing = await this.prisma.user.findFirst({
       where: {
         role: 'PLATFORM_ADMIN',
+        tombstone: { not: 1 },
         OR: [{ username: dto.username }, { email: dto.email }],
       },
     });
@@ -190,7 +192,7 @@ export class PlatformService {
       throw new ForbiddenException('Cannot modify your own account');
     }
     const user = await this.prisma.user.findFirst({
-      where: { id: targetId, role: 'PLATFORM_ADMIN' },
+      where: { id: targetId, role: 'PLATFORM_ADMIN', tombstone: { not: 1 } },
     });
     if (!user) throw new NotFoundException('Platform admin not found');
 
@@ -212,7 +214,7 @@ export class PlatformService {
 
   async resetPlatformAdminPassword(targetId: string) {
     const existing = await this.prisma.user.findFirst({
-      where: { id: targetId, role: 'PLATFORM_ADMIN' },
+      where: { id: targetId, role: 'PLATFORM_ADMIN', tombstone: { not: 1 } },
     });
     if (!existing) throw new NotFoundException('Platform admin not found');
 
@@ -246,11 +248,11 @@ export class PlatformService {
       throw new ForbiddenException('Cannot delete your own account');
     }
     const user = await this.prisma.user.findFirst({
-      where: { id: targetId, role: 'PLATFORM_ADMIN' },
+      where: { id: targetId, role: 'PLATFORM_ADMIN', tombstone: { not: 1 } },
     });
     if (!user) throw new NotFoundException('Platform admin not found');
 
-    await this.prisma.user.delete({ where: { id: targetId } });
+    await tombstoneUser(this.prisma, targetId);
     return { message: 'Platform admin deleted' };
   }
 }

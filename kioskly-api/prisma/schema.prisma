@@ -236,6 +236,7 @@ model User {
   role         Role      @default(CASHIER)
   isFirstLogin Boolean   @default(true)   // forces password change on first login
   isActive           Boolean   @default(true)
+  tombstone          Int       @default(0)   // soft delete — set once the account is disabled; username/email are freed on delete
   companyPrivileges  Json?     // null = owner (full access); { brands, analytics, users, settings } for restricted admins
   storePrivileges    Json?     // null = owner (full access); { transactions, expenses, inventory, users, settings } for restricted store admins
   createdAt          DateTime  @default(now())

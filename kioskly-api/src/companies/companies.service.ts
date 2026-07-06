@@ -114,7 +114,7 @@ export class CompaniesService {
     await this.assertExists(companyId);
 
     const existing = await this.prisma.user.findFirst({
-      where: { companyId, username: dto.username },
+      where: { companyId, username: dto.username, tombstone: { not: 1 } },
     });
     if (existing) throw new ConflictException('Username already exists in this company');
 

@@ -172,7 +172,7 @@ export class StoresService {
     const store = await this.findOne(storeId);
 
     const existing = await this.prisma.user.findFirst({
-      where: { tenantId: storeId, username: dto.username },
+      where: { tenantId: storeId, username: dto.username, tombstone: { not: 1 } },
     });
     if (existing) throw new ConflictException('Username already exists in this store');
 

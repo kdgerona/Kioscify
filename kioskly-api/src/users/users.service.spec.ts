@@ -444,4 +444,88 @@ describe('UsersService', () => {
       expect(result).toEqual({ count: 1 });
     });
   });
+
+  describe('permanentlyDeleteStoreUser', () => {
+    it('throws BadRequestException when the target account is still active', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'u-bob', tenantId: 'store-a', isActive: true, tombstone: 0 }); // assertStoreUserExists
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'u-bob', isActive: true, tombstone: 0, username: 'bob', email: 'bob@co.com' }); // tombstoneUser lookup
+
+      await expect(
+        service.permanentlyDeleteStoreUser('store-a', 'u-bob', 'store-a', 'req-user'),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('tombstones a disabled store user, mangling username/email and cascading UserStoreAccess', async () => {
+      const disabledUser = { id: 'u-bob', tenantId: 'store-a', isActive: false, tombstone: 0, username: 'bob', email: 'bob@co.com' };
+      mockPrisma.user.findFirst.mockResolvedValue(disabledUser); // assertStoreUserExists
+      mockPrisma.user.findUnique.mockResolvedValue(disabledUser); // tombstoneUser lookup
+      mockPrisma.user.update.mockResolvedValue({ ...disabledUser, tombstone: 1 });
+      mockPrisma.userStoreAccess.updateMany.mockResolvedValue({ count: 0 });
+
+      const result = await service.permanentlyDeleteStoreUser('store-a', 'u-bob', 'store-a', 'req-user');
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'u-bob' },
+          data: expect.objectContaining({
+            tombstone: 1,
+            username: expect.stringContaining('bob'),
+            email: expect.stringContaining('bob@co.com'),
+          }),
+        }),
+      );
+      expect(mockPrisma.userStoreAccess.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'u-bob' },
+        data: { isActive: false },
+      });
+      expect(result).toEqual({ message: 'User deleted' });
+    });
+  });
+
+  describe('permanentlyDeleteCompanyUser', () => {
+    it('throws BadRequestException when the target account is still active', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'u-bob', companyId: 'co-1', isActive: true, tombstone: 0 });
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'u-bob', isActive: true, tombstone: 0, username: 'bob', email: 'bob@co.com' });
+
+      await expect(
+        service.permanentlyDeleteCompanyUser('co-1', 'u-bob', 'co-1', 'COMPANY_ADMIN', 'req-user'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('tombstones a disabled company user', async () => {
+      const disabledUser = { id: 'u-bob', companyId: 'co-1', isActive: false, tombstone: 0, username: 'bob', email: 'bob@co.com' };
+      mockPrisma.user.findFirst.mockResolvedValue(disabledUser);
+      mockPrisma.user.findUnique.mockResolvedValue(disabledUser);
+      mockPrisma.user.update.mockResolvedValue({ ...disabledUser, tombstone: 1 });
+      mockPrisma.userStoreAccess.updateMany.mockResolvedValue({ count: 0 });
+
+      const result = await service.permanentlyDeleteCompanyUser('co-1', 'u-bob', 'co-1', 'COMPANY_ADMIN', 'req-user');
+
+      expect(result).toEqual({ message: 'User deleted' });
+    });
+  });
+
+  describe('permanentlyDeleteUser', () => {
+    it('throws BadRequestException when the target account is still active', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'u-bob', isActive: true, tombstone: 0, username: 'bob', email: 'bob@co.com' });
+
+      await expect(
+        service.permanentlyDeleteUser('u-bob', 'req-user'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('tombstones a disabled user without ever calling prisma.user.delete', async () => {
+      const disabledUser = { id: 'u-bob', isActive: false, tombstone: 0, username: 'bob', email: 'bob@co.com' };
+      mockPrisma.user.findUnique.mockResolvedValue(disabledUser);
+      mockPrisma.user.update.mockResolvedValue({ ...disabledUser, tombstone: 1 });
+      mockPrisma.userStoreAccess.updateMany.mockResolvedValue({ count: 0 });
+
+      // mockPrisma.user has no `delete` mock defined at all — if tombstoneUser ever
+      // called prisma.user.delete, this would throw "delete is not a function" instead.
+      const result = await service.permanentlyDeleteUser('u-bob', 'req-user');
+
+      expect(result).toEqual({ message: 'User deleted' });
+    });
+  });
 });
