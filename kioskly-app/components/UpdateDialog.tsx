@@ -15,8 +15,10 @@ export default function UpdateDialog() {
     isDownloading,
     downloadProgress,
     error,
+    needsInstallPermission,
     dismissUpdate,
     downloadAndInstall,
+    openInstallSettings,
   } = useAppUpdate();
 
   if (!updateInfo) return null;
@@ -162,6 +164,23 @@ export default function UpdateDialog() {
                   {error ? 'Retry Update' : 'Update Now'}
                 </Text>
               </TouchableOpacity>
+
+              {needsInstallPermission && (
+                <TouchableOpacity
+                  onPress={openInstallSettings}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#D1D5DB',
+                    borderRadius: 8,
+                    paddingVertical: 12,
+                    alignItems: 'center',
+                    marginBottom: 8,
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ color: '#6B7280', fontSize: 14 }}>Open Settings</Text>
+                </TouchableOpacity>
+              )}
 
               {!updateInfo.force_update && (
                 <TouchableOpacity
