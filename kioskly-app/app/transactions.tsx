@@ -582,6 +582,31 @@ export default function Transactions() {
                       </View>
                     )}
 
+                  {transaction.paymentMethod === "SPLIT" &&
+                    (transaction.payments ?? []).length > 0 && (
+                      <View className="border-t border-gray-200 pt-3 mt-2">
+                        <Text className="text-sm font-semibold text-gray-700 mb-2">
+                          Split Breakdown:
+                        </Text>
+                        {(transaction.payments ?? []).map((split, index) => (
+                          <View key={`${split.method}-${index}`} className="flex-row justify-between mb-1">
+                            <Text className="text-sm text-gray-600">
+                              {getPaymentMethodLabel(split.method)}
+                              {split.method === "CASH"
+                                ? ` (received ${formatCurrency(split.cashReceived ?? 0)}, change ${formatCurrency(split.change ?? 0)})`
+                                : split.referenceNumber
+                                  ? ` (ref #${split.referenceNumber})`
+                                  : ""}
+                              :
+                            </Text>
+                            <Text className="text-sm font-semibold" style={{ color: textColor }}>
+                              {formatCurrency(split.amount)}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
                   {/* Void Information */}
                   {transaction.voidStatus &&
                     transaction.voidStatus !== "NONE" && (

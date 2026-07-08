@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -62,7 +63,6 @@ export class TransactionsService {
         where: { tenantId, clientId },
       });
       if (existing) {
-        const { ConflictException } = await import('@nestjs/common');
         throw new ConflictException({
           message: 'Transaction already synced',
           id: existing.id,
@@ -131,7 +131,7 @@ export class TransactionsService {
     filters?: {
       startDate?: Date;
       endDate?: Date;
-      paymentMethod?: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE';
+      paymentMethod?: 'CASH' | 'GCASH' | 'PAYMAYA' | 'ONLINE' | 'FOODPANDA' | 'GRAB' | 'SPLIT';
       paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED';
       search?: string;
       includeVoided?: boolean;
@@ -386,6 +386,7 @@ export class TransactionsService {
       cashReceived: transaction.cashReceived,
       change: transaction.change,
       referenceNumber: transaction.referenceNumber,
+      payments: (transaction as any).payments ?? undefined,
       remarks: transaction.remarks,
       discountAmount: (transaction as any).discountAmount ?? null,
       timestamp: transaction.timestamp,

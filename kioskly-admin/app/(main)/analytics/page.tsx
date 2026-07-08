@@ -225,6 +225,7 @@ export default function ReportsPage() {
       FOODPANDA: "#ec4899",
       ONLINE: "#6b7280",
       GRAB: "#00B14F",
+      SPLIT: "#9333ea",
     };
 
     return Object.entries(analytics.sales.paymentMethodBreakdown).map(
@@ -541,9 +542,13 @@ export default function ReportsPage() {
       }
 
       const allTransactions = await api.getTransactions(params);
-      // Filter transactions by payment method
+      // Filter transactions by payment method — a SPLIT transaction belongs on
+      // every method card its legs touch, not just the "Split Payment" card,
+      // since part of its total was genuinely paid via that method.
       const filteredTransactions = allTransactions.filter(
-        (t: Transaction) => t.paymentMethod === paymentMethod,
+        (t: Transaction) =>
+          t.paymentMethod === paymentMethod ||
+          (t.paymentMethod === "SPLIT" && t.payments?.some((p) => p.method === paymentMethod)),
       );
       setTransactions(filteredTransactions);
       setShowTransactionModal(true);
@@ -885,6 +890,12 @@ export default function ReportsPage() {
                     backgroundColor: "rgba(0,177,79,0.18)",
                     color: "#007835",
                   },
+                },
+                SPLIT: {
+                  bg: "bg-purple-50",
+                  border: "border-purple-200",
+                  text: "text-purple-700",
+                  badge: "bg-purple-100",
                 },
               };
               const color: CardColors = colors[method] ?? {

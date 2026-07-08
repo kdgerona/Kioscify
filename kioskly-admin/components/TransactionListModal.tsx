@@ -39,6 +39,7 @@ export default function TransactionListModal({
       GCASH: "bg-blue-100 text-blue-800",
       ONLINE: "bg-gray-100 text-gray-800",
       FOODPANDA: "bg-pink-100 text-pink-800",
+      SPLIT: "bg-purple-100 text-purple-800",
     };
     return colors[method] ?? "bg-gray-100 text-gray-800";
   };
@@ -268,6 +269,7 @@ export default function TransactionListModal({
                     )}
 
                   {transaction.paymentMethod !== "CASH" &&
+                    transaction.paymentMethod !== "SPLIT" &&
                     transaction.referenceNumber && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-3 mb-2 sm:mb-3">
                         <h4 className="text-xs font-bold text-blue-800 mb-1">
@@ -276,6 +278,33 @@ export default function TransactionListModal({
                         <p className="text-xs text-blue-700 font-mono break-all">
                           {transaction.referenceNumber}
                         </p>
+                      </div>
+                    )}
+
+                  {transaction.paymentMethod === "SPLIT" &&
+                    (transaction.payments ?? []).length > 0 && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 sm:p-3 mb-2 sm:mb-3">
+                        <h4 className="text-xs font-bold text-purple-800 mb-1 sm:mb-2">
+                          Split Breakdown
+                        </h4>
+                        <div className="space-y-1">
+                          {(transaction.payments ?? []).map((split, index) => (
+                            <div key={`${split.method}-${index}`} className="flex justify-between gap-2 text-xs">
+                              <span className="text-purple-700">
+                                {getPaymentMethodLabel(split.method)}
+                                {split.method === "CASH"
+                                  ? ` (change ${formatCurrency(split.change ?? 0)})`
+                                  : split.referenceNumber
+                                    ? ` (ref #${split.referenceNumber})`
+                                    : ""}
+                                :
+                              </span>
+                              <span className="font-semibold text-purple-900 flex-shrink-0">
+                                {formatCurrency(split.amount)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 

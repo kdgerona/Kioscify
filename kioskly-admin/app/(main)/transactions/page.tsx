@@ -281,6 +281,15 @@ export default function TransactionsPage() {
     }
   };
 
+  // For SPLIT transactions, flattens each leg into "Method: amount" pairs so the
+  // per-method breakdown survives the export instead of collapsing to "SPLIT".
+  const formatPaymentSplitSummary = (t: Transaction): string => {
+    if (t.paymentMethod !== "SPLIT" || !t.payments?.length) return "";
+    return t.payments
+      .map((p) => `${getPaymentMethodLabel(p.method)}: ${p.amount.toFixed(2)}`)
+      .join(" | ");
+  };
+
   const exportToCSV = () => {
     const headers = [
       "Transaction ID",
@@ -289,6 +298,7 @@ export default function TransactionsPage() {
       "Total",
       "Discount",
       "Payment Method",
+      "Split Breakdown",
       "Status",
     ];
     const rows = transactions.map((t) => [
@@ -298,6 +308,7 @@ export default function TransactionsPage() {
       t.total,
       getCombinedDiscount(t) || "",
       t.paymentMethod,
+      formatPaymentSplitSummary(t),
       t.paymentStatus || "COMPLETED",
     ]);
 
@@ -446,6 +457,7 @@ export default function TransactionsPage() {
                   <SelectItem value="ONLINE">Online</SelectItem>
                   <SelectItem value="FOODPANDA">FoodPanda</SelectItem>
                   <SelectItem value="GRAB">Grab</SelectItem>
+                  <SelectItem value="SPLIT">Split Payment</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1016,6 +1028,7 @@ export default function TransactionsPage() {
 
                   {/* Digital Payment Reference */}
                   {selectedTransaction.paymentMethod !== "CASH" &&
+                    selectedTransaction.paymentMethod !== "SPLIT" &&
                     selectedTransaction.referenceNumber && (
                       <div>
                         <p className="text-xs sm:text-sm text-gray-600 mb-1">
@@ -1024,6 +1037,45 @@ export default function TransactionsPage() {
                         <p className="text-xs sm:text-sm font-mono font-medium text-gray-900 break-all">
                           {selectedTransaction.referenceNumber}
                         </p>
+                      </div>
+                    )}
+
+                  {/* Split Payment Breakdown */}
+                  {selectedTransaction.paymentMethod === "SPLIT" &&
+                    (selectedTransaction.payments ?? []).length > 0 && (
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2">
+                          Split Breakdown
+                        </p>
+                        <div className="space-y-2">
+                          {(selectedTransaction.payments ?? []).map((split, index) => (
+                            <div
+                              key={`${split.method}-${index}`}
+                              className="flex items-center justify-between bg-white rounded-md px-3 py-2 border border-gray-200"
+                            >
+                              <div>
+                                <p className="text-xs sm:text-sm font-medium text-gray-900">
+                                  {getPaymentMethodLabel(split.method)}
+                                </p>
+                                {split.method === "CASH" ? (
+                                  <p className="text-xs text-gray-500">
+                                    Received {formatCurrency(split.cashReceived ?? 0)} · Change{" "}
+                                    {formatCurrency(split.change ?? 0)}
+                                  </p>
+                                ) : (
+                                  split.referenceNumber && (
+                                    <p className="text-xs text-gray-500 font-mono break-all">
+                                      Ref #{split.referenceNumber}
+                                    </p>
+                                  )
+                                )}
+                              </div>
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900">
+                                {formatCurrency(split.amount)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                 </div>

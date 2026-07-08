@@ -195,6 +195,14 @@ export interface TransactionItem {
   addons?: { addon: Addon }[];
 }
 
+export interface PaymentSplit {
+  method: "CASH" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA" | "GRAB";
+  amount: number;
+  cashReceived?: number | null;
+  change?: number | null;
+  referenceNumber?: string | null;
+}
+
 export interface Transaction {
   id: string;
   transactionId: string;
@@ -203,10 +211,11 @@ export interface Transaction {
   subtotal: number;
   discountAmount?: number | null;
   total: number;
-  paymentMethod: "CASH" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA" | "GRAB";
+  paymentMethod: "CASH" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA" | "GRAB" | "SPLIT";
   cashReceived?: number | null;
   change?: number | null;
   referenceNumber?: string | null;
+  payments?: PaymentSplit[];
   remarks?: string | null;
   timestamp: string;
   paymentStatus?: "PENDING" | "COMPLETED" | "FAILED";

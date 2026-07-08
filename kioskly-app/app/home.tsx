@@ -15,7 +15,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import { apiGet, apiPost, apiDelete } from "../utils/api";
-import CheckoutModal from "../components/CheckoutModal";
+import CheckoutModal, { type PaymentSplitLine } from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
 import ItemDiscountModal from "../components/ItemDiscountModal";
 import HoldOrderPromptModal from "../components/HoldOrderPromptModal";
@@ -118,7 +118,8 @@ type PaymentMethodType =
   | "paymaya"
   | "online"
   | "foodpanda"
-  | "grab";
+  | "grab"
+  | "split";
 
 type TransactionData = {
   transactionId: string;
@@ -131,6 +132,7 @@ type TransactionData = {
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
+  payments?: PaymentSplitLine[];
 };
 
 const HEADER_MENU_WIDTH = 280;
@@ -798,13 +800,23 @@ export default function Home() {
           | "PAYMAYA"
           | "ONLINE"
           | "FOODPANDA"
-          | "GRAB",
+          | "GRAB"
+          | "SPLIT",
         ...(paymentMethod === "cash" && {
           cashReceived: details.cashReceived,
           change: details.change,
         }),
-        ...(paymentMethod !== "cash" && {
+        ...(paymentMethod !== "cash" && paymentMethod !== "split" && {
           referenceNumber: details.referenceNumber,
+        }),
+        ...(paymentMethod === "split" && {
+          payments: (details.payments as PaymentSplitLine[]).map((p) => ({
+            method: p.method.toUpperCase(),
+            amount: p.amount,
+            ...(p.cashReceived !== undefined && { cashReceived: p.cashReceived }),
+            ...(p.change !== undefined && { change: p.change }),
+            ...(p.referenceNumber && { referenceNumber: p.referenceNumber }),
+          })),
         }),
         ...(details.remarks && {
           remarks: details.remarks,
@@ -839,8 +851,11 @@ export default function Home() {
             cashReceived: details.cashReceived,
             change: details.change,
           }),
-          ...(paymentMethod !== "cash" && {
+          ...(paymentMethod !== "cash" && paymentMethod !== "split" && {
             referenceNumber: details.referenceNumber,
+          }),
+          ...(paymentMethod === "split" && {
+            payments: details.payments as PaymentSplitLine[],
           }),
         };
         setCurrentTransaction(transaction);

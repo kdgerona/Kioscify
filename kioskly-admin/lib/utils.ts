@@ -41,6 +41,7 @@ export function getPaymentMethodLabel(method: string): string {
     ONLINE: 'Online',
     FOODPANDA: 'FoodPanda',
     GRAB: 'Grab',
+    SPLIT: 'Split Payment',
   };
   return labels[method] || method;
 }

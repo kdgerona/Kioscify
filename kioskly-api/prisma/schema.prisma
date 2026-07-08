@@ -507,6 +507,7 @@ model Transaction {
   cashReceived    Float?
   change          Float?
   referenceNumber String?
+  payments        PaymentSplit[] // populated only when paymentMethod == SPLIT; see comment above the type
   remarks         String?
   discountAmount  Float?
   timestamp       DateTime      @default(now())
@@ -566,6 +567,18 @@ model TransactionItemAddon {
 
   @@unique([transactionItemId, addonId])
   @@map("transaction_item_addons")
+}
+
+// Embedded, not a relation: a split payment's legs are always read/written
+// wholesale alongside their parent Transaction and never queried on their own,
+// so every existing transaction.findMany(...) call site gets this back for
+// free with no `include` changes needed.
+type PaymentSplit {
+  method          PaymentMethod
+  amount          Float
+  cashReceived    Float? // only when method == CASH
+  change          Float? // only when method == CASH
+  referenceNumber String? // only for non-cash methods
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -889,6 +902,7 @@ enum PaymentMethod {
   ONLINE
   FOODPANDA
   GRAB
+  SPLIT // paid using 2+ methods — see Transaction.payments
 }
 
 enum DeliveryPlatform {

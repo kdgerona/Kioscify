@@ -10,8 +10,79 @@ import {
   IsInt,
   IsDateString,
   Min,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+const PAYMENT_METHODS = ['CASH', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA', 'GRAB', 'SPLIT'] as const;
+type PaymentMethodValue = (typeof PAYMENT_METHODS)[number];
+
+class PaymentSplitDto {
+  @ApiProperty({ enum: PAYMENT_METHODS.filter((m) => m !== 'SPLIT'), example: 'CASH' })
+  @IsEnum(PAYMENT_METHODS.filter((m) => m !== 'SPLIT'))
+  method: Exclude<PaymentMethodValue, 'SPLIT'>;
+
+  @ApiProperty({ example: 100 })
+  @IsNumber()
+  @Min(0.01)
+  amount: number;
+
+  @ApiProperty({ example: 100, required: false, description: 'Only for method == CASH' })
+  @IsNumber()
+  @IsOptional()
+  cashReceived?: number;
+
+  @ApiProperty({ example: 0, required: false, description: 'Only for method == CASH' })
+  @IsNumber()
+  @IsOptional()
+  change?: number;
+
+  @ApiProperty({ example: 'REF123456789', required: false, description: 'Required for non-cash methods' })
+  @IsString()
+  @IsOptional()
+  referenceNumber?: string;
+}
+
+// Cross-field: paymentMethod === 'SPLIT' iff `payments` holds 2+ valid legs whose
+// amounts sum to `total`. Keeps the two fields from ever disagreeing about
+// whether a transaction is a split payment.
+@ValidatorConstraint({ name: 'validPaymentSplits', async: false })
+class ValidPaymentSplitsConstraint implements ValidatorConstraintInterface {
+  validate(payments: PaymentSplitDto[] | undefined, args: ValidationArguments): boolean {
+    const dto = args.object as CreateTransactionDto;
+    const isSplit = dto.paymentMethod === 'SPLIT';
+
+    if (!isSplit) {
+      return !payments || payments.length === 0;
+    }
+
+    if (!payments || payments.length < 2) return false;
+
+    const EPSILON = 0.01;
+    for (const split of payments) {
+      if (!(split.amount > 0)) return false;
+      if (split.method === 'CASH') {
+        if (split.cashReceived == null || split.cashReceived < split.amount) return false;
+      } else if (!split.referenceNumber || !split.referenceNumber.trim()) {
+        return false;
+      }
+    }
+
+    const sum = payments.reduce((acc, split) => acc + split.amount, 0);
+    return Math.abs(sum - dto.total) <= EPSILON;
+  }
+
+  defaultMessage(): string {
+    return (
+      'paymentMethod "SPLIT" requires a `payments` array of 2+ entries, each with amount > 0 ' +
+      '(CASH entries need cashReceived >= amount, other methods need a referenceNumber), summing to `total`; ' +
+      'non-"SPLIT" transactions must omit `payments`'
+    );
+  }
+}
 
 class TransactionItemAddonDto {
   @ApiProperty({ example: 'nata-de-coco' })
@@ -76,11 +147,11 @@ export class CreateTransactionDto {
   total: number;
 
   @ApiProperty({
-    enum: ['CASH', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA', 'GRAB'],
+    enum: PAYMENT_METHODS,
     example: 'CASH',
   })
-  @IsEnum(['CASH', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA', 'GRAB'])
-  paymentMethod: 'CASH' | 'GCASH' | 'PAYMAYA' | 'ONLINE' | 'FOODPANDA' | 'GRAB';
+  @IsEnum(PAYMENT_METHODS)
+  paymentMethod: PaymentMethodValue;
 
   @ApiProperty({ example: 200, required: false })
   @IsNumber()
@@ -96,6 +167,18 @@ export class CreateTransactionDto {
   @IsString()
   @IsOptional()
   referenceNumber?: string;
+
+  @ApiProperty({
+    type: [PaymentSplitDto],
+    required: false,
+    description: 'Populate only when paymentMethod is "SPLIT" (2+ payment methods combined for one checkout)',
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PaymentSplitDto)
+  @IsOptional()
+  @Validate(ValidPaymentSplitsConstraint)
+  payments?: PaymentSplitDto[];
 
   @ApiProperty({
     example: 'Customer requested refund - wrong order',

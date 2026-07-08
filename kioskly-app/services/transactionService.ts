@@ -51,6 +51,7 @@ function buildLocalTransaction(clientId: string, payload: Record<string, unknown
     cashReceived: payload.cashReceived as number | undefined,
     change: payload.change as number | undefined,
     referenceNumber: payload.referenceNumber as string | undefined,
+    payments: payload.payments as PaymentSplitPayload[] | undefined,
     remarks: payload.remarks as string | undefined,
     timestamp: saleTime,
     createdAt: saleTime,
@@ -79,7 +80,15 @@ interface TransactionItem {
   addons?: TransactionItemAddon[];
 }
 
-export type PaymentMethodType = "CASH" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA" | "GRAB";
+export type PaymentMethodType = "CASH" | "GCASH" | "PAYMAYA" | "ONLINE" | "FOODPANDA" | "GRAB" | "SPLIT";
+
+export interface PaymentSplitPayload {
+  method: Exclude<PaymentMethodType, "SPLIT">;
+  amount: number;
+  cashReceived?: number;
+  change?: number;
+  referenceNumber?: string;
+}
 
 interface CreateTransactionPayload {
   transactionId: string;
@@ -90,6 +99,7 @@ interface CreateTransactionPayload {
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
+  payments?: PaymentSplitPayload[];
   remarks?: string;
   discountAmount?: number;
   items: TransactionItem[];
@@ -144,6 +154,7 @@ export interface TransactionResponse {
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
+  payments?: PaymentSplitPayload[];
   remarks?: string;
   timestamp: string;
   createdAt: string;

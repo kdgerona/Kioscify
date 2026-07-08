@@ -27,7 +27,8 @@
     "migrate:minio": "dotenv -e .env -- ts-node -r tsconfig-paths/register scripts/migrate-to-minio.ts",
     "migrate:price-tiers": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-price-tiers.ts",
     "migrate:inventory-templates": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-inventory-template-ids.ts",
-    "migrate:user-tombstone": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-user-tombstone.ts"
+    "migrate:user-tombstone": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-user-tombstone.ts",
+    "migrate:transaction-payments-backfill": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-transaction-payments.ts"
   },
   "dependencies": {
     "@keyv/redis": "5.1.6",

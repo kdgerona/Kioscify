@@ -14,6 +14,33 @@ import {
 export class ReportsService {
   constructor(private prisma: PrismaService) {}
 
+  // Shared by all three payment-method breakdowns below (daily/shift/analytics) so
+  // the SPLIT-attribution logic can't drift out of sync between them. A SPLIT
+  // transaction's `payments` legs are attributed to their own method bucket
+  // instead of the whole transaction total landing under one key; legs sum to
+  // the transaction total by construction (enforced in CreateTransactionDto),
+  // so this never double-counts sales for the period.
+  private buildPaymentMethodBreakdown(
+    transactions: { paymentMethod: string; total: number; payments?: unknown }[],
+  ): Record<string, { total: number; count: number }> {
+    const breakdown: Record<string, { total: number; count: number }> = {};
+    for (const t of transactions) {
+      const splits = (t as any).payments as { method: string; amount: number }[] | undefined;
+      if (t.paymentMethod === 'SPLIT' && splits && splits.length > 0) {
+        for (const split of splits) {
+          if (!breakdown[split.method]) breakdown[split.method] = { total: 0, count: 0 };
+          breakdown[split.method].total += split.amount;
+          breakdown[split.method].count += 1;
+        }
+        continue;
+      }
+      if (!breakdown[t.paymentMethod]) breakdown[t.paymentMethod] = { total: 0, count: 0 };
+      breakdown[t.paymentMethod].total += t.total;
+      breakdown[t.paymentMethod].count += 1;
+    }
+    return breakdown;
+  }
+
   /**
    * Calculate date range based on period type
    */
@@ -108,18 +135,7 @@ export class ReportsService {
       transactionCount > 0 ? totalSales / transactionCount : 0;
 
     // Payment method breakdown
-    const paymentMethodBreakdown = transactions.reduce(
-      (acc, t) => {
-        const method = t.paymentMethod;
-        if (!acc[method]) {
-          acc[method] = { total: 0, count: 0 };
-        }
-        acc[method].total += t.total;
-        acc[method].count += 1;
-        return acc;
-      },
-      {} as Record<string, { total: number; count: number }>,
-    );
+    const paymentMethodBreakdown = this.buildPaymentMethodBreakdown(transactions);
 
     // Total items sold
     const totalItemsSold = transactions.reduce(
@@ -226,16 +242,7 @@ export class ReportsService {
     const transactionCount = transactions.length;
     const averageTransaction = transactionCount > 0 ? totalSales / transactionCount : 0;
 
-    const paymentMethodBreakdown = transactions.reduce(
-      (acc, t) => {
-        const method = t.paymentMethod;
-        if (!acc[method]) acc[method] = { total: 0, count: 0 };
-        acc[method].total += t.total;
-        acc[method].count += 1;
-        return acc;
-      },
-      {} as Record<string, { total: number; count: number }>,
-    );
+    const paymentMethodBreakdown = this.buildPaymentMethodBreakdown(transactions);
 
     const totalItemsSold = transactions.reduce(
       (sum, t) => sum + t.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
@@ -373,18 +380,7 @@ export class ReportsService {
       transactionCount > 0 ? totalSales / transactionCount : 0;
 
     // Payment method breakdown
-    const paymentMethodBreakdown = transactions.reduce(
-      (acc, t) => {
-        const method = t.paymentMethod;
-        if (!acc[method]) {
-          acc[method] = { total: 0, count: 0 };
-        }
-        acc[method].total += t.total;
-        acc[method].count += 1;
-        return acc;
-      },
-      {} as Record<string, { total: number; count: number }>,
-    );
+    const paymentMethodBreakdown = this.buildPaymentMethodBreakdown(transactions);
 
     // Total items sold
     const totalItemsSold = transactions.reduce(

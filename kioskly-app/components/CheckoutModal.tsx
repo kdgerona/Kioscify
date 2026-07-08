@@ -10,7 +10,8 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useState, useEffect, useRef } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDeviceType } from "@/hooks/useDeviceType";
 import { DISCOUNT_PERCENTAGES, computeDiscountAmount } from "@/utils/discount";
@@ -22,7 +23,20 @@ export type PaymentMethod =
   | "online"
   | "foodpanda"
   | "grab"
+  | "split"
   | null;
+
+// A split payment's individual line can be anything except "split" itself
+// (no splitting inside a split) or null (every leg must have a real method).
+export type SplitPaymentMethod = Exclude<PaymentMethod, "split" | null>;
+
+export type PaymentSplitLine = {
+  method: SplitPaymentMethod;
+  amount: number;
+  cashReceived?: number;
+  change?: number;
+  referenceNumber?: string;
+};
 
 type CheckoutModalProps = {
   visible: boolean;
@@ -45,6 +59,27 @@ type PaymentDetails = {
   referenceNumber?: string;
   remarks?: string;
   discountAmount?: number;
+  payments?: PaymentSplitLine[];
+};
+
+// One row in the split-payment form, before parsing/validation (amounts stay
+// as strings while the cashier is typing, same convention as `cashReceived`
+// on the single-method cash form).
+type SplitFormRow = {
+  id: number;
+  method: SplitPaymentMethod;
+  amount: string;
+  cashReceived: string;
+  referenceNumber: string;
+};
+
+const SPLIT_METHOD_LABELS: Record<SplitPaymentMethod, string> = {
+  cash: "Cash",
+  gcash: "GCash",
+  paymaya: "Maya",
+  online: "Online",
+  foodpanda: "FoodPanda",
+  grab: "Grab",
 };
 
 export default function CheckoutModal({
@@ -66,6 +101,12 @@ export default function CheckoutModal({
   const [discountPercentage, setDiscountPercentage] = useState<number | null>(null);
   const [customDiscountAmount, setCustomDiscountAmount] = useState("");
   const [discountMode, setDiscountMode] = useState<"percentage" | "amount" | null>(null);
+  const [splitRows, setSplitRows] = useState<SplitFormRow[]>([]);
+  const splitIdCounter = useRef(0);
+  const nextSplitId = () => {
+    splitIdCounter.current += 1;
+    return splitIdCounter.current;
+  };
 
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
@@ -81,6 +122,10 @@ export default function CheckoutModal({
   const inputTextSize = isPhone ? "text-base" : "text-lg";
   const methodLabelSize = isPhone ? "text-base" : "text-xl";
 
+  const availableSplitMethods: SplitPaymentMethod[] = (
+    ["cash", "gcash", "paymaya", "online", "foodpanda", "grab"] as SplitPaymentMethod[]
+  ).filter((m) => !hiddenPaymentMethods.includes(m));
+
   // Reset form when modal is closed (visible changes to false)
   useEffect(() => {
     if (!visible) {
@@ -92,8 +137,23 @@ export default function CheckoutModal({
       setDiscountPercentage(null);
       setCustomDiscountAmount("");
       setDiscountMode(null);
+      setSplitRows([]);
     }
   }, [visible, initialPaymentMethod]);
+
+  // Lazily seed 2 starter rows the first time split mode is entered; preserves
+  // whatever the cashier already typed if they go back and re-select "Split
+  // Payment" (mirrors how cashReceived/referenceNumber already survive that).
+  useEffect(() => {
+    if (paymentMethod === "split" && splitRows.length === 0) {
+      const [first, second] = availableSplitMethods;
+      setSplitRows([
+        { id: nextSplitId(), method: first ?? "cash", amount: "", cashReceived: "", referenceNumber: "" },
+        { id: nextSplitId(), method: second ?? first ?? "cash", amount: "", cashReceived: "", referenceNumber: "" },
+      ]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentMethod]);
 
   // Listen to keyboard show/hide events
   useEffect(() => {
@@ -119,6 +179,7 @@ export default function CheckoutModal({
     setDiscountPercentage(null);
     setCustomDiscountAmount("");
     setDiscountMode(null);
+    setSplitRows([]);
   };
 
   const computedDiscount = (): number =>
@@ -135,6 +196,32 @@ export default function CheckoutModal({
     setPaymentMethod(method);
     setValidationError("");
   };
+
+  const addSplitRow = () => {
+    setSplitRows((rows) => [
+      ...rows,
+      {
+        id: nextSplitId(),
+        method: availableSplitMethods[0] ?? "cash",
+        amount: "",
+        cashReceived: "",
+        referenceNumber: "",
+      },
+    ]);
+  };
+
+  const removeSplitRow = (id: number) => {
+    setSplitRows((rows) => rows.filter((row) => row.id !== id));
+  };
+
+  const updateSplitRow = (id: number, patch: Partial<SplitFormRow>) => {
+    setSplitRows((rows) => rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+    setValidationError("");
+  };
+
+  const splitAmountsSum = splitRows.reduce((sum, row) => sum + (parseFloat(row.amount) || 0), 0);
+  const splitRemaining = Math.round((finalTotal - splitAmountsSum) * 100) / 100;
+  const isSplitBalanced = Math.abs(splitRemaining) < 0.01 && splitRows.length >= 2;
 
   const calculateChange = (): number => {
     const received = parseFloat(cashReceived);
@@ -200,6 +287,50 @@ export default function CheckoutModal({
         method: "cash",
         cashReceived: received,
         change,
+        remarks: remarks.trim() || undefined,
+        ...(discount > 0 && { discountAmount: discount }),
+      });
+    } else if (paymentMethod === "split") {
+      if (splitRows.length < 2) {
+        setValidationError("Add at least 2 payment methods to split the payment");
+        return;
+      }
+
+      const payments: PaymentSplitLine[] = [];
+      for (const row of splitRows) {
+        const amount = parseFloat(row.amount);
+        if (!row.amount || isNaN(amount) || amount <= 0) {
+          setValidationError("Enter a valid amount for every payment method in the split");
+          return;
+        }
+
+        if (row.method === "cash") {
+          const received = parseFloat(row.cashReceived);
+          if (!row.cashReceived || isNaN(received) || received < amount) {
+            setValidationError("Cash received must cover the cash portion of the split");
+            return;
+          }
+          payments.push({ method: "cash", amount, cashReceived: received, change: received - amount });
+        } else {
+          if (!row.referenceNumber.trim()) {
+            setValidationError(`Enter a reference number for the ${SPLIT_METHOD_LABELS[row.method]} portion`);
+            return;
+          }
+          payments.push({ method: row.method, amount, referenceNumber: row.referenceNumber.trim() });
+        }
+      }
+
+      const sum = payments.reduce((acc, p) => acc + p.amount, 0);
+      if (Math.abs(sum - finalTotal) > 0.01) {
+        setValidationError(
+          `Split amounts (₱${sum.toFixed(2)}) must add up to the total due (₱${finalTotal.toFixed(2)})`,
+        );
+        return;
+      }
+
+      onCheckoutComplete("split", {
+        method: "split",
+        payments,
         remarks: remarks.trim() || undefined,
         ...(discount > 0 && { discountAmount: discount }),
       });
@@ -534,6 +665,21 @@ export default function CheckoutModal({
                         </TouchableOpacity>
                       </View>
                     )}
+
+                    <View className="w-full px-1.5 mb-2.5">
+                      <TouchableOpacity
+                        className="rounded-lg py-4 px-3 items-center shadow-sm"
+                        style={{ backgroundColor: "#4338ca" }}
+                        onPress={() => handlePaymentMethodSelect("split")}
+                      >
+                        <Text className={`text-white font-bold mb-1 ${methodLabelSize}`}>
+                          Split Payment
+                        </Text>
+                        <Text className="text-indigo-100 text-xs text-center">
+                          Combine 2 or more payment methods
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               )}
@@ -642,7 +788,7 @@ export default function CheckoutModal({
               )}
 
               {/* Non-Cash Payment Form */}
-              {paymentMethod && paymentMethod !== "cash" && (
+              {paymentMethod && paymentMethod !== "cash" && paymentMethod !== "split" && (
                 <View>
                   <Text className={`font-bold mb-4 text-gray-800 ${headingSize}`}>
                     {paymentMethod === "gcash" && "GCash Payment"}
@@ -716,6 +862,135 @@ export default function CheckoutModal({
                 </View>
               )}
 
+              {/* Split Payment Form */}
+              {paymentMethod === "split" && (
+                <View>
+                  <Text
+                    className={`font-bold mb-4 ${headingSize}`}
+                    style={{ color: textColor }}
+                  >
+                    Split Payment
+                  </Text>
+
+                  <View
+                    className="flex-row justify-between items-center mb-4 rounded-lg px-4 py-3"
+                    style={{ backgroundColor: `${primaryColor}10` }}
+                  >
+                    <Text className="text-sm font-semibold" style={{ color: textColor }}>
+                      Remaining
+                    </Text>
+                    <Text
+                      className={`font-bold ${headingSize}`}
+                      style={{ color: isSplitBalanced ? "#16a34a" : "#dc2626" }}
+                    >
+                      ₱{splitRemaining.toFixed(2)}
+                    </Text>
+                  </View>
+
+                  {splitRows.map((row, index) => (
+                    <View
+                      key={row.id}
+                      className="border-2 border-gray-200 rounded-lg p-3 mb-3"
+                    >
+                      <View className="flex-row justify-between items-center mb-2">
+                        <Text className="text-xs font-semibold text-gray-500">
+                          Payment {index + 1}
+                        </Text>
+                        {splitRows.length > 2 && (
+                          <TouchableOpacity
+                            onPress={() => removeSplitRow(row.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="remove-circle" size={18} color="#ef4444" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <View className="flex-row flex-wrap mb-3">
+                        {availableSplitMethods.map((m) => {
+                          const isActive = row.method === m;
+                          return (
+                            <TouchableOpacity
+                              key={m}
+                              className="mr-2 mb-2 px-3 py-1.5 rounded-full border"
+                              style={{
+                                backgroundColor: isActive ? primaryColor : "#f3f4f6",
+                                borderColor: isActive ? primaryColor : "#e5e7eb",
+                              }}
+                              onPress={() => updateSplitRow(row.id, { method: m })}
+                            >
+                              <Text
+                                className="text-sm font-semibold"
+                                style={{ color: isActive ? "#000000" : textColor }}
+                              >
+                                {SPLIT_METHOD_LABELS[m]}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      <Text className="text-xs font-semibold text-gray-600 mb-1">
+                        Amount
+                      </Text>
+                      <TextInput
+                        className="bg-gray-100 rounded-lg px-4 py-3 border-2 border-gray-200 text-base mb-2"
+                        placeholder="0.00"
+                        value={row.amount}
+                        onChangeText={(text) => updateSplitRow(row.id, { amount: text })}
+                        keyboardType="decimal-pad"
+                      />
+
+                      {row.method === "cash" ? (
+                        <>
+                          <Text className="text-xs font-semibold text-gray-600 mb-1">
+                            Cash Received
+                          </Text>
+                          <TextInput
+                            className="bg-gray-100 rounded-lg px-4 py-3 border-2 border-gray-200 text-base"
+                            placeholder="0.00"
+                            value={row.cashReceived}
+                            onChangeText={(text) => updateSplitRow(row.id, { cashReceived: text })}
+                            keyboardType="decimal-pad"
+                          />
+                          {row.cashReceived && row.amount && !isNaN(parseFloat(row.cashReceived)) && !isNaN(parseFloat(row.amount)) && (
+                            <Text className="text-xs text-gray-500 mt-1">
+                              Change: ₱{Math.max(0, parseFloat(row.cashReceived) - parseFloat(row.amount)).toFixed(2)}
+                            </Text>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Text className="text-xs font-semibold text-gray-600 mb-1">
+                            Reference / Order Number
+                          </Text>
+                          <TextInput
+                            className="bg-gray-100 rounded-lg px-4 py-3 border-2 border-gray-200 text-base"
+                            placeholder={`Enter ${SPLIT_METHOD_LABELS[row.method]} reference number`}
+                            value={row.referenceNumber}
+                            onChangeText={(text) => updateSplitRow(row.id, { referenceNumber: text })}
+                            autoCapitalize="characters"
+                          />
+                        </>
+                      )}
+                    </View>
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={addSplitRow}
+                    className="flex-row items-center py-2 mb-2"
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color={textColor} />
+                    <Text
+                      className="ml-1 text-sm font-medium"
+                      style={{ color: textColor }}
+                    >
+                      Add another payment method
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Remarks/Notes Field - Optional for all payment methods */}
               {paymentMethod && (
                 <View className="mb-4">
@@ -753,12 +1028,13 @@ export default function CheckoutModal({
                 <TouchableOpacity
                   className="rounded-lg py-4 items-center"
                   style={{
-                    backgroundColor: isLoading
-                      ? `${primaryColor}80`
-                      : primaryColor,
+                    backgroundColor:
+                      isLoading || (paymentMethod === "split" && !isSplitBalanced)
+                        ? `${primaryColor}80`
+                        : primaryColor,
                   }}
                   onPress={validateAndSubmit}
-                  disabled={isLoading}
+                  disabled={isLoading || (paymentMethod === "split" && !isSplitBalanced)}
                 >
                   <Text
                     className={`font-bold ${headingSize}`}
