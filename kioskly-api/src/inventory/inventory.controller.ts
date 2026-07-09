@@ -22,6 +22,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
+import { CreateStoreInventoryItemDto } from './dto/create-store-inventory-item.dto';
 import { UpdateStoreConfigDto } from './dto/update-store-config.dto';
 import {
   CreateInventoryRecordDto,
@@ -30,7 +31,7 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { TenantId, BrandId } from '../common/decorators/tenant.decorator';
+import { TenantId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('inventory')
 @Controller('inventory')
@@ -39,81 +40,79 @@ import { TenantId, BrandId } from '../common/decorators/tenant.decorator';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-  // ─── Brand-level inventory templates (COMPANY_ADMIN) ─────────────────────
+  // ─── Admin/builder CRUD — items directly owned by an InventorySetup ───────
 
-  @Post('brand-templates')
+  @Post('setup-items')
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
-  @ApiOperation({ summary: 'Create brand inventory template (fans out to all stores)' })
-  @ApiQuery({ name: 'brandId', required: true })
-  createBrandTemplate(
-    @Body() createDto: CreateInventoryItemDto,
-    @Query('brandId') brandId: string,
-  ) {
-    if (!brandId) throw new BadRequestException('brandId query param is required');
-    return this.inventoryService.createBrandTemplate(createDto, brandId);
+  @ApiOperation({ summary: 'Create an inventory item on an inventory setup' })
+  @ApiQuery({ name: 'inventorySetupId', required: true })
+  createSetupItem(@Body() createDto: CreateInventoryItemDto, @Query('inventorySetupId') inventorySetupId: string) {
+    if (!inventorySetupId) throw new BadRequestException('inventorySetupId query param is required');
+    return this.inventoryService.createSetupItem(createDto, inventorySetupId);
   }
 
-  @Patch('brand-templates/:id')
+  @Patch('setup-items/:id')
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
-  @ApiOperation({ summary: 'Update a brand inventory template' })
-  updateBrandTemplate(
+  @ApiOperation({ summary: 'Update an inventory item on an inventory setup' })
+  @ApiQuery({ name: 'inventorySetupId', required: true })
+  updateSetupItem(
     @Param('id') id: string,
     @Body() updateDto: UpdateInventoryItemDto,
+    @Query('inventorySetupId') inventorySetupId: string,
   ) {
-    return this.inventoryService.updateBrandTemplate(id, updateDto);
+    return this.inventoryService.updateSetupItem(id, updateDto, inventorySetupId);
   }
 
-  @Delete('brand-templates/:id')
+  @Delete('setup-items/:id')
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
-  @ApiOperation({ summary: 'Delete a brand inventory template (removes all store copies)' })
-  removeBrandTemplate(@Param('id') id: string) {
-    return this.inventoryService.removeBrandTemplate(id);
+  @ApiOperation({ summary: 'Delete an inventory item from its setup (preserved for history, not hard-deleted)' })
+  @ApiQuery({ name: 'inventorySetupId', required: true })
+  removeSetupItem(@Param('id') id: string, @Query('inventorySetupId') inventorySetupId: string) {
+    return this.inventoryService.removeSetupItem(id, inventorySetupId);
   }
 
-  @Get('brand-templates')
+  @Get('setup-items')
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
-  @ApiOperation({ summary: 'Get all brand inventory templates' })
-  @ApiQuery({ name: 'brandId', required: true })
-  findBrandTemplates(
-    @Query('brandId') brandId: string,
-    @Query('category') category?: string,
+  @ApiOperation({ summary: 'Get all inventory items on an inventory setup' })
+  @ApiQuery({ name: 'inventorySetupId', required: true })
+  @ApiQuery({ name: 'includeLegacy', required: false, description: 'Include deprecated/tombstoned items preserved for history' })
+  findAllForSetup(
+    @Query('inventorySetupId') inventorySetupId: string,
+    @Query('includeLegacy') includeLegacy?: string,
   ) {
-    if (!brandId) throw new BadRequestException('brandId query param is required');
-    return this.inventoryService.findBrandTemplates(brandId, category);
+    if (!inventorySetupId) throw new BadRequestException('inventorySetupId query param is required');
+    return this.inventoryService.findAllForSetup(inventorySetupId, includeLegacy === 'true');
   }
 
-  // ─── Store-level inventory items (STORE_ADMIN / CASHIER) ─────────────────
+  // ─── Store-level inventory items (STORE_ADMIN / CASHIER) ──────────────────
 
   @Post('items')
-  @ApiOperation({ summary: 'Create a store inventory item (store-level only)' })
+  @ApiOperation({ summary: "Create an ad-hoc item and add it to the store's current inventory setup" })
   @ApiResponse({ status: 201, description: 'Inventory item created successfully' })
-  createItem(
-    @Body() createDto: CreateInventoryItemDto,
-    @TenantId() tenantId: string,
-  ) {
+  createItem(@Body() createDto: CreateStoreInventoryItemDto, @TenantId() tenantId: string) {
     return this.inventoryService.createItem(createDto, tenantId);
   }
 
   @Get('items')
-  @ApiOperation({ summary: 'Get all inventory items' })
-  @ApiQuery({ name: 'category', required: false, description: 'Filter by category' })
+  @ApiOperation({ summary: "Get the store's inventory items — active (in the current setup) and legacy (has recorded history but not in the current setup)" })
+  @ApiQuery({ name: 'categoryId', required: false, description: 'Filter active items by category' })
   @ApiResponse({
     status: 200,
     description: 'Inventory items retrieved successfully',
   })
   findAllItems(
-    @Query('category') category?: string,
+    @Query('categoryId') categoryId?: string,
     @TenantId() tenantId?: string,
   ) {
-    return this.inventoryService.findAllItems(tenantId!, category);
+    return this.inventoryService.findAllItems(tenantId!, categoryId);
   }
 
   @Get('items/:id')
-  @ApiOperation({ summary: 'Get a single inventory item by ID' })
+  @ApiOperation({ summary: 'Get a single inventory item by ID (active or legacy)' })
   @ApiResponse({
     status: 200,
     description: 'Inventory item retrieved successfully',
@@ -134,7 +133,7 @@ export class InventoryController {
   }
 
   @Patch('items/:id')
-  @ApiOperation({ summary: 'Update an inventory item' })
+  @ApiOperation({ summary: "Update an item's category/thresholds on this store's active setup" })
   @ApiResponse({
     status: 200,
     description: 'Inventory item updated successfully',
@@ -142,17 +141,17 @@ export class InventoryController {
   @ApiResponse({ status: 404, description: 'Inventory item not found' })
   updateItem(
     @Param('id') id: string,
-    @Body() updateDto: UpdateInventoryItemDto,
+    @Body() updateDto: { categoryId?: string; minStockLevel?: number; requiresExpirationDate?: boolean; expirationWarningDays?: number },
     @TenantId() tenantId: string,
   ) {
     return this.inventoryService.updateItem(id, tenantId, updateDto);
   }
 
   @Delete('items/:id')
-  @ApiOperation({ summary: 'Delete an inventory item' })
+  @ApiOperation({ summary: "Remove an item from this store's active setup (preserved for history, not hard-deleted)" })
   @ApiResponse({
     status: 200,
-    description: 'Inventory item deleted successfully',
+    description: 'Inventory item removed successfully',
   })
   @ApiResponse({ status: 404, description: 'Inventory item not found' })
   removeItem(@Param('id') id: string, @TenantId() tenantId: string) {

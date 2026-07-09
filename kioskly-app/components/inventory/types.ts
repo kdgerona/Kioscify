@@ -1,5 +1,3 @@
-import { InventoryCategory } from "@/services/inventoryService";
-
 export interface ExpirationBatchInput {
   id: string;
   quantity: string;
@@ -9,7 +7,9 @@ export interface ExpirationBatchInput {
 export interface InventoryInput {
   id: string;
   name: string;
-  category: InventoryCategory;
+  // Category is a plain name string here (flattened server-side from the
+  // structured Category relation) — see LatestInventoryItem.category.
+  category: string;
   unit: string;
   minStockLevel?: number;
   quantity: string;

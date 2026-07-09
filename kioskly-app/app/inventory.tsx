@@ -17,7 +17,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   getLatestInventory,
   LatestInventoryItem,
-  InventoryCategory,
 } from "@/services/inventoryService";
 import {
   submitInventoryReport,
@@ -124,13 +123,13 @@ export default function InventoryScreen() {
           return {
             id: item.id,
             name: item.name,
-            category: item.category,
+            category: item.category ?? "Uncategorized",
             unit: item.unit,
-            minStockLevel: item.minStockLevel,
+            minStockLevel: item.minStockLevel ?? undefined,
             quantity: item.latestQuantity?.toString() || "",
             previousQuantity: item.previousQuantity,
             requiresExpirationDate: item.requiresExpirationDate,
-            expirationWarningDays: item.expirationWarningDays,
+            expirationWarningDays: item.expirationWarningDays ?? undefined,
             batches,
           };
         }),
@@ -323,13 +322,13 @@ export default function InventoryScreen() {
           acc[item.category].push(item);
           return acc;
         },
-        {} as Record<InventoryCategory, InventoryInput[]>,
+        {} as Record<string, InventoryInput[]>,
       ),
     [inventoryInputs],
   );
 
   const categories = useMemo(
-    () => Object.keys(groupedItems) as InventoryCategory[],
+    () => Object.keys(groupedItems).sort(),
     [groupedItems],
   );
 

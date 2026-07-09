@@ -1,28 +1,12 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  UseGuards,
-  Query,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { BrandId, TenantId } from '../common/decorators/tenant.decorator';
+import { TenantId } from '../common/decorators/tenant.decorator';
 
 @ApiTags('categories')
 @Controller('categories')
@@ -34,65 +18,45 @@ export class CategoriesController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
-  @ApiOperation({ summary: 'Create a category (brand-scoped, COMPANY_ADMIN only)' })
+  @ApiOperation({ summary: 'Create a category, scoped to a Menu (PRODUCT) or InventorySetup (INVENTORY)' })
   @ApiResponse({ status: 201, description: 'Category created' })
-  @ApiQuery({ name: 'brandId', required: false })
-  create(
-    @Body() dto: CreateCategoryDto,
-    @Query('brandId') queryBrandId: string,
-    @BrandId() jwtBrandId: string,
-  ) {
-    return this.categoriesService.create(dto, queryBrandId || jwtBrandId);
+  create(@Body() dto: CreateCategoryDto) {
+    return this.categoriesService.create(dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all categories for the brand' })
-  @ApiQuery({ name: 'brandId', required: false })
+  @ApiOperation({ summary: 'Get categories — explicit menuId/inventorySetupId (admin/builder), or resolved from the requesting store (mobile/store portal)' })
+  @ApiQuery({ name: 'menuId', required: false })
+  @ApiQuery({ name: 'inventorySetupId', required: false })
   @ApiQuery({ name: 'type', required: false, enum: ['PRODUCT', 'INVENTORY'] })
   findAll(
-    @Query('brandId') queryBrandId: string,
-    @BrandId() jwtBrandId: string,
+    @Query('menuId') menuId: string,
+    @Query('inventorySetupId') inventorySetupId: string,
+    @Query('type') type: 'PRODUCT' | 'INVENTORY' | undefined,
     @TenantId() tenantId: string,
-    @Query('type') type?: 'PRODUCT' | 'INVENTORY',
   ) {
-    return this.categoriesService.findAll(queryBrandId || jwtBrandId, type);
+    return this.categoriesService.findAll({ menuId, inventorySetupId, type, tenantId });
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a category by ID' })
-  @ApiQuery({ name: 'brandId', required: false })
-  findOne(
-    @Param('id') id: string,
-    @Query('brandId') queryBrandId: string,
-    @BrandId() jwtBrandId: string,
-  ) {
-    return this.categoriesService.findOne(id, queryBrandId || jwtBrandId);
+  findOne(@Param('id') id: string) {
+    return this.categoriesService.findOne(id);
   }
 
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'Update a category (COMPANY_ADMIN only)' })
-  @ApiQuery({ name: 'brandId', required: false })
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateCategoryDto,
-    @Query('brandId') queryBrandId: string,
-    @BrandId() jwtBrandId: string,
-  ) {
-    return this.categoriesService.update(id, dto, queryBrandId || jwtBrandId);
+  update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+    return this.categoriesService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
   @ApiOperation({ summary: 'Delete a category (COMPANY_ADMIN only)' })
-  @ApiQuery({ name: 'brandId', required: false })
-  remove(
-    @Param('id') id: string,
-    @Query('brandId') queryBrandId: string,
-    @BrandId() jwtBrandId: string,
-  ) {
-    return this.categoriesService.remove(id, queryBrandId || jwtBrandId);
+  remove(@Param('id') id: string) {
+    return this.categoriesService.remove(id);
   }
 }

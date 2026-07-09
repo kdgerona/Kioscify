@@ -15,7 +15,9 @@ import type { SyncQueueItem } from "../services/syncEngine";
 const KEYS = {
   products: "@kioscify:cache:products",
   categories: "@kioscify:cache:categories",
+  inventoryCategories: "@kioscify:cache:inventory_categories",
   inventoryItems: "@kioscify:cache:inventory_items",
+  inventoryItemsLegacy: "@kioscify:cache:inventory_items_legacy",
   latestInventory: "@kioscify:cache:latest_inventory",
   transactions: "@kioscify:cache:transactions",
   expenses: "@kioscify:cache:expenses",
@@ -46,10 +48,22 @@ export const getCachedProducts = () => readCache<any>(KEYS.products);
 export const cacheCategories = (data: unknown[]) => saveCache(KEYS.categories, data);
 export const getCachedCategories = () => readCache<any>(KEYS.categories);
 
+// ─── Inventory categories (dynamic, replaces the old hardcoded enum) ──────────
+
+export const cacheInventoryCategories = (data: unknown[]) => saveCache(KEYS.inventoryCategories, data);
+export const getCachedInventoryCategories = () => readCache<any>(KEYS.inventoryCategories);
+
 // ─── Inventory items ─────────────────────────────────────────────────────────
+// active: items in the store's current InventorySetup.
+// legacy: items the store has recorded history for but that are no longer in
+// the current setup (reassignment-preservation guarantee) — cached separately
+// since they're a distinct bucket in the /inventory/items response.
 
 export const cacheInventoryItems = (data: unknown[]) => saveCache(KEYS.inventoryItems, data);
 export const getCachedInventoryItems = () => readCache<any>(KEYS.inventoryItems);
+
+export const cacheLegacyInventoryItems = (data: unknown[]) => saveCache(KEYS.inventoryItemsLegacy, data);
+export const getCachedLegacyInventoryItems = () => readCache<any>(KEYS.inventoryItemsLegacy);
 
 // ─── Latest inventory (mobile inventory screen) ───────────────────────────────
 

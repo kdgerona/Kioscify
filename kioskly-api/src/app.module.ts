@@ -37,6 +37,8 @@ import { StorageModule } from './storage/storage.module';
 import { PriceTiersModule } from './price-tiers/price-tiers.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { MenusModule } from './menus/menus.module';
+import { InventorySetupsModule } from './inventory-setups/inventory-setups.module';
 
 @Module({
   imports: [
@@ -109,6 +111,8 @@ import { SessionsModule } from './sessions/sessions.module';
 
     // Price tiers (brand-scoped)
     PriceTiersModule,
+    MenusModule,
+    InventorySetupsModule,
 
     // App releases (APK auto-update)
     AppReleasesModule,

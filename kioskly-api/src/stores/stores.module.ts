@@ -3,10 +3,9 @@ import { MulterModule } from '@nestjs/platform-express';
 import { StoresService } from './stores.service';
 import { StoresController } from './stores.controller';
 import { AuthModule } from '../auth/auth.module';
-import { BrandsModule } from '../brands/brands.module';
 
 @Module({
-  imports: [MulterModule.register(), AuthModule, BrandsModule],
+  imports: [MulterModule.register(), AuthModule],
   controllers: [StoresController],
   providers: [StoresService],
   exports: [StoresService],

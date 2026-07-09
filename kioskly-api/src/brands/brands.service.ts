@@ -131,36 +131,6 @@ export class BrandsService {
     return this.prisma.brand.update({ where: { id }, data: { logoUrl } });
   }
 
-  // Called when a new store is created under a brand — copy all brand inventory templates to the store
-  async fanOutInventoryToStore(brandId: string, storeId: string) {
-    const templates = await this.prisma.inventoryItem.findMany({
-      where: { brandId, isTemplate: true, tombstone: { not: 1 } },
-    });
-
-    for (const template of templates) {
-      const alreadyExists = await this.prisma.inventoryItem.findFirst({
-        where: { tenantId: storeId, brandId, name: template.name, tombstone: { not: 1 } },
-      });
-      if (alreadyExists) continue;
-
-      await this.prisma.inventoryItem.create({
-        data: {
-          tenantId: storeId,
-          brandId,
-          templateId: template.id,
-          isTemplate: false,
-          name: template.name,
-          category: template.category,
-          unit: template.unit,
-          description: template.description,
-          minStockLevel: template.minStockLevel,
-          requiresExpirationDate: template.requiresExpirationDate,
-          expirationWarningDays: template.expirationWarningDays,
-        },
-      });
-    }
-  }
-
   private async assertOwnership(id: string, companyId: string | undefined) {
     const where: any = { id, tombstone: { not: 1 } };
     if (companyId) where.companyId = companyId;

@@ -36,6 +36,8 @@ export interface Tenant {
   updatedAt: string;
   brand?: Brand;
   company?: Company;
+  menu?: { id: string; name: string } | null;
+  inventorySetup?: { id: string; name: string } | null;
 }
 
 export interface StoreRef {
@@ -270,19 +272,21 @@ export interface ApiError {
 // Inventory types
 export interface InventoryItem {
   id: string;
-  tenantId: string;
-  templateId?: string;
   name: string;
-  category: string;
   unit: string;
-  description?: string;
-  minStockLevel?: number;
-  minStockLevelCustomized?: boolean;
+  description?: string | null;
+  category: { id: string; name: string } | null;
+  minStockLevel?: number | null;
+  minStockLevelOverridden: boolean;
   requiresExpirationDate?: boolean;
-  expirationWarningDays?: number;
-  expirationWarningDaysCustomized?: boolean;
-  createdAt: string;
-  updatedAt: string;
+  expirationWarningDays?: number | null;
+  expirationWarningDaysOverridden: boolean;
+  isLegacy: boolean;
+}
+
+export interface InventoryItemsResponse {
+  active: InventoryItem[];
+  legacy: InventoryItem[];
 }
 
 export interface ExpirationBatch {
@@ -300,14 +304,24 @@ export interface InventoryRecord {
   notes?: string;
   createdAt: string;
   updatedAt: string;
-  inventoryItem?: InventoryItem;
+  inventoryItem?: { id: string; name: string; unit: string };
   user?: User;
 }
 
-export interface LatestInventoryItem extends InventoryItem {
-  latestQuantity?: number;
-  latestRecordDate?: string;
-  previousQuantity?: number;
+export interface LatestInventoryItem {
+  id: string;
+  name: string;
+  category: string | null;
+  unit: string;
+  description?: string | null;
+  minStockLevel?: number | null;
+  requiresExpirationDate?: boolean;
+  expirationWarningDays?: number | null;
+  isLegacy: boolean;
+  latestQuantity?: number | null;
+  latestRecordDate?: string | null;
+  previousQuantity?: number | null;
+  expirationBatches?: ExpirationBatch[];
 }
 
 export interface InventoryStats {

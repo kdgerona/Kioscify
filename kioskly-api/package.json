@@ -28,7 +28,10 @@
     "migrate:price-tiers": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-price-tiers.ts",
     "migrate:inventory-templates": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-inventory-template-ids.ts",
     "migrate:user-tombstone": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-user-tombstone.ts",
-    "migrate:transaction-payments-backfill": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-transaction-payments.ts"
+    "migrate:transaction-payments-backfill": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-transaction-payments.ts",
+    "migrate:catalog-to-menus": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-catalog-to-menus.ts",
+    "migrate:inventory-to-setups": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-inventory-to-setups.ts",
+    "migrate:inventory-record-item-ids": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-inventory-record-item-ids.ts"
   },
   "dependencies": {
     "@keyv/redis": "5.1.6",

@@ -45,9 +45,11 @@ export default function InventoryPage() {
     []
   );
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [legacyItems, setLegacyItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "items">("overview");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [batchesMap, setBatchesMap] = useState<Map<string, ExpirationBatch[]>>(new Map());
   const [editingThresholdId, setEditingThresholdId] = useState<string | null>(null);
@@ -71,6 +73,12 @@ export default function InventoryPage() {
   useEffect(() => {
     loadAllData();
   }, []);
+
+  // Re-fetch items when the Items-tab category filter changes
+  useEffect(() => {
+    if (!loading) loadInventoryItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategoryId]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -139,8 +147,9 @@ export default function InventoryPage() {
 
   const loadInventoryItems = async () => {
     try {
-      const data = await api.getInventoryItems(selectedCategory || undefined);
-      setInventoryItems(data);
+      const data = await api.getInventoryItems(selectedCategoryId || undefined);
+      setInventoryItems(data.active);
+      setLegacyItems(data.legacy);
     } catch (error) {
       console.error("Failed to load inventory items:", error);
     }
@@ -163,10 +172,17 @@ export default function InventoryPage() {
     }
   };
 
-  // Get unique categories from inventory items
+  // Category names for the Overview tab filter (derived from the flat
+  // latestInventory list, which flattens category to its name string)
   const categories = Array.from(
-    new Set(inventoryItems.map((item) => item.category).filter(Boolean))
-  ).sort() as string[];
+    new Set(latestInventory.map((item) => item.category).filter((c): c is string => !!c))
+  ).sort();
+
+  // Category id/name pairs for the Items tab filter (active items carry the
+  // structured {id, name} category)
+  const itemCategories = Array.from(
+    new Map(inventoryItems.filter((i) => i.category).map((i) => [i.category!.id, i.category!.name])).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]));
 
   // Filter items based on search and category
   const filteredItems = latestInventory.filter((item) => {
@@ -600,102 +616,158 @@ export default function InventoryPage() {
 
       {/* Items Tab */}
       {activeTab === "items" && (
-        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
-          <div className="mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Inventory Items</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Items are defined by your brand. Adjust the alert thresholds for your store below.
-              Values marked with <span className="text-indigo-500 font-medium">*</span> are store-level overrides and will not be changed when your brand updates the defaults.
-            </p>
-          </div>
-
-          {inventoryItems.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-sm sm:text-base text-gray-600">No inventory items configured for your store yet.</p>
-              <p className="text-xs text-gray-400 mt-1">Contact your brand manager to set up inventory items.</p>
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
+            <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Inventory Items</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Items are defined by your brand&apos;s inventory setup. Adjust the alert thresholds for your store below.
+                  Values marked with <span className="text-indigo-500 font-medium">*</span> are store-level overrides and will not be changed when your brand updates the shared setup.
+                </p>
+              </div>
+              {itemCategories.length > 0 && (
+                <div className="w-full sm:w-48 flex-shrink-0">
+                  <Select
+                    value={selectedCategoryId || "ALL"}
+                    onValueChange={(v) => setSelectedCategoryId(v === "ALL" ? "" : v)}
+                  >
+                    <SelectTrigger style={{ color: textColor }}>
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Categories</SelectItem>
+                      {itemCategories.map(([id, name]) => (
+                        <SelectItem key={id} value={id}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <div className="min-w-full inline-block align-middle px-4 sm:px-0">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Item</th>
-                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Category</th>
-                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Unit</th>
-                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Min Stock</th>
-                      <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Expiry Warning (days)</th>
-                      {canWrite && <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inventoryItems.map((item) => (
-                      <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-2 sm:px-4">
-                          <div className="font-medium text-gray-900 text-xs sm:text-sm">{item.name}</div>
-                          {item.description && <div className="text-xs text-gray-400">{item.description}</div>}
-                        </td>
-                        <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">{item.category || "—"}</td>
-                        <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">{item.unit}</td>
-                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                          {editingThresholdId === item.id ? (
-                            <input
-                              type="number" min={0} step={1}
-                              value={thresholdValues.minStockLevel ?? ''}
-                              onChange={(e) => setThresholdValues({ ...thresholdValues, minStockLevel: e.target.value === '' ? undefined : parseInt(e.target.value) })}
-                              className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
-                            />
-                          ) : (
-                            <span className="text-gray-600">
-                              {item.minStockLevel ?? "—"}
-                              {item.minStockLevelCustomized && (
-                                <span className="ml-1 text-xs text-indigo-500" title="Store override">*</span>
-                              )}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm">
-                          {editingThresholdId === item.id ? (
-                            item.requiresExpirationDate ? (
+
+            {inventoryItems.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-sm sm:text-base text-gray-600">No inventory items configured for your store yet.</p>
+                <p className="text-xs text-gray-400 mt-1">Contact your brand manager to set up inventory items.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="min-w-full inline-block align-middle px-4 sm:px-0">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Item</th>
+                        <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Category</th>
+                        <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Unit</th>
+                        <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Min Stock</th>
+                        <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Expiry Warning (days)</th>
+                        {canWrite && <th className="text-right py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Actions</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inventoryItems.map((item) => (
+                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-2 sm:px-4">
+                            <div className="font-medium text-gray-900 text-xs sm:text-sm">{item.name}</div>
+                            {item.description && <div className="text-xs text-gray-400">{item.description}</div>}
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">{item.category?.name || "—"}</td>
+                          <td className="py-3 px-2 sm:px-4 text-gray-600 text-xs sm:text-sm">{item.unit}</td>
+                          <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm">
+                            {editingThresholdId === item.id ? (
                               <input
-                                type="number" min={1}
-                                value={thresholdValues.expirationWarningDays ?? ''}
-                                onChange={(e) => setThresholdValues({ ...thresholdValues, expirationWarningDays: e.target.value === '' ? undefined : parseInt(e.target.value) })}
-                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
+                                type="number" min={0} step={1}
+                                value={thresholdValues.minStockLevel ?? ''}
+                                onChange={(e) => setThresholdValues({ ...thresholdValues, minStockLevel: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                                className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
                               />
                             ) : (
-                              <span className="text-gray-400">—</span>
-                            )
-                          ) : (
-                            <span className="text-gray-600">
-                              {item.requiresExpirationDate && item.expirationWarningDays != null
-                                ? <>
-                                    {item.expirationWarningDays}
-                                    {item.expirationWarningDaysCustomized && (
-                                      <span className="ml-1 text-xs text-indigo-500" title="Store override">*</span>
-                                    )}
-                                  </>
-                                : "—"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-2 sm:px-4 text-right text-xs sm:text-sm">
-                          {canWrite && (editingThresholdId === item.id ? (
-                            <div className="flex gap-2 justify-end">
-                              <button onClick={() => handleSaveThreshold(item.id)} className="text-gray-900 hover:text-gray-600 font-medium">Save</button>
-                              <button onClick={() => setEditingThresholdId(null)} className="text-gray-500 hover:text-gray-700">Cancel</button>
-                            </div>
-                          ) : (
-                            <button onClick={() => handleEditThreshold(item)} className="text-gray-500 hover:text-gray-700">
-                              Edit thresholds
-                            </button>
-                          ))}
-                        </td>
+                              <span className="text-gray-600">
+                                {item.minStockLevel ?? "—"}
+                                {item.minStockLevelOverridden && (
+                                  <span className="ml-1 text-xs text-indigo-500" title="Store override">*</span>
+                                )}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm">
+                            {editingThresholdId === item.id ? (
+                              item.requiresExpirationDate ? (
+                                <input
+                                  type="number" min={1}
+                                  value={thresholdValues.expirationWarningDays ?? ''}
+                                  onChange={(e) => setThresholdValues({ ...thresholdValues, expirationWarningDays: e.target.value === '' ? undefined : parseInt(e.target.value) })}
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900"
+                                />
+                              ) : (
+                                <span className="text-gray-400">—</span>
+                              )
+                            ) : (
+                              <span className="text-gray-600">
+                                {item.requiresExpirationDate && item.expirationWarningDays != null
+                                  ? <>
+                                      {item.expirationWarningDays}
+                                      {item.expirationWarningDaysOverridden && (
+                                        <span className="ml-1 text-xs text-indigo-500" title="Store override">*</span>
+                                      )}
+                                    </>
+                                  : "—"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-right text-xs sm:text-sm">
+                            {canWrite && (editingThresholdId === item.id ? (
+                              <div className="flex gap-2 justify-end">
+                                <button onClick={() => handleSaveThreshold(item.id)} className="text-gray-900 hover:text-gray-600 font-medium">Save</button>
+                                <button onClick={() => setEditingThresholdId(null)} className="text-gray-500 hover:text-gray-700">Cancel</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => handleEditThreshold(item)} className="text-gray-500 hover:text-gray-700">
+                                Edit thresholds
+                              </button>
+                            ))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {legacyItems.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Legacy Items</h2>
+              <p className="text-sm text-gray-500 mt-1 mb-4 sm:mb-6">
+                Items no longer part of your store&apos;s current inventory setup, but preserved because your store has recorded stock for them.
+                They&apos;re still fully recordable, just excluded from low-stock alerts and the active item list above.
+              </p>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="min-w-full inline-block align-middle px-4 sm:px-0">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Item</th>
+                        <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Category</th>
+                        <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-700 text-xs sm:text-sm">Unit</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {legacyItems.map((item) => (
+                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-2 sm:px-4">
+                            <div className="font-medium text-gray-700 text-xs sm:text-sm">{item.name}</div>
+                          </td>
+                          <td className="py-3 px-2 sm:px-4 text-gray-500 text-xs sm:text-sm">{item.category?.name || "—"}</td>
+                          <td className="py-3 px-2 sm:px-4 text-gray-500 text-xs sm:text-sm">{item.unit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

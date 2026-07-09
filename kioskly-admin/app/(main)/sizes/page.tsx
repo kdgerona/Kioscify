@@ -1,8 +1,16 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function SizesRedirectPage() {
+  const [menuName, setMenuName] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getCurrentTenant().then(t => setMenuName(t.menu?.name ?? null)).catch(() => {});
+  }, []);
+
   return (
     <div className="p-6 flex items-center justify-center min-h-96">
       <div className="text-center max-w-md">
@@ -12,6 +20,9 @@ export default function SizesRedirectPage() {
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Sizes Managed at Brand Level</h2>
         <p className="text-gray-600 text-sm">
           Sizes are now managed in the Company &amp; Brand Portal by your brand manager.
+        </p>
+        <p className="mt-4 text-sm text-gray-700">
+          Current menu: <span className="font-medium">{menuName ?? 'Not assigned yet'}</span>
         </p>
       </div>
     </div>

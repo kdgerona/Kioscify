@@ -42,6 +42,25 @@ export class ReportsService {
   }
 
   /**
+   * Resolve every distinct product referenced in `transactions` to its
+   * current category name in one query. A product that's since been deleted
+   * (or whose category was) simply has no entry, and callers fall back to
+   * "Uncategorized".
+   */
+  private async buildCategoryNameLookup(
+    transactions: { items: { productId: string }[] }[],
+  ): Promise<Map<string, string>> {
+    const productIds = [...new Set(transactions.flatMap((t) => t.items.map((i) => i.productId)))];
+    if (productIds.length === 0) return new Map();
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      include: { category: true },
+    });
+    return new Map(products.map((p) => [p.id, p.category?.name ?? 'Uncategorized']));
+  }
+
+  /**
    * Calculate date range based on period type
    */
   private calculateDateRange(
@@ -341,11 +360,7 @@ export class ReportsService {
       include: {
         items: {
           include: {
-            product: {
-              include: {
-                category: true,
-              },
-            },
+            product: true,
             size: true,
           },
         },
@@ -354,6 +369,11 @@ export class ReportsService {
         timestamp: 'asc',
       },
     });
+
+    // Live re-resolve, not a frozen snapshot — same behavior this codebase
+    // already accepts for product name/price in reports. A product whose
+    // category was since deleted degrades to "Uncategorized" rather than throwing.
+    const categoryNameByProductId = await this.buildCategoryNameLookup(transactions);
 
     // Fetch expenses for the period (excluding approved void expenses)
     const expenses = await this.prisma.expense.findMany({
@@ -398,7 +418,7 @@ export class ReportsService {
             acc[productId] = {
               productId,
               productName: item.product.name,
-              categoryName: item.product.category?.name,
+              categoryName: categoryNameByProductId.get(productId) ?? 'Uncategorized',
               quantity: 0,
               revenue: 0,
             };

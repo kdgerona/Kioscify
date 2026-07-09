@@ -7,6 +7,7 @@ import {
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PriceTiersService } from '../price-tiers/price-tiers.service';
+import { MenusService } from '../menus/menus.service';
 import { CreateSizeDto } from './dto/create-size.dto';
 import { UpdateSizeDto } from './dto/update-size.dto';
 import { Prisma } from '@prisma/client';
@@ -26,9 +27,10 @@ export class SizesService {
   constructor(
     private prisma: PrismaService,
     private priceTiersService: PriceTiersService,
+    private menusService: MenusService,
   ) {}
 
-  async create(createSizeDto: CreateSizeDto, brandId: string) {
+  async create(createSizeDto: CreateSizeDto, menuId: string) {
     const {
       id: providedId,
       name,
@@ -46,6 +48,9 @@ export class SizesService {
         throw new ConflictException('Size with this ID already exists');
     }
 
+    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { brandId: true } });
+    if (!menu) throw new BadRequestException(`Menu ${menuId} not found`);
+
     const size = await this.prisma.size.create({
       data: {
         id,
@@ -54,21 +59,22 @@ export class SizesService {
         foodpandaPrice,
         grabPrice,
         volume,
-        brandId,
+        menuId,
+        brandId: menu.brandId, // denormalized, matches PriceTier's brand scope
       },
       include: SIZE_INCLUDE,
     });
 
     if (priceTiers && priceTiers.length > 0) {
-      // Validate all submitted tierIds belong to this brand
+      // Validate all submitted tierIds belong to this menu
       const validTierIds = await this.prisma.priceTier.findMany({
-        where: { brandId, id: { in: priceTiers.map((p) => p.tierId) } },
+        where: { menuId, id: { in: priceTiers.map((p) => p.tierId) } },
         select: { id: true },
       });
       const validSet = new Set(validTierIds.map((t) => t.id));
       const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
       if (invalid.length > 0) {
-        throw new BadRequestException(`Invalid tier IDs for this brand`);
+        throw new BadRequestException(`Invalid tier IDs for this menu`);
       }
 
       await this.prisma.$transaction(async (tx) => {
@@ -103,41 +109,49 @@ export class SizesService {
     return this.formatSize(size);
   }
 
-  async findAll(brandId: string, tenantId?: string) {
+  /**
+   * `menuId` (explicit, admin/builder context) takes priority; otherwise
+   * resolved from the requesting store's current menu via `tenantId`
+   * (mobile/store-portal read context). Returns [] rather than throwing when
+   * scope can't be resolved — an unassigned store must see an empty list.
+   */
+  async findAll(params: { menuId?: string; tenantId?: string }) {
+    const menuId =
+      params.menuId ?? (params.tenantId ? await this.menusService.resolveStoreMenuId(params.tenantId) : null);
+    if (!menuId) return [];
+
     const sizes = await this.prisma.size.findMany({
-      where: { brandId, tombstone: { not: 1 } },
+      where: { menuId, tombstone: { not: 1 } },
       include: SIZE_INCLUDE,
       orderBy: { sequenceNo: 'asc' },
     });
 
-    if (tenantId) {
-      const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, brandId);
-      return sizes.map((s) => this.formatSize(s, { tenantId, tierId }));
+    if (params.tenantId) {
+      const tierId = await this.resolveTierIdForTenant(params.tenantId);
+      return sizes.map((s) => this.formatSize(s, { tenantId: params.tenantId!, tierId }));
     }
 
     return sizes.map((s) => this.formatSize(s));
   }
 
-  async findOne(id: string, brandId?: string, tenantId?: string) {
+  async findOne(id: string, tenantId?: string) {
     const size = await this.prisma.size.findFirst({
-      where: { id, ...(brandId ? { brandId } : {}), tombstone: { not: 1 } },
+      where: { id, tombstone: { not: 1 } },
       include: SIZE_INCLUDE,
     });
     if (!size) throw new NotFoundException(`Size with ID ${id} not found`);
 
     if (tenantId) {
-      const effectiveBrandId = brandId ?? size.brandId ?? undefined;
-      if (effectiveBrandId) {
-        const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, effectiveBrandId);
-        return this.formatSize(size, { tenantId, tierId });
-      }
+      const tierId = await this.resolveTierIdForTenant(tenantId);
+      return this.formatSize(size, { tenantId, tierId });
     }
 
     return this.formatSize(size);
   }
 
-  async update(id: string, updateSizeDto: UpdateSizeDto, brandId?: string) {
-    await this.findOne(id, brandId);
+  async update(id: string, updateSizeDto: UpdateSizeDto) {
+    const existing = await this.prisma.size.findFirst({ where: { id, tombstone: { not: 1 } } });
+    if (!existing) throw new NotFoundException(`Size with ID ${id} not found`);
 
     const { priceTiers, ...sizeData } = updateSizeDto;
 
@@ -150,16 +164,16 @@ export class SizesService {
     // Replace-all tier prices when priceTiers is provided
     if (priceTiers !== undefined) {
       if (priceTiers.length > 0) {
-        // Validate all submitted tierIds belong to this brand
-        const effectiveBrandId = size.brandId!;
+        // Validate all submitted tierIds belong to this size's menu
+        const effectiveMenuId = size.menuId!;
         const validTierIds = await this.prisma.priceTier.findMany({
-          where: { brandId: effectiveBrandId, id: { in: priceTiers.map((p) => p.tierId) } },
+          where: { menuId: effectiveMenuId, id: { in: priceTiers.map((p) => p.tierId) } },
           select: { id: true },
         });
         const validSet = new Set(validTierIds.map((t) => t.id));
         const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
         if (invalid.length > 0) {
-          throw new BadRequestException(`Invalid tier IDs for this brand`);
+          throw new BadRequestException(`Invalid tier IDs for this menu`);
         }
       }
 
@@ -201,9 +215,14 @@ export class SizesService {
     return this.formatSize(size);
   }
 
-  async remove(id: string, brandId?: string) {
-    await this.findOne(id, brandId);
+  async remove(id: string) {
+    const existing = await this.prisma.size.findFirst({ where: { id, tombstone: { not: 1 } } });
+    if (!existing) throw new NotFoundException(`Size with ID ${id} not found`);
     return this.prisma.size.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  private async resolveTierIdForTenant(tenantId: string): Promise<string | null> {
+    return this.priceTiersService.resolveStoreTierId(tenantId);
   }
 
   private formatSize(
@@ -231,6 +250,7 @@ export class SizesService {
       grabPrice: resolvedGrabPrice,
       volume: size.volume ?? null,
       sequenceNo: size.sequenceNo,
+      menuId: size.menuId,
       brandId: size.brandId,
       tenantId: size.tenantId,
       createdAt: size.createdAt,
