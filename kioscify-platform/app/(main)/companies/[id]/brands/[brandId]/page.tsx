@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
 import type { Brand, Store, PriceTier, Menu, InventorySetup } from '@/types';
-import { Pencil, Trash2, ChevronLeft, Upload, Save, QrCode, Truck, Copy } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, Upload, Save, QrCode, Truck, Copy, Plus, X, Power, PowerOff } from 'lucide-react';
 import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
 
@@ -38,6 +38,7 @@ export default function BrandDetailPage() {
 // component that calls it, per Next.js App Router — see wrapper above.
 function BrandDetailPageContent() {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const brandId = params.brandId as string;
   const companyId = params.id as string;
@@ -87,14 +88,8 @@ function BrandDetailPageContent() {
 
   const [menus, setMenus] = useState<Menu[]>([]);
   const [inventorySetups, setInventorySetups] = useState<InventorySetup[]>([]);
-  const [newMenuName, setNewMenuName] = useState('');
-  const [newMenuSaving, setNewMenuSaving] = useState(false);
-  const [editingMenuId, setEditingMenuId] = useState<string | null>(null);
-  const [editingMenuName, setEditingMenuName] = useState('');
-  const [newSetupName, setNewSetupName] = useState('');
-  const [newSetupSaving, setNewSetupSaving] = useState(false);
-  const [editingSetupId, setEditingSetupId] = useState<string | null>(null);
-  const [editingSetupName, setEditingSetupName] = useState('');
+  const [menuModal, setMenuModal] = useState<{ mode: 'create' | 'edit'; item?: Menu } | null>(null);
+  const [setupModal, setSetupModal] = useState<{ mode: 'create' | 'edit'; item?: InventorySetup } | null>(null);
 
   // Store price-tier / menu / inventory-setup edit — pending values while the row is in edit mode, committed on row Save.
   // Price tiers are Menu-scoped, so the available tier list is refetched
@@ -272,35 +267,6 @@ function BrandDetailPageContent() {
   };
 
   // ─── Menu CRUD ──────────────────────────────────────────────────────────
-  const handleCreateMenu = async () => {
-    const name = newMenuName.trim();
-    if (!name) return;
-    setNewMenuSaving(true);
-    try {
-      const menu = await api.createMenu(brandId, { name });
-      setMenus(prev => [...prev, menu]);
-      setNewMenuName('');
-      toast.success('Menu created');
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to create menu'));
-    } finally {
-      setNewMenuSaving(false);
-    }
-  };
-
-  const handleRenameMenu = async (menuId: string) => {
-    const name = editingMenuName.trim();
-    if (!name) return;
-    try {
-      const updated = await api.updateMenu(brandId, menuId, { name });
-      setMenus(prev => prev.map(m => (m.id === menuId ? updated : m)));
-      setEditingMenuId(null);
-      toast.success('Menu renamed');
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to rename menu'));
-    }
-  };
-
   const handleToggleMenuActive = async (menu: Menu) => {
     try {
       const updated = await api.updateMenu(brandId, menu.id, { isActive: !menu.isActive });
@@ -322,35 +288,6 @@ function BrandDetailPageContent() {
   };
 
   // ─── Inventory Setup CRUD ───────────────────────────────────────────────
-  const handleCreateSetup = async () => {
-    const name = newSetupName.trim();
-    if (!name) return;
-    setNewSetupSaving(true);
-    try {
-      const setup = await api.createInventorySetup(brandId, { name });
-      setInventorySetups(prev => [...prev, setup]);
-      setNewSetupName('');
-      toast.success('Inventory setup created');
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to create inventory setup'));
-    } finally {
-      setNewSetupSaving(false);
-    }
-  };
-
-  const handleRenameSetup = async (setupId: string) => {
-    const name = editingSetupName.trim();
-    if (!name) return;
-    try {
-      const updated = await api.updateInventorySetup(brandId, setupId, { name });
-      setInventorySetups(prev => prev.map(s => (s.id === setupId ? updated : s)));
-      setEditingSetupId(null);
-      toast.success('Inventory setup renamed');
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to rename inventory setup'));
-    }
-  };
-
   const handleToggleSetupActive = async (setup: InventorySetup) => {
     try {
       const updated = await api.updateInventorySetup(brandId, setup.id, { isActive: !setup.isActive });
@@ -448,183 +385,163 @@ function BrandDetailPageContent() {
 
         {/* Menus */}
         {activeTab === 'menus' && (
-          <div className="max-w-2xl">
-            <div className="bg-white rounded-lg border">
-              <div className="px-6 py-4 border-b">
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b gap-4">
+              <div>
                 <h2 className="font-semibold text-gray-900">Menus</h2>
                 <p className="text-xs text-gray-400 mt-0.5">
                   Each menu has its own independent categories, products, sizes, add-ons, preferences, and price tiers — fully isolated from other menus. Click a menu to open its workspace. Assign a menu to a store on the Stores tab.
                 </p>
               </div>
-              <div className="divide-y">
-                {menus.length === 0 && (
-                  <div className="py-8 text-center text-gray-400 text-sm">No menus yet</div>
-                )}
-                {menus.map(menu => (
-                  <div key={menu.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
-                    {editingMenuId === menu.id ? (
-                      <input
-                        autoFocus
-                        type="text"
-                        value={editingMenuName}
-                        onChange={e => setEditingMenuName(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleRenameMenu(menu.id);
-                          if (e.key === 'Escape') setEditingMenuId(null);
-                        }}
-                        className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:border-transparent"
-                        style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-                      />
-                    ) : (
-                      <Link href={`/companies/${companyId}/brands/${brandId}/menus/${menu.id}`} className="flex-1 flex items-center gap-2 min-w-0 group">
-                        <span className="text-sm font-medium text-gray-900 truncate group-hover:underline">{menu.name}</span>
-                        {!menu.isActive && (
-                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">Inactive</span>
-                        )}
-                      </Link>
-                    )}
-                    {canWrite && (
-                      <div className="flex items-center gap-1 shrink-0">
-                        {editingMenuId === menu.id ? (
-                          <>
-                            <button onClick={() => handleRenameMenu(menu.id)} className="text-xs px-2 py-1 rounded font-medium hover:opacity-80" style={{ color: '#4f46e5' }}>Save</button>
-                            <button onClick={() => setEditingMenuId(null)} className="text-xs px-2 py-1 rounded text-gray-400 hover:text-gray-600">Cancel</button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => handleToggleMenuActive(menu)} className="text-xs px-2 py-1 rounded text-gray-500 hover:text-gray-700">
-                              {menu.isActive ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button onClick={() => { setEditingMenuId(menu.id); setEditingMenuName(menu.name); }} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            {canDelete && (
-                              <button onClick={() => handleDeleteMenu(menu)} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
               {canWrite && (
-                <div className="px-4 py-3 border-t bg-gray-50">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newMenuName}
-                      onChange={e => setNewMenuName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateMenu(); } }}
-                      placeholder="New menu name (e.g. Summer Menu 2026)"
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:border-transparent bg-white"
-                      style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-                    />
-                    <button
-                      onClick={handleCreateMenu}
-                      disabled={newMenuSaving || !newMenuName.trim()}
-                      className="flex items-center gap-1.5 px-3 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50"
-                      style={{ backgroundColor: '#4f46e5' }}
-                    >
-                      {newMenuSaving ? 'Adding...' : 'Add'}
-                    </button>
-                  </div>
-                </div>
+                <button
+                  onClick={() => setMenuModal({ mode: 'create' })}
+                  className="flex items-center gap-1.5 px-3 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 shrink-0"
+                  style={{ backgroundColor: '#4f46e5' }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Menu
+                </button>
               )}
             </div>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {menus.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-400">No menus yet.</td>
+                  </tr>
+                ) : menus.map(menu => (
+                  <tr
+                    key={menu.id}
+                    onClick={() => router.push(`/companies/${companyId}/brands/${brandId}/menus/${menu.id}`)}
+                    className="hover:bg-gray-50 cursor-pointer"
+                  >
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-gray-900">{menu.name}</span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                      {menu.description || <span className="text-gray-300 italic">—</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      {menu.isActive ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">Active</span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">Inactive</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                      {canWrite && (
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => setMenuModal({ mode: 'edit', item: menu })} title="Edit" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleMenuActive(menu)}
+                            title={menu.isActive ? 'Deactivate' : 'Activate'}
+                            className="p-1.5 text-gray-400 hover:opacity-70 rounded"
+                          >
+                            {menu.isActive ? <PowerOff className="w-3.5 h-3.5" /> : <Power className="w-3.5 h-3.5" />}
+                          </button>
+                          {canDelete && (
+                            <button onClick={() => handleDeleteMenu(menu)} title="Delete" className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
         {/* Inventory Setups */}
         {activeTab === 'inventory-setups' && (
-          <div className="max-w-2xl">
-            <div className="bg-white rounded-lg border">
-              <div className="px-6 py-4 border-b">
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b gap-4">
+              <div>
                 <h2 className="font-semibold text-gray-900">Inventory Setups</h2>
                 <p className="text-xs text-gray-400 mt-0.5">
                   Each setup has its own independent inventory items and categories. Click a setup to open its workspace. Assign a setup to a store on the Stores tab — a store keeps its recorded stock history even if its setup later changes.
                 </p>
               </div>
-              <div className="divide-y">
-                {inventorySetups.length === 0 && (
-                  <div className="py-8 text-center text-gray-400 text-sm">No inventory setups yet</div>
-                )}
-                {inventorySetups.map(setup => (
-                  <div key={setup.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
-                    {editingSetupId === setup.id ? (
-                      <input
-                        autoFocus
-                        type="text"
-                        value={editingSetupName}
-                        onChange={e => setEditingSetupName(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleRenameSetup(setup.id);
-                          if (e.key === 'Escape') setEditingSetupId(null);
-                        }}
-                        className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:border-transparent"
-                        style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-                      />
-                    ) : (
-                      <Link href={`/companies/${companyId}/brands/${brandId}/inventory-setups/${setup.id}`} className="flex-1 flex items-center gap-2 min-w-0 group">
-                        <span className="text-sm font-medium text-gray-900 truncate group-hover:underline">{setup.name}</span>
-                        {!setup.isActive && (
-                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">Inactive</span>
-                        )}
-                      </Link>
-                    )}
-                    {canWrite && (
-                      <div className="flex items-center gap-1 shrink-0">
-                        {editingSetupId === setup.id ? (
-                          <>
-                            <button onClick={() => handleRenameSetup(setup.id)} className="text-xs px-2 py-1 rounded font-medium hover:opacity-80" style={{ color: '#4f46e5' }}>Save</button>
-                            <button onClick={() => setEditingSetupId(null)} className="text-xs px-2 py-1 rounded text-gray-400 hover:text-gray-600">Cancel</button>
-                          </>
-                        ) : (
-                          <>
-                            <button onClick={() => handleToggleSetupActive(setup)} className="text-xs px-2 py-1 rounded text-gray-500 hover:text-gray-700">
-                              {setup.isActive ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button onClick={() => { setEditingSetupId(setup.id); setEditingSetupName(setup.name); }} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            {canDelete && (
-                              <button onClick={() => handleDeleteSetup(setup)} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
               {canWrite && (
-                <div className="px-4 py-3 border-t bg-gray-50">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newSetupName}
-                      onChange={e => setNewSetupName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateSetup(); } }}
-                      placeholder="New setup name (e.g. Default Setup)"
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:border-transparent bg-white"
-                      style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-                    />
-                    <button
-                      onClick={handleCreateSetup}
-                      disabled={newSetupSaving || !newSetupName.trim()}
-                      className="flex items-center gap-1.5 px-3 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50"
-                      style={{ backgroundColor: '#4f46e5' }}
-                    >
-                      {newSetupSaving ? 'Adding...' : 'Add'}
-                    </button>
-                  </div>
-                </div>
+                <button
+                  onClick={() => setSetupModal({ mode: 'create' })}
+                  className="flex items-center gap-1.5 px-3 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 shrink-0"
+                  style={{ backgroundColor: '#4f46e5' }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Inventory Setup
+                </button>
               )}
             </div>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {inventorySetups.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-400">No inventory setups yet.</td>
+                  </tr>
+                ) : inventorySetups.map(setup => (
+                  <tr
+                    key={setup.id}
+                    onClick={() => router.push(`/companies/${companyId}/brands/${brandId}/inventory-setups/${setup.id}`)}
+                    className="hover:bg-gray-50 cursor-pointer"
+                  >
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-gray-900">{setup.name}</span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                      {setup.description || <span className="text-gray-300 italic">—</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      {setup.isActive ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">Active</span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">Inactive</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                      {canWrite && (
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => setSetupModal({ mode: 'edit', item: setup })} title="Edit" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleSetupActive(setup)}
+                            title={setup.isActive ? 'Deactivate' : 'Activate'}
+                            className="p-1.5 text-gray-400 hover:opacity-70 rounded"
+                          >
+                            {setup.isActive ? <PowerOff className="w-3.5 h-3.5" /> : <Power className="w-3.5 h-3.5" />}
+                          </button>
+                          {canDelete && (
+                            <button onClick={() => handleDeleteSetup(setup)} title="Delete" className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -1046,6 +963,48 @@ function BrandDetailPageContent() {
           onClose={() => setQrStore(null)}
         />
       )}
+
+      {menuModal && (
+        <NameDescriptionModal
+          title={menuModal.mode === 'create' ? 'New Menu' : 'Edit Menu'}
+          namePlaceholder="e.g. Summer Menu 2026"
+          initialName={menuModal.item?.name ?? ''}
+          initialDescription={menuModal.item?.description ?? ''}
+          onClose={() => setMenuModal(null)}
+          onSubmit={async (name, description) => {
+            if (menuModal.mode === 'create') {
+              const menu = await api.createMenu(brandId, { name, description: description || undefined });
+              setMenus(prev => [...prev, menu]);
+              toast.success('Menu created');
+            } else {
+              const updated = await api.updateMenu(brandId, menuModal.item!.id, { name, description: description || undefined });
+              setMenus(prev => prev.map(m => (m.id === updated.id ? updated : m)));
+              toast.success('Menu updated');
+            }
+          }}
+        />
+      )}
+
+      {setupModal && (
+        <NameDescriptionModal
+          title={setupModal.mode === 'create' ? 'New Inventory Setup' : 'Edit Inventory Setup'}
+          namePlaceholder="e.g. Default Setup"
+          initialName={setupModal.item?.name ?? ''}
+          initialDescription={setupModal.item?.description ?? ''}
+          onClose={() => setSetupModal(null)}
+          onSubmit={async (name, description) => {
+            if (setupModal.mode === 'create') {
+              const setup = await api.createInventorySetup(brandId, { name, description: description || undefined });
+              setInventorySetups(prev => [...prev, setup]);
+              toast.success('Inventory setup created');
+            } else {
+              const updated = await api.updateInventorySetup(brandId, setupModal.item!.id, { name, description: description || undefined });
+              setInventorySetups(prev => prev.map(s => (s.id === updated.id ? updated : s)));
+              toast.success('Inventory setup updated');
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1058,5 +1017,98 @@ function StatCard({ label, value }: { label: string; value: number }) {
       <p className="text-sm text-gray-500 mb-1">{label}</p>
       <p className="text-3xl font-bold text-gray-900">{value}</p>
     </div>
+  );
+}
+
+function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white">
+          <h3 className="font-semibold text-gray-900">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// Shared create/edit modal for Menu and InventorySetup — both are just a
+// name + optional description, so one component covers both instead of
+// duplicating near-identical forms.
+function NameDescriptionModal({
+  title,
+  namePlaceholder,
+  initialName,
+  initialDescription,
+  onClose,
+  onSubmit,
+}: {
+  title: string;
+  namePlaceholder?: string;
+  initialName: string;
+  initialDescription: string;
+  onClose: () => void;
+  onSubmit: (name: string, description: string) => Promise<void>;
+}) {
+  const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setError(null);
+    setLoading(true);
+    try {
+      await onSubmit(trimmed, description.trim());
+      onClose();
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Failed to save');
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal title={title} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            required
+            placeholder={namePlaceholder}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            rows={3}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none"
+            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
+          />
+        </div>
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+          <button type="submit" disabled={loading || !name.trim()} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
+            {loading ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

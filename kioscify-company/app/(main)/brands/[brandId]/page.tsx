@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Brand, Store, PriceTier, Menu, InventorySetup } from '@/types';
-import { Pencil, Trash2, ChevronLeft, Upload, Save, QrCode, Truck, Copy, Plus, X } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, Upload, Save, QrCode, Truck, Copy, Plus, X, Power, PowerOff } from 'lucide-react';
 import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
 import { hasPrivilege } from '@/lib/privileges';
@@ -438,14 +438,18 @@ function BrandDetailPageContent() {
                     <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                       {canWrite && (
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => handleToggleMenuActive(menu)} className="text-xs px-2 py-1 rounded text-gray-500 hover:text-gray-700">
-                            {menu.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
-                          <button onClick={() => setMenuModal({ mode: 'edit', item: menu })} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                          <button onClick={() => setMenuModal({ mode: 'edit', item: menu })} title="Edit" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            onClick={() => handleToggleMenuActive(menu)}
+                            title={menu.isActive ? 'Deactivate' : 'Activate'}
+                            className="p-1.5 text-gray-400 hover:opacity-70 rounded"
+                          >
+                            {menu.isActive ? <PowerOff className="w-3.5 h-3.5" /> : <Power className="w-3.5 h-3.5" />}
+                          </button>
                           {canDelete && (
-                            <button onClick={() => handleDeleteMenu(menu)} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+                            <button onClick={() => handleDeleteMenu(menu)} title="Delete" className="p-1.5 text-gray-400 hover:text-red-600 rounded">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
@@ -515,14 +519,18 @@ function BrandDetailPageContent() {
                     <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                       {canWrite && (
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => handleToggleSetupActive(setup)} className="text-xs px-2 py-1 rounded text-gray-500 hover:text-gray-700">
-                            {setup.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
-                          <button onClick={() => setSetupModal({ mode: 'edit', item: setup })} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                          <button onClick={() => setSetupModal({ mode: 'edit', item: setup })} title="Edit" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            onClick={() => handleToggleSetupActive(setup)}
+                            title={setup.isActive ? 'Deactivate' : 'Activate'}
+                            className="p-1.5 text-gray-400 hover:opacity-70 rounded"
+                          >
+                            {setup.isActive ? <PowerOff className="w-3.5 h-3.5" /> : <Power className="w-3.5 h-3.5" />}
+                          </button>
                           {canDelete && (
-                            <button onClick={() => handleDeleteSetup(setup)} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+                            <button onClick={() => handleDeleteSetup(setup)} title="Delete" className="p-1.5 text-gray-400 hover:text-red-600 rounded">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
