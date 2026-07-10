@@ -23,6 +23,18 @@
  * applies going forward too, not just at this migration (see schema.prisma's
  * InventorySetup section comment).
  *
+ * Category resolution REUSES an existing Category(type=INVENTORY, brandId,
+ * name) row when one already exists (mirroring how migrate-catalog-to-menus.ts
+ * reuses existing PRODUCT categories rather than creating new ones), instead
+ * of unconditionally creating a fresh row. Verified against real production
+ * data (2026-07-10): every brand already had a full, brand-admin-curated set
+ * of Category(type=INVENTORY) rows — created via the existing category
+ * management UI, with real descriptions — whose names exactly matched the
+ * free-text legacyCategory values on InventoryItem, but were never linked via
+ * categoryId (that FK didn't exist yet). Unconditionally creating new
+ * categories here would silently orphan every one of those curated rows
+ * (discarding their descriptions) and leave near-duplicate categories behind.
+ *
  * PREREQUISITE: run `npm run migrate:inventory-templates` first (existing
  * script) to maximize templateId linkage before this one runs.
  *
@@ -52,6 +64,7 @@ const stats = {
   brandsSkipped: 0,
   setupsCreated: 0,
   categoriesCreated: 0,
+  categoriesReused: 0,
   templatesTagged: 0,
   orphanMastersCreated: 0,
   templateIdsBackfilled: 0,
@@ -99,17 +112,40 @@ async function processBrand(brandId: string, brandName: string) {
   const existingSyntheticMasters = allItems.filter((i) => !i.isTemplate && !i.tenantId);
   log(`    Found ${templates.length} template(s), ${copies.length} store copy/copies, ${existingSyntheticMasters.length} pre-existing synthetic master(s)`);
 
+  // Pre-existing INVENTORY categories for this brand not yet claimed by any
+  // InventorySetup — candidates to reuse-by-name instead of recreating.
+  // `inventorySetupId` is genuinely absent (not `null`) on rows that predate
+  // this field, so filter in JS — a Mongo `{ inventorySetupId: null }` where
+  // clause does NOT match a missing field (same class of gotcha documented in
+  // CLAUDE.md for tombstone/templateId).
+  const brandInventoryCategories = await prisma.category.findMany({
+    where: { brandId, type: 'INVENTORY' },
+  });
+  const reusableCategoryByName = new Map(
+    brandInventoryCategories.filter((c) => !c.inventorySetupId).map((c) => [c.name, c]),
+  );
+
   const categoryCache = new Map<string, string>(); // categoryName -> Category.id, scoped to this setup
   async function resolveCategoryId(rawName: string | null): Promise<string> {
     const name = (rawName || 'Uncategorized').trim() || 'Uncategorized';
     const cached = categoryCache.get(name);
     if (cached) return cached;
 
+    const reusable = reusableCategoryByName.get(name);
+
     if (DRY_RUN) {
-      const placeholder = `(dry-run-category:${name})`;
+      const placeholder = reusable ? reusable.id : `(dry-run-category:${name})`;
       categoryCache.set(name, placeholder);
-      stats.categoriesCreated++;
+      if (reusable) stats.categoriesReused++;
+      else stats.categoriesCreated++;
       return placeholder;
+    }
+
+    if (reusable) {
+      await prisma.category.update({ where: { id: reusable.id }, data: { inventorySetupId: setupId } });
+      stats.categoriesReused++;
+      categoryCache.set(name, reusable.id);
+      return reusable.id;
     }
 
     const created = await prisma.category.create({
