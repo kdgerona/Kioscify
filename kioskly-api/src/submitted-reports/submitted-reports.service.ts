@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubmittedReportDto } from './dto/create-submitted-report.dto';
 import { SubmittedReportFiltersDto } from './dto/submitted-report-filters.dto';
@@ -13,6 +13,21 @@ export class SubmittedReportsService {
     userId: string,
     tenantId: string,
   ) {
+    // Offline deduplication: if clientId already exists, return 409 — see
+    // schema.prisma's UserShiftInventoryReport comment for why this is
+    // enforced here instead of a DB-level unique index.
+    if (createDto.clientId) {
+      const existing = await this.prisma.submittedReport.findFirst({
+        where: { tenantId, clientId: createDto.clientId },
+      });
+      if (existing) {
+        throw new ConflictException({
+          message: 'Report already synced',
+          id: existing.id,
+        });
+      }
+    }
+
     return this.prisma.submittedReport.create({
       data: {
         tenantId,
@@ -26,6 +41,7 @@ export class SubmittedReportsService {
         transactionIds: createDto.transactionIds,
         expenseIds: createDto.expenseIds,
         notes: createDto.notes,
+        clientId: createDto.clientId,
         ...(createDto.submittedAt && { submittedAt: new Date(createDto.submittedAt) }),
       },
       include: {

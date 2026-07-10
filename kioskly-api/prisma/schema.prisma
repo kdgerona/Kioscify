@@ -878,7 +878,9 @@ model SubmittedReport {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@unique([tenantId, clientId])
+  // No @@unique([tenantId, clientId]) here — see UserShiftInventoryReport's
+  // comment below for why; offline dedup for this model is enforced in
+  // SubmittedReportsService.create() instead.
   @@index([tenantId, reportDate])
   @@index([tenantId, submittedAt])
   @@map("submitted_reports")
@@ -908,7 +910,7 @@ model UserShiftReport {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@unique([tenantId, clientId])
+  // No @@unique([tenantId, clientId]) — see UserShiftInventoryReport's comment below.
   @@index([tenantId, reportDate])
   @@index([tenantId, userId])
   @@map("user_shift_reports")
@@ -932,7 +934,7 @@ model SubmittedInventoryReport {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@unique([tenantId, clientId])
+  // No @@unique([tenantId, clientId]) — see UserShiftInventoryReport's comment below.
   @@index([tenantId, reportDate])
   @@index([tenantId, submittedAt])
   @@map("submitted_inventory_reports")
@@ -956,7 +958,26 @@ model UserShiftInventoryReport {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@unique([tenantId, clientId])
+  // Deliberately no @@unique([tenantId, clientId]) on this model or its three
+  // report-snapshot siblings (SubmittedReport/UserShiftReport/
+  // SubmittedInventoryReport). `clientId` is optional and, unlike
+  // Transaction/Expense/HeldOrder/InventoryRecord (which share this exact
+  // pattern), real production data has many legitimate documents per tenant
+  // that never set it. MongoDB's unique index treats a missing field as one
+  // shared "null" value across all documents, so a compound unique index here
+  // would falsely collide the moment a tenant has two such documents — as
+  // verified against a restored production copy (2026-07-10): every one of
+  // these four collections failed `prisma db push` on exactly this collision
+  // (submitted_reports/user_shift_reports/submitted_inventory_reports had
+  // real multi-document collisions; user_shift_inventory_reports had none yet
+  // but is structurally identical and would hit the same wall as data grows).
+  // Prisma has no schema-level partial/sparse index for MongoDB to fix this
+  // properly, and a hand-written partial index outside the schema isn't safe
+  // either — `db push` treats schema.prisma as the sole source of truth for
+  // indexes on this connector and can drop anything undeclared. So dedup for
+  // all four models is enforced at the service layer instead (an explicit
+  // findFirst-by-clientId check before create, mirroring the same check the
+  // four working models above already do) — see */*.service.ts create().
   @@index([tenantId, reportDate])
   @@index([tenantId, userId])
   @@map("user_shift_inventory_reports")

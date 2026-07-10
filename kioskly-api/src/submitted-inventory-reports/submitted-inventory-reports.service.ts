@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubmittedInventoryReportDto } from './dto/create-submitted-inventory-report.dto';
@@ -103,6 +104,19 @@ export class SubmittedInventoryReportsService {
     userId: string,
     tenantId: string,
   ) {
+    // Offline deduplication — see schema.prisma's UserShiftInventoryReport comment for why.
+    if (createDto.clientId) {
+      const existing = await this.prisma.submittedInventoryReport.findFirst({
+        where: { tenantId, clientId: createDto.clientId },
+      });
+      if (existing) {
+        throw new ConflictException({
+          message: 'Inventory report already synced',
+          id: existing.id,
+        });
+      }
+    }
+
     return this.prisma.submittedInventoryReport.create({
       data: {
         tenantId,
@@ -110,6 +124,7 @@ export class SubmittedInventoryReportsService {
         reportDate: createDto.reportDate,
         inventorySnapshot: createDto.inventorySnapshot as any,
         notes: createDto.notes,
+        clientId: createDto.clientId,
         ...(createDto.submittedAt && { submittedAt: new Date(createDto.submittedAt) }),
       },
       include: {
