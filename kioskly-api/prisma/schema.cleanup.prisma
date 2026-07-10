@@ -1,3 +1,13 @@
+// CLEANUP MIGRATION SCHEMA (§2.6 of the Menu/InventorySetup plan) — DO NOT
+// deploy this until migrate-catalog-to-menus.ts / migrate-inventory-to-setups.ts
+// have run against production and the resulting menuId/inventorySetupId
+// backfill has been verified stable for 2-4 weeks. This file exists purely so
+// it can be `prisma db push`'d against a restored post-migration copy of
+// production data to confirm the tightened/required fields and dropped legacy
+// fields don't collide or break anything, before it ever becomes the real
+// schema.prisma. To cut over for real: rename this file to schema.prisma
+// (replacing the additive one) once verified.
+//
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -54,12 +64,6 @@ model Brand {
 
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   stores          Tenant[]
-  categories      Category[]
-  products        Product[]
-  sizes           Size[]
-  addons          Addon[]
-  preferences     Preference[]
-  inventoryItems  InventoryItem[]
   users           User[]
   menus           Menu[]
   inventorySetups InventorySetup[]
@@ -122,13 +126,6 @@ model Tenant {
   userShiftInventoryReports UserShiftInventoryReport[]
   staffTimeLogs             StaffTimeLog[]
   heldOrders                HeldOrder[]
-
-  // Catalog relations kept during migration period (will be removed once catalog fully moves to Brand)
-  categories  Category[]
-  products    Product[]
-  sizes       Size[]
-  addons      Addon[]
-  preferences Preference[]
 
   @@unique([companyId, brandId, slug])
   @@map("tenants")
@@ -315,37 +312,36 @@ model Menu {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CATALOG — owned by Brand (not Tenant)
-// tenantId kept nullable during migration; brandId nullable until migration runs
-// Post-migration: tenantId removed, brandId becomes required, @@unique([brandId, name])
+// CATALOG — owned by Menu (not Brand/Tenant). This is the cleanup-migration
+// end state: legacy tenantId/brandId fields (and the Tenant/Brand back-relations
+// that referenced them) have been dropped entirely, now that every row has been
+// backfilled with menuId by migrate-catalog-to-menus.ts and verified stable.
 //
-// menuId (Category/Size/Addon/Preference) is the NEW primary scope — these are
-// now owned by a Menu, fully independent per menu (see Menu comment above).
-// Kept nullable during the migration window; tightened to required (with a real
-// @@unique([menuId, name]) index) in the follow-up cleanup migration, since a
-// unique index on an optional field would falsely collide across menus/setups
-// while some rows still lack it. Category additionally gets inventorySetupId
-// for its INVENTORY-typed rows — exactly one of menuId/inventorySetupId is set,
-// matching `type`; enforced in the service layer, not the DB (Mongo can't
-// express that invariant, and there's no existing precedent for it here).
+// menuId is now required on Size/Addon/Preference/Product, each with a real
+// @@unique([menuId, name]) index (Product excepted — no name-uniqueness
+// requirement was ever specified for it).
 //
-// The legacy `@@unique([tenantId, name])` indexes on these 5 models have been
-// DROPPED (not just deferred) — discovered live while writing the Menu/
-// InventorySetup migration scripts: since tenantId is never set on any row
-// created going forward, two unrelated brands/menus/setups creating a
-// same-named row (e.g. a "Uncategorized" category) collided on this index
-// immediately, not just hypothetically. Per-scope name uniqueness is enforced
-// in the service layer for now (same treatment as the not-yet-added
-// menuId/inventorySetupId indexes above), and revisited in the cleanup
-// migration once brandId/menuId/inventorySetupId are required.
+// Category is the ONE exception that stays exactly as it was in the additive
+// schema: menuId/inventorySetupId both remain nullable, PERMANENTLY, and
+// neither gets a @@unique([..., name]) index — not just "not yet". A Category
+// row has exactly one of these two scopes set (mirroring `type`), so a
+// PRODUCT-typed row always has inventorySetupId == null and an INVENTORY-typed
+// row always has menuId == null; MongoDB's unique index treats "missing" as
+// one shared value, so e.g. two different InventorySetups' INVENTORY
+// categories both named "Uncategorized" would collide on
+// @@unique([menuId, name]) forever, not just during a migration window this
+// cleanup pass resolves. Prisma has no schema-level partial/sparse index
+// support on the MongoDB connector (confirmed via context7), so per-scope name
+// uniqueness for Category stays a service-layer findFirst check indefinitely.
+// If Category's dual-scope design ever needs a real DB-level uniqueness
+// guarantee, it requires splitting into two models (e.g. ProductCategory /
+// InventoryCategory) — out of scope for this cleanup pass.
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Category {
   id               String        @id @map("_id")
-  tenantId         String?       @db.ObjectId
-  brandId          String?       @db.ObjectId
-  menuId           String?       @db.ObjectId // set when type == PRODUCT
-  inventorySetupId String?       @db.ObjectId // set when type == INVENTORY
+  menuId           String?       @db.ObjectId // set when type == PRODUCT — stays nullable permanently, see comment above
+  inventorySetupId String?       @db.ObjectId // set when type == INVENTORY — stays nullable permanently, see comment above
   type             CategoryType? @default(PRODUCT)
   name             String
   description      String?
@@ -354,8 +350,6 @@ model Category {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  tenant         Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand          Brand?          @relation(fields: [brandId], references: [id], onDelete: Cascade)
   menu           Menu?           @relation(fields: [menuId], references: [id], onDelete: Cascade)
   inventorySetup InventorySetup? @relation(fields: [inventorySetupId], references: [id], onDelete: Cascade)
   products       Product[]
@@ -366,9 +360,7 @@ model Category {
 
 model Size {
   id             String   @id @map("_id")
-  tenantId       String?  @db.ObjectId
-  brandId        String?  @db.ObjectId
-  menuId         String?  @db.ObjectId
+  menuId         String   @db.ObjectId
   name           String
   priceModifier  Float
   foodpandaPrice Float?
@@ -379,21 +371,18 @@ model Size {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant           Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand            Brand?            @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  menu             Menu?             @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  menu             Menu              @relation(fields: [menuId], references: [id], onDelete: Cascade)
   productSizes     ProductSize[]
   transactionItems TransactionItem[]
   priceTiers       SizePriceTier[]
 
+  @@unique([menuId, name])
   @@map("sizes")
 }
 
 model Addon {
   id             String   @id @map("_id")
-  tenantId       String?  @db.ObjectId
-  brandId        String?  @db.ObjectId
-  menuId         String?  @db.ObjectId
+  menuId         String   @db.ObjectId
   name           String
   price          Float
   foodpandaPrice Float?
@@ -403,21 +392,18 @@ model Addon {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant                Tenant?                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand                 Brand?                 @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  menu                  Menu?                  @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  menu                  Menu                   @relation(fields: [menuId], references: [id], onDelete: Cascade)
   productAddons         ProductAddon[]
   transactionItemAddons TransactionItemAddon[]
   priceTiers            AddonPriceTier[]
 
+  @@unique([menuId, name])
   @@map("addons")
 }
 
 model Preference {
   id         String   @id @map("_id")
-  tenantId   String?  @db.ObjectId
-  brandId    String?  @db.ObjectId
-  menuId     String?  @db.ObjectId
+  menuId     String   @db.ObjectId
   name       String
   isDefault  Boolean  @default(false)
   sequenceNo Int      @default(0)
@@ -425,20 +411,17 @@ model Preference {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  tenant             Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand              Brand?              @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  menu               Menu?               @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  menu               Menu                @relation(fields: [menuId], references: [id], onDelete: Cascade)
   productPreferences ProductPreference[]
   transactionItems   TransactionItem[]
 
+  @@unique([menuId, name])
   @@map("preferences")
 }
 
 model Product {
   id             String   @id @map("_id")
-  tenantId       String?  @db.ObjectId
-  brandId        String?  @db.ObjectId
-  menuId         String?  @db.ObjectId // primary scope — see Menu comment above
+  menuId         String   @db.ObjectId
   name           String
   price          Float
   foodpandaPrice Float?
@@ -449,9 +432,7 @@ model Product {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tenant             Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand              Brand?              @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  menu               Menu?               @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  menu               Menu                @relation(fields: [menuId], references: [id], onDelete: Cascade)
   category           Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   productSizes       ProductSize[]
   productAddons      ProductAddon[]
@@ -508,26 +489,19 @@ model ProductPreference {
 
 model PriceTier {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  // Nullable during the migration window, same as Category/Size/Addon/Preference/Product's
-  // menuId — existing PriceTier rows predate this migration and won't have menuId set until
-  // migrate-catalog-to-menus.ts backfills it. A required field + @@unique([menuId, name]) here
-  // would make `db push` try to build that unique index immediately, and MongoDB treats a
-  // missing field as a shared null across all rows — two pre-existing tiers in different
-  // brands both named "Standard" would collide (same failure class as the tombstone incident
-  // documented in CLAUDE.md). Do not add @@unique([menuId, name]) back until the cleanup
-  // migration makes menuId required — see Category's identical comment above for the pattern.
-  menuId    String?  @db.ObjectId
+  menuId    String   @db.ObjectId
   name      String
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  menu              Menu?              @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  menu              Menu               @relation(fields: [menuId], references: [id], onDelete: Cascade)
   stores            Tenant[]
   productPriceTiers ProductPriceTier[]
   sizePriceTiers    SizePriceTier[]
   addonPriceTiers   AddonPriceTier[]
 
+  @@unique([menuId, name])
   @@map("price_tiers")
 }
 
@@ -797,12 +771,19 @@ model TenantInventoryOverride {
 // direct Menu ownership above). Never hard-deleted (tombstone only), since
 // InventoryRecord history depends on it staying valid indefinitely — see the
 // reassignment-preservation guarantee above.
+//
+// Cleanup migration end state: inventorySetupId is now required, and the
+// deprecated pre-InventorySetup fields (brandId, tenantId, templateId,
+// isTemplate, legacyCategory, minStockLevelCustomized,
+// expirationWarningDaysCustomized) — needed only by
+// migrate-inventory-to-setups.ts / backfill-inventory-record-item-ids.ts while
+// migrating — have been dropped. categoryId stays optional (an item can be
+// uncategorized); no name-uniqueness index was ever specified for InventoryItem.
 // ─────────────────────────────────────────────────────────────────────────────
 
 model InventoryItem {
   id                     String   @id @default(auto()) @map("_id") @db.ObjectId
-  brandId                String?  @db.ObjectId
-  inventorySetupId       String?  @db.ObjectId // primary scope — see section comment above
+  inventorySetupId       String   @db.ObjectId
   name                   String
   unit                   String
   description            String?
@@ -814,22 +795,7 @@ model InventoryItem {
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
-  // DEPRECATED pre-InventorySetup shape — kept nullable/in place solely so
-  // migrate-inventory-to-setups.ts and backfill-inventory-record-item-ids.ts
-  // can read/resolve old brand-template (isTemplate: true) vs. per-store-copy
-  // (isTemplate: false, tenantId set) rows while migrating them onto
-  // inventorySetupId/categoryId above. Not read by any live application code
-  // (InventoryService); safe to drop in the cleanup migration (§2.6) once
-  // migrated.
-  tenantId                        String? @db.ObjectId
-  templateId                      String? @db.ObjectId
-  isTemplate                      Boolean @default(false)
-  legacyCategory                  String? @map("category") // free-text category, pre-Category-relation — same raw Mongo field the old code wrote
-  minStockLevelCustomized         Boolean @default(false)
-  expirationWarningDaysCustomized Boolean @default(false)
-
-  brand            Brand?                    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  inventorySetup   InventorySetup?           @relation(fields: [inventorySetupId], references: [id], onDelete: Cascade)
+  inventorySetup   InventorySetup            @relation(fields: [inventorySetupId], references: [id], onDelete: Cascade)
   category         Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   inventoryRecords InventoryRecord[]
   tenantOverrides  TenantInventoryOverride[]
