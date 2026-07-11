@@ -1,12 +1,20 @@
 // CLEANUP MIGRATION SCHEMA (§2.6 of the Menu/InventorySetup plan) — DO NOT
-// deploy this until migrate-catalog-to-menus.ts / migrate-inventory-to-setups.ts
-// have run against production and the resulting menuId/inventorySetupId
-// backfill has been verified stable for 2-4 weeks. This file exists purely so
-// it can be `prisma db push`'d against a restored post-migration copy of
-// production data to confirm the tightened/required fields and dropped legacy
-// fields don't collide or break anything, before it ever becomes the real
-// schema.prisma. To cut over for real: rename this file to schema.prisma
-// (replacing the additive one) once verified.
+// deploy this until the full migration chain has run against production and
+// the resulting backfill has been verified stable for 2-4 weeks:
+//   1. migrate-catalog-to-menus.ts
+//   2. migrate-inventory-to-setups.ts
+//   3. migrate-inventory-template-ids.ts
+//   4. backfill-inventory-record-item-ids.ts
+//   5. backfill-inventory-snapshot-item-ids.ts
+// Steps 3-5 all depend on InventoryItem's deprecated pre-InventorySetup
+// fields (templateId, isTemplate, legacyCategory, etc.) to resolve old
+// per-store-copy ids onto their shared master item — this schema drops those
+// fields entirely, so running any of them after cutover is not possible.
+// This file exists purely so it can be `prisma db push`'d against a restored
+// post-migration copy of production data to confirm the tightened/required
+// fields and dropped legacy fields don't collide or break anything, before
+// it ever becomes the real schema.prisma. To cut over for real: rename this
+// file to schema.prisma (replacing the additive one) once verified.
 //
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
@@ -501,6 +509,10 @@ model PriceTier {
   sizePriceTiers    SizePriceTier[]
   addonPriceTiers   AddonPriceTier[]
 
+  // Deferred in the additive schema (see schema.prisma's identical comment on
+  // this model) because menuId was nullable there and Mongo's unique index
+  // treats a missing field as one shared null — added back here now that
+  // menuId is required, matching Size/Addon/Preference's identical pattern.
   @@unique([menuId, name])
   @@map("price_tiers")
 }
@@ -776,9 +788,10 @@ model TenantInventoryOverride {
 // deprecated pre-InventorySetup fields (brandId, tenantId, templateId,
 // isTemplate, legacyCategory, minStockLevelCustomized,
 // expirationWarningDaysCustomized) — needed only by
-// migrate-inventory-to-setups.ts / backfill-inventory-record-item-ids.ts while
-// migrating — have been dropped. categoryId stays optional (an item can be
-// uncategorized); no name-uniqueness index was ever specified for InventoryItem.
+// migrate-inventory-template-ids.ts / migrate-inventory-to-setups.ts /
+// backfill-inventory-record-item-ids.ts / backfill-inventory-snapshot-item-ids.ts
+// while migrating — have been dropped. categoryId stays optional (an item can
+// be uncategorized); no name-uniqueness index was ever specified for InventoryItem.
 // ─────────────────────────────────────────────────────────────────────────────
 
 model InventoryItem {
