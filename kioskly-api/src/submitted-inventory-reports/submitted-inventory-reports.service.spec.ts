@@ -2,12 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
 import { SubmittedInventoryReportsService } from './submitted-inventory-reports.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 const mockPrisma = {
   submittedInventoryReport: {
     findFirst: jest.fn(),
     create: jest.fn(),
   },
+};
+
+const mockInventoryService = {
+  findAllItems: jest.fn(),
 };
 
 const sampleDto = {
@@ -21,7 +26,11 @@ describe('SubmittedInventoryReportsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SubmittedInventoryReportsService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        SubmittedInventoryReportsService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: InventoryService, useValue: mockInventoryService },
+      ],
     }).compile();
     service = module.get<SubmittedInventoryReportsService>(SubmittedInventoryReportsService);
   });

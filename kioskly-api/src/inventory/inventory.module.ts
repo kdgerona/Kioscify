@@ -8,5 +8,6 @@ import { InventorySetupsModule } from '../inventory-setups/inventory-setups.modu
   imports: [PrismaModule, InventorySetupsModule],
   controllers: [InventoryController],
   providers: [InventoryService],
+  exports: [InventoryService],
 })
 export class InventoryModule {}

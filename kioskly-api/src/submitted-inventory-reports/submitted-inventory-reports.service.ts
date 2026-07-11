@@ -4,6 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { InventoryService } from '../inventory/inventory.service';
 import { CreateSubmittedInventoryReportDto } from './dto/create-submitted-inventory-report.dto';
 import { SubmittedInventoryReportFiltersDto } from './dto/submitted-inventory-report-filters.dto';
 import {
@@ -14,7 +15,10 @@ import { getZonedMonthBounds } from '../common/utils/timezone';
 
 @Injectable()
 export class SubmittedInventoryReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private inventoryService: InventoryService,
+  ) {}
 
   private aggregateToWeekly(dailyData: any[]): any[] {
     if (dailyData.length === 0) return [];
@@ -125,7 +129,9 @@ export class SubmittedInventoryReportsService {
         inventorySnapshot: createDto.inventorySnapshot as any,
         notes: createDto.notes,
         clientId: createDto.clientId,
-        ...(createDto.submittedAt && { submittedAt: new Date(createDto.submittedAt) }),
+        ...(createDto.submittedAt && {
+          submittedAt: new Date(createDto.submittedAt),
+        }),
       },
       include: {
         user: {
@@ -249,7 +255,15 @@ export class SubmittedInventoryReportsService {
 
     // Group items by inventoryItemId
     const itemsMap = new Map<string, any>();
+    const seenDatesByItem = new Map<string, Set<string>>();
 
+    // reports is sorted newest-first (orderBy above) — a store can submit
+    // more than one full report on the same calendar day (not just shift
+    // mirrors, which are already excluded above), which used to show as two
+    // separate points for the same date on the trend chart. Since we visit
+    // reports newest-first, the first report seen for a given
+    // (item, reportDate) pair is already the latest for that date, so any
+    // later (older) duplicate for that same date is skipped.
     reports.forEach((report) => {
       const snapshot = report.inventorySnapshot as any;
       snapshot.items.forEach((item: any) => {
@@ -266,7 +280,12 @@ export class SubmittedInventoryReportsService {
             unit: item.unit,
             dataPoints: [],
           });
+          seenDatesByItem.set(item.inventoryItemId, new Set());
         }
+
+        const seenDates = seenDatesByItem.get(item.inventoryItemId)!;
+        if (seenDates.has(report.reportDate)) return;
+        seenDates.add(report.reportDate);
 
         const itemData = itemsMap.get(item.inventoryItemId);
         itemData.dataPoints.push({
@@ -364,6 +383,7 @@ export class SubmittedInventoryReportsService {
     const reports = await this.prisma.submittedInventoryReport.findMany({
       where: {
         tenantId,
+        isShiftMirror: { not: true }, // exclude duplicates mirrored from UserShiftInventoryReport — see getProgression's identical filter
         submittedAt: {
           gte: fourteenDaysAgo,
         },
@@ -402,18 +422,36 @@ export class SubmittedInventoryReportsService {
           date: report.reportDate,
           submittedAt: report.submittedAt,
           quantity: item.quantity,
-          itemName: item.itemName,
-          category: item.category,
-          unit: item.unit,
-          minStockLevel: item.minStockLevel,
-          requiresExpirationDate: item.requiresExpirationDate,
-          expirationWarningDays: item.expirationWarningDays,
           expirationBatches: item.expirationBatches || [],
         });
       });
     });
 
+    // Thresholds (minStockLevel/requiresExpirationDate/expirationWarningDays)
+    // and display fields are resolved LIVE from the store's current active
+    // items — never from the snapshot's embedded copy of those fields, which
+    // is frozen at whatever they were when that report was submitted. A
+    // TenantInventoryOverride changed today must be reflected here
+    // immediately, the same way it already is on the Inventory Overview
+    // page's stats (InventoryService.getInventoryStats/findAllItems).
+    // Items no longer in the active set (tombstoned, or the store was
+    // reassigned to a different setup) are skipped entirely — matching that
+    // same page's active-only scoping — even though the snapshot alone can't
+    // tell you that.
+    const { active } = await this.inventoryService.findAllItems(tenantId);
+    const activeById = new Map(active.map((i) => [i.id, i]));
+
     const now = new Date();
+    // `reports` is already sorted desc by submittedAt (the query above).
+    // Low Stock must mirror getLatestInventory/getInventoryStats' definition
+    // of "current quantity" exactly: only the single most recent report
+    // counts, not "whenever this item was last reported within 14 days" — an
+    // item a store hasn't recounted today isn't "low stock", it's
+    // "uncounted" (a different bucket entirely). Expiration/usage-spike/
+    // stockout alerts are NOT gated by this — a batch keeps expiring and a
+    // consumption trend stays meaningful whether or not it was recounted
+    // today, so those legitimately use each item's own latest data point.
+    const mostRecentReportTime = reports[0].submittedAt.getTime();
 
     // Calculate alerts for each item
     itemsMap.forEach((dataPoints, inventoryItemId) => {
@@ -423,12 +461,21 @@ export class SubmittedInventoryReportsService {
           new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
       );
 
+      const activeItem = activeById.get(inventoryItemId);
+      if (!activeItem) return; // no longer active — see comment above where activeById is built
+
       const latestPoint = dataPoints[0];
       const currentQuantity = latestPoint.quantity;
-      const minStockLevel = latestPoint.minStockLevel;
+      const wasInMostRecentReport =
+        new Date(latestPoint.submittedAt).getTime() === mostRecentReportTime;
+      const minStockLevel = activeItem.minStockLevel;
 
       // Alert 1: Low Stock
-      if (minStockLevel && currentQuantity < minStockLevel) {
+      if (
+        wasInMostRecentReport &&
+        minStockLevel &&
+        currentQuantity < minStockLevel
+      ) {
         const shortfall = minStockLevel - currentQuantity;
         const severity =
           currentQuantity === 0
@@ -441,8 +488,8 @@ export class SubmittedInventoryReportsService {
           type: 'LOW_STOCK',
           severity,
           itemId: inventoryItemId,
-          itemName: latestPoint.itemName,
-          category: latestPoint.category,
+          itemName: activeItem.name,
+          category: activeItem.category?.name ?? null,
           currentQuantity,
           minStockLevel,
           shortfall: parseFloat(shortfall.toFixed(2)),
@@ -451,23 +498,29 @@ export class SubmittedInventoryReportsService {
 
       // Alert: Expiration alerts
       if (
-        latestPoint.requiresExpirationDate &&
+        activeItem.requiresExpirationDate &&
         latestPoint.expirationBatches &&
         latestPoint.expirationBatches.length > 0
       ) {
-        const warningDays = latestPoint.expirationWarningDays || 7;
+        const warningDays = activeItem.expirationWarningDays || 7;
 
         for (const batch of latestPoint.expirationBatches) {
           if (!batch.expirationDate || batch.quantity <= 0) continue;
 
           // Use UTC-based day arithmetic to avoid server-timezone shifts
-          const nowMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+          const nowMs = Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+          );
           const expDay = Date.UTC(
             new Date(batch.expirationDate).getUTCFullYear(),
             new Date(batch.expirationDate).getUTCMonth(),
             new Date(batch.expirationDate).getUTCDate(),
           );
-          const daysUntilExpiration = Math.ceil((expDay - nowMs) / (1000 * 60 * 60 * 24));
+          const daysUntilExpiration = Math.ceil(
+            (expDay - nowMs) / (1000 * 60 * 60 * 24),
+          );
 
           if (daysUntilExpiration < 0) {
             // Already expired
@@ -475,9 +528,9 @@ export class SubmittedInventoryReportsService {
               type: 'EXPIRED',
               severity: 'HIGH',
               itemId: inventoryItemId,
-              itemName: latestPoint.itemName,
-              category: latestPoint.category,
-              unit: latestPoint.unit,
+              itemName: activeItem.name,
+              category: activeItem.category?.name ?? null,
+              unit: activeItem.unit,
               batchQuantity: batch.quantity,
               expirationDate: batch.expirationDate,
               daysExpiredAgo: Math.abs(daysUntilExpiration),
@@ -495,9 +548,9 @@ export class SubmittedInventoryReportsService {
               type: 'EXPIRING_SOON',
               severity,
               itemId: inventoryItemId,
-              itemName: latestPoint.itemName,
-              category: latestPoint.category,
-              unit: latestPoint.unit,
+              itemName: activeItem.name,
+              category: activeItem.category?.name ?? null,
+              unit: activeItem.unit,
               batchQuantity: batch.quantity,
               expirationDate: batch.expirationDate,
               daysUntilExpiration,
@@ -534,8 +587,8 @@ export class SubmittedInventoryReportsService {
               type: 'USAGE_SPIKE',
               severity,
               itemId: inventoryItemId,
-              itemName: latestPoint.itemName,
-              category: latestPoint.category,
+              itemName: activeItem.name,
+              category: activeItem.category?.name ?? null,
               latestConsumption: parseFloat(latestConsumption.toFixed(2)),
               averageConsumption: parseFloat(avgConsumption.toFixed(2)),
               percentageIncrease: parseFloat(percentageIncrease.toFixed(2)),
@@ -564,8 +617,8 @@ export class SubmittedInventoryReportsService {
                 type: 'PROJECTED_STOCKOUT',
                 severity,
                 itemId: inventoryItemId,
-                itemName: latestPoint.itemName,
-                category: latestPoint.category,
+                itemName: activeItem.name,
+                category: activeItem.category?.name ?? null,
                 currentQuantity,
                 avgDailyConsumption: parseFloat(avgDailyConsumption.toFixed(2)),
                 daysUntilStockout: Math.floor(daysUntilStockout),
