@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInventorySetupDto } from './dto/create-inventory-setup.dto';
 import { UpdateInventorySetupDto } from './dto/update-inventory-setup.dto';
 import { UpsertTenantInventoryOverrideDto } from './dto/upsert-tenant-inventory-override.dto';
+import { CloneInventorySetupDto } from './dto/clone-inventory-setup.dto';
 
 @Injectable()
 export class InventorySetupsService {
@@ -55,9 +57,15 @@ export class InventorySetupsService {
   }
 
   async remove(brandId: string, setupId: string) {
-    await this.findOne(brandId, setupId);
+    const setup = await this.findOne(brandId, setupId);
     await this.assertNotAssignedToAnyStore(setupId, 'delete');
-    return this.prisma.inventorySetup.update({ where: { id: setupId }, data: { tombstone: 1 } });
+    // @@unique([brandId, name]) is a plain Mongo index — it has no concept of
+    // tombstone, so a deleted setup would otherwise permanently squat on its
+    // name forever. Mangle the name on delete so it's free for reuse.
+    return this.prisma.inventorySetup.update({
+      where: { id: setupId },
+      data: { tombstone: 1, name: `${setup.name} [deleted ${Date.now()}]` },
+    });
   }
 
   private async assertNotAssignedToAnyStore(setupId: string, action: 'delete' | 'deactivate') {
@@ -71,6 +79,96 @@ export class InventorySetupsService {
         `Cannot ${action} this inventory setup — it is assigned to the following store(s): ${storeNames}`,
       );
     }
+  }
+
+  /**
+   * Deep-clone an inventory setup: Category(type=INVENTORY)/InventoryItem are
+   * each directly owned by exactly one inventorySetupId, so cloning means
+   * re-creating every row with fresh ids. TenantInventoryOverride and
+   * InventoryRecord are per-store live/historical data tied to the original
+   * item id — never copied onto the clone.
+   */
+  async clone(brandId: string, setupId: string, dto: CloneInventorySetupDto) {
+    const source = await this.findOne(brandId, setupId);
+    const name = await this.resolveCloneName(brandId, dto, source.name);
+
+    const newSetupId = await this.prisma.$transaction(
+      async (tx) => {
+        const newSetup = await tx.inventorySetup.create({
+          data: {
+            brandId,
+            name,
+            description: dto.description ?? source.description,
+            isActive: source.isActive,
+          },
+        });
+
+        const categories = await tx.category.findMany({
+          where: { inventorySetupId: setupId, type: 'INVENTORY', tombstone: { not: 1 } },
+        });
+        const categoryIdMap = new Map<string, string>();
+        for (const category of categories) {
+          const created = await tx.category.create({
+            data: {
+              id: randomUUID(),
+              brandId: category.brandId,
+              inventorySetupId: newSetup.id,
+              type: 'INVENTORY',
+              name: category.name,
+              description: category.description,
+              sequenceNo: category.sequenceNo,
+            },
+          });
+          categoryIdMap.set(category.id, created.id);
+        }
+
+        const items = await tx.inventoryItem.findMany({
+          where: { inventorySetupId: setupId, tombstone: { not: 1 } },
+        });
+        for (const item of items) {
+          const newCategoryId = item.categoryId ? categoryIdMap.get(item.categoryId) : undefined;
+          await tx.inventoryItem.create({
+            data: {
+              brandId: item.brandId,
+              inventorySetupId: newSetup.id,
+              name: item.name,
+              unit: item.unit,
+              description: item.description,
+              categoryId: newCategoryId ?? null,
+              minStockLevel: item.minStockLevel,
+              requiresExpirationDate: item.requiresExpirationDate,
+              expirationWarningDays: item.expirationWarningDays,
+            },
+          });
+        }
+
+        return newSetup.id;
+      },
+      { maxWait: 10000, timeout: 30000 },
+    );
+
+    return this.findOne(brandId, newSetupId);
+  }
+
+  private async resolveCloneName(brandId: string, dto: CloneInventorySetupDto, sourceName: string): Promise<string> {
+    if (dto.name) {
+      const taken = await this.prisma.inventorySetup.findFirst({
+        where: { brandId, name: dto.name },
+        select: { id: true },
+      });
+      if (taken) throw new ConflictException(`An inventory setup named "${dto.name}" already exists for this brand`);
+      return dto.name;
+    }
+
+    let candidate = `${sourceName} (Copy)`;
+    let counter = 2;
+    while (
+      await this.prisma.inventorySetup.findFirst({ where: { brandId, name: candidate }, select: { id: true } })
+    ) {
+      candidate = `${sourceName} (Copy ${counter})`;
+      counter++;
+    }
+    return candidate;
   }
 
   // ── TenantInventoryOverride (per-store threshold tweaks on a shared item) ──

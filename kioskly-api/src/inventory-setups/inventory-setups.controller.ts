@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InventorySetupsService } from './inventory-setups.service';
 import { CreateInventorySetupDto } from './dto/create-inventory-setup.dto';
 import { UpdateInventorySetupDto } from './dto/update-inventory-setup.dto';
+import { CloneInventorySetupDto } from './dto/clone-inventory-setup.dto';
 import { UpsertTenantInventoryOverrideDto } from './dto/upsert-tenant-inventory-override.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -50,6 +51,16 @@ export class InventorySetupsController {
   @ApiOperation({ summary: 'Delete an inventory setup (blocked if assigned to any store)' })
   remove(@Param('brandId') brandId: string, @Param('setupId') setupId: string) {
     return this.inventorySetupsService.remove(brandId, setupId);
+  }
+
+  @Post(':setupId/clone')
+  @ApiOperation({ summary: 'Deep-clone an inventory setup (categories + items)' })
+  clone(
+    @Param('brandId') brandId: string,
+    @Param('setupId') setupId: string,
+    @Body() dto: CloneInventorySetupDto,
+  ) {
+    return this.inventorySetupsService.clone(brandId, setupId, dto);
   }
 }
 

@@ -90,6 +90,8 @@ function BrandDetailPageContent() {
   const [inventorySetups, setInventorySetups] = useState<InventorySetup[]>([]);
   const [menuModal, setMenuModal] = useState<{ mode: 'create' | 'edit'; item?: Menu } | null>(null);
   const [setupModal, setSetupModal] = useState<{ mode: 'create' | 'edit'; item?: InventorySetup } | null>(null);
+  const [cloneMenuModal, setCloneMenuModal] = useState<{ item: Menu } | null>(null);
+  const [cloneSetupModal, setCloneSetupModal] = useState<{ item: InventorySetup } | null>(null);
 
   // Store price-tier / menu / inventory-setup edit — pending values while the row is in edit mode, committed on row Save.
   // Price tiers are Menu-scoped, so the available tier list is refetched
@@ -442,6 +444,9 @@ function BrandDetailPageContent() {
                           <button onClick={() => setMenuModal({ mode: 'edit', item: menu })} title="Edit" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
+                          <button onClick={() => setCloneMenuModal({ item: menu })} title="Clone" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             onClick={() => handleToggleMenuActive(menu)}
                             title={menu.isActive ? 'Deactivate' : 'Activate'}
@@ -522,6 +527,9 @@ function BrandDetailPageContent() {
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => setSetupModal({ mode: 'edit', item: setup })} title="Edit" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
                             <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setCloneSetupModal({ item: setup })} title="Clone" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                            <Copy className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleToggleSetupActive(setup)}
@@ -1002,6 +1010,36 @@ function BrandDetailPageContent() {
               setInventorySetups(prev => prev.map(s => (s.id === updated.id ? updated : s)));
               toast.success('Inventory setup updated');
             }
+          }}
+        />
+      )}
+
+      {cloneMenuModal && (
+        <NameDescriptionModal
+          title={`Clone "${cloneMenuModal.item.name}"`}
+          namePlaceholder="e.g. Summer Menu 2026"
+          initialName={`${cloneMenuModal.item.name} (Copy)`}
+          initialDescription={cloneMenuModal.item.description ?? ''}
+          onClose={() => setCloneMenuModal(null)}
+          onSubmit={async (name, description) => {
+            const created = await api.cloneMenu(brandId, cloneMenuModal.item.id, { name, description: description || undefined });
+            setMenus(prev => [...prev, created]);
+            toast.success('Menu cloned');
+          }}
+        />
+      )}
+
+      {cloneSetupModal && (
+        <NameDescriptionModal
+          title={`Clone "${cloneSetupModal.item.name}"`}
+          namePlaceholder="e.g. Default Setup"
+          initialName={`${cloneSetupModal.item.name} (Copy)`}
+          initialDescription={cloneSetupModal.item.description ?? ''}
+          onClose={() => setCloneSetupModal(null)}
+          onSubmit={async (name, description) => {
+            const created = await api.cloneInventorySetup(brandId, cloneSetupModal.item.id, { name, description: description || undefined });
+            setInventorySetups(prev => [...prev, created]);
+            toast.success('Inventory setup cloned');
           }}
         />
       )}

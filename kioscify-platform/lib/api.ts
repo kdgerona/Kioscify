@@ -342,6 +342,11 @@ class ApiClient {
     await this.client.delete(`/brands/${brandId}/menus/${menuId}`);
   }
 
+  async cloneMenu(brandId: string, menuId: string, payload: { name?: string; description?: string }): Promise<Menu> {
+    const { data } = await this.client.post<Menu>(`/brands/${brandId}/menus/${menuId}/clone`, payload);
+    return data;
+  }
+
   // ─── Inventory Setups ───────────────────────────────────────────────────────
 
   async getInventorySetups(brandId: string): Promise<InventorySetup[]> {
@@ -366,6 +371,15 @@ class ApiClient {
 
   async deleteInventorySetup(brandId: string, setupId: string): Promise<void> {
     await this.client.delete(`/brands/${brandId}/inventory-setups/${setupId}`);
+  }
+
+  async cloneInventorySetup(
+    brandId: string,
+    setupId: string,
+    payload: { name?: string; description?: string },
+  ): Promise<InventorySetup> {
+    const { data } = await this.client.post<InventorySetup>(`/brands/${brandId}/inventory-setups/${setupId}/clone`, payload);
+    return data;
   }
 
   // ─── Categories (Menu- or InventorySetup-scoped) ───────────────────────────

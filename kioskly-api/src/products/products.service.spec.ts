@@ -9,7 +9,7 @@ import { MenusService } from '../menus/menus.service';
 
 const mockPrisma = {
   menu: { findUnique: jest.fn() },
-  product: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn() },
+  product: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn(), count: jest.fn() },
   size: { findMany: jest.fn() },
   addon: { findMany: jest.fn() },
   preference: { findMany: jest.fn() },
@@ -118,6 +118,69 @@ describe('ProductsService', () => {
       const result = await service.findAll({ tenantId: 'tenant-unassigned' });
       expect(result).toEqual([]);
       expect(mockPrisma.product.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateImage()/removeImage() — reference-safe storage deletion', () => {
+    // Cloned products reuse the source's image URL (no file duplication in
+    // storage), so multiple Products can point at the same object at once.
+    const productWithImage = { ...baseProduct, image: 'http://kioscify.localhost/storage/products/old.jpg' };
+
+    it('removeImage deletes the storage object when no other active product shares it', async () => {
+      mockPrisma.product.findFirst.mockResolvedValue(productWithImage);
+      mockPrisma.product.count.mockResolvedValue(0);
+      mockPrisma.product.update.mockResolvedValue({});
+
+      await service.removeImage('prod-1', 'menu-b');
+
+      expect(mockPrisma.product.count).toHaveBeenCalledWith({
+        where: { image: productWithImage.image, id: { not: 'prod-1' }, tombstone: { not: 1 } },
+      });
+      expect(mockStorage.delete).toHaveBeenCalledWith(productWithImage.image);
+    });
+
+    it('removeImage preserves the storage object when another active product still references it (e.g. a clone)', async () => {
+      mockPrisma.product.findFirst.mockResolvedValue(productWithImage);
+      mockPrisma.product.count.mockResolvedValue(1);
+      mockPrisma.product.update.mockResolvedValue({});
+
+      await service.removeImage('prod-1', 'menu-b');
+
+      expect(mockStorage.delete).not.toHaveBeenCalled();
+    });
+
+    it('updateImage deletes the old storage object when replacing an unshared image', async () => {
+      mockPrisma.product.findFirst.mockResolvedValue(productWithImage);
+      mockPrisma.product.count.mockResolvedValue(0);
+      mockStorage.upload.mockResolvedValue('http://kioscify.localhost/storage/products/new.jpg');
+      mockPrisma.product.update.mockResolvedValue({});
+
+      const file = { originalname: 'photo.png', buffer: Buffer.from(''), mimetype: 'image/png' } as any;
+      await service.updateImage('prod-1', file, 'menu-b');
+
+      expect(mockStorage.delete).toHaveBeenCalledWith(productWithImage.image);
+    });
+
+    it('updateImage preserves the old storage object when another active product still shares it', async () => {
+      mockPrisma.product.findFirst.mockResolvedValue(productWithImage);
+      mockPrisma.product.count.mockResolvedValue(1);
+      mockStorage.upload.mockResolvedValue('http://kioscify.localhost/storage/products/new.jpg');
+      mockPrisma.product.update.mockResolvedValue({});
+
+      const file = { originalname: 'photo.png', buffer: Buffer.from(''), mimetype: 'image/png' } as any;
+      await service.updateImage('prod-1', file, 'menu-b');
+
+      expect(mockStorage.delete).not.toHaveBeenCalled();
+    });
+
+    it('does not query the reference count when the product has no image', async () => {
+      mockPrisma.product.findFirst.mockResolvedValue({ ...baseProduct, image: null });
+      mockPrisma.product.update.mockResolvedValue({});
+
+      await service.removeImage('prod-1', 'menu-b');
+
+      expect(mockPrisma.product.count).not.toHaveBeenCalled();
+      expect(mockStorage.delete).not.toHaveBeenCalled();
     });
   });
 });

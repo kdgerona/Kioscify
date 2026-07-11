@@ -14,6 +14,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { app as appConstants } from '../constants/env.constants';
 import { Prisma } from '@prisma/client';
 import { extname } from 'path';
+import { generateUniqueSlugId } from '../common/utils/generate-unique-id.util';
 
 type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
@@ -141,29 +142,15 @@ export class ProductsService {
   }
 
   private async generateProductId(name: string): Promise<string> {
-    // Create slug from product name
-    const baseSlug = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
-    // Check if slug already exists globally — _id is unique across all brands in MongoDB
-    let slug = baseSlug;
-    let counter = 1;
-
-    while (true) {
+    // _id is unique across all brands/menus in MongoDB, so uniqueness must be
+    // checked globally, not scoped to this product's menu.
+    return generateUniqueSlugId(name, async (candidate) => {
       const existing = await this.prisma.product.findUnique({
-        where: { id: slug },
+        where: { id: candidate },
         select: { id: true },
       });
-
-      if (!existing) {
-        return slug;
-      }
-
-      counter++;
-      slug = `${baseSlug}-${counter}`;
-    }
+      return !!existing;
+    });
   }
 
   /**
@@ -264,7 +251,7 @@ export class ProductsService {
   async updateImage(id: string, file: Express.Multer.File, menuId: string) {
     const existing = await this.findOne(id, { menuId });
 
-    if (existing.image) await this.storage.delete(existing.image);
+    if (existing.image) await this.deleteImageIfUnreferenced(existing.image, id);
 
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const filename = `product-${id}-${uniqueSuffix}${extname(file.originalname)}`;
@@ -278,11 +265,22 @@ export class ProductsService {
   async removeImage(id: string, menuId: string) {
     const existing = await this.findOne(id, { menuId });
 
-    if (existing.image) await this.storage.delete(existing.image);
+    if (existing.image) await this.deleteImageIfUnreferenced(existing.image, id);
 
     await this.prisma.product.update({ where: { id }, data: { image: null } });
 
     return this.findOne(id, { menuId });
+  }
+
+  // Cloned products reuse the same image URL as their source (no file
+  // duplication in storage), so an image can be referenced by multiple
+  // Products at once. Only delete the underlying object once nothing else
+  // still points at it.
+  private async deleteImageIfUnreferenced(imageUrl: string, excludeProductId: string) {
+    const stillReferenced = await this.prisma.product.count({
+      where: { image: imageUrl, id: { not: excludeProductId }, tombstone: { not: 1 } },
+    });
+    if (stillReferenced === 0) await this.storage.delete(imageUrl);
   }
 
   async remove(id: string, menuId: string) {

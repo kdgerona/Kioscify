@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { MenusService } from './menus.service';
 import { CreateMenuDto } from './dto/create-menu.dto';
 import { UpdateMenuDto } from './dto/update-menu.dto';
+import { CloneMenuDto } from './dto/clone-menu.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -44,5 +45,11 @@ export class MenusController {
   @ApiOperation({ summary: 'Delete a menu (blocked if assigned to any store)' })
   remove(@Param('brandId') brandId: string, @Param('menuId') menuId: string) {
     return this.menusService.remove(brandId, menuId);
+  }
+
+  @Post(':menuId/clone')
+  @ApiOperation({ summary: 'Deep-clone a menu (categories, products, sizes, addons, preferences, price tiers)' })
+  clone(@Param('brandId') brandId: string, @Param('menuId') menuId: string, @Body() dto: CloneMenuDto) {
+    return this.menusService.clone(brandId, menuId, dto);
   }
 }
