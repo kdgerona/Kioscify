@@ -120,7 +120,24 @@ export class BrandsService {
     if (requestingRole !== 'PLATFORM_ADMIN') {
       throw new ForbiddenException('Only platform admins can delete brands');
     }
+    await this.assertNotAssignedToAnyStore(id);
     return this.prisma.brand.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  // Mirrors MenusService/InventorySetupsService's identical guard — a Store
+  // still pointing at a tombstoned brandId would lose its brand theming/logo
+  // lookups while remaining otherwise operational.
+  private async assertNotAssignedToAnyStore(brandId: string) {
+    const affectedStores = await this.prisma.tenant.findMany({
+      where: { brandId },
+      select: { name: true },
+    });
+    if (affectedStores.length > 0) {
+      const storeNames = affectedStores.map((s) => s.name).join(', ');
+      throw new ConflictException(
+        `Cannot delete this brand — it is assigned to the following store(s): ${storeNames}`,
+      );
+    }
   }
 
   async uploadLogo(id: string, companyId: string, file: Express.Multer.File) {

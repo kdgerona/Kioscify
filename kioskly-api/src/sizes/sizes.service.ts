@@ -218,7 +218,21 @@ export class SizesService {
   async remove(id: string) {
     const existing = await this.prisma.size.findFirst({ where: { id, tombstone: { not: 1 } } });
     if (!existing) throw new NotFoundException(`Size with ID ${id} not found`);
+    await this.assertNotInUse(id);
     return this.prisma.size.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  private async assertNotInUse(id: string) {
+    const links = await this.prisma.productSize.findMany({
+      where: { sizeId: id },
+      include: { product: { select: { name: true, tombstone: true } } },
+    });
+    const productNames = links.filter((l) => l.product.tombstone !== 1).map((l) => l.product.name);
+    if (productNames.length > 0) {
+      throw new ConflictException(
+        `Cannot delete this size — it is still used by the following product(s): ${productNames.join(', ')}`,
+      );
+    }
   }
 
   private async resolveTierIdForTenant(tenantId: string): Promise<string | null> {

@@ -75,6 +75,20 @@ export class PreferencesService {
 
   async remove(id: string) {
     await this.findOne(id);
+    await this.assertNotInUse(id);
     return this.prisma.preference.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  private async assertNotInUse(id: string) {
+    const links = await this.prisma.productPreference.findMany({
+      where: { preferenceId: id },
+      include: { product: { select: { name: true, tombstone: true } } },
+    });
+    const productNames = links.filter((l) => l.product.tombstone !== 1).map((l) => l.product.name);
+    if (productNames.length > 0) {
+      throw new ConflictException(
+        `Cannot delete this preference — it is still used by the following product(s): ${productNames.join(', ')}`,
+      );
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MenusService } from '../menus/menus.service';
 import { InventorySetupsService } from '../inventory-setups/inventory-setups.service';
@@ -86,6 +86,24 @@ export class CategoriesService {
 
   async remove(id: string) {
     await this.findOne(id);
+    await this.assertNotInUse(id);
     return this.prisma.category.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  // Checks both Product and InventoryItem regardless of this category's own
+  // `type` — cheap defense-in-depth against the two ever getting out of sync,
+  // and keeps this in one place instead of branching on type.
+  private async assertNotInUse(id: string) {
+    const [products, inventoryItems] = await Promise.all([
+      this.prisma.product.findMany({ where: { categoryId: id, tombstone: { not: 1 } }, select: { name: true } }),
+      this.prisma.inventoryItem.findMany({ where: { categoryId: id, tombstone: { not: 1 } }, select: { name: true } }),
+    ]);
+
+    const names = [...products, ...inventoryItems].map((p) => p.name);
+    if (names.length > 0) {
+      throw new ConflictException(
+        `Cannot delete this category — it is still assigned to the following item(s): ${names.join(', ')}`,
+      );
+    }
   }
 }
