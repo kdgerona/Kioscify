@@ -168,8 +168,35 @@ export class StoresService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const store = await this.findOne(id);
+    await this.assertNoActiveDependents(id);
+    // Mirrors tombstoneUser's "disable before delete" gate — store.isActive
+    // gates loginStore(), but nothing cascades an isActive change down to
+    // assigned users, so this is checked independently of
+    // assertNoActiveDependents above, not as a replacement for it.
+    if (store.isActive) {
+      throw new BadRequestException('Disable the store before deleting it');
+    }
     return this.prisma.tenant.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  private async assertNoActiveDependents(tenantId: string) {
+    const [primaryUsers, storeAccessUsers] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { tenantId, isActive: true, tombstone: { not: 1 } },
+        select: { username: true },
+      }),
+      this.prisma.userStoreAccess.findMany({
+        where: { tenantId, isActive: true, user: { isActive: true, tombstone: { not: 1 } } },
+        select: { user: { select: { username: true } } },
+      }),
+    ]);
+    const usernames = [...primaryUsers.map((u) => u.username), ...storeAccessUsers.map((a) => a.user.username)];
+    if (usernames.length > 0) {
+      throw new ConflictException(
+        `Cannot delete this store — it still has the following active user(s): ${[...new Set(usernames)].join(', ')}`,
+      );
+    }
   }
 
   async uploadLogo(id: string, file: Express.Multer.File) {
