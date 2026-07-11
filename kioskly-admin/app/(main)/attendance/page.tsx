@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
@@ -384,8 +385,11 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* Photo Lightbox */}
-      {lightboxUrl && (
+      {/* Photo Lightbox — portaled to document.body; an in-place fixed
+          overlay nested this deep in the layout tree renders short at the
+          top edge (see kioscify-company's brands/[brandId]/page.tsx Modal
+          for notes). */}
+      {lightboxUrl && createPortal(
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           onClick={() => setLightboxUrl(null)}
@@ -410,7 +414,8 @@ export default function AttendancePage() {
               className="w-full h-auto rounded-lg"
             />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { hasPrivilege } from "@/lib/privileges";
@@ -769,8 +770,11 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Rejection Modal */}
-      {showRejectModal && selectedVoidRequest && (
+      {/* Rejection Modal — portaled to document.body; an in-place fixed
+          overlay nested this deep in the layout tree renders short at the
+          top edge (see kioscify-company's brands/[brandId]/page.tsx Modal
+          for notes). */}
+      {showRejectModal && selectedVoidRequest && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-lg w-full p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -821,11 +825,12 @@ export default function ExpensesPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Expense Details Modal */}
-      {selectedExpense && (
+      {/* Expense Details Modal — portaled to document.body */}
+      {selectedExpense && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
             <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
@@ -1064,7 +1069,8 @@ export default function ExpensesPage() {
                 )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

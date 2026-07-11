@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Expense } from '@/types';
 import { formatCurrency } from '@/lib/utils';
@@ -24,7 +25,10 @@ export default function CashSummaryModal({
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const netCash = cashSales - totalExpenses;
 
-  return (
+  // Portaled to document.body — an in-place fixed overlay nested this deep
+  // in the layout tree renders short at the top edge (see kioscify-company's
+  // brands/[brandId]/page.tsx Modal for the investigation notes).
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl max-w-lg w-full max-h-[85vh] overflow-y-auto">
         <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10 flex items-center justify-between">
@@ -84,6 +88,7 @@ export default function CashSummaryModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

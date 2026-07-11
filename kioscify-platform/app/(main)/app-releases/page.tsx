@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
 import type { AppRelease } from '@/types';
 import { Plus, Pencil, Trash2, Download } from 'lucide-react';
@@ -276,8 +277,10 @@ export default function AppReleasesPage() {
         </div>
       )}
 
-      {/* Upload Modal */}
-      {showUpload && (
+      {/* Upload Modal — portaled to document.body; an in-place fixed overlay
+          nested this deep in the layout tree renders short at the top edge
+          (see kioscify-company's brands/[brandId]/page.tsx Modal for notes). */}
+      {showUpload && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
             <div className="flex items-center justify-between p-5 border-b">
@@ -412,11 +415,12 @@ export default function AppReleasesPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Edit Modal */}
-      {editTarget && (
+      {/* Edit Modal — portaled to document.body */}
+      {editTarget && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
             <div className="flex items-center justify-between p-5 border-b">
@@ -494,11 +498,12 @@ export default function AppReleasesPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Delete Confirmation */}
-      {deleteTarget && (
+      {/* Delete Confirmation — portaled to document.body */}
+      {deleteTarget && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
             <h2 className="font-semibold text-gray-900 mb-2">Delete Release?</h2>
@@ -523,7 +528,8 @@ export default function AppReleasesPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

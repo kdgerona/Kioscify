@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -1059,7 +1060,13 @@ function StatCard({ label, value }: { label: string; value: number }) {
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
+  // Portaled directly to document.body — rendering this in-place inside the
+  // page's layout tree caused the fixed overlay to render ~24px short at the
+  // top (confirmed empirically: moving the same node to be a direct child of
+  // body fixes it, moving it back reproduces it, despite computed styles
+  // showing top:0 the whole time). Portaling sidesteps whatever in the
+  // ancestor chain is responsible.
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white">
@@ -1068,7 +1075,8 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

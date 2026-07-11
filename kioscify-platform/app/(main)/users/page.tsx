@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
@@ -26,7 +27,10 @@ function TempPasswordModal({
     }
   }
 
-  return (
+  // Portaled to document.body — an in-place fixed overlay nested this deep
+  // in the layout tree renders short at the top edge (see kioscify-company's
+  // brands/[brandId]/page.tsx Modal for the investigation notes).
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
         <h3 className="text-lg font-semibold text-gray-900 mb-1">Temporary Password</h3>
@@ -49,7 +53,8 @@ function TempPasswordModal({
           Done
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -82,7 +87,10 @@ function CreateAdminModal({
     }
   }
 
-  return (
+  // Portaled to document.body — an in-place fixed overlay nested this deep
+  // in the layout tree renders short at the top edge (see kioscify-company's
+  // brands/[brandId]/page.tsx Modal for the investigation notes).
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Platform Admin</h3>
@@ -145,7 +153,8 @@ function CreateAdminModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -162,7 +171,10 @@ function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  return (
+  // Portaled to document.body — an in-place fixed overlay nested this deep
+  // in the layout tree renders short at the top edge (see kioscify-company's
+  // brands/[brandId]/page.tsx Modal for the investigation notes).
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
         <p className="text-sm text-gray-700 mb-6">{message}</p>
@@ -181,7 +193,8 @@ function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

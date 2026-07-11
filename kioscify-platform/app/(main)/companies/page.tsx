@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
@@ -105,8 +106,10 @@ export default function CompaniesPage() {
         </div>
       )}
 
-      {/* Create modal */}
-      {showForm && (
+      {/* Create modal — portaled to document.body; an in-place fixed overlay
+          nested this deep in the layout tree renders short at the top edge
+          (see brands/[brandId]/page.tsx Modal for notes). */}
+      {showForm && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between p-6 border-b">
@@ -188,7 +191,8 @@ export default function CompaniesPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Companies list */}

@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { X, Receipt } from 'lucide-react';
 import { Expense } from '@/types';
 import { formatCurrency, formatUserName } from '@/lib/utils';
@@ -47,7 +48,10 @@ export default function ExpenseListModal({
 
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-  return (
+  // Portaled to document.body — an in-place fixed overlay nested this deep
+  // in the layout tree renders short at the top edge (see kioscify-company's
+  // brands/[brandId]/page.tsx Modal for the investigation notes).
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
@@ -155,6 +159,7 @@ export default function ExpenseListModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

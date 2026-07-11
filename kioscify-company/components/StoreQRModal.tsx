@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import QRCode from 'react-qr-code';
 import { X, Download, Printer } from 'lucide-react';
 
@@ -78,7 +79,10 @@ export default function StoreQRModal({
     printWindow.document.close();
   };
 
-  return (
+  // Portaled to document.body — rendering in-place caused the fixed overlay
+  // to be offset short at the top; see brands/[brandId]/page.tsx Modal for
+  // the full investigation notes.
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
         <div className="flex items-center justify-between p-5 border-b">
@@ -117,6 +121,7 @@ export default function StoreQRModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
