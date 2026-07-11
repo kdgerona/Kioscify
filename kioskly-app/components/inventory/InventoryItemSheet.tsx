@@ -222,13 +222,20 @@ export default function InventoryItemSheet({
 
               {/* Item header */}
               <View className="px-5 pt-3 pb-1">
-                <Text
-                  className="text-lg font-bold"
-                  style={{ color: textColor }}
-                  numberOfLines={2}
-                >
-                  {localItem.name}
-                </Text>
+                <View className="flex-row items-center">
+                  <Text
+                    className="text-lg font-bold"
+                    style={{ color: textColor }}
+                    numberOfLines={2}
+                  >
+                    {localItem.name}
+                  </Text>
+                  {localItem.isLegacy && (
+                    <View className="ml-2 px-2 py-0.5 rounded-full bg-gray-200">
+                      <Text className="text-xs font-medium text-gray-600">Legacy</Text>
+                    </View>
+                  )}
+                </View>
                 <Text className="text-xs text-gray-400 mt-0.5">
                   {getCategoryLabel(localItem.category)}
                 </Text>

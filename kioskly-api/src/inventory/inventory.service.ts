@@ -109,30 +109,39 @@ export class InventoryService {
     const setupId = await this.inventorySetupsService.resolveStoreInventorySetupId(tenantId);
     if (!setupId) return { active: [], legacy: [] };
 
-    const activeWhere: Prisma.InventoryItemWhereInput = { inventorySetupId: setupId, tombstone: { not: 1 } };
-    if (categoryId) activeWhere.categoryId = categoryId;
-
-    const [activeItems, overrides] = await Promise.all([
-      this.prisma.inventoryItem.findMany({ where: activeWhere, include: { category: true } }),
+    const [allActiveItems, overrides] = await Promise.all([
+      this.prisma.inventoryItem.findMany({ where: { inventorySetupId: setupId, tombstone: { not: 1 } }, include: { category: true } }),
       this.prisma.tenantInventoryOverride.findMany({ where: { tenantId } }),
     ]);
     const overrideByItemId = new Map(overrides.map((o) => [o.inventoryItemId, o]));
 
-    const active = activeItems
+    // activeItemIds (below, for legacy exclusion) is intentionally computed
+    // from the FULL active set, not the categoryId-filtered one — an item in
+    // a category the caller isn't asking about right now is still active,
+    // not legacy. categoryId only narrows what's returned in `active`.
+    const active = allActiveItems
+      .filter((item) => !categoryId || item.categoryId === categoryId)
       .map((item) => this.formatItem(item, overrideByItemId.get(item.id), false))
       .sort((a, b) => (a.category?.name ?? '').localeCompare(b.category?.name ?? '') || a.name.localeCompare(b.name));
 
-    const activeItemIds = new Set(active.map((a) => a.id));
+    const activeItemIds = new Set(allActiveItems.map((a) => a.id));
 
-    // Legacy: items this store has recorded stock for that aren't part of the
+    // Legacy: items this store has recorded stock for (via a submitted
+    // inventory report snapshot — see getInventoryStats's comment below on
+    // why InventoryRecord itself is never populated) that aren't part of the
     // active bucket above (tombstoned from the current setup, or from a setup
-    // the store was previously assigned to before a reassignment).
-    const recordedItemIds = await this.prisma.inventoryRecord.findMany({
+    // the store was previously assigned to before a reassignment). Prisma
+    // can't do a DB-side `distinct` over an embedded array field, so the
+    // dedup happens in JS.
+    const reports = await this.prisma.submittedInventoryReport.findMany({
       where: { tenantId },
-      distinct: ['inventoryItemId'],
-      select: { inventoryItemId: true },
+      select: { inventorySnapshot: true },
     });
-    const legacyIds = recordedItemIds.map((r) => r.inventoryItemId).filter((id) => !activeItemIds.has(id));
+    const recordedItemIds = new Set<string>();
+    reports.forEach((r) => {
+      (r.inventorySnapshot as any)?.items?.forEach((item: any) => recordedItemIds.add(item.inventoryItemId));
+    });
+    const legacyIds = [...recordedItemIds].filter((id) => !activeItemIds.has(id));
 
     let legacy: FormattedItem[] = [];
     if (legacyIds.length > 0) {
@@ -358,25 +367,8 @@ export class InventoryService {
 
     const latestReport = recentReports[0];
     const previousReport = recentReports[1];
-    const latestMap = new Map<string, { quantity: number; date: Date; expirationBatches: any[] }>();
-    const previousMap = new Map<string, number>();
-
-    if (latestReport?.inventorySnapshot) {
-      const snapshot = latestReport.inventorySnapshot as any;
-      snapshot.items?.forEach((item: any) => {
-        latestMap.set(item.inventoryItemId, {
-          quantity: item.quantity,
-          date: latestReport.submittedAt,
-          expirationBatches: item.expirationBatches ?? [],
-        });
-      });
-    }
-    if (previousReport?.inventorySnapshot) {
-      const snapshot = previousReport.inventorySnapshot as any;
-      snapshot.items?.forEach((item: any) => {
-        previousMap.set(item.inventoryItemId, item.quantity);
-      });
-    }
+    const latestMap = latestReport ? this.snapshotToItemMap(latestReport.inventorySnapshot) : new Map();
+    const previousMap = previousReport ? this.snapshotToItemMap(previousReport.inventorySnapshot) : new Map();
 
     return items.map((item) => {
       const latest = latestMap.get(item.id);
@@ -391,8 +383,8 @@ export class InventoryService {
         expirationWarningDays: item.expirationWarningDays,
         isLegacy: item.isLegacy,
         latestQuantity: latest?.quantity ?? null,
-        latestRecordDate: latest?.date ?? null,
-        previousQuantity: previousMap.get(item.id) ?? null,
+        latestRecordDate: latest ? latestReport.submittedAt : null,
+        previousQuantity: previousMap.get(item.id)?.quantity ?? null,
         expirationBatches: latest?.expirationBatches ?? [],
       };
     });
@@ -400,21 +392,26 @@ export class InventoryService {
 
   async getInventoryStats(tenantId: string) {
     const { active } = await this.findAllItems(tenantId);
-    const itemIds = active.map((i) => i.id);
 
-    const latestRecordByItem = itemIds.length
-      ? await this.prisma.inventoryRecord.findMany({
-          where: { tenantId, inventoryItemId: { in: itemIds } },
-          orderBy: { date: 'desc' },
-          distinct: ['inventoryItemId'],
-        })
-      : [];
-    const latestByItemId = new Map(latestRecordByItem.map((r) => [r.inventoryItemId, r]));
+    // "Latest quantity" per item is sourced from the latest submitted
+    // inventory report's snapshot — same as getLatestInventory() above — not
+    // from InventoryRecord. Nothing in either frontend (store portal or
+    // mobile app) ever calls the endpoints that create InventoryRecord rows
+    // (createRecord/bulkCreateRecords are unused dead code paths), so that
+    // collection is always empty; querying it here made "Needs Counting" and
+    // "Low Stock Alerts" always report every active item as uncounted,
+    // regardless of real recorded stock.
+    const latestReport = await this.prisma.submittedInventoryReport.findFirst({
+      where: { tenantId },
+      orderBy: { submittedAt: 'desc' },
+      select: { inventorySnapshot: true },
+    });
+    const latestMap = latestReport ? this.snapshotToItemMap(latestReport.inventorySnapshot) : new Map();
 
     const totalItems = active.length;
-    const itemsWithRecords = active.filter((item) => latestByItemId.has(item.id)).length;
+    const itemsWithRecords = active.filter((item) => latestMap.has(item.id)).length;
     const lowStockItems = active.filter((item) => {
-      const latest = latestByItemId.get(item.id);
+      const latest = latestMap.get(item.id);
       return item.minStockLevel != null && (latest?.quantity ?? Infinity) < item.minStockLevel;
     });
 
@@ -427,10 +424,20 @@ export class InventoryService {
         id: item.id,
         name: item.name,
         category: item.category?.name ?? null,
-        currentQuantity: latestByItemId.get(item.id)?.quantity || 0,
+        currentQuantity: latestMap.get(item.id)?.quantity ?? 0,
         minStockLevel: item.minStockLevel,
       })),
     };
+  }
+
+  /** Maps a SubmittedInventoryReport's inventorySnapshot.items[] by (already-resolved) inventoryItemId. */
+  private snapshotToItemMap(inventorySnapshot: unknown): Map<string, { quantity: number; expirationBatches: any[] }> {
+    const map = new Map<string, { quantity: number; expirationBatches: any[] }>();
+    const items = (inventorySnapshot as any)?.items;
+    items?.forEach((item: any) => {
+      map.set(item.inventoryItemId, { quantity: item.quantity, expirationBatches: item.expirationBatches ?? [] });
+    });
+    return map;
   }
 
   private formatRecord(record: InventoryRecordWithRelations) {

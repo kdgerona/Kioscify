@@ -17,6 +17,7 @@ import {
   Search,
   Calendar,
   CalendarX,
+  ArrowRight,
 } from "lucide-react";
 import { ExpirationBatch } from "@/types";
 import {
@@ -73,12 +74,6 @@ export default function InventoryPage() {
   useEffect(() => {
     loadAllData();
   }, []);
-
-  // Re-fetch items when the Items-tab category filter changes
-  useEffect(() => {
-    if (!loading) loadInventoryItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategoryId]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -145,9 +140,12 @@ export default function InventoryPage() {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
   };
 
+  // Always fetches the full, unfiltered active/legacy lists — the Items-tab
+  // category dropdown filters client-side (see filteredInventoryItems below)
+  // so its own option list doesn't collapse to whatever's currently selected.
   const loadInventoryItems = async () => {
     try {
-      const data = await api.getInventoryItems(selectedCategoryId || undefined);
+      const data = await api.getInventoryItems();
       setInventoryItems(data.active);
       setLegacyItems(data.legacy);
     } catch (error) {
@@ -179,10 +177,17 @@ export default function InventoryPage() {
   ).sort();
 
   // Category id/name pairs for the Items tab filter (active items carry the
-  // structured {id, name} category)
+  // structured {id, name} category). Always derived from the full,
+  // unfiltered inventoryItems list, so selecting a category doesn't shrink
+  // the dropdown's own option list down to just that one category.
   const itemCategories = Array.from(
     new Map(inventoryItems.filter((i) => i.category).map((i) => [i.category!.id, i.category!.name])).entries()
   ).sort((a, b) => a[1].localeCompare(b[1]));
+
+  // Items tab table is filtered client-side by the selected category.
+  const filteredInventoryItems = inventoryItems.filter(
+    (item) => !selectedCategoryId || item.category?.id === selectedCategoryId
+  );
 
   // Filter items based on search and category
   const filteredItems = latestInventory.filter((item) => {
@@ -314,80 +319,29 @@ export default function InventoryPage() {
       {/* Overview Tab */}
       {activeTab === "overview" && (
         <div className="space-y-6">
-          {/* Low Stock Alerts */}
-          {stats &&
-            stats.lowStockItems.length > 0 &&
-            (() => {
-              // Group low stock items by category
-              const groupedLowStock = stats.lowStockItems.reduce(
-                (acc, item) => {
-                  const category = item.category || "Uncategorized";
-                  if (!acc[category]) {
-                    acc[category] = [];
-                  }
-                  acc[category].push(item);
-                  return acc;
-                },
-                {} as Record<string, typeof stats.lowStockItems>
-              );
-
-              const sortedLowStockCategories =
-                Object.keys(groupedLowStock).sort();
-
-              return (
-                <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-red-200">
-                  <div className="flex items-center space-x-2 mb-4 sm:mb-6">
-                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                      Low Stock Alerts
-                    </h2>
-                  </div>
-                  <div className="space-y-4 sm:space-y-6">
-                    {sortedLowStockCategories.map((category) => (
-                      <div key={category}>
-                        {/* Category Header */}
-                        <div className="flex items-center mb-3 gap-2">
-                          <h3 className="text-base sm:text-lg font-semibold text-gray-800">
-                            {formatCategoryName(category)}
-                          </h3>
-                          <div className="flex-1 border-t border-red-300"></div>
-                          <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700 whitespace-nowrap">
-                            {groupedLowStock[category].length}{" "}
-                            {groupedLowStock[category].length === 1
-                              ? "item"
-                              : "items"}
-                          </span>
-                        </div>
-
-                        {/* Items List */}
-                        <div className="space-y-2 sm:space-y-3">
-                          {groupedLowStock[category].map((item) => (
-                            <div
-                              key={item.id}
-                              className="flex items-center justify-between gap-2 p-3 sm:p-4 bg-red-50 rounded-lg border border-red-100"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">
-                                  {item.name}
-                                </p>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <p className="text-base sm:text-lg font-bold text-red-600">
-                                  {item.latestQuantity}
-                                </p>
-                                <p className="text-xs sm:text-sm text-gray-600">
-                                  Min: {item.minStockLevel}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+          {/* Low Stock Alert Banner */}
+          {stats && stats.lowStockCount > 0 && (
+            <div className="bg-red-50 rounded-xl shadow-sm p-3 sm:p-4 border border-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm sm:text-base font-semibold text-gray-900">
+                    {stats.lowStockCount} item{stats.lowStockCount !== 1 ? "s" : ""} running low on stock
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-600">
+                    These items have fallen below their minimum stock level and may need restocking soon.
+                  </p>
                 </div>
-              );
-            })()}
+              </div>
+              <button
+                onClick={() => router.push("/inventory-alerts?type=LOW_STOCK")}
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white font-medium text-sm transition hover:bg-red-700 flex-shrink-0"
+              >
+                <span>See Details</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {/* Latest Inventory Counts */}
           <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 border border-gray-200">
@@ -466,9 +420,19 @@ export default function InventoryPage() {
                         >
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">
-                                {item.name}
-                              </p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm sm:text-base font-semibold text-gray-900 break-words">
+                                  {item.name}
+                                </p>
+                                {item.isLegacy && (
+                                  <span
+                                    className="px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-700 flex-shrink-0"
+                                    title="No longer part of your store's current inventory setup, but preserved because your store has recorded stock for it."
+                                  >
+                                    Legacy
+                                  </span>
+                                )}
+                              </div>
                               {item.requiresExpirationDate && (
                                 <span className="inline-flex items-center gap-1 text-xs text-amber-600 mt-1">
                                   <Calendar className="w-3 h-3" />
@@ -635,7 +599,7 @@ export default function InventoryPage() {
                     <SelectTrigger style={{ color: textColor }}>
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': textColor } as React.CSSProperties}>
                       <SelectItem value="ALL">All Categories</SelectItem>
                       {itemCategories.map(([id, name]) => (
                         <SelectItem key={id} value={id}>{name}</SelectItem>
@@ -646,7 +610,7 @@ export default function InventoryPage() {
               )}
             </div>
 
-            {inventoryItems.length === 0 ? (
+            {filteredInventoryItems.length === 0 ? (
               <div className="text-center py-12">
                 <Package className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-sm sm:text-base text-gray-600">No inventory items configured for your store yet.</p>
@@ -667,7 +631,7 @@ export default function InventoryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {inventoryItems.map((item) => (
+                      {filteredInventoryItems.map((item) => (
                         <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-3 px-2 sm:px-4">
                             <div className="font-medium text-gray-900 text-xs sm:text-sm">{item.name}</div>

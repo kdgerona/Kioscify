@@ -8,6 +8,7 @@ const mockPrisma = {
   inventoryItem: { findMany: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn() },
   tenantInventoryOverride: { findMany: jest.fn() },
   inventoryRecord: { findMany: jest.fn(), create: jest.fn(), count: jest.fn() },
+  submittedInventoryReport: { findMany: jest.fn(), findFirst: jest.fn() },
   tenant: { findUnique: jest.fn() },
 };
 const mockInventorySetupsService = {
@@ -73,9 +74,8 @@ describe('InventoryService', () => {
         .mockResolvedValueOnce([itemA]) // active query (inventorySetupId: 'setup-1', tombstone != 1)
         .mockResolvedValueOnce([itemLegacy]); // legacy items lookup by id
       mockPrisma.tenantInventoryOverride.findMany.mockResolvedValue([]);
-      mockPrisma.inventoryRecord.findMany.mockResolvedValue([
-        { inventoryItemId: 'item-a' },
-        { inventoryItemId: 'item-legacy' },
+      mockPrisma.submittedInventoryReport.findMany.mockResolvedValue([
+        { inventorySnapshot: { items: [{ inventoryItemId: 'item-a' }, { inventoryItemId: 'item-legacy' }] } },
       ]);
 
       const result = await service.findAllItems('tenant-1');
@@ -92,7 +92,7 @@ describe('InventoryService', () => {
       mockPrisma.tenantInventoryOverride.findMany.mockResolvedValue([
         { id: 'ov-1', tenantId: 'tenant-1', inventoryItemId: 'item-a', minStockLevel: 20, requiresExpirationDate: null, expirationWarningDays: null },
       ]);
-      mockPrisma.inventoryRecord.findMany.mockResolvedValue([]);
+      mockPrisma.submittedInventoryReport.findMany.mockResolvedValue([]);
 
       const result = await service.findAllItems('tenant-1');
 

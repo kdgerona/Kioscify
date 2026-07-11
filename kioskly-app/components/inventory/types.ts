@@ -17,4 +17,8 @@ export interface InventoryInput {
   requiresExpirationDate?: boolean;
   expirationWarningDays?: number;
   batches: ExpirationBatchInput[];
+  // No longer part of the store's current inventory setup, but preserved
+  // (and still fully recordable) because the store has recorded stock for
+  // it — see InventoryService.findAllItems on the API.
+  isLegacy: boolean;
 }
