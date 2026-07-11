@@ -12,12 +12,21 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+// All stores currently operate in the Philippines (Asia/Manila, UTC+8). Pinning
+// display to this fixed zone (rather than the viewer's browser timezone) keeps
+// it consistent with the backend's store-local bucketing (see
+// kioskly-api/src/common/utils/timezone.ts) — otherwise a date-only value like
+// "2026-07-10" gets parsed as UTC midnight and can render as the wrong calendar
+// day for anyone viewing from a timezone behind UTC+8.
+const STORE_TIMEZONE = 'Asia/Manila';
+
 export function formatDate(date: string | Date): string {
   const dateObj = new Date(date);
   return dateObj.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: STORE_TIMEZONE,
   });
 }
 
@@ -30,6 +39,7 @@ export function formatDateTime(date: string | Date): string {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    timeZone: STORE_TIMEZONE,
   });
 }
 

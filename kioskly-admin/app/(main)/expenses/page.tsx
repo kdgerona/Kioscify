@@ -305,6 +305,19 @@ export default function ExpensesPage() {
   };
 
   const exportToCSV = () => {
+    const escapeCSV = (value: unknown): string => {
+      if (value === null || value === undefined) return "";
+      const stringValue = String(value);
+      if (
+        stringValue.includes(",") ||
+        stringValue.includes('"') ||
+        stringValue.includes("\n")
+      ) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
     const headers = [
       "Description",
       "Date",
@@ -313,14 +326,16 @@ export default function ExpensesPage() {
       "Category",
       "Notes",
     ];
-    const rows = expenses.map((e) => [
-      e.description,
-      formatDateTime(e.date),
-      formatUserName(e.user),
-      e.amount,
-      e.category,
-      e.notes || "",
-    ]);
+    const rows = expenses.map((e) =>
+      [
+        e.description,
+        formatDateTime(e.date),
+        formatUserName(e.user),
+        e.amount,
+        e.category,
+        e.notes || "",
+      ].map(escapeCSV)
+    );
 
     const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
       "\n"
@@ -330,7 +345,23 @@ export default function ExpensesPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `expenses-${new Date().toISOString().split("T")[0]}.csv`;
+
+    const filterParts: string[] = [];
+    if (filterCategory !== "ALL") filterParts.push(filterCategory.toLowerCase());
+    if (startDate) filterParts.push(`from-${startDate.toISOString().split("T")[0]}`);
+    if (endDate) filterParts.push(`to-${endDate.toISOString().split("T")[0]}`);
+    if (debouncedSearchTerm) {
+      filterParts.push(
+        `search-${debouncedSearchTerm
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 30)}`
+      );
+    }
+    const filterSuffix = filterParts.length ? `-${filterParts.join("-")}` : "";
+
+    a.download = `expenses-${new Date().toISOString().split("T")[0]}${filterSuffix}.csv`;
     a.click();
   };
 

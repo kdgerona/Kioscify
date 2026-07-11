@@ -142,7 +142,7 @@ export default function InventoryPage() {
 
   const formatExpirationDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
   };
 
   const loadInventoryItems = async () => {

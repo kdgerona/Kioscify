@@ -1,14 +1,15 @@
 // kioscify-company/app/(main)/analytics/components/DateRangePicker.tsx
 'use client';
 import { useState, useEffect } from 'react';
-import {
-  startOfDay, endOfDay, subDays,
-  startOfWeek, endOfWeek,
-  startOfMonth, endOfMonth, subMonths,
-  startOfYear, endOfYear,
-  parseISO, differenceInDays, format, isValid,
-} from 'date-fns';
+import { startOfMonth, endOfMonth, differenceInDays, format } from 'date-fns';
 import { Calendar } from 'lucide-react';
+import {
+  getZonedDayBounds,
+  getZonedDayBoundsFromParts,
+  getZonedWeekBounds,
+  getZonedMonthBounds,
+  getZonedYearBounds,
+} from '@/lib/timezone';
 import {
   Select,
   SelectContent,
@@ -31,26 +32,31 @@ interface Props {
   onChange: (startDate: string, endDate: string) => void;
 }
 
+// Boundaries are anchored to the store's fixed Asia/Manila timezone (not the
+// viewer's browser timezone) — see lib/timezone.ts for why.
 function getPresetRange(preset: Exclude<DatePreset, 'custom'>): { start: Date; end: Date } {
   const now = new Date();
   switch (preset) {
     case 'today':
-      return { start: startOfDay(now), end: endOfDay(now) };
+      return getZonedDayBounds(now);
     case 'yesterday': {
-      const y = subDays(now, 1);
-      return { start: startOfDay(y), end: endOfDay(y) };
+      const today = getZonedDayBounds(now);
+      return {
+        start: new Date(today.start.getTime() - 24 * 60 * 60 * 1000),
+        end: new Date(today.start.getTime() - 1),
+      };
     }
     case 'this_week':
-      return {
-        start: startOfWeek(now, { weekStartsOn: 1 }),
-        end: endOfWeek(now, { weekStartsOn: 1 }),
-      };
+      return getZonedWeekBounds(now);
     case 'this_month':
-      return { start: startOfMonth(now), end: endOfMonth(now) };
+      return getZonedMonthBounds(now);
     case 'last_3_months':
-      return { start: startOfMonth(subMonths(now, 2)), end: endOfMonth(now) };
+      return {
+        start: getZonedMonthBounds(now, -2).start,
+        end: getZonedMonthBounds(now).end,
+      };
     case 'this_year':
-      return { start: startOfYear(now), end: endOfYear(now) };
+      return getZonedYearBounds(now);
   }
 }
 
@@ -88,12 +94,17 @@ export function DateRangePicker({ initialPreset = 'this_month', onChange }: Prop
   }
 
   function handleCustomApply() {
-    const start = startOfDay(parseISO(customStart));
-    const end = endOfDay(parseISO(customEnd));
-    if (!isValid(start) || !isValid(end)) {
+    // Parsed manually (rather than via new Date()/date-fns parseISO) and
+    // anchored to Asia/Manila via getZonedDayBoundsFromParts — the admin is
+    // picking a store business day, not a day in their own browser timezone.
+    const startMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(customStart);
+    const endMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(customEnd);
+    if (!startMatch || !endMatch) {
       setCustomError('Please enter valid start and end dates');
       return;
     }
+    const { start } = getZonedDayBoundsFromParts(Number(startMatch[1]), Number(startMatch[2]), Number(startMatch[3]));
+    const { end } = getZonedDayBoundsFromParts(Number(endMatch[1]), Number(endMatch[2]), Number(endMatch[3]));
     const diff = differenceInDays(end, start);
     if (diff < 0) {
       setCustomError('Start date must be before end date');

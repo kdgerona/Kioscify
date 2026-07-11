@@ -445,7 +445,7 @@ export default function SubmittedReportsPage() {
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">Period Covered</p>
                     <p className="text-xs sm:text-sm text-gray-900 break-words">
-                      {new Date(selectedReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })} (Full Day)
+                      {new Date(selectedReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Manila" })} (Full Day)
                     </p>
                   </div>
                 </div>
@@ -745,7 +745,7 @@ export default function SubmittedReportsPage() {
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">Period Covered</p>
                     <p className="text-xs sm:text-sm text-gray-900">
-                      {new Date(selectedShiftReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })} (Shift)
+                      {new Date(selectedShiftReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Manila" })} (Shift)
                     </p>
                   </div>
                 </div>

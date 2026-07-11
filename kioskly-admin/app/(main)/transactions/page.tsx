@@ -291,6 +291,19 @@ export default function TransactionsPage() {
   };
 
   const exportToCSV = () => {
+    const escapeCSV = (value: unknown): string => {
+      if (value === null || value === undefined) return "";
+      const stringValue = String(value);
+      if (
+        stringValue.includes(",") ||
+        stringValue.includes('"') ||
+        stringValue.includes("\n")
+      ) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
     const headers = [
       "Transaction ID",
       "Date",
@@ -301,16 +314,18 @@ export default function TransactionsPage() {
       "Split Breakdown",
       "Status",
     ];
-    const rows = transactions.map((t) => [
-      t.transactionId,
-      formatDateTime(t.timestamp),
-      formatUserName(t.user),
-      t.total,
-      getCombinedDiscount(t) || "",
-      t.paymentMethod,
-      formatPaymentSplitSummary(t),
-      t.paymentStatus || "COMPLETED",
-    ]);
+    const rows = transactions.map((t) =>
+      [
+        t.transactionId,
+        formatDateTime(t.timestamp),
+        formatUserName(t.user),
+        t.total,
+        getCombinedDiscount(t) || "",
+        t.paymentMethod,
+        formatPaymentSplitSummary(t),
+        t.paymentStatus || "COMPLETED",
+      ].map(escapeCSV)
+    );
 
     const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
       "\n"
@@ -320,7 +335,24 @@ export default function TransactionsPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`;
+
+    const filterParts: string[] = [];
+    if (filterStatus !== "ALL") filterParts.push(filterStatus.toLowerCase());
+    if (filterMethod !== "ALL") filterParts.push(filterMethod.toLowerCase());
+    if (startDate) filterParts.push(`from-${startDate.toISOString().split("T")[0]}`);
+    if (endDate) filterParts.push(`to-${endDate.toISOString().split("T")[0]}`);
+    if (debouncedSearchTerm) {
+      filterParts.push(
+        `search-${debouncedSearchTerm
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 30)}`
+      );
+    }
+    const filterSuffix = filterParts.length ? `-${filterParts.join("-")}` : "";
+
+    a.download = `transactions-${new Date().toISOString().split("T")[0]}${filterSuffix}.csv`;
     a.click();
   };
 

@@ -179,10 +179,10 @@ export default function SessionsPage() {
                     <td className="px-6 py-4 text-sm text-gray-600">{formatRole(session.user.role)}</td>
                     <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                       <Clock className="h-3.5 w-3.5 inline mr-1.5 text-gray-400" />
-                      {new Date(session.loginAt).toLocaleString()}
+                      {new Date(session.loginAt).toLocaleString("en-US", { timeZone: "Asia/Manila" })}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                      {session.loggedOutAt ? new Date(session.loggedOutAt).toLocaleString() : "—"}
+                      {session.loggedOutAt ? new Date(session.loggedOutAt).toLocaleString("en-US", { timeZone: "Asia/Manila" }) : "—"}
                     </td>
                     <td className={`px-6 py-4 text-sm ${STATUS_CLASS[session.status]}`}>
                       {STATUS_LABEL[session.status]}
