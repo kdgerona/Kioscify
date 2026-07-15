@@ -14,16 +14,19 @@ import { useRouter, Href } from "expo-router";
 import { useState, useEffect, useRef } from "react";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
-import { apiGet } from "../utils/api";
-import CheckoutModal from "../components/CheckoutModal";
+import { apiGet, apiPost, apiDelete } from "../utils/api";
+import CheckoutModal, { type PaymentSplitLine } from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
 import ItemDiscountModal from "../components/ItemDiscountModal";
+import HoldOrderPromptModal from "../components/HoldOrderPromptModal";
+import HeldOrdersModal from "../components/HeldOrdersModal";
 import { createTransactionOffline } from "../services/transactionService";
 import { cacheCategories, getCachedCategories, cacheProducts, getCachedProducts } from "../lib/localCache";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
 import { useDeviceType } from "../hooks/useDeviceType";
 import { ItemDiscount } from "../utils/discount";
+import { showSuccessToast } from "../utils/toast";
 
 type Size = {
   id: string;
@@ -80,13 +83,43 @@ type OrderItem = {
   itemDiscount?: ItemDiscount;
 };
 
+type HeldOrderItemAddon = { addonId: string; name: string; price: number };
+
+type HeldOrderItem = {
+  localId: string;
+  productId: string;
+  productName: string;
+  productPrice: number;
+  quantity: number;
+  sizeId?: string;
+  sizeName?: string;
+  sizePriceModifier?: number;
+  preferenceId?: string;
+  preferenceName?: string;
+  addons: HeldOrderItemAddon[];
+  itemDiscount?: ItemDiscount;
+};
+
+export type HeldOrder = {
+  id: string;
+  customerLabel?: string;
+  orderType: OrderType;
+  subtotal: number;
+  total: number;
+  itemCount: number;
+  items: HeldOrderItem[];
+  createdAt: string;
+  heldBy: { id: string; username: string; firstName?: string; lastName?: string };
+};
+
 type PaymentMethodType =
   | "cash"
   | "gcash"
   | "paymaya"
   | "online"
   | "foodpanda"
-  | "grab";
+  | "grab"
+  | "split";
 
 type TransactionData = {
   transactionId: string;
@@ -99,6 +132,7 @@ type TransactionData = {
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
+  payments?: PaymentSplitLine[];
 };
 
 const HEADER_MENU_WIDTH = 280;
@@ -140,6 +174,11 @@ export default function Home() {
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const headerMenuAnim = useRef(new Animated.Value(HEADER_MENU_WIDTH)).current;
   const [discountItemId, setDiscountItemId] = useState<string | null>(null);
+  const [heldOrders, setHeldOrders] = useState<HeldOrder[]>([]);
+  const [showHeldOrdersModal, setShowHeldOrdersModal] = useState(false);
+  const [showHoldLabelPrompt, setShowHoldLabelPrompt] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
+  const [heldOrdersError, setHeldOrdersError] = useState<string | null>(null);
 
   // Fetch categories and products from API, fall back to local cache when offline
   useEffect(() => {
@@ -179,6 +218,23 @@ export default function Home() {
     };
     fetchData();
   }, [tenant]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchHeldOrders = async () => {
+    try {
+      const response = await apiGet("/held-orders");
+      if (response.ok) {
+        setHeldOrders(await response.json());
+        setHeldOrdersError(null);
+      }
+    } catch {
+      // Badge keeps showing the last-known count; surface the error only when the list is open.
+      setHeldOrdersError("Failed to load saved carts. Pull down or reopen to retry.");
+    }
+  };
+
+  useEffect(() => {
+    if (tenant) fetchHeldOrders();
+  }, [tenant]);
 
   useEffect(() => {
     // If no tenant is set, redirect to tenant setup
@@ -642,9 +698,17 @@ export default function Home() {
 
     return (
     <>
-      <Text className="text-lg font-bold mb-4" style={{ color: textColor }}>
-        Orders
-      </Text>
+      <View className="flex-row items-center justify-between mb-4">
+        <Text className="text-lg font-bold" style={{ color: textColor }}>
+          Orders
+        </Text>
+        <TouchableOpacity
+          className="p-1"
+          onPress={() => setShowHoldLabelPrompt(true)}
+        >
+          <Ionicons name="cart-outline" size={24} color="#000000" />
+        </TouchableOpacity>
+      </View>
       <ScrollView className="flex-1">
         {orders.map((item) => (
           <SwipeableOrderItem
@@ -736,13 +800,23 @@ export default function Home() {
           | "PAYMAYA"
           | "ONLINE"
           | "FOODPANDA"
-          | "GRAB",
+          | "GRAB"
+          | "SPLIT",
         ...(paymentMethod === "cash" && {
           cashReceived: details.cashReceived,
           change: details.change,
         }),
-        ...(paymentMethod !== "cash" && {
+        ...(paymentMethod !== "cash" && paymentMethod !== "split" && {
           referenceNumber: details.referenceNumber,
+        }),
+        ...(paymentMethod === "split" && {
+          payments: (details.payments as PaymentSplitLine[]).map((p) => ({
+            method: p.method.toUpperCase(),
+            amount: p.amount,
+            ...(p.cashReceived !== undefined && { cashReceived: p.cashReceived }),
+            ...(p.change !== undefined && { change: p.change }),
+            ...(p.referenceNumber && { referenceNumber: p.referenceNumber }),
+          })),
         }),
         ...(details.remarks && {
           remarks: details.remarks,
@@ -777,8 +851,11 @@ export default function Home() {
             cashReceived: details.cashReceived,
             change: details.change,
           }),
-          ...(paymentMethod !== "cash" && {
+          ...(paymentMethod !== "cash" && paymentMethod !== "split" && {
             referenceNumber: details.referenceNumber,
+          }),
+          ...(paymentMethod === "split" && {
+            payments: details.payments as PaymentSplitLine[],
           }),
         };
         setCurrentTransaction(transaction);
@@ -802,6 +879,164 @@ export default function Home() {
     setCurrentTransaction(null);
     setOrders([]);
     setPhoneActiveTab('menu');
+  };
+
+  // Holding requires connectivity — unlike checkout, this does not integrate with the
+  // offline sync queue. A held order is provisional working state, not a completed sale,
+  // so it's fine to simply fail and leave the cart untouched if offline.
+  const handleHoldOrder = async (customerLabel?: string) => {
+    if (orders.length === 0) return;
+    setIsHolding(true);
+    try {
+      const snapshotItems: HeldOrderItem[] = orders.map((item) => ({
+        localId: item.id,
+        productId: item.product.id,
+        productName: item.product.name,
+        productPrice: getEffectiveProductPrice(item.product),
+        quantity: item.quantity,
+        sizeId: item.selectedSize?.id,
+        sizeName: item.selectedSize?.name,
+        sizePriceModifier: item.selectedSize ? getEffectiveSizeModifier(item.selectedSize) : undefined,
+        preferenceId: item.selectedPreference?.id,
+        preferenceName: item.selectedPreference?.name,
+        addons: item.selectedAddons.map((addon) => ({
+          addonId: addon.id,
+          name: addon.name,
+          price: getEffectiveAddonPrice(addon),
+        })),
+        itemDiscount: item.itemDiscount,
+      }));
+
+      const response = await apiPost("/held-orders", {
+        customerLabel,
+        orderType,
+        subtotal: grossOrderTotal,
+        total: totalAmount,
+        itemCount: orders.reduce((sum, item) => sum + item.quantity, 0),
+        items: snapshotItems,
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      setOrders([]);
+      setOrderType('regular');
+      setShowHoldLabelPrompt(false);
+      showSuccessToast(customerLabel ? `Saved cart for ${customerLabel}` : "Cart saved");
+      await fetchHeldOrders();
+    } catch {
+      Alert.alert(
+        "Could Not Save Cart",
+        "Saving a cart requires an internet connection. Please try again.",
+      );
+    } finally {
+      setIsHolding(false);
+    }
+  };
+
+  const handleResumeHeldOrder = (heldOrder: HeldOrder) => {
+    const doResume = async () => {
+      try {
+        const response = await apiPost(`/held-orders/${heldOrder.id}/resume`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const resumed: HeldOrder = await response.json();
+
+        // Reconstruct OrderItem[] from the snapshot, preferring live catalog data when the
+        // product/size/addon still exists so price changes since the hold are honored;
+        // fall back to the snapshot's name/price if it was deleted in the meantime.
+        const reconstructed: OrderItem[] = resumed.items.map((snap) => {
+          const liveProduct = products.find((p) => p.id === snap.productId);
+          const product: Product = liveProduct ?? {
+            id: snap.productId,
+            name: snap.productName,
+            price: snap.productPrice,
+            categoryId: "",
+          };
+          const selectedSize: Size | undefined = snap.sizeId
+            ? liveProduct?.sizes?.find((s) => s.id === snap.sizeId) ?? {
+                id: snap.sizeId,
+                name: snap.sizeName ?? "",
+                priceModifier: snap.sizePriceModifier ?? 0,
+              }
+            : undefined;
+          const selectedPreference: Preference | undefined = snap.preferenceId
+            ? liveProduct?.preferences?.find((p) => p.id === snap.preferenceId) ?? {
+                id: snap.preferenceId,
+                name: snap.preferenceName ?? "",
+              }
+            : undefined;
+          const selectedAddons: Addon[] = snap.addons.map(
+            (a) =>
+              liveProduct?.addons?.find((la) => la.id === a.addonId) ?? {
+                id: a.addonId,
+                name: a.name,
+                price: a.price,
+              },
+          );
+
+          return {
+            id: snap.localId,
+            product,
+            quantity: snap.quantity,
+            selectedSize,
+            selectedAddons,
+            selectedPreference,
+            itemDiscount: snap.itemDiscount,
+          };
+        });
+
+        setOrders(reconstructed);
+        setOrderType(resumed.orderType);
+        setShowHeldOrdersModal(false);
+        setPhoneActiveTab('cart');
+        await fetchHeldOrders();
+      } catch {
+        Alert.alert("Could Not Load Cart", "Failed to load this saved cart. Please try again.");
+      }
+    };
+
+    // Guard mirrors the existing orderType-switch Alert — never silently discard an
+    // in-progress cart when resuming a different held order.
+    if (orders.length > 0) {
+      Alert.alert(
+        "Active Cart In Progress",
+        "You have items in the current cart. Discard them to load this saved cart?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Discard Current Cart",
+            style: "destructive",
+            onPress: () => {
+              setOrders([]);
+              doResume();
+            },
+          },
+        ],
+      );
+    } else {
+      doResume();
+    }
+  };
+
+  const handleDiscardHeldOrder = (heldOrder: HeldOrder) => {
+    Alert.alert(
+      "Discard Saved Cart",
+      `Discard ${heldOrder.customerLabel || "this saved cart"}? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await apiDelete(`/held-orders/${heldOrder.id}`);
+              await fetchHeldOrders();
+            } catch {
+              Alert.alert("Error", "Failed to discard saved cart.");
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -855,6 +1090,34 @@ export default function Home() {
           </TouchableOpacity>
         ) : (
           <View className="flex-row items-center gap-6">
+            <TouchableOpacity
+              className="p-2"
+              onPress={() => setShowHeldOrdersModal(true)}
+            >
+              <View>
+                <Ionicons name="cart-outline" size={24} color={textColor} />
+                {heldOrders.length > 0 && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -8,
+                      backgroundColor: '#ef4444',
+                      borderRadius: 8,
+                      minWidth: 16,
+                      height: 16,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 3,
+                    }}
+                  >
+                    <Text style={{ color: 'white', fontSize: 10, fontWeight: '700' }}>
+                      {heldOrders.length}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
             <TouchableOpacity
               className="p-2"
               onPress={() => router.push("/transactions" as Href)}
@@ -932,6 +1195,11 @@ export default function Home() {
                 </TouchableOpacity>
               </View>
               {[
+                {
+                  icon: 'cart-outline' as const,
+                  label: `Saved Carts${heldOrders.length ? ` (${heldOrders.length})` : ''}`,
+                  onPress: () => setShowHeldOrdersModal(true),
+                },
                 { icon: 'receipt-outline' as const, label: 'Transactions', onPress: () => router.push("/transactions" as Href) },
                 { icon: 'wallet-outline' as const, label: 'Expenses', onPress: () => router.push("/expenses" as Href) },
                 { icon: 'cube-outline' as const, label: 'Inventory', onPress: () => router.push("/inventory" as Href) },
@@ -1569,6 +1837,24 @@ export default function Home() {
         visible={showTransactionSummary}
         transaction={currentTransaction as any}
         onNewOrder={handleNewOrder}
+      />
+
+      {/* Save Cart Prompt */}
+      <HoldOrderPromptModal
+        visible={showHoldLabelPrompt}
+        isSubmitting={isHolding}
+        onConfirm={(customerLabel) => handleHoldOrder(customerLabel)}
+        onCancel={() => setShowHoldLabelPrompt(false)}
+      />
+
+      {/* Saved Carts List */}
+      <HeldOrdersModal
+        visible={showHeldOrdersModal}
+        heldOrders={heldOrders}
+        error={heldOrdersError}
+        onResume={handleResumeHeldOrder}
+        onDiscard={handleDiscardHeldOrder}
+        onClose={() => setShowHeldOrdersModal(false)}
       />
     </AppSafeAreaView>
   );

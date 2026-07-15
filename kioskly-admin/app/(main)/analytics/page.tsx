@@ -225,6 +225,7 @@ export default function ReportsPage() {
       FOODPANDA: "#ec4899",
       ONLINE: "#6b7280",
       GRAB: "#00B14F",
+      SPLIT: "#9333ea",
     };
 
     return Object.entries(analytics.sales.paymentMethodBreakdown).map(
@@ -280,6 +281,7 @@ export default function ReportsPage() {
       date: new Date(day.date).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
+        timeZone: "Asia/Manila",
       }),
       total: day.total,
       count: day.count,
@@ -331,41 +333,43 @@ export default function ReportsPage() {
     // Report Header
     const businessName = tenant?.name || "Business";
     csvLines.push(`${businessName} (Business Report)`);
-    csvLines.push(`Generated At,${new Date().toLocaleString()}`);
+    csvLines.push(
+      `Generated At,${escapeCSV(`${new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" })} PHT`)}`,
+    );
     csvLines.push(`Period Type,${analytics.period.type}`);
     csvLines.push(
-      `Start Date,${new Date(analytics.period.start).toLocaleString()}`,
+      `Start Date,${escapeCSV(`${new Date(analytics.period.start).toLocaleString("en-US", { timeZone: "Asia/Manila" })} PHT`)}`,
     );
     csvLines.push(
-      `End Date,${new Date(analytics.period.end).toLocaleString()}`,
+      `End Date,${escapeCSV(`${new Date(analytics.period.end).toLocaleString("en-US", { timeZone: "Asia/Manila" })} PHT`)}`,
     );
     csvLines.push("");
 
     // Summary Section
     csvLines.push("SUMMARY");
     csvLines.push("Metric,Value");
-    csvLines.push(`Total Sales,${formatCurrency(analytics.sales.totalAmount)}`);
+    csvLines.push(`Total Sales,${escapeCSV(formatCurrency(analytics.sales.totalAmount))}`);
     csvLines.push(`Total Transactions,${analytics.sales.transactionCount}`);
     csvLines.push(
-      `Average Transaction,${formatCurrency(analytics.sales.averageTransaction)}`,
+      `Average Transaction,${escapeCSV(formatCurrency(analytics.sales.averageTransaction))}`,
     );
     csvLines.push(`Total Items Sold,${analytics.sales.totalItemsSold}`);
     csvLines.push(`Sales Growth,${analytics.sales.growth.toFixed(2)}%`);
     csvLines.push(
-      `Total Expenses,${formatCurrency(analytics.expenses.totalAmount)}`,
+      `Total Expenses,${escapeCSV(formatCurrency(analytics.expenses.totalAmount))}`,
     );
     csvLines.push(`Expense Count,${analytics.expenses.expenseCount}`);
     csvLines.push(
-      `Average Expense,${formatCurrency(analytics.expenses.averageExpense)}`,
+      `Average Expense,${escapeCSV(formatCurrency(analytics.expenses.averageExpense))}`,
     );
     csvLines.push(
-      `Gross Profit,${formatCurrency(analytics.summary.grossProfit)}`,
+      `Gross Profit,${escapeCSV(formatCurrency(analytics.summary.grossProfit))}`,
     );
     csvLines.push(
       `Profit Margin,${analytics.summary.profitMargin.toFixed(2)}%`,
     );
     csvLines.push(
-      `Net Revenue,${formatCurrency(analytics.summary.netRevenue)}`,
+      `Net Revenue,${escapeCSV(formatCurrency(analytics.summary.netRevenue))}`,
     );
     csvLines.push("");
 
@@ -447,9 +451,10 @@ export default function ReportsPage() {
         year: "numeric",
         month: "short",
         day: "numeric",
+        timeZone: "Asia/Manila",
       });
       csvLines.push(
-        `${formattedDate},${day.total.toFixed(2)},${day.count},${avgOrderValue}`,
+        `${escapeCSV(formattedDate)},${day.total.toFixed(2)},${day.count},${avgOrderValue}`,
       );
     });
 
@@ -464,8 +469,12 @@ export default function ReportsPage() {
       .replace(/[^a-z0-9]+/gi, "-") // Replace non-alphanumeric characters with single hyphen
       .replace(/^-+|-+$/g, "") // Remove leading/trailing hyphens
       .toLowerCase();
+    const periodSuffix =
+      period === "custom" && startDate && endDate
+        ? `${startDate}_to_${endDate}`
+        : period;
     const dateStr = new Date().toISOString().split("T")[0];
-    a.download = `${sanitizedBusinessName}-business-report-${dateStr}.csv`;
+    a.download = `${sanitizedBusinessName}-business-report-${periodSuffix}-${dateStr}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -541,9 +550,13 @@ export default function ReportsPage() {
       }
 
       const allTransactions = await api.getTransactions(params);
-      // Filter transactions by payment method
+      // Filter transactions by payment method — a SPLIT transaction belongs on
+      // every method card its legs touch, not just the "Split Payment" card,
+      // since part of its total was genuinely paid via that method.
       const filteredTransactions = allTransactions.filter(
-        (t: Transaction) => t.paymentMethod === paymentMethod,
+        (t: Transaction) =>
+          t.paymentMethod === paymentMethod ||
+          (t.paymentMethod === "SPLIT" && t.payments?.some((p) => p.method === paymentMethod)),
       );
       setTransactions(filteredTransactions);
       setShowTransactionModal(true);
@@ -885,6 +898,12 @@ export default function ReportsPage() {
                     backgroundColor: "rgba(0,177,79,0.18)",
                     color: "#007835",
                   },
+                },
+                SPLIT: {
+                  bg: "bg-purple-50",
+                  border: "border-purple-200",
+                  text: "text-purple-700",
+                  badge: "bg-purple-100",
                 },
               };
               const color: CardColors = colors[method] ?? {

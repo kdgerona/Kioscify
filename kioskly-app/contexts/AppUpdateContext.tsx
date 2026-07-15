@@ -9,9 +9,36 @@ import { AppState, AppStateStatus, BackHandler } from 'react-native';
 import * as Application from 'expo-application';
 import { apiGet, getApiUrl } from '@/utils/api';
 import { downloadApk } from '@/utils/apkDownloader';
-import { installApk } from '@/utils/apkInstaller';
+import {
+  canRequestPackageInstalls,
+  installApk,
+  openInstallPermissionSettings,
+} from '@/utils/apkInstaller';
 
 const UPDATE_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const INSTALLER_FOREGROUND_TIMEOUT_MS = 15000;
+
+// installApk() resolving only means the install intent was dispatched, not
+// that the system installer UI actually appeared (e.g. Play Protect scanning
+// can delay it by several seconds on some devices/OS versions). This waits
+// for a real signal — the app actually losing the foreground — before we
+// treat the install as having taken over.
+function waitForBackgroundTransition(timeoutMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      subscription.remove();
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') finish(true);
+    });
+    const timer = setTimeout(() => finish(false), timeoutMs);
+  });
+}
 
 export interface UpdateInfo {
   version_code: number;
@@ -28,9 +55,11 @@ interface AppUpdateContextValue {
   isDownloading: boolean;
   downloadProgress: number;
   error: string | null;
+  needsInstallPermission: boolean;
   checkForUpdates: () => Promise<void>;
   dismissUpdate: () => void;
   downloadAndInstall: () => Promise<void>;
+  openInstallSettings: () => Promise<void>;
 }
 
 const AppUpdateContext = createContext<AppUpdateContextValue | null>(null);
@@ -41,6 +70,7 @@ export function AppUpdateProvider({ children }: { children: React.ReactNode }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [needsInstallPermission, setNeedsInstallPermission] = useState(false);
 
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -82,17 +112,55 @@ export function AppUpdateProvider({ children }: { children: React.ReactNode }) {
     if (!updateInfo || isDownloading) return;
     setIsDownloading(true);
     setError(null);
+    setNeedsInstallPermission(false);
     setDownloadProgress(0);
     try {
       const filePath = await downloadApk(updateInfo.apk_url, updateInfo.checksum_sha256, setDownloadProgress);
+
+      const allowed = await canRequestPackageInstalls();
+      if (!allowed) {
+        setNeedsInstallPermission(true);
+        setError("Please enable 'Install unknown apps' for Kioscify in Settings, then try again.");
+        return;
+      }
+
       await installApk(filePath);
-      // Give the system installer a moment to launch, then exit so the app
-      // relaunches fresh as the new version after the user confirms install.
-      setTimeout(() => BackHandler.exitApp(), 500);
+
+      // Only exit once we have real confirmation the installer took over the
+      // foreground — never force-kill the app on a blind guess, since that
+      // can close the app before the installer UI has even appeared.
+      const installerTookForeground = await waitForBackgroundTransition(
+        INSTALLER_FOREGROUND_TIMEOUT_MS,
+      );
+      if (!installerTookForeground) {
+        // The installer never took over — this can happen if the "Install
+        // unknown apps" permission was revoked/blocked after our earlier
+        // check (e.g. an OEM security feature stepping in silently), so
+        // re-check rather than showing a dead-end generic error.
+        const stillAllowed = await canRequestPackageInstalls();
+        if (!stillAllowed) {
+          setNeedsInstallPermission(true);
+          setError("Please enable 'Install unknown apps' for Kioscify in Settings, then try again.");
+        } else {
+          setError('Unable to open the installer. Please try again.');
+        }
+        return;
+      }
+      BackHandler.exitApp();
     } catch (e: unknown) {
+      const code = (e as { code?: string })?.code;
+      if (code === 'PERMISSION_REQUIRED') setNeedsInstallPermission(true);
       setError((e as { message?: string })?.message ?? 'Download failed. Please try again.');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const openInstallSettings = async () => {
+    try {
+      await openInstallPermissionSettings();
+    } catch {
+      // best-effort — the error text already tells the user what to do manually
     }
   };
 
@@ -126,9 +194,11 @@ export function AppUpdateProvider({ children }: { children: React.ReactNode }) {
         isDownloading,
         downloadProgress,
         error,
+        needsInstallPermission,
         checkForUpdates,
         dismissUpdate,
         downloadAndInstall,
+        openInstallSettings,
       }}
     >
       {children}

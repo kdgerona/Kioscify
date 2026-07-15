@@ -120,7 +120,24 @@ export class BrandsService {
     if (requestingRole !== 'PLATFORM_ADMIN') {
       throw new ForbiddenException('Only platform admins can delete brands');
     }
+    await this.assertNotAssignedToAnyStore(id);
     return this.prisma.brand.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  // Mirrors MenusService/InventorySetupsService's identical guard — a Store
+  // still pointing at a tombstoned brandId would lose its brand theming/logo
+  // lookups while remaining otherwise operational.
+  private async assertNotAssignedToAnyStore(brandId: string) {
+    const affectedStores = await this.prisma.tenant.findMany({
+      where: { brandId },
+      select: { name: true },
+    });
+    if (affectedStores.length > 0) {
+      const storeNames = affectedStores.map((s) => s.name).join(', ');
+      throw new ConflictException(
+        `Cannot delete this brand — it is assigned to the following store(s): ${storeNames}`,
+      );
+    }
   }
 
   async uploadLogo(id: string, companyId: string, file: Express.Multer.File) {
@@ -129,36 +146,6 @@ export class BrandsService {
     const filename = `brand-${Date.now()}${extname(file.originalname)}`;
     const logoUrl = await this.storage.upload('logos', filename, file.buffer, file.mimetype);
     return this.prisma.brand.update({ where: { id }, data: { logoUrl } });
-  }
-
-  // Called when a new store is created under a brand — copy all brand inventory templates to the store
-  async fanOutInventoryToStore(brandId: string, storeId: string) {
-    const templates = await this.prisma.inventoryItem.findMany({
-      where: { brandId, isTemplate: true, tombstone: { not: 1 } },
-    });
-
-    for (const template of templates) {
-      const alreadyExists = await this.prisma.inventoryItem.findFirst({
-        where: { tenantId: storeId, brandId, name: template.name, tombstone: { not: 1 } },
-      });
-      if (alreadyExists) continue;
-
-      await this.prisma.inventoryItem.create({
-        data: {
-          tenantId: storeId,
-          brandId,
-          templateId: template.id,
-          isTemplate: false,
-          name: template.name,
-          category: template.category,
-          unit: template.unit,
-          description: template.description,
-          minStockLevel: template.minStockLevel,
-          requiresExpirationDate: template.requiresExpirationDate,
-          expirationWarningDays: template.expirationWarningDays,
-        },
-      });
-    }
   }
 
   private async assertOwnership(id: string, companyId: string | undefined) {

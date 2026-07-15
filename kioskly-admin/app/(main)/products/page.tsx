@@ -1,8 +1,16 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function ProductsRedirectPage() {
+  const [menuName, setMenuName] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getCurrentTenant().then(t => setMenuName(t.menu?.name ?? null)).catch(() => {});
+  }, []);
+
   return (
     <div className="p-6 flex items-center justify-center min-h-96">
       <div className="text-center max-w-md">
@@ -13,8 +21,11 @@ export default function ProductsRedirectPage() {
         <p className="text-gray-600 text-sm">
           Product catalog is now managed in the Company &amp; Brand Portal by your brand manager.
         </p>
+        <p className="mt-4 text-sm text-gray-700">
+          Current menu: <span className="font-medium">{menuName ?? 'Not assigned yet'}</span>
+        </p>
         <p className="mt-3 text-xs text-gray-400">
-          Contact your brand manager to add or update products.
+          Contact your brand manager to add or update products, or to assign a different menu to your store.
         </p>
       </div>
     </div>

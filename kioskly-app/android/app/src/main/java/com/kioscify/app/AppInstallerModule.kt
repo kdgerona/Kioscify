@@ -1,6 +1,10 @@
 package com.kioscify.app
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -47,6 +51,15 @@ class AppInstallerModule(reactContext: ReactApplicationContext) :
                 promise.reject("FILE_NOT_FOUND", "APK file not found at: $cleanPath")
                 return
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                !reactApplicationContext.packageManager.canRequestPackageInstalls()
+            ) {
+                promise.reject(
+                    "PERMISSION_REQUIRED",
+                    "Installs from this app are not allowed. Enable 'Install unknown apps' for Kioscify in Settings.",
+                )
+                return
+            }
             val uri = FileProvider.getUriForFile(
                 reactApplicationContext,
                 "${reactApplicationContext.packageName}.fileprovider",
@@ -57,10 +70,39 @@ class AppInstallerModule(reactContext: ReactApplicationContext) :
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            reactApplicationContext.startActivity(intent)
+            try {
+                reactApplicationContext.startActivity(intent)
+            } catch (e: ActivityNotFoundException) {
+                promise.reject("NO_INSTALLER_FOUND", "No app found to handle package installation.", e)
+                return
+            }
             promise.resolve(null)
         } catch (e: Exception) {
             promise.reject("INSTALL_ERROR", e.message, e)
+        }
+    }
+
+    @ReactMethod
+    fun canRequestPackageInstalls(promise: Promise) {
+        val allowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            reactApplicationContext.packageManager.canRequestPackageInstalls()
+        } else {
+            true
+        }
+        promise.resolve(allowed)
+    }
+
+    @ReactMethod
+    fun openInstallPermissionSettings(promise: Promise) {
+        try {
+            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                data = Uri.parse("package:${reactApplicationContext.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(null)
+        } catch (e: Exception) {
+            promise.reject("SETTINGS_ERROR", e.message, e)
         }
     }
 }

@@ -84,13 +84,20 @@ export default function InventoryItemRow({
       </View>
 
       <View className="flex-1">
-        <Text
-          className="text-sm font-semibold"
-          style={{ color: textColor }}
-          numberOfLines={1}
-        >
-          {item.name}
-        </Text>
+        <View className="flex-row items-center">
+          <Text
+            className="text-sm font-semibold"
+            style={{ color: textColor }}
+            numberOfLines={1}
+          >
+            {item.name}
+          </Text>
+          {item.isLegacy && (
+            <View className="ml-2 px-1.5 py-0.5 rounded-full bg-gray-200">
+              <Text className="text-[10px] font-medium text-gray-600">Legacy</Text>
+            </View>
+          )}
+        </View>
         <Text className="text-xs text-gray-500">{item.unit}</Text>
       </View>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { hasPrivilege } from "@/lib/privileges";
@@ -305,6 +306,19 @@ export default function ExpensesPage() {
   };
 
   const exportToCSV = () => {
+    const escapeCSV = (value: unknown): string => {
+      if (value === null || value === undefined) return "";
+      const stringValue = String(value);
+      if (
+        stringValue.includes(",") ||
+        stringValue.includes('"') ||
+        stringValue.includes("\n")
+      ) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
     const headers = [
       "Description",
       "Date",
@@ -313,14 +327,16 @@ export default function ExpensesPage() {
       "Category",
       "Notes",
     ];
-    const rows = expenses.map((e) => [
-      e.description,
-      formatDateTime(e.date),
-      formatUserName(e.user),
-      e.amount,
-      e.category,
-      e.notes || "",
-    ]);
+    const rows = expenses.map((e) =>
+      [
+        e.description,
+        formatDateTime(e.date),
+        formatUserName(e.user),
+        e.amount,
+        e.category,
+        e.notes || "",
+      ].map(escapeCSV)
+    );
 
     const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
       "\n"
@@ -330,7 +346,23 @@ export default function ExpensesPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `expenses-${new Date().toISOString().split("T")[0]}.csv`;
+
+    const filterParts: string[] = [];
+    if (filterCategory !== "ALL") filterParts.push(filterCategory.toLowerCase());
+    if (startDate) filterParts.push(`from-${startDate.toISOString().split("T")[0]}`);
+    if (endDate) filterParts.push(`to-${endDate.toISOString().split("T")[0]}`);
+    if (debouncedSearchTerm) {
+      filterParts.push(
+        `search-${debouncedSearchTerm
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 30)}`
+      );
+    }
+    const filterSuffix = filterParts.length ? `-${filterParts.join("-")}` : "";
+
+    a.download = `expenses-${new Date().toISOString().split("T")[0]}${filterSuffix}.csv`;
     a.click();
   };
 
@@ -738,8 +770,11 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Rejection Modal */}
-      {showRejectModal && selectedVoidRequest && (
+      {/* Rejection Modal — portaled to document.body; an in-place fixed
+          overlay nested this deep in the layout tree renders short at the
+          top edge (see kioscify-company's brands/[brandId]/page.tsx Modal
+          for notes). */}
+      {showRejectModal && selectedVoidRequest && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-lg w-full p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -790,11 +825,12 @@ export default function ExpensesPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Expense Details Modal */}
-      {selectedExpense && (
+      {/* Expense Details Modal — portaled to document.body */}
+      {selectedExpense && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
             <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
@@ -1033,7 +1069,8 @@ export default function ExpensesPage() {
                 )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

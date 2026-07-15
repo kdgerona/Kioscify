@@ -133,7 +133,7 @@ export class AuthService {
     // Simple lookup — no complex nested includes (Prisma MongoDB can silently return
     // null when include chains are too deep). Tenant data is fetched separately.
     let user: any = await this.prisma.user.findFirst({
-      where: { username: dto.username, isActive: true, tenantId: store.id },
+      where: { username: dto.username, isActive: true, tenantId: store.id, tombstone: { not: 1 } },
     });
 
     // Fall back to UserStoreAccess for multi-store users
@@ -142,7 +142,7 @@ export class AuthService {
         where: { tenantId: store.id, isActive: true },
         include: { user: true },
       });
-      if (access?.user?.username === dto.username && access.user.isActive) {
+      if (access?.user?.username === dto.username && access.user.isActive && access.user.tombstone !== 1) {
         user = access.user;
       }
     }
@@ -250,7 +250,7 @@ export class AuthService {
         storeAccess: { where: { isActive: true }, include: { tenant: true } },
       },
     });
-    if (!user) throw new UnauthorizedException();
+    if (!user || user.tombstone === 1) throw new UnauthorizedException();
 
     // Verify the user has access to the target store
     const hasAccess =
@@ -371,6 +371,7 @@ export class AuthService {
         username: dto.username,
         role: 'COMPANY_ADMIN',
         isActive: true,
+        tombstone: { not: 1 },
       },
     });
 
@@ -419,7 +420,7 @@ export class AuthService {
 
   async loginPlatform(dto: PlatformLoginDto, meta?: RequestMeta) {
     const user = await this.prisma.user.findFirst({
-      where: { username: dto.username, role: 'PLATFORM_ADMIN', isActive: true },
+      where: { username: dto.username, role: 'PLATFORM_ADMIN', isActive: true, tombstone: { not: 1 } },
     });
 
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
@@ -461,7 +462,7 @@ export class AuthService {
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new UnauthorizedException();
+    if (!user || user.tombstone === 1) throw new UnauthorizedException();
 
     const isCurrentValid = await bcrypt.compare(
       dto.currentPassword,
@@ -508,15 +509,17 @@ export class AuthService {
         email: true,
         role: true,
         isFirstLogin: true,
+        tombstone: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    if (!user) throw new UnauthorizedException('User not found');
+    if (!user || user.tombstone === 1) throw new UnauthorizedException('User not found');
 
+    const { tombstone: _tombstone, ...rest } = user;
     return {
-      ...user,
+      ...rest,
       mustChangePassword: user.isFirstLogin,
     };
   }
@@ -537,6 +540,7 @@ export class AuthService {
     const existing = await this.prisma.user.findFirst({
       where: {
         tenantId,
+        tombstone: { not: 1 },
         OR: [{ username: data.username }, { email: data.email }],
       },
     });

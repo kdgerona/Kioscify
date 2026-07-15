@@ -9,11 +9,10 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { AuthService } from '../auth/auth.service';
-import { BrandsService } from '../brands/brands.service';
 import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
 import { OnboardAdminDto } from '../companies/dto/company.dto';
 import { app as appConstants } from '../constants/env.constants';
-import { Tenant } from '@prisma/client';
+import { Tenant, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { extname } from 'path';
 
@@ -26,7 +25,6 @@ export class StoresService {
     private storage: StorageService,
     private configService: ConfigService,
     private authService: AuthService,
-    private brandsService: BrandsService,
   ) {
     this.baseUrl = this.configService.get<string>(appConstants.base_url) || '';
   }
@@ -55,6 +53,8 @@ export class StoresService {
       include: {
         brand: { select: { id: true, name: true, slug: true } },
         priceTier: { select: { id: true, name: true, isDefault: true } },
+        menu: { select: { id: true, name: true } },
+        inventorySetup: { select: { id: true, name: true } },
         _count: { select: { users: true, transactions: true } },
       },
     });
@@ -68,6 +68,8 @@ export class StoresService {
         brand: { select: { id: true, name: true, slug: true, logoUrl: true, themeColors: true, enabledDeliveryPlatforms: true, preferenceLabel: true } },
         company: { select: { id: true, name: true, slug: true, logoUrl: true } },
         priceTier: { select: { id: true, name: true, isDefault: true } },
+        menu: { select: { id: true, name: true } },
+        inventorySetup: { select: { id: true, name: true } },
         _count: { select: { users: true, transactions: true } },
       },
     });
@@ -118,14 +120,13 @@ export class StoresService {
       if (existing) throw new ConflictException('Store slug already exists in this company and brand');
     }
 
-    const store = await this.prisma.tenant.create({ data: dto });
-
-    // Fan out brand inventory templates to this new store
-    if (store.brandId) {
-      await this.brandsService.fanOutInventoryToStore(store.brandId, store.id);
-    }
-
-    return store;
+    // menuId/inventorySetupId are optional at creation time (decision: a
+    // store can be created and configured later) — every catalog/inventory
+    // read endpoint already handles an unassigned store gracefully (empty
+    // results, not errors). No fan-out step needed anymore: Menu/
+    // InventorySetup are shared, assigned wholesale via these fields, not
+    // copied per store.
+    return this.prisma.tenant.create({ data: dto });
   }
 
   async update(id: string, dto: UpdateStoreDto) {
@@ -146,17 +147,56 @@ export class StoresService {
         throw new BadRequestException(`Platform(s) not enabled on this brand: ${invalid.join(', ')}`);
       }
     }
+    // PriceTier is Menu-scoped (see schema.prisma) — a tier from the store's
+    // previous menu is meaningless under a newly-assigned one, so clear it in
+    // the same write rather than leaving a stale id that would silently
+    // resolve to wrong-menu pricing.
+    const data: Prisma.TenantUncheckedUpdateInput = { ...dto };
+    if (dto.menuId !== undefined && dto.menuId !== store.menuId && dto.priceTierId === undefined) {
+      data.priceTierId = null;
+    }
     const updated = await this.prisma.tenant.update({
       where: { id },
-      data: dto,
-      include: { priceTier: { select: { id: true, name: true, isDefault: true } } },
+      data,
+      include: {
+        priceTier: { select: { id: true, name: true, isDefault: true } },
+        menu: { select: { id: true, name: true } },
+        inventorySetup: { select: { id: true, name: true } },
+      },
     });
     return this.formatLogoUrl(updated);
   }
 
   async remove(id: string) {
-    await this.findOne(id);
+    const store = await this.findOne(id);
+    await this.assertNoActiveDependents(id);
+    // Mirrors tombstoneUser's "disable before delete" gate — store.isActive
+    // gates loginStore(), but nothing cascades an isActive change down to
+    // assigned users, so this is checked independently of
+    // assertNoActiveDependents above, not as a replacement for it.
+    if (store.isActive) {
+      throw new BadRequestException('Disable the store before deleting it');
+    }
     return this.prisma.tenant.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  private async assertNoActiveDependents(tenantId: string) {
+    const [primaryUsers, storeAccessUsers] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { tenantId, isActive: true, tombstone: { not: 1 } },
+        select: { username: true },
+      }),
+      this.prisma.userStoreAccess.findMany({
+        where: { tenantId, isActive: true, user: { isActive: true, tombstone: { not: 1 } } },
+        select: { user: { select: { username: true } } },
+      }),
+    ]);
+    const usernames = [...primaryUsers.map((u) => u.username), ...storeAccessUsers.map((a) => a.user.username)];
+    if (usernames.length > 0) {
+      throw new ConflictException(
+        `Cannot delete this store — it still has the following active user(s): ${[...new Set(usernames)].join(', ')}`,
+      );
+    }
   }
 
   async uploadLogo(id: string, file: Express.Multer.File) {
@@ -172,7 +212,7 @@ export class StoresService {
     const store = await this.findOne(storeId);
 
     const existing = await this.prisma.user.findFirst({
-      where: { tenantId: storeId, username: dto.username },
+      where: { tenantId: storeId, username: dto.username, tombstone: { not: 1 } },
     });
     if (existing) throw new ConflictException('Username already exists in this store');
 

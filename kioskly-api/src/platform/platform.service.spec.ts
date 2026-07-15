@@ -3,16 +3,18 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PlatformService } from './platform.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
 const mockPrisma = {
   user: {
     findMany: jest.fn(),
     findFirst: jest.fn(),
+    findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
   },
+  userStoreAccess: { updateMany: jest.fn() },
   company: { count: jest.fn() },
   brand: { count: jest.fn() },
   tenant: { count: jest.fn() },
@@ -56,7 +58,7 @@ describe('PlatformService — admin management', () => {
       mockPrisma.user.findMany.mockResolvedValue([mockAdmin]);
       const result = await service.getPlatformAdmins();
       expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
-        where: { role: 'PLATFORM_ADMIN' },
+        where: { role: 'PLATFORM_ADMIN', tombstone: { not: 1 } },
         select: {
           id: true,
           username: true,
@@ -184,13 +186,41 @@ describe('PlatformService — admin management', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('hard deletes the target user', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue(mockAdmin);
-      mockPrisma.user.delete.mockResolvedValue(mockAdmin);
+    it('throws BadRequestException if the target account is still active', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(mockAdmin); // isActive: true
+      mockPrisma.user.findUnique.mockResolvedValue(mockAdmin);
+
+      await expect(
+        service.deletePlatformAdmin('admin-1', 'admin-2'),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.user.delete).not.toHaveBeenCalled();
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('soft-deletes (tombstones) a disabled target user without calling prisma.user.delete', async () => {
+      const disabledAdmin = { ...mockAdmin, isActive: false };
+      mockPrisma.user.findFirst.mockResolvedValue(disabledAdmin);
+      mockPrisma.user.findUnique.mockResolvedValue(disabledAdmin);
+      mockPrisma.user.update.mockResolvedValue({ ...disabledAdmin, tombstone: 1 });
+      mockPrisma.userStoreAccess.updateMany.mockResolvedValue({ count: 0 });
 
       const result = await service.deletePlatformAdmin('admin-1', 'admin-2');
 
-      expect(mockPrisma.user.delete).toHaveBeenCalledWith({ where: { id: 'admin-2' } });
+      expect(mockPrisma.user.delete).not.toHaveBeenCalled();
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'admin-2' },
+          data: expect.objectContaining({
+            tombstone: 1,
+            username: expect.stringContaining(disabledAdmin.username),
+            email: expect.stringContaining(disabledAdmin.email),
+          }),
+        }),
+      );
+      expect(mockPrisma.userStoreAccess.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'admin-2' },
+        data: { isActive: false },
+      });
       expect(result).toEqual({ message: 'Platform admin deleted' });
     });
   });

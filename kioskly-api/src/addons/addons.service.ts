@@ -7,6 +7,7 @@ import {
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PriceTiersService } from '../price-tiers/price-tiers.service';
+import { MenusService } from '../menus/menus.service';
 import { CreateAddonDto } from './dto/create-addon.dto';
 import { UpdateAddonDto } from './dto/update-addon.dto';
 import { Prisma } from '@prisma/client';
@@ -26,9 +27,10 @@ export class AddonsService {
   constructor(
     private prisma: PrismaService,
     private priceTiersService: PriceTiersService,
+    private menusService: MenusService,
   ) {}
 
-  async create(createAddonDto: CreateAddonDto, brandId: string) {
+  async create(createAddonDto: CreateAddonDto, menuId: string) {
     const { id: providedId, name, price, foodpandaPrice, grabPrice, priceTiers } = createAddonDto;
     const id = providedId || randomUUID();
 
@@ -37,21 +39,24 @@ export class AddonsService {
       if (existing) throw new ConflictException('Addon with this ID already exists');
     }
 
+    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { brandId: true } });
+    if (!menu) throw new BadRequestException(`Menu ${menuId} not found`);
+
     const addon = await this.prisma.addon.create({
-      data: { id, name, price, foodpandaPrice, grabPrice, brandId },
+      data: { id, name, price, foodpandaPrice, grabPrice, menuId, brandId: menu.brandId },
       include: ADDON_INCLUDE,
     });
 
     if (priceTiers && priceTiers.length > 0) {
-      // Validate all submitted tierIds belong to this brand
+      // Validate all submitted tierIds belong to this menu
       const validTierIds = await this.prisma.priceTier.findMany({
-        where: { brandId, id: { in: priceTiers.map((p) => p.tierId) } },
+        where: { menuId, id: { in: priceTiers.map((p) => p.tierId) } },
         select: { id: true },
       });
       const validSet = new Set(validTierIds.map((t) => t.id));
       const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
       if (invalid.length > 0) {
-        throw new BadRequestException(`Invalid tier IDs for this brand`);
+        throw new BadRequestException(`Invalid tier IDs for this menu`);
       }
 
       await this.prisma.$transaction(async (tx) => {
@@ -86,41 +91,49 @@ export class AddonsService {
     return this.formatAddon(addon);
   }
 
-  async findAll(brandId: string, tenantId?: string) {
+  /**
+   * `menuId` (explicit, admin/builder context) takes priority; otherwise
+   * resolved from the requesting store's current menu via `tenantId`
+   * (mobile/store-portal read context). Returns [] rather than throwing when
+   * scope can't be resolved — an unassigned store must see an empty list.
+   */
+  async findAll(params: { menuId?: string; tenantId?: string }) {
+    const menuId =
+      params.menuId ?? (params.tenantId ? await this.menusService.resolveStoreMenuId(params.tenantId) : null);
+    if (!menuId) return [];
+
     const addons = await this.prisma.addon.findMany({
-      where: { brandId, tombstone: { not: 1 } },
+      where: { menuId, tombstone: { not: 1 } },
       include: ADDON_INCLUDE,
       orderBy: { sequenceNo: 'asc' },
     });
 
-    if (tenantId) {
-      const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, brandId);
-      return addons.map((a) => this.formatAddon(a, { tenantId, tierId }));
+    if (params.tenantId) {
+      const tierId = await this.resolveTierIdForTenant(params.tenantId);
+      return addons.map((a) => this.formatAddon(a, { tenantId: params.tenantId!, tierId }));
     }
 
     return addons.map((a) => this.formatAddon(a));
   }
 
-  async findOne(id: string, brandId?: string, tenantId?: string) {
+  async findOne(id: string, tenantId?: string) {
     const addon = await this.prisma.addon.findFirst({
-      where: { id, ...(brandId ? { brandId } : {}), tombstone: { not: 1 } },
+      where: { id, tombstone: { not: 1 } },
       include: ADDON_INCLUDE,
     });
     if (!addon) throw new NotFoundException(`Addon with ID ${id} not found`);
 
     if (tenantId) {
-      const effectiveBrandId = brandId ?? addon.brandId ?? undefined;
-      if (effectiveBrandId) {
-        const tierId = await this.priceTiersService.resolveStoreTierId(tenantId, effectiveBrandId);
-        return this.formatAddon(addon, { tenantId, tierId });
-      }
+      const tierId = await this.resolveTierIdForTenant(tenantId);
+      return this.formatAddon(addon, { tenantId, tierId });
     }
 
     return this.formatAddon(addon);
   }
 
-  async update(id: string, updateAddonDto: UpdateAddonDto, brandId?: string) {
-    await this.findOne(id, brandId);
+  async update(id: string, updateAddonDto: UpdateAddonDto) {
+    const existing = await this.prisma.addon.findFirst({ where: { id, tombstone: { not: 1 } } });
+    if (!existing) throw new NotFoundException(`Addon with ID ${id} not found`);
 
     const { priceTiers, ...addonData } = updateAddonDto;
 
@@ -133,16 +146,16 @@ export class AddonsService {
     // Replace-all tier prices when priceTiers is provided
     if (priceTiers !== undefined) {
       if (priceTiers.length > 0) {
-        // Validate all submitted tierIds belong to this brand
-        const effectiveBrandId = addon.brandId!;
+        // Validate all submitted tierIds belong to this addon's menu
+        const effectiveMenuId = addon.menuId!;
         const validTierIds = await this.prisma.priceTier.findMany({
-          where: { brandId: effectiveBrandId, id: { in: priceTiers.map((p) => p.tierId) } },
+          where: { menuId: effectiveMenuId, id: { in: priceTiers.map((p) => p.tierId) } },
           select: { id: true },
         });
         const validSet = new Set(validTierIds.map((t) => t.id));
         const invalid = priceTiers.filter((p) => !validSet.has(p.tierId));
         if (invalid.length > 0) {
-          throw new BadRequestException(`Invalid tier IDs for this brand`);
+          throw new BadRequestException(`Invalid tier IDs for this menu`);
         }
       }
 
@@ -184,9 +197,28 @@ export class AddonsService {
     return this.formatAddon(addon);
   }
 
-  async remove(id: string, brandId?: string) {
-    await this.findOne(id, brandId);
+  async remove(id: string) {
+    const existing = await this.prisma.addon.findFirst({ where: { id, tombstone: { not: 1 } } });
+    if (!existing) throw new NotFoundException(`Addon with ID ${id} not found`);
+    await this.assertNotInUse(id);
     return this.prisma.addon.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  private async assertNotInUse(id: string) {
+    const links = await this.prisma.productAddon.findMany({
+      where: { addonId: id },
+      include: { product: { select: { name: true, tombstone: true } } },
+    });
+    const productNames = links.filter((l) => l.product.tombstone !== 1).map((l) => l.product.name);
+    if (productNames.length > 0) {
+      throw new ConflictException(
+        `Cannot delete this addon — it is still used by the following product(s): ${productNames.join(', ')}`,
+      );
+    }
+  }
+
+  private async resolveTierIdForTenant(tenantId: string): Promise<string | null> {
+    return this.priceTiersService.resolveStoreTierId(tenantId);
   }
 
   private formatAddon(
@@ -213,6 +245,7 @@ export class AddonsService {
       foodpandaPrice: resolvedFoodpandaPrice,
       grabPrice: resolvedGrabPrice,
       sequenceNo: addon.sequenceNo,
+      menuId: addon.menuId,
       brandId: addon.brandId,
       tenantId: addon.tenantId,
       createdAt: addon.createdAt,

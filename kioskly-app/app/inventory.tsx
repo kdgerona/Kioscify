@@ -17,7 +17,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   getLatestInventory,
   LatestInventoryItem,
-  InventoryCategory,
 } from "@/services/inventoryService";
 import {
   submitInventoryReport,
@@ -124,14 +123,15 @@ export default function InventoryScreen() {
           return {
             id: item.id,
             name: item.name,
-            category: item.category,
+            category: item.category ?? "Uncategorized",
             unit: item.unit,
-            minStockLevel: item.minStockLevel,
+            minStockLevel: item.minStockLevel ?? undefined,
             quantity: item.latestQuantity?.toString() || "",
             previousQuantity: item.previousQuantity,
             requiresExpirationDate: item.requiresExpirationDate,
-            expirationWarningDays: item.expirationWarningDays,
+            expirationWarningDays: item.expirationWarningDays ?? undefined,
             batches,
+            isLegacy: item.isLegacy,
           };
         }),
       );
@@ -323,13 +323,13 @@ export default function InventoryScreen() {
           acc[item.category].push(item);
           return acc;
         },
-        {} as Record<InventoryCategory, InventoryInput[]>,
+        {} as Record<string, InventoryInput[]>,
       ),
     [inventoryInputs],
   );
 
   const categories = useMemo(
-    () => Object.keys(groupedItems) as InventoryCategory[],
+    () => Object.keys(groupedItems).sort(),
     [groupedItems],
   );
 
@@ -602,20 +602,36 @@ export default function InventoryScreen() {
                       }}
                     >
                       {/* Item name + unit */}
-                      <Text
+                      <View
                         style={{
-                          fontSize: 15,
-                          fontWeight: "600",
-                          color: "#111827",
+                          flexDirection: "row",
+                          alignItems: "center",
                           marginBottom: 6,
                         }}
                       >
-                        {item.name}
-                        <Text style={{ fontWeight: "400", color: "#6b7280" }}>
-                          {" "}
-                          ({item.unit})
+                        <Text style={{ fontSize: 15, fontWeight: "600", color: "#111827" }}>
+                          {item.name}
+                          <Text style={{ fontWeight: "400", color: "#6b7280" }}>
+                            {" "}
+                            ({item.unit})
+                          </Text>
                         </Text>
-                      </Text>
+                        {item.isLegacy && (
+                          <View
+                            style={{
+                              marginLeft: 8,
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 999,
+                              backgroundColor: "#e5e7eb",
+                            }}
+                          >
+                            <Text style={{ fontSize: 10, fontWeight: "500", color: "#4b5563" }}>
+                              Legacy
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       {/* Prev → New qty */}
                       <View
                         style={{ flexDirection: "row", alignItems: "center" }}

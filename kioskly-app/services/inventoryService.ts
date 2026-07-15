@@ -1,27 +1,42 @@
 import { apiPost, apiGet, apiPatch, apiDelete } from "../utils/api";
 import { safeReactotron } from "../utils/reactotron";
 import { enqueue, generateClientId } from "./syncEngine";
-import { cacheInventoryItems, getCachedInventoryItems, cacheLatestInventory, getCachedLatestInventory } from "../lib/localCache";
+import {
+  cacheInventoryItems,
+  getCachedInventoryItems,
+  cacheLegacyInventoryItems,
+  getCachedLegacyInventoryItems,
+  cacheInventoryCategories,
+  getCachedInventoryCategories,
+  cacheLatestInventory,
+  getCachedLatestInventory,
+} from "../lib/localCache";
 
-export enum InventoryCategory {
-  MAINS = "MAINS",
-  FLAVORED_JAMS = "FLAVORED_JAMS",
-  ADD_ONS = "ADD_ONS",
-  SYRUPS = "SYRUPS",
-  HOT = "HOT",
-  PACKAGING = "PACKAGING",
+// Inventory categories are now defined per-InventorySetup by the brand (see
+// kioskly-api InventorySetup/Category) and fetched dynamically — no longer a
+// fixed client-side enum.
+export interface InventoryCategory {
+  id: string;
+  name: string;
 }
 
 export interface InventoryItem {
   id: string;
-  tenantId: string;
   name: string;
-  category: InventoryCategory;
   unit: string;
-  description?: string;
-  minStockLevel?: number;
-  createdAt: string;
-  updatedAt: string;
+  description?: string | null;
+  category: InventoryCategory | null;
+  minStockLevel?: number | null;
+  minStockLevelOverridden: boolean;
+  requiresExpirationDate?: boolean;
+  expirationWarningDays?: number | null;
+  expirationWarningDaysOverridden: boolean;
+  isLegacy: boolean;
+}
+
+export interface InventoryItemsResponse {
+  active: InventoryItem[];
+  legacy: InventoryItem[];
 }
 
 export interface InventoryRecord {
@@ -30,7 +45,6 @@ export interface InventoryRecord {
   inventoryItem: {
     id: string;
     name: string;
-    category: InventoryCategory;
     unit: string;
   };
   quantity: number;
@@ -50,12 +64,13 @@ export interface InventoryRecord {
 export interface LatestInventoryItem {
   id: string;
   name: string;
-  category: InventoryCategory;
+  category: string | null;
   unit: string;
-  description?: string;
-  minStockLevel?: number;
+  description?: string | null;
+  minStockLevel?: number | null;
   requiresExpirationDate?: boolean;
-  expirationWarningDays?: number;
+  expirationWarningDays?: number | null;
+  isLegacy: boolean;
   latestQuantity: number | null;
   latestRecordDate: string | null;
   previousQuantity: number | null;
@@ -74,27 +89,51 @@ export interface BulkCreateInventoryRecordsPayload {
 }
 
 /**
- * Get all inventory items
- * @param category - Optional category filter
- * @returns List of inventory items
+ * Get the dynamic list of inventory categories for the store's current
+ * InventorySetup — replaces the old hardcoded InventoryCategory enum.
+ */
+export const getInventoryCategories = async (): Promise<InventoryCategory[]> => {
+  try {
+    const response = await apiGet("/categories?type=INVENTORY");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data: InventoryCategory[] = await response.json();
+    await cacheInventoryCategories(data);
+    return data;
+  } catch (err) {
+    const cached = await getCachedInventoryCategories();
+    if (cached) return cached;
+    throw err;
+  }
+};
+
+/**
+ * Get all inventory items for the store's current InventorySetup.
+ * @param categoryId - Optional category filter (active items only)
+ * @returns active items (in the current setup) and legacy items (has
+ * recorded history but no longer in the current setup — preserved, still
+ * fully recordable, excluded from low-stock alerts and the active picker)
  */
 export const getInventoryItems = async (
-  category?: InventoryCategory
-): Promise<InventoryItem[]> => {
+  categoryId?: string
+): Promise<InventoryItemsResponse> => {
   const params = new URLSearchParams();
-  if (category) params.append("category", category);
+  if (categoryId) params.append("categoryId", categoryId);
   const queryString = params.toString();
   const endpoint = `/inventory/items${queryString ? `?${queryString}` : ""}`;
 
   try {
     const response = await apiGet(endpoint);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data: InventoryItem[] = await response.json();
-    await cacheInventoryItems(data);
+    const data: InventoryItemsResponse = await response.json();
+    await cacheInventoryItems(data.active);
+    await cacheLegacyInventoryItems(data.legacy);
     return data;
   } catch (err) {
-    const cached = await getCachedInventoryItems();
-    if (cached) return cached;
+    const [active, legacy] = await Promise.all([
+      getCachedInventoryItems(),
+      getCachedLegacyInventoryItems(),
+    ]);
+    if (active) return { active, legacy: legacy ?? [] };
     throw err;
   }
 };

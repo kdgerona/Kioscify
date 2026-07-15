@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { type Product, type Size, type Addon } from "../data/mockData";
 import { useTenant } from "@/contexts/TenantContext";
 import { type ItemDiscount } from "@/utils/discount";
+import { type PaymentSplitLine } from "./CheckoutModal";
 
 type OrderItem = {
   id: string;
@@ -15,7 +16,16 @@ type OrderItem = {
   itemDiscount?: ItemDiscount;
 };
 
-type PaymentMethodType = "cash" | "gcash" | "paymaya" | "online" | "foodpanda" | "grab";
+type PaymentMethodType = "cash" | "gcash" | "paymaya" | "online" | "foodpanda" | "grab" | "split";
+
+const PAYMENT_METHOD_LABELS: Record<Exclude<PaymentMethodType, "split">, string> = {
+  cash: "Cash Payment",
+  gcash: "GCash",
+  paymaya: "Maya",
+  online: "Online Transaction",
+  foodpanda: "FoodPanda",
+  grab: "Grab",
+};
 
 type TransactionData = {
   transactionId: string;
@@ -28,6 +38,7 @@ type TransactionData = {
   cashReceived?: number;
   change?: number;
   referenceNumber?: string;
+  payments?: PaymentSplitLine[];
 };
 
 type TransactionSummaryProps = {
@@ -333,12 +344,9 @@ export default function TransactionSummary({
                     Payment Method:
                   </Text>
                   <Text className="text-sm font-bold text-gray-900">
-                    {transaction.paymentMethod === "cash" && "Cash Payment"}
-                    {transaction.paymentMethod === "gcash" && "GCash"}
-                    {transaction.paymentMethod === "paymaya" && "Maya"}
-                    {transaction.paymentMethod === "online" && "Online Transaction"}
-                    {transaction.paymentMethod === "foodpanda" && "FoodPanda"}
-                    {transaction.paymentMethod === "grab" && "Grab"}
+                    {transaction.paymentMethod === "split"
+                      ? "Split Payment"
+                      : PAYMENT_METHOD_LABELS[transaction.paymentMethod]}
                   </Text>
                 </View>
 
@@ -365,7 +373,7 @@ export default function TransactionSummary({
                   </>
                 )}
 
-                {transaction.paymentMethod !== "cash" && (
+                {transaction.paymentMethod !== "cash" && transaction.paymentMethod !== "split" && (
                   <View className="bg-blue-50 rounded-lg p-2 mt-2 border border-blue-200">
                     <Text className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">
                       {transaction.paymentMethod === "gcash" && "GCash Reference Number"}
@@ -377,6 +385,35 @@ export default function TransactionSummary({
                     <Text className="text-sm font-bold text-blue-900">
                       {transaction.referenceNumber}
                     </Text>
+                  </View>
+                )}
+
+                {transaction.paymentMethod === "split" && (
+                  <View className="mt-2">
+                    {(transaction.payments ?? []).map((split, index) => (
+                      <View
+                        key={`${split.method}-${index}`}
+                        className="bg-blue-50 rounded-lg p-2 mb-2 border border-blue-200"
+                      >
+                        <View className="flex-row justify-between items-center mb-1">
+                          <Text className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                            {PAYMENT_METHOD_LABELS[split.method]}
+                          </Text>
+                          <Text className="text-sm font-bold text-blue-900">
+                            ₱{split.amount.toFixed(2)}
+                          </Text>
+                        </View>
+                        {split.method === "cash" ? (
+                          <Text className="text-xs text-gray-600">
+                            Received ₱{split.cashReceived?.toFixed(2)} — Change ₱{split.change?.toFixed(2)}
+                          </Text>
+                        ) : (
+                          <Text className="text-xs text-gray-600">
+                            Ref #{split.referenceNumber}
+                          </Text>
+                        )}
+                      </View>
+                    ))}
                   </View>
                 )}
               </View>

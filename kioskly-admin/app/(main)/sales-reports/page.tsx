@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
@@ -410,8 +411,11 @@ export default function SubmittedReportsPage() {
         </>
       )}
 
-      {/* ─── Daily Report Detail Modal ─────────────────────────────────────── */}
-      {(selectedReport || loadingDetails) && (
+      {/* ─── Daily Report Detail Modal — portaled to document.body; an in-place
+          fixed overlay nested this deep in the layout tree renders short at
+          the top edge (see kioscify-company's brands/[brandId]/page.tsx
+          Modal for notes). ─────────────────────────────────────────────── */}
+      {(selectedReport || loadingDetails) && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
@@ -445,7 +449,7 @@ export default function SubmittedReportsPage() {
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">Period Covered</p>
                     <p className="text-xs sm:text-sm text-gray-900 break-words">
-                      {new Date(selectedReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })} (Full Day)
+                      {new Date(selectedReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Manila" })} (Full Day)
                     </p>
                   </div>
                 </div>
@@ -704,11 +708,12 @@ export default function SubmittedReportsPage() {
               </div>
             ) : null}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* ─── Shift Report Detail Modal ─────────────────────────────────────── */}
-      {(selectedShiftReport || loadingShiftDetails) && (
+      {/* ─── Shift Report Detail Modal — portaled to document.body ────────── */}
+      {(selectedShiftReport || loadingShiftDetails) && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
@@ -745,7 +750,7 @@ export default function SubmittedReportsPage() {
                   <div>
                     <p className="text-xs sm:text-sm text-gray-600 mb-1">Period Covered</p>
                     <p className="text-xs sm:text-sm text-gray-900">
-                      {new Date(selectedShiftReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })} (Shift)
+                      {new Date(selectedShiftReport.reportDate).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Manila" })} (Shift)
                     </p>
                   </div>
                 </div>
@@ -974,7 +979,8 @@ export default function SubmittedReportsPage() {
               </div>
             ) : null}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

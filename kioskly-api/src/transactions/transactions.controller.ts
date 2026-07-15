@@ -63,7 +63,7 @@ export class TransactionsController {
   @ApiQuery({
     name: 'paymentMethod',
     required: false,
-    enum: ['CASH', 'CARD', 'GCASH', 'PAYMAYA', 'ONLINE'],
+    enum: ['CASH', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA', 'GRAB', 'SPLIT'],
     description: 'Filter by payment method',
   })
   @ApiQuery({
@@ -85,7 +85,7 @@ export class TransactionsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('paymentMethod')
-    paymentMethod?: 'CASH' | 'CARD' | 'GCASH' | 'PAYMAYA' | 'ONLINE',
+    paymentMethod?: 'CASH' | 'GCASH' | 'PAYMAYA' | 'ONLINE' | 'FOODPANDA' | 'GRAB' | 'SPLIT',
     @Query('paymentStatus') paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED',
     @Query('search') search?: string,
     @Request() req?,

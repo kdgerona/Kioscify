@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { User, Company, CompanyPrivileges } from '@/types';
@@ -150,6 +151,20 @@ export default function UsersPage() {
     }
   };
 
+  const handleDeletePermanently = async (user: User) => {
+    if (!company) return;
+    if (!window.confirm(`Permanently delete ${user.firstName} ${user.lastName} (@${user.username})? Their username and email will be freed up for reuse. This cannot be undone from the UI.`)) {
+      return;
+    }
+    try {
+      await api.deleteCompanyUserPermanently(company.id, user.id);
+      setUsers(prev => prev.filter(u => u.id !== user.id));
+      toast.success('Account deleted');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to delete account'));
+    }
+  };
+
   const handleResetPassword = async (user: User) => {
     if (!company) return;
     try {
@@ -217,8 +232,10 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Create form modal */}
-      {showForm && (
+      {/* Create form modal — portaled to document.body; an in-place fixed
+          overlay nested this deep in the layout tree renders short at the
+          top edge (see brands/[brandId]/page.tsx Modal for notes). */}
+      {showForm && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between p-6 border-b">
@@ -277,7 +294,8 @@ export default function UsersPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Users list */}
@@ -324,6 +342,16 @@ export default function UsersPage() {
                                 className="p-1.5 text-gray-400 hover:text-green-600 rounded"
                               >
                                 <UserCheck className="w-4 h-4" />
+                              </button>
+                            </Tooltip>
+                          )}
+                          {canDelete && (
+                            <Tooltip label="Delete account">
+                              <button
+                                onClick={() => handleDeletePermanently(user)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </Tooltip>
                           )}

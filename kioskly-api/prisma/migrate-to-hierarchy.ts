@@ -102,7 +102,6 @@ async function main() {
           products: true,
           sizes: true,
           addons: true,
-          inventoryItems: true,
           transactions: true,
           expenses: true,
           users: true,
@@ -120,7 +119,7 @@ async function main() {
   tenants.forEach((t, i) => {
     log(`  ${i + 1}. ${t.name} (slug: ${t.slug})`);
     log(`     Categories: ${t._count.categories} | Products: ${t._count.products} | Sizes: ${t._count.sizes} | Addons: ${t._count.addons}`);
-    log(`     InventoryItems: ${t._count.inventoryItems} | Transactions: ${t._count.transactions} | Expenses: ${t._count.expenses} | Users: ${t._count.users}`);
+    log(`     Transactions: ${t._count.transactions} | Expenses: ${t._count.expenses} | Users: ${t._count.users}`);
   });
   log('');
 
@@ -201,7 +200,9 @@ async function main() {
     totalProducts += t._count.products;
     totalSizes += t._count.sizes;
     totalAddons += t._count.addons;
-    totalInvItems += t._count.inventoryItems;
+    // InventoryItem's tenantId relation was removed from the schema (see
+    // schema.prisma) — count via the still-present legacy scalar directly.
+    totalInvItems += await prisma.inventoryItem.count({ where: { tenantId: t.id } });
     totalUsers += t._count.users;
   }
 
@@ -331,7 +332,7 @@ async function main() {
           brandId: brand.id,
           isTemplate: false,
           name: item.name,
-          category: item.category,
+          legacyCategory: item.legacyCategory,
           unit: item.unit,
           description: item.description,
           minStockLevel: item.minStockLevel,

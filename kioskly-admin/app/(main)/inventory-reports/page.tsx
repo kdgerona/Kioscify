@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { hasPrivilege } from '@/lib/privileges';
 import { api } from '@/lib/api';
@@ -111,12 +112,12 @@ export default function InventoryReportsPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' });
   };
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Manila' });
   };
 
   if (loading) {
@@ -337,8 +338,11 @@ export default function InventoryReportsPage() {
         </div>
       )}
 
-      {/* ─── Daily Inventory Report Detail Modal ────────────────────────────── */}
-      {(selectedReport || loadingDetails) && (
+      {/* ─── Daily Inventory Report Detail Modal — portaled to document.body;
+          an in-place fixed overlay nested this deep in the layout tree
+          renders short at the top edge (see kioscify-company's
+          brands/[brandId]/page.tsx Modal for notes). ───────────────────── */}
+      {(selectedReport || loadingDetails) && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
@@ -429,11 +433,12 @@ export default function InventoryReportsPage() {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* ─── Shift Inventory Report Detail Modal ────────────────────────────── */}
-      {(selectedShiftReport || loadingShiftDetails) && (
+      {/* ─── Shift Inventory Report Detail Modal — portaled to document.body ── */}
+      {(selectedShiftReport || loadingShiftDetails) && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
@@ -527,7 +532,8 @@ export default function InventoryReportsPage() {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

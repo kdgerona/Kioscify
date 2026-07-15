@@ -167,6 +167,21 @@ export default function UsersPage() {
     }
   };
 
+  const handleDeletePermanently = async (user: User) => {
+    if (!tenant?.id) return;
+    if (!window.confirm(`Permanently delete ${user.firstName} ${user.lastName} (@${user.username})? Their username and email will be freed up for reuse. This cannot be undone from the UI.`)) {
+      return;
+    }
+    try {
+      await api.deleteStoreUserPermanently(tenant.id, user.id);
+      await fetchUsers();
+      toast.success('Account deleted');
+    } catch (err) {
+      console.error('Failed to delete user:', err);
+      toast.error(getErrorMessage(err, 'Failed to delete account'));
+    }
+  };
+
   const handleResetPassword = async (user: User) => {
     if (!tenant?.id) return;
     setResettingUserId(user.id);
@@ -420,19 +435,34 @@ export default function UsersPage() {
                             </div>
                           )}
                           {!user.isActive ? (
-                            canEdit && (
-                              <div className="relative group inline-block">
-                                <button
-                                  onClick={() => handleToggleActive(user)}
-                                  className="text-gray-400 hover:text-gray-600"
-                                >
-                                  <UserCheck className="h-4 w-4" />
-                                </button>
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                  Enable account
+                            <>
+                              {canEdit && (
+                                <div className="relative group inline-block">
+                                  <button
+                                    onClick={() => handleToggleActive(user)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                  >
+                                    <UserCheck className="h-4 w-4" />
+                                  </button>
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Enable account
+                                  </div>
                                 </div>
-                              </div>
-                            )
+                              )}
+                              {canDelete && (
+                                <div className="relative group inline-block">
+                                  <button
+                                    onClick={() => handleDeletePermanently(user)}
+                                    className="text-gray-400 hover:text-red-500"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Delete account
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           ) : (
                             <>
                               {user.isFirstLogin && canDelete && (

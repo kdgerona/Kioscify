@@ -15,21 +15,21 @@ datasource db {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Company {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  id               String       @id @default(auto()) @map("_id") @db.ObjectId
   name             String
-  slug             String   @unique  // becomes subdomain: <slug>.kioscify.com
+  slug             String       @unique // becomes subdomain: <slug>.kioscify.com
   description      String?
   logoUrl          String?
   contactEmail     String?
   contactPhone     String?
   address          String?
   themeColors      ThemeColors?
-  isActive         Boolean  @default(true)
-  canCreateBrands  Boolean  @default(false)  // platform toggle: allow company to create brands
-  canOnboardStores Boolean  @default(false)  // platform toggle: allow company to create stores
-  tombstone        Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  isActive         Boolean      @default(true)
+  canCreateBrands  Boolean      @default(false) // platform toggle: allow company to create brands
+  canOnboardStores Boolean      @default(false) // platform toggle: allow company to create stores
+  tombstone        Int          @default(0)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   brands           Brand[]
   stores           Tenant[]
   users            User[]
@@ -38,30 +38,31 @@ model Company {
 }
 
 model Brand {
-  id                       String            @id @default(auto()) @map("_id") @db.ObjectId
-  companyId                String            @db.ObjectId
+  id                       String             @id @default(auto()) @map("_id") @db.ObjectId
+  companyId                String             @db.ObjectId
   name                     String
   slug                     String
   description              String?
   logoUrl                  String?
   themeColors              ThemeColors?
-  isActive                 Boolean           @default(true)
+  isActive                 Boolean            @default(true)
   enabledDeliveryPlatforms DeliveryPlatform[] @default([])
   preferenceLabel          String?
-  tombstone                Int               @default(0)
-  createdAt                DateTime          @default(now())
-  updatedAt                DateTime          @updatedAt
+  tombstone                Int                @default(0)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
-  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  stores         Tenant[]
-  categories     Category[]
-  products       Product[]
-  sizes          Size[]
-  addons         Addon[]
-  preferences    Preference[]
-  inventoryItems InventoryItem[]
-  users          User[]
-  priceTiers     PriceTier[]
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stores          Tenant[]
+  categories      Category[]
+  products        Product[]
+  sizes           Size[]
+  addons          Addon[]
+  preferences     Preference[]
+  inventoryItems  InventoryItem[]
+  users           User[]
+  menus           Menu[]
+  inventorySetups InventorySetup[]
 
   @@unique([companyId, slug])
   @@map("brands")
@@ -74,28 +75,38 @@ model Brand {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Tenant {
-  id          String      @id @default(auto()) @map("_id") @db.ObjectId
-  brandId     String?     @db.ObjectId
-  companyId   String?     @db.ObjectId
-  name        String
-  slug        String
-  description String?
-  logoUrl     String?
-  contactEmail  String?
-  contactPhone  String?
-  address       String?
-  themeColors   ThemeColors?
-  isActive                  Boolean            @default(true)
-  enabledDeliveryPlatforms  DeliveryPlatform[] @default([])
-  tombstone     Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                       String             @id @default(auto()) @map("_id") @db.ObjectId
+  brandId                  String?            @db.ObjectId
+  companyId                String?            @db.ObjectId
+  name                     String
+  slug                     String
+  description              String?
+  logoUrl                  String?
+  contactEmail             String?
+  contactPhone             String?
+  address                  String?
+  themeColors              ThemeColors?
+  isActive                 Boolean            @default(true)
+  enabledDeliveryPlatforms DeliveryPlatform[] @default([])
+  tombstone                Int                @default(0)
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
-  brand    Brand?   @relation(fields: [brandId], references: [id], onDelete: SetNull)
-  company  Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  brand   Brand?   @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   priceTierId String?    @db.ObjectId
   priceTier   PriceTier? @relation(fields: [priceTierId], references: [id])
+
+  // Menu / Inventory Setup assignment — nullable during rollout (a store can be
+  // created and configured later; every catalog/inventory read must handle null
+  // gracefully). Never denormalized onto the JWT — always resolved fresh from the
+  // DB per request (mirrors priceTierId/PriceTiersService.resolveStoreTierId) so a
+  // reassignment takes effect immediately, not on next login.
+  menuId           String?         @db.ObjectId
+  menu             Menu?           @relation(fields: [menuId], references: [id], onDelete: SetNull)
+  inventorySetupId String?         @db.ObjectId
+  inventorySetup   InventorySetup? @relation(fields: [inventorySetupId], references: [id], onDelete: SetNull)
 
   subscription StoreSubscription?
 
@@ -103,13 +114,14 @@ model Tenant {
   userAccess                UserStoreAccess[]
   transactions              Transaction[]
   expenses                  Expense[]
-  inventoryItems            InventoryItem[]
   inventoryRecords          InventoryRecord[]
+  inventoryOverrides        TenantInventoryOverride[]
   submittedReports          SubmittedReport[]
   submittedInventoryReports SubmittedInventoryReport[]
   userShiftReports          UserShiftReport[]
   userShiftInventoryReports UserShiftInventoryReport[]
   staffTimeLogs             StaffTimeLog[]
+  heldOrders                HeldOrder[]
 
   // Catalog relations kept during migration period (will be removed once catalog fully moves to Brand)
   categories  Category[]
@@ -133,8 +145,8 @@ model StoreSubscription {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  payments    SubscriptionPayment[]
+  tenant   Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payments SubscriptionPayment[]
 
   @@map("store_subscriptions")
 }
@@ -142,14 +154,14 @@ model StoreSubscription {
 model SubscriptionPayment {
   id             String    @id @default(auto()) @map("_id") @db.ObjectId
   subscriptionId String    @db.ObjectId
-  month          DateTime  // store-local first-of-month, normalized via getZonedMonthBounds(...).start
+  month          DateTime // store-local first-of-month, normalized via getZonedMonthBounds(...).start
   paid           Boolean   @default(true)
   paidAt         DateTime?
   note           String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  subscription   StoreSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscription StoreSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@unique([subscriptionId, month])
   @@map("subscription_payments")
@@ -224,41 +236,43 @@ type ThemeColors {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model User {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  tenantId     String?   @db.ObjectId   // null for COMPANY_ADMIN and PLATFORM_ADMIN
-  companyId    String?   @db.ObjectId   // set for COMPANY_ADMIN; also set for store users
-  brandId      String?   @db.ObjectId   // set for store users (STORE_ADMIN, CASHIER)
-  firstName    String    @default("")
-  lastName     String    @default("")
-  username     String
-  password     String
-  email        String
-  role         Role      @default(CASHIER)
-  isFirstLogin Boolean   @default(true)   // forces password change on first login
-  isActive           Boolean   @default(true)
-  companyPrivileges  Json?     // null = owner (full access); { brands, analytics, users, settings } for restricted admins
-  storePrivileges    Json?     // null = owner (full access); { transactions, expenses, inventory, users, settings } for restricted store admins
-  createdAt          DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId          String?  @db.ObjectId // null for COMPANY_ADMIN and PLATFORM_ADMIN
+  companyId         String?  @db.ObjectId // set for COMPANY_ADMIN; also set for store users
+  brandId           String?  @db.ObjectId // set for store users (STORE_ADMIN, CASHIER)
+  firstName         String   @default("")
+  lastName          String   @default("")
+  username          String
+  password          String
+  email             String
+  role              Role     @default(CASHIER)
+  isFirstLogin      Boolean  @default(true) // forces password change on first login
+  isActive          Boolean  @default(true)
+  tombstone         Int      @default(0) // soft delete — set once the account is disabled; username/email are freed on delete
+  companyPrivileges Json? // null = owner (full access); { brands, analytics, users, settings } for restricted admins
+  storePrivileges   Json? // null = owner (full access); { transactions, expenses, inventory, users, settings } for restricted store admins
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   tenant  Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   brand   Brand?   @relation(fields: [brandId], references: [id], onDelete: SetNull)
 
-  transactions              Transaction[]
-  expenses                  Expense[]
-  inventoryRecords          InventoryRecord[]
-  submittedReports          SubmittedReport[]
-  submittedInventoryReports SubmittedInventoryReport[]
-  userShiftReports          UserShiftReport[]
-  userShiftInventoryReports UserShiftInventoryReport[]
-  staffTimeLogs             StaffTimeLog[]
-  voidRequestsCreated       Transaction[]  @relation("VoidRequests")
-  voidRequestsReviewed      Transaction[]  @relation("VoidReviews")
-  expenseVoidRequestsCreated  Expense[]    @relation("ExpenseVoidRequests")
-  expenseVoidRequestsReviewed Expense[]    @relation("ExpenseVoidReviews")
-  storeAccess               UserStoreAccess[]
-  sessions                  Session[]
+  transactions                Transaction[]
+  expenses                    Expense[]
+  inventoryRecords            InventoryRecord[]
+  submittedReports            SubmittedReport[]
+  submittedInventoryReports   SubmittedInventoryReport[]
+  userShiftReports            UserShiftReport[]
+  userShiftInventoryReports   UserShiftInventoryReport[]
+  staffTimeLogs               StaffTimeLog[]
+  voidRequestsCreated         Transaction[]              @relation("VoidRequests")
+  voidRequestsReviewed        Transaction[]              @relation("VoidReviews")
+  expenseVoidRequestsCreated  Expense[]                  @relation("ExpenseVoidRequests")
+  expenseVoidRequestsReviewed Expense[]                  @relation("ExpenseVoidReviews")
+  storeAccess                 UserStoreAccess[]
+  sessions                    Session[]
+  heldOrders                  HeldOrder[]
 
   @@unique([tenantId, companyId, username])
   @@unique([tenantId, companyId, email])
@@ -266,75 +280,136 @@ model User {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MENU — a Brand can have multiple Menus; a Store is assigned exactly one.
+// Only Menu (and InventorySetup) are Brand-scoped containers. Everything
+// nested under a Menu — Category, Size, Addon, Preference, Product, PriceTier
+// — is directly owned by that Menu via its own menuId field, fully
+// independent per menu; there is no shared-master + junction indirection
+// (e.g. no MenuProduct) anywhere in this hierarchy. A product used on two
+// menus is simply two separate Product rows.
+// Assignment (Tenant.menuId) is resolved fresh per request, never cached in
+// the JWT, so a reassignment takes effect immediately (see Tenant comment).
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Menu {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  brandId     String   @db.ObjectId
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  tombstone   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  brand       Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  stores      Tenant[]
+  categories  Category[]
+  sizes       Size[]
+  addons      Addon[]
+  preferences Preference[]
+  products    Product[]
+  priceTiers  PriceTier[]
+
+  @@unique([brandId, name])
+  @@map("menus")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CATALOG — owned by Brand (not Tenant)
 // tenantId kept nullable during migration; brandId nullable until migration runs
 // Post-migration: tenantId removed, brandId becomes required, @@unique([brandId, name])
+//
+// menuId (Category/Size/Addon/Preference) is the NEW primary scope — these are
+// now owned by a Menu, fully independent per menu (see Menu comment above).
+// Kept nullable during the migration window; tightened to required (with a real
+// @@unique([menuId, name]) index) in the follow-up cleanup migration, since a
+// unique index on an optional field would falsely collide across menus/setups
+// while some rows still lack it. Category additionally gets inventorySetupId
+// for its INVENTORY-typed rows — exactly one of menuId/inventorySetupId is set,
+// matching `type`; enforced in the service layer, not the DB (Mongo can't
+// express that invariant, and there's no existing precedent for it here).
+//
+// The legacy `@@unique([tenantId, name])` indexes on these 5 models have been
+// DROPPED (not just deferred) — discovered live while writing the Menu/
+// InventorySetup migration scripts: since tenantId is never set on any row
+// created going forward, two unrelated brands/menus/setups creating a
+// same-named row (e.g. a "Uncategorized" category) collided on this index
+// immediately, not just hypothetically. Per-scope name uniqueness is enforced
+// in the service layer for now (same treatment as the not-yet-added
+// menuId/inventorySetupId indexes above), and revisited in the cleanup
+// migration once brandId/menuId/inventorySetupId are required.
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Category {
-  id          String        @id @map("_id")
-  tenantId    String?       @db.ObjectId
-  brandId     String?       @db.ObjectId
-  type        CategoryType? @default(PRODUCT)
-  name        String
-  description String?
-  sequenceNo  Int           @default(0)
-  tombstone   Int           @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id               String        @id @map("_id")
+  tenantId         String?       @db.ObjectId
+  brandId          String?       @db.ObjectId
+  menuId           String?       @db.ObjectId // set when type == PRODUCT
+  inventorySetupId String?       @db.ObjectId // set when type == INVENTORY
+  type             CategoryType? @default(PRODUCT)
+  name             String
+  description      String?
+  sequenceNo       Int           @default(0)
+  tombstone        Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  products Product[]
+  tenant         Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand          Brand?          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  menu           Menu?           @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  inventorySetup InventorySetup? @relation(fields: [inventorySetupId], references: [id], onDelete: Cascade)
+  products       Product[]
+  inventoryItems InventoryItem[]
 
-  @@unique([tenantId, name])
   @@map("categories")
 }
 
 model Size {
-  id            String   @id @map("_id")
-  tenantId      String?  @db.ObjectId
-  brandId       String?  @db.ObjectId
+  id             String   @id @map("_id")
+  tenantId       String?  @db.ObjectId
+  brandId        String?  @db.ObjectId
+  menuId         String?  @db.ObjectId
   name           String
   priceModifier  Float
   foodpandaPrice Float?
   grabPrice      Float?
   volume         String?
-  sequenceNo    Int      @default(0)
-  tombstone     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  sequenceNo     Int      @default(0)
+  tombstone      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  tenant           Tenant?          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand            Brand?           @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  tenant           Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand            Brand?            @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  menu             Menu?             @relation(fields: [menuId], references: [id], onDelete: Cascade)
   productSizes     ProductSize[]
   transactionItems TransactionItem[]
   priceTiers       SizePriceTier[]
 
-  @@unique([tenantId, name])
   @@map("sizes")
 }
 
 model Addon {
-  id        String   @id @map("_id")
-  tenantId  String?  @db.ObjectId
-  brandId   String?  @db.ObjectId
+  id             String   @id @map("_id")
+  tenantId       String?  @db.ObjectId
+  brandId        String?  @db.ObjectId
+  menuId         String?  @db.ObjectId
   name           String
   price          Float
   foodpandaPrice Float?
   grabPrice      Float?
-  sequenceNo Int      @default(0)
-  tombstone  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  sequenceNo     Int      @default(0)
+  tombstone      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   tenant                Tenant?                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   brand                 Brand?                 @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  menu                  Menu?                  @relation(fields: [menuId], references: [id], onDelete: Cascade)
   productAddons         ProductAddon[]
   transactionItemAddons TransactionItemAddon[]
   priceTiers            AddonPriceTier[]
 
-  @@unique([tenantId, name])
   @@map("addons")
 }
 
@@ -342,6 +417,7 @@ model Preference {
   id         String   @id @map("_id")
   tenantId   String?  @db.ObjectId
   brandId    String?  @db.ObjectId
+  menuId     String?  @db.ObjectId
   name       String
   isDefault  Boolean  @default(false)
   sequenceNo Int      @default(0)
@@ -351,37 +427,38 @@ model Preference {
 
   tenant             Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   brand              Brand?              @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  menu               Menu?               @relation(fields: [menuId], references: [id], onDelete: Cascade)
   productPreferences ProductPreference[]
   transactionItems   TransactionItem[]
 
-  @@unique([tenantId, name])
   @@map("preferences")
 }
 
 model Product {
-  id         String   @id @map("_id")
-  tenantId   String?  @db.ObjectId
-  brandId    String?  @db.ObjectId
+  id             String   @id @map("_id")
+  tenantId       String?  @db.ObjectId
+  brandId        String?  @db.ObjectId
+  menuId         String?  @db.ObjectId // primary scope — see Menu comment above
   name           String
   price          Float
   foodpandaPrice Float?
   grabPrice      Float?
-  categoryId String
-  image      String?
-  tombstone  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  categoryId     String
+  image          String?
+  tombstone      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  tenant           Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand            Brand?            @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  category         Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  tenant             Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand              Brand?              @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  menu               Menu?               @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  category           Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   productSizes       ProductSize[]
   productAddons      ProductAddon[]
   productPreferences ProductPreference[]
   transactionItems   TransactionItem[]
   priceTiers         ProductPriceTier[]
 
-  @@unique([tenantId, name])
   @@map("products")
 }
 
@@ -422,18 +499,30 @@ model ProductPreference {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRICE TIERS — brand-scoped; stores are assigned one tier
+// PRICE TIERS — Menu-scoped (not Brand-scoped): tier definitions are managed
+// from inside a Menu's isolated workspace. A store's assigned tier must
+// belong to the store's currently-assigned Menu (StoresService.update()
+// clears priceTierId to null whenever menuId changes, since a tier from the
+// old menu is meaningless under the new one).
 // ─────────────────────────────────────────────────────────────────────────────
 
 model PriceTier {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  brandId   String   @db.ObjectId
+  // Nullable during the migration window, same as Category/Size/Addon/Preference/Product's
+  // menuId — existing PriceTier rows predate this migration and won't have menuId set until
+  // migrate-catalog-to-menus.ts backfills it. A required field + @@unique([menuId, name]) here
+  // would make `db push` try to build that unique index immediately, and MongoDB treats a
+  // missing field as a shared null across all rows — two pre-existing tiers in different
+  // brands both named "Standard" would collide (same failure class as the tombstone incident
+  // documented in CLAUDE.md). Do not add @@unique([menuId, name]) back until the cleanup
+  // migration makes menuId required — see Category's identical comment above for the pattern.
+  menuId    String?  @db.ObjectId
   name      String
   isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  brand             Brand              @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  menu              Menu?              @relation(fields: [menuId], references: [id], onDelete: Cascade)
   stores            Tenant[]
   productPriceTiers ProductPriceTier[]
   sizePriceTiers    SizePriceTier[]
@@ -444,7 +533,7 @@ model PriceTier {
 
 model ProductPriceTier {
   id             String @id @default(auto()) @map("_id") @db.ObjectId
-  productId      String  // plain String to match Product.id (no @db.ObjectId)
+  productId      String // plain String to match Product.id (no @db.ObjectId)
   tierId         String @db.ObjectId
   price          Float
   foodpandaPrice Float?
@@ -459,7 +548,7 @@ model ProductPriceTier {
 
 model SizePriceTier {
   id             String @id @default(auto()) @map("_id") @db.ObjectId
-  sizeId         String  // plain String to match Size.id (no @db.ObjectId)
+  sizeId         String // plain String to match Size.id (no @db.ObjectId)
   tierId         String @db.ObjectId
   priceModifier  Float
   foodpandaPrice Float?
@@ -474,7 +563,7 @@ model SizePriceTier {
 
 model AddonPriceTier {
   id             String @id @default(auto()) @map("_id") @db.ObjectId
-  addonId        String  // plain String to match Addon.id (no @db.ObjectId)
+  addonId        String // plain String to match Addon.id (no @db.ObjectId)
   tierId         String @db.ObjectId
   price          Float
   foodpandaPrice Float?
@@ -492,21 +581,22 @@ model AddonPriceTier {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Transaction {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
-  tenantId        String        @db.ObjectId
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId        String         @db.ObjectId
   transactionId   String
-  userId          String        @db.ObjectId
-  clientId        String?       // device-generated UUID for offline deduplication
+  userId          String         @db.ObjectId
+  clientId        String? // device-generated UUID for offline deduplication
   subtotal        Float
   total           Float
   paymentMethod   PaymentMethod
-  paymentStatus   PaymentStatus @default(COMPLETED)
+  paymentStatus   PaymentStatus  @default(COMPLETED)
   cashReceived    Float?
   change          Float?
   referenceNumber String?
+  payments        PaymentSplit[] // populated only when paymentMethod == SPLIT; see comment above the type
   remarks         String?
   discountAmount  Float?
-  timestamp       DateTime      @default(now())
+  timestamp       DateTime       @default(now())
 
   voidStatus          VoidStatus @default(NONE)
   voidReason          String?
@@ -519,33 +609,33 @@ model Transaction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user          User            @relation(fields: [userId], references: [id], onDelete: Restrict)
-  voidRequester User?           @relation("VoidRequests", fields: [voidRequestedBy], references: [id], onDelete: SetNull)
-  voidReviewer  User?           @relation("VoidReviews", fields: [voidReviewedBy], references: [id], onDelete: SetNull)
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  voidRequester User?             @relation("VoidRequests", fields: [voidRequestedBy], references: [id], onDelete: SetNull)
+  voidReviewer  User?             @relation("VoidReviews", fields: [voidReviewedBy], references: [id], onDelete: SetNull)
   items         TransactionItem[]
 
   @@unique([tenantId, transactionId])
-  @@unique([tenantId, clientId])  // offline deduplication
+  @@unique([tenantId, clientId]) // offline deduplication
   @@index([tenantId, createdAt])
   @@map("transactions")
 }
 
 model TransactionItem {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  transactionId String   @db.ObjectId
-  productId     String
-  quantity      Int
-  sizeId        String?
-  preferenceId  String?
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  transactionId  String   @db.ObjectId
+  productId      String
+  quantity       Int
+  sizeId         String?
+  preferenceId   String?
   subtotal       Float
   discountAmount Float?
   createdAt      DateTime @default(now())
 
-  transaction Transaction          @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  product     Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
-  size        Size?                 @relation(fields: [sizeId], references: [id], onDelete: Restrict)
-  preference  Preference?           @relation(fields: [preferenceId], references: [id], onDelete: Restrict)
+  transaction Transaction            @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product     Product                @relation(fields: [productId], references: [id], onDelete: Restrict)
+  size        Size?                  @relation(fields: [sizeId], references: [id], onDelete: Restrict)
+  preference  Preference?            @relation(fields: [preferenceId], references: [id], onDelete: Restrict)
   addons      TransactionItemAddon[]
 
   @@index([transactionId])
@@ -565,6 +655,48 @@ model TransactionItemAddon {
   @@map("transaction_item_addons")
 }
 
+// Embedded, not a relation: a split payment's legs are always read/written
+// wholesale alongside their parent Transaction and never queried on their own,
+// so every existing transaction.findMany(...) call site gets this back for
+// free with no `include` changes needed.
+type PaymentSplit {
+  method          PaymentMethod
+  amount          Float
+  cashReceived    Float? // only when method == CASH
+  change          Float? // only when method == CASH
+  referenceNumber String? // only for non-cash methods
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELD ORDERS — store-level (tenantId scoped), ephemeral working state.
+// A held order is a parked cart, not a sale — it never touches Transaction or
+// sales reporting. Hard-deleted on resume/discard (no soft-delete/tombstone
+// needed since it carries no audit/financial history). Also auto-purged daily —
+// see HeldOrdersService.purgeStaleHeldOrders — anything left over from a
+// previous business day is treated as abandoned.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model HeldOrder {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId      String   @db.ObjectId
+  heldByUserId  String   @db.ObjectId
+  clientId      String? // device-generated UUID for offline dedup, mirrors Transaction.clientId
+  customerLabel String?
+  orderType     String   @default("regular") // 'regular' | 'foodpanda' | 'grab'
+  subtotal      Float
+  total         Float
+  itemCount     Int
+  items         Json // HeldOrderItem[] snapshot (productId/name/price, size, addons, preference, discount)
+  createdAt     DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  heldBy User   @relation(fields: [heldByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, clientId])
+  @@index([tenantId, createdAt])
+  @@map("held_orders")
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // EXPENSES — store-level (tenantId scoped), unchanged
 // ─────────────────────────────────────────────────────────────────────────────
@@ -573,7 +705,7 @@ model Expense {
   id          String          @id @default(auto()) @map("_id") @db.ObjectId
   tenantId    String          @db.ObjectId
   userId      String          @db.ObjectId
-  clientId    String?         // device-generated UUID for offline deduplication
+  clientId    String? // device-generated UUID for offline deduplication
   description String
   amount      Float
   category    ExpenseCategory
@@ -597,39 +729,110 @@ model Expense {
   voidRequester User?  @relation("ExpenseVoidRequests", fields: [voidRequestedBy], references: [id], onDelete: SetNull)
   voidReviewer  User?  @relation("ExpenseVoidReviews", fields: [voidReviewedBy], references: [id], onDelete: SetNull)
 
-  @@unique([tenantId, clientId])  // offline deduplication
+  @@unique([tenantId, clientId]) // offline deduplication
   @@index([tenantId, createdAt])
   @@map("expenses")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// INVENTORY — InventoryItem templates owned by Brand; store copies scoped by tenantId
-// isTemplate: true  → brand template (brandId set, tenantId null)
-// isTemplate: false → store copy    (brandId set, tenantId set)
+// INVENTORY SETUP — mirrors Menu exactly. A Brand can have multiple named,
+// shared Inventory Setups; a Store is assigned one (nullable during rollout).
+// InventoryItem is directly owned by an InventorySetup via its own
+// inventorySetupId field — no shared-master + junction indirection (see Menu
+// comment above; the same "only the container is Brand-scoped" rule applies
+// here). TenantInventoryOverride lets one store locally tweak a shared item's
+// thresholds without forking the setup itself.
+//
+// Reassignment-preservation guarantee: InventoryRecord.inventoryItemId always
+// points at the same InventoryItem row, which is never hard-deleted — only
+// tombstoned when removed from active use. So a store's stock-count history
+// is structurally independent of both (a) an item being tombstoned out of
+// active use, and (b) the store later being reassigned to a different
+// InventorySetup entirely. The service layer surfaces such items as "legacy"
+// — not in the active picker, excluded from low-stock alerts, but fully
+// queryable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model InventorySetup {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  brandId     String   @db.ObjectId
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  tombstone   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  brand      Brand           @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  stores     Tenant[]
+  categories Category[]
+  items      InventoryItem[]
+
+  @@unique([brandId, name])
+  @@map("inventory_setups")
+}
+
+// Per-store override of a shared InventoryItem's thresholds — lets one store
+// tweak min-stock/expiration values locally without forking the item (which
+// would defeat the point of the setup being shared/reusable).
+model TenantInventoryOverride {
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId               String   @db.ObjectId
+  inventoryItemId        String   @db.ObjectId
+  minStockLevel          Float?
+  requiresExpirationDate Boolean?
+  expirationWarningDays  Int?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, inventoryItemId])
+  @@map("tenant_inventory_overrides")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVENTORY ITEM — directly owned by one InventorySetup (mirrors Product's
+// direct Menu ownership above). Never hard-deleted (tombstone only), since
+// InventoryRecord history depends on it staying valid indefinitely — see the
+// reassignment-preservation guarantee above.
 // ─────────────────────────────────────────────────────────────────────────────
 
 model InventoryItem {
-  id                              String   @id @default(auto()) @map("_id") @db.ObjectId
-  tenantId                        String?  @db.ObjectId
-  brandId                         String?  @db.ObjectId
-  templateId                      String?  @db.ObjectId  // store copy → brand template reference
-  isTemplate                      Boolean  @default(false)  // true = brand template
-  name                            String
-  category                        String?
-  unit                            String
-  description                     String?
-  minStockLevel                   Float?
-  minStockLevelCustomized         Boolean  @default(false)  // true = store has overridden minStockLevel
-  requiresExpirationDate          Boolean  @default(false)
-  expirationWarningDays           Int?     @default(7)
-  expirationWarningDaysCustomized Boolean  @default(false)  // true = store has overridden expirationWarningDays
-  tombstone                       Int      @default(0)
-  createdAt                       DateTime @default(now())
-  updatedAt                       DateTime @updatedAt
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  brandId                String?  @db.ObjectId
+  inventorySetupId       String?  @db.ObjectId // primary scope — see section comment above
+  name                   String
+  unit                   String
+  description            String?
+  categoryId             String? // Category(type=INVENTORY), must belong to the same setup — enforced in the service layer
+  minStockLevel          Float?
+  requiresExpirationDate Boolean  @default(false)
+  expirationWarningDays  Int?     @default(7)
+  tombstone              Int      @default(0) // 1 = deprecated from active use, preserved for history (see guarantee above)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
-  tenant          Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand           Brand?            @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  // DEPRECATED pre-InventorySetup shape — kept nullable/in place solely so
+  // migrate-inventory-to-setups.ts and backfill-inventory-record-item-ids.ts
+  // can read/resolve old brand-template (isTemplate: true) vs. per-store-copy
+  // (isTemplate: false, tenantId set) rows while migrating them onto
+  // inventorySetupId/categoryId above. Not read by any live application code
+  // (InventoryService); safe to drop in the cleanup migration (§2.6) once
+  // migrated.
+  tenantId                        String? @db.ObjectId
+  templateId                      String? @db.ObjectId
+  isTemplate                      Boolean @default(false)
+  legacyCategory                  String? @map("category") // free-text category, pre-Category-relation — same raw Mongo field the old code wrote
+  minStockLevelCustomized         Boolean @default(false)
+  expirationWarningDaysCustomized Boolean @default(false)
+
+  brand            Brand?                    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  inventorySetup   InventorySetup?           @relation(fields: [inventorySetupId], references: [id], onDelete: Cascade)
+  category         Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   inventoryRecords InventoryRecord[]
+  tenantOverrides  TenantInventoryOverride[]
 
   @@map("inventory_items")
 }
@@ -639,7 +842,7 @@ model InventoryRecord {
   tenantId        String   @db.ObjectId
   inventoryItemId String   @db.ObjectId
   userId          String   @db.ObjectId
-  clientId        String?  // device-generated UUID for offline deduplication
+  clientId        String? // device-generated UUID for offline deduplication
   quantity        Float
   date            DateTime @default(now())
   notes           String?
@@ -650,7 +853,7 @@ model InventoryRecord {
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
   user          User          @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@unique([tenantId, clientId])  // offline deduplication
+  @@unique([tenantId, clientId]) // offline deduplication
   @@map("inventory_records")
 }
 
@@ -659,40 +862,10 @@ model InventoryRecord {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model SubmittedReport {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  tenantId   String   @db.ObjectId
-  userId     String   @db.ObjectId
-  reportDate String   // YYYY-MM-DD format
-  submittedAt  DateTime @default(now())
-  periodStart  DateTime
-  periodEnd    DateTime
-
-  salesSnapshot    SalesSnapshot
-  expensesSnapshot ExpensesSnapshot
-  summarySnapshot  SummarySnapshot
-
-  transactionIds String[]
-  expenseIds     String[]
-  notes          String?
-  clientId       String?  // offline deduplication
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
-
-  @@unique([tenantId, clientId])
-  @@index([tenantId, reportDate])
-  @@index([tenantId, submittedAt])
-  @@map("submitted_reports")
-}
-
-model UserShiftReport {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   tenantId    String   @db.ObjectId
   userId      String   @db.ObjectId
-  reportDate  String   // YYYY-MM-DD (the calendar day this shift falls on)
+  reportDate  String // YYYY-MM-DD format
   submittedAt DateTime @default(now())
   periodStart DateTime
   periodEnd   DateTime
@@ -704,7 +877,7 @@ model UserShiftReport {
   transactionIds String[]
   expenseIds     String[]
   notes          String?
-  clientId       String?  // offline deduplication (UUID per submission)
+  clientId       String? // offline deduplication
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -712,23 +885,55 @@ model UserShiftReport {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@unique([tenantId, clientId])
+  // No @@unique([tenantId, clientId]) here — see UserShiftInventoryReport's
+  // comment below for why; offline dedup for this model is enforced in
+  // SubmittedReportsService.create() instead.
+  @@index([tenantId, reportDate])
+  @@index([tenantId, submittedAt])
+  @@map("submitted_reports")
+}
+
+model UserShiftReport {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String   @db.ObjectId
+  userId      String   @db.ObjectId
+  reportDate  String // YYYY-MM-DD (the calendar day this shift falls on)
+  submittedAt DateTime @default(now())
+  periodStart DateTime
+  periodEnd   DateTime
+
+  salesSnapshot    SalesSnapshot
+  expensesSnapshot ExpensesSnapshot
+  summarySnapshot  SummarySnapshot
+
+  transactionIds String[]
+  expenseIds     String[]
+  notes          String?
+  clientId       String? // offline deduplication (UUID per submission)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  // No @@unique([tenantId, clientId]) — see UserShiftInventoryReport's comment below.
   @@index([tenantId, reportDate])
   @@index([tenantId, userId])
   @@map("user_shift_reports")
 }
 
 model SubmittedInventoryReport {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  tenantId   String   @db.ObjectId
-  userId     String   @db.ObjectId
-  reportDate String   // YYYY-MM-DD format
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String   @db.ObjectId
+  userId      String   @db.ObjectId
+  reportDate  String // YYYY-MM-DD format
   submittedAt DateTime @default(now())
 
   inventorySnapshot InventorySnapshot
   notes             String?
-  clientId          String?  // offline deduplication
-  isShiftMirror     Boolean? @default(false)  // true for records mirrored from shift inventory reports
+  clientId          String? // offline deduplication
+  isShiftMirror     Boolean?          @default(false) // true for records mirrored from shift inventory reports
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -736,22 +941,22 @@ model SubmittedInventoryReport {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@unique([tenantId, clientId])
+  // No @@unique([tenantId, clientId]) — see UserShiftInventoryReport's comment below.
   @@index([tenantId, reportDate])
   @@index([tenantId, submittedAt])
   @@map("submitted_inventory_reports")
 }
 
 model UserShiftInventoryReport {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  tenantId    String   @db.ObjectId
-  userId      String   @db.ObjectId
-  reportDate  String   // YYYY-MM-DD
+  id         String @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId   String @db.ObjectId
+  userId     String @db.ObjectId
+  reportDate String // YYYY-MM-DD
 
   inventorySnapshot InventorySnapshot
 
   notes    String?
-  clientId String?  // offline deduplication
+  clientId String? // offline deduplication
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -760,7 +965,26 @@ model UserShiftInventoryReport {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@unique([tenantId, clientId])
+  // Deliberately no @@unique([tenantId, clientId]) on this model or its three
+  // report-snapshot siblings (SubmittedReport/UserShiftReport/
+  // SubmittedInventoryReport). `clientId` is optional and, unlike
+  // Transaction/Expense/HeldOrder/InventoryRecord (which share this exact
+  // pattern), real production data has many legitimate documents per tenant
+  // that never set it. MongoDB's unique index treats a missing field as one
+  // shared "null" value across all documents, so a compound unique index here
+  // would falsely collide the moment a tenant has two such documents — as
+  // verified against a restored production copy (2026-07-10): every one of
+  // these four collections failed `prisma db push` on exactly this collision
+  // (submitted_reports/user_shift_reports/submitted_inventory_reports had
+  // real multi-document collisions; user_shift_inventory_reports had none yet
+  // but is structurally identical and would hit the same wall as data grows).
+  // Prisma has no schema-level partial/sparse index for MongoDB to fix this
+  // properly, and a hand-written partial index outside the schema isn't safe
+  // either — `db push` treats schema.prisma as the sole source of truth for
+  // indexes on this connector and can drop anything undeclared. So dedup for
+  // all four models is enforced at the service layer instead (an explicit
+  // findFirst-by-clientId check before create, mirroring the same check the
+  // four working models above already do) — see */*.service.ts create().
   @@index([tenantId, reportDate])
   @@index([tenantId, userId])
   @@map("user_shift_inventory_reports")
@@ -771,16 +995,16 @@ model UserShiftInventoryReport {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model StaffTimeLog {
-  id        String            @id @default(auto()) @map("_id") @db.ObjectId
-  tenantId  String            @db.ObjectId
-  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId    String            @db.ObjectId
-  user      User              @relation(fields: [userId], references: [id])
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId  String           @db.ObjectId
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String           @db.ObjectId
+  user      User             @relation(fields: [userId], references: [id])
   eventType TimeLogEventType
   photoUrl  String
   latitude  Float
   longitude Float
-  createdAt DateTime          @default(now())
+  createdAt DateTime         @default(now())
 
   @@index([tenantId, userId, createdAt])
   @@map("staff_time_logs")
@@ -842,11 +1066,11 @@ type InventoryItemSnapshot {
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum Role {
-  PLATFORM_ADMIN   // Kioscify internal (Kevin's team)
-  COMPANY_ADMIN    // Client company admin (e.g., GreatServe)
-  STORE_ADMIN      // Store owner / franchisee
-  CASHIER          // Store staff (mobile app only)
-  ADMIN            // Deprecated — kept for migration; maps to STORE_ADMIN
+  PLATFORM_ADMIN // Kioscify internal (Kevin's team)
+  COMPANY_ADMIN // Client company admin (e.g., GreatServe)
+  STORE_ADMIN // Store owner / franchisee
+  CASHIER // Store staff (mobile app only)
+  ADMIN // Deprecated — kept for migration; maps to STORE_ADMIN
 }
 
 enum PaymentMethod {
@@ -856,6 +1080,7 @@ enum PaymentMethod {
   ONLINE
   FOODPANDA
   GRAB
+  SPLIT // paid using 2+ methods — see Transaction.payments
 }
 
 enum DeliveryPlatform {
@@ -870,10 +1095,10 @@ enum PaymentStatus {
 }
 
 enum VoidStatus {
-  NONE      // No void request
-  PENDING   // Void request submitted, awaiting approval
-  APPROVED  // Void approved - excluded from sales
-  REJECTED  // Void rejected - still counts in sales
+  NONE // No void request
+  PENDING // Void request submitted, awaiting approval
+  APPROVED // Void approved - excluded from sales
+  REJECTED // Void rejected - still counts in sales
 }
 
 enum CategoryType {
@@ -910,22 +1135,22 @@ model PlatformConfig {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model AppRelease {
-  id              String            @id @default(auto()) @map("_id") @db.ObjectId
-  versionCode     Int
-  versionName     String
-  apkPath         String
-  apkUrl          String
-  fileSize        Int
-  checksumSha256  String
-  releaseNotes    String[]
-  forceUpdate     Boolean           @default(false)
-  status          AppReleaseStatus  @default(DRAFT)
-  uploadedById    String?           @db.ObjectId
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id             String           @id @default(auto()) @map("_id") @db.ObjectId
+  versionCode    Int
+  versionName    String
+  apkPath        String
+  apkUrl         String
+  fileSize       Int
+  checksumSha256 String
+  releaseNotes   String[]
+  forceUpdate    Boolean          @default(false)
+  status         AppReleaseStatus @default(DRAFT)
+  uploadedById   String?          @db.ObjectId
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  @@index([status, versionCode])
   @@unique([versionCode])
+  @@index([status, versionCode])
   @@map("app_releases")
 }
 
@@ -933,4 +1158,3 @@ enum AppReleaseStatus {
   DRAFT
   PUBLISHED
 }
-

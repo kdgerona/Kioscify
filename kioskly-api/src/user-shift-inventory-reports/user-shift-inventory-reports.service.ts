@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserShiftInventoryReportFiltersDto } from './dto/user-shift-inventory-report-filters.dto';
 import { CreateSubmittedInventoryReportDto } from '../submitted-inventory-reports/dto/create-submitted-inventory-report.dto';
@@ -9,6 +9,20 @@ export class UserShiftInventoryReportsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateSubmittedInventoryReportDto, userId: string, tenantId: string) {
+    // Offline deduplication — enforced here rather than a DB-level unique
+    // index; see schema.prisma's UserShiftInventoryReport comment for why.
+    if (dto.clientId) {
+      const existing = await this.prisma.userShiftInventoryReport.findFirst({
+        where: { tenantId, clientId: dto.clientId },
+      });
+      if (existing) {
+        throw new ConflictException({
+          message: 'Shift inventory report already synced',
+          id: existing.id,
+        });
+      }
+    }
+
     const shiftReport = await this.prisma.userShiftInventoryReport.create({
       data: {
         tenantId,
@@ -27,21 +41,30 @@ export class UserShiftInventoryReportsService {
     });
 
     // Mirror to SubmittedInventoryReport so Latest Counts, Progression, and Alerts reflect shift data.
-    // Uses a derived clientId so it never collides with the @@unique([tenantId, clientId]) constraint.
+    // Uses a derived clientId, checked for dedup the same way as the primary create above (no
+    // DB-level unique index backs this — see schema.prisma's UserShiftInventoryReport comment).
     // Wrapped in try/catch so a mirror failure never rejects the primary shift report response.
     try {
-      await this.prisma.submittedInventoryReport.create({
-        data: {
-          tenantId,
-          userId,
-          reportDate: dto.reportDate,
-          inventorySnapshot: dto.inventorySnapshot as any,
-          notes: dto.notes,
-          clientId: dto.clientId ? `${dto.clientId}-inv` : undefined,
-          isShiftMirror: true,
-          ...(dto.submittedAt && { submittedAt: new Date(dto.submittedAt) }),
-        },
-      });
+      const mirrorClientId = dto.clientId ? `${dto.clientId}-inv` : undefined;
+      const existingMirror = mirrorClientId
+        ? await this.prisma.submittedInventoryReport.findFirst({
+            where: { tenantId, clientId: mirrorClientId },
+          })
+        : null;
+      if (!existingMirror) {
+        await this.prisma.submittedInventoryReport.create({
+          data: {
+            tenantId,
+            userId,
+            reportDate: dto.reportDate,
+            inventorySnapshot: dto.inventorySnapshot as any,
+            notes: dto.notes,
+            clientId: mirrorClientId,
+            isShiftMirror: true,
+            ...(dto.submittedAt && { submittedAt: new Date(dto.submittedAt) }),
+          },
+        });
+      }
     } catch (e) {
       console.error('[UserShiftInventoryReport] mirror to SubmittedInventoryReport failed:', e);
     }

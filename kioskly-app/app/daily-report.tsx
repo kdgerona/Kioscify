@@ -32,7 +32,7 @@ import {
 } from "../services/expenseService";
 import { enqueue } from "../services/syncEngine";
 import { useSync } from "../contexts/SyncContext";
-import { getPaymentMethodLabel, getPaymentMethodBadgeStyle } from "../utils/paymentMethod";
+import { getPaymentMethodLabel, getPaymentMethodBadgeStyle, buildPaymentMethodBreakdown } from "../utils/paymentMethod";
 import { formatUserName } from "../utils/formatUserName";
 import LastSubmissionBanner from "../components/LastSubmissionBanner";
 import { useDeviceType } from "../hooks/useDeviceType";
@@ -55,13 +55,7 @@ function computeLocalReport(
     (s, t) => s + (t.items ?? []).reduce((si, i) => si + i.quantity, 0),
     0,
   );
-  const paymentBreakdown: Record<string, { total: number; count: number }> = {};
-  activeTxns.forEach((t) => {
-    const m = t.paymentMethod;
-    if (!paymentBreakdown[m]) paymentBreakdown[m] = { total: 0, count: 0 };
-    paymentBreakdown[m].total += t.total;
-    paymentBreakdown[m].count += 1;
-  });
+  const paymentBreakdown = buildPaymentMethodBreakdown(activeTxns);
 
   const productMap: Record<string, { productName: string; sizeName?: string; quantity: number; amount: number }> = {};
   activeTxns.forEach((t) => {

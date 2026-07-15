@@ -1,11 +1,15 @@
 /**
- * Migration script: create a "Standard" PriceTier for every Brand and seed
- * ProductPriceTier / SizePriceTier / AddonPriceTier rows from existing prices,
- * then assign that tier to every Tenant (store) of the brand.
+ * Migration script: create a "Standard" PriceTier for every Brand's Default
+ * Menu and seed ProductPriceTier / SizePriceTier / AddonPriceTier rows from
+ * existing prices, then assign that tier to every Tenant (store) of the
+ * brand. PriceTier is Menu-scoped (not Brand-scoped) — see schema.prisma —
+ * so this requires `migrate-catalog-to-menus.ts` to have already run for a
+ * brand (its Default Menu must exist); brands without one yet are skipped
+ * with a warning.
  *
  * Safe to run multiple times — idempotent per brand:
- *   If a PriceTier with name "Standard" already exists for a brand, that brand
- *   is skipped entirely.
+ *   If a PriceTier with name "Standard" already exists on the brand's
+ *   Default Menu, that brand is skipped entirely.
  *
  * Usage:
  *   npm run migrate:price-tiers
@@ -32,9 +36,20 @@ function log(msg: string) {
 }
 
 async function processBrand(brandId: string, brandName: string) {
+  const menu = await prisma.menu.findFirst({
+    where: { brandId, name: 'Default Menu' },
+    select: { id: true },
+  });
+  if (!menu) {
+    log(`  SKIP Brand "${brandName}" (${brandId}) — no Default Menu yet; run migrate-catalog-to-menus.ts first`);
+    stats.brandsSkipped++;
+    return;
+  }
+  const menuId = menu.id;
+
   // ── Idempotency guard ──────────────────────────────────────────────────────
   const existing = await prisma.priceTier.findFirst({
-    where: { brandId, name: 'Standard' },
+    where: { menuId, name: 'Standard' },
     select: { id: true },
   });
 
@@ -46,10 +61,10 @@ async function processBrand(brandId: string, brandName: string) {
 
   log(`  Processing Brand "${brandName}" (${brandId})`);
 
-  // ── 1. Create Standard PriceTier ───────────────────────────────────────────
+  // ── 1. Create Standard PriceTier on the brand's Default Menu ──────────────
   const tier = await prisma.priceTier.create({
     data: {
-      brandId,
+      menuId,
       name: 'Standard',
       isDefault: true,
     },
@@ -63,8 +78,12 @@ async function processBrand(brandId: string, brandName: string) {
     select: { id: true, price: true, foodpandaPrice: true, grabPrice: true },
   });
 
-  if (products.length > 0) {
-    const productPriceTierData = products.map((p) => ({
+  const pricedProducts = products.filter(
+    (p): p is typeof p & { price: number } => p.price !== null,
+  );
+
+  if (pricedProducts.length > 0) {
+    const productPriceTierData = pricedProducts.map((p) => ({
       productId: p.id,
       tierId: tier.id,
       price: p.price,
@@ -79,7 +98,7 @@ async function processBrand(brandId: string, brandName: string) {
       data: productPriceTierData,
     });
     stats.productPriceTiersCreated += result.count;
-    log(`    Created ${result.count} ProductPriceTier(s) (${products.length} products)`);
+    log(`    Created ${result.count} ProductPriceTier(s) (${pricedProducts.length} of ${products.length} products had a legacy price)`);
   } else {
     log(`    No products for this brand — skipping ProductPriceTier`);
   }

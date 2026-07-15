@@ -14,6 +14,52 @@ import {
 export class ReportsService {
   constructor(private prisma: PrismaService) {}
 
+  // Shared by all three payment-method breakdowns below (daily/shift/analytics) so
+  // the SPLIT-attribution logic can't drift out of sync between them. A SPLIT
+  // transaction's `payments` legs are attributed to their own method bucket
+  // instead of the whole transaction total landing under one key; legs sum to
+  // the transaction total by construction (enforced in CreateTransactionDto),
+  // so this never double-counts sales for the period.
+  private buildPaymentMethodBreakdown(
+    transactions: { paymentMethod: string; total: number; payments?: unknown }[],
+  ): Record<string, { total: number; count: number }> {
+    const breakdown: Record<string, { total: number; count: number }> = {};
+    for (const t of transactions) {
+      const splits = (t as any).payments as { method: string; amount: number }[] | undefined;
+      if (t.paymentMethod === 'SPLIT' && splits && splits.length > 0) {
+        for (const split of splits) {
+          if (!breakdown[split.method]) breakdown[split.method] = { total: 0, count: 0 };
+          breakdown[split.method].total += split.amount;
+          breakdown[split.method].count += 1;
+        }
+        continue;
+      }
+      if (!breakdown[t.paymentMethod]) breakdown[t.paymentMethod] = { total: 0, count: 0 };
+      breakdown[t.paymentMethod].total += t.total;
+      breakdown[t.paymentMethod].count += 1;
+    }
+    return breakdown;
+  }
+
+  /**
+   * Resolve every distinct product referenced in `transactions` to its
+   * current category name in one query. A product that's since been deleted
+   * (or whose category was) simply has no entry, and callers fall back to
+   * "Uncategorized".
+   */
+  private async buildCategoryNameLookup(
+    transactions: { items: { productId: string }[] }[],
+  ): Promise<Map<string, string>> {
+    const productIds = [...new Set(transactions.flatMap((t) => t.items.map((i) => i.productId)))];
+    if (productIds.length === 0) return new Map();
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      include: { category: true },
+    });
+    return new Map(products.map((p) => [p.id, p.category?.name ?? 'Uncategorized']));
+  }
+
   /**
    * Calculate date range based on period type
    */
@@ -108,18 +154,7 @@ export class ReportsService {
       transactionCount > 0 ? totalSales / transactionCount : 0;
 
     // Payment method breakdown
-    const paymentMethodBreakdown = transactions.reduce(
-      (acc, t) => {
-        const method = t.paymentMethod;
-        if (!acc[method]) {
-          acc[method] = { total: 0, count: 0 };
-        }
-        acc[method].total += t.total;
-        acc[method].count += 1;
-        return acc;
-      },
-      {} as Record<string, { total: number; count: number }>,
-    );
+    const paymentMethodBreakdown = this.buildPaymentMethodBreakdown(transactions);
 
     // Total items sold
     const totalItemsSold = transactions.reduce(
@@ -226,16 +261,7 @@ export class ReportsService {
     const transactionCount = transactions.length;
     const averageTransaction = transactionCount > 0 ? totalSales / transactionCount : 0;
 
-    const paymentMethodBreakdown = transactions.reduce(
-      (acc, t) => {
-        const method = t.paymentMethod;
-        if (!acc[method]) acc[method] = { total: 0, count: 0 };
-        acc[method].total += t.total;
-        acc[method].count += 1;
-        return acc;
-      },
-      {} as Record<string, { total: number; count: number }>,
-    );
+    const paymentMethodBreakdown = this.buildPaymentMethodBreakdown(transactions);
 
     const totalItemsSold = transactions.reduce(
       (sum, t) => sum + t.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
@@ -334,11 +360,7 @@ export class ReportsService {
       include: {
         items: {
           include: {
-            product: {
-              include: {
-                category: true,
-              },
-            },
+            product: true,
             size: true,
           },
         },
@@ -347,6 +369,11 @@ export class ReportsService {
         timestamp: 'asc',
       },
     });
+
+    // Live re-resolve, not a frozen snapshot — same behavior this codebase
+    // already accepts for product name/price in reports. A product whose
+    // category was since deleted degrades to "Uncategorized" rather than throwing.
+    const categoryNameByProductId = await this.buildCategoryNameLookup(transactions);
 
     // Fetch expenses for the period (excluding approved void expenses)
     const expenses = await this.prisma.expense.findMany({
@@ -373,18 +400,7 @@ export class ReportsService {
       transactionCount > 0 ? totalSales / transactionCount : 0;
 
     // Payment method breakdown
-    const paymentMethodBreakdown = transactions.reduce(
-      (acc, t) => {
-        const method = t.paymentMethod;
-        if (!acc[method]) {
-          acc[method] = { total: 0, count: 0 };
-        }
-        acc[method].total += t.total;
-        acc[method].count += 1;
-        return acc;
-      },
-      {} as Record<string, { total: number; count: number }>,
-    );
+    const paymentMethodBreakdown = this.buildPaymentMethodBreakdown(transactions);
 
     // Total items sold
     const totalItemsSold = transactions.reduce(
@@ -402,7 +418,7 @@ export class ReportsService {
             acc[productId] = {
               productId,
               productName: item.product.name,
-              categoryName: item.product.category?.name,
+              categoryName: categoryNameByProductId.get(productId) ?? 'Uncategorized',
               quantity: 0,
               revenue: 0,
             };

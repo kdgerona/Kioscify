@@ -1,304 +1,25 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
-import type { Brand, Store, Category, Product, Size, Addon, Preference, InventoryBrandTemplate, PriceTier, ProductPriceTier, SizePriceTier, AddonPriceTier } from '@/types';
-import { Plus, Pencil, Trash2, X, ChevronLeft, Upload, Save, QrCode, ChevronUp, ChevronDown, Truck, Star, Copy } from 'lucide-react';
+import type { Brand, Store, PriceTier, Menu, InventorySetup } from '@/types';
+import { Pencil, Trash2, ChevronLeft, Upload, Save, QrCode, Truck, Copy, Plus, X, Power, PowerOff } from 'lucide-react';
 import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
 
-type Tab = 'overview' | 'products' | 'categories' | 'sizes' | 'addons' | 'preferences' | 'inventory' | 'stores' | 'price-tiers' | 'settings';
+type Tab = 'overview' | 'menus' | 'inventory-setups' | 'stores' | 'settings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
-  { id: 'products', label: 'Products' },
-  { id: 'categories', label: 'Categories' },
-  { id: 'sizes', label: 'Sizes' },
-  { id: 'addons', label: 'Add-ons' },
-  { id: 'preferences', label: 'Preferences' },
-  { id: 'inventory', label: 'Inventory Items' },
+  { id: 'menus', label: 'Menus' },
+  { id: 'inventory-setups', label: 'Inventory Setups' },
   { id: 'stores', label: 'Stores' },
-  { id: 'price-tiers', label: 'Price Tiers' },
   { id: 'settings', label: 'Settings' },
 ];
-
-// ─── Simple inline edit row ───────────────────────────────────────────────
-
-function CRUDRow({
-  label,
-  sublabel,
-  onEdit,
-  onDelete,
-  showEdit = true,
-  showDelete = true,
-}: {
-  label: string;
-  sublabel?: string;
-  onEdit: () => void;
-  onDelete: () => void;
-  showEdit?: boolean;
-  showDelete?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors">
-      <div>
-        <p className="text-sm font-medium text-gray-900">{label}</p>
-        {sublabel && <p className="text-xs text-gray-400">{sublabel}</p>}
-      </div>
-      <div className="flex items-center gap-2">
-        {showEdit && (
-          <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {showDelete && (
-          <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Category row with sequence reorder controls ─────────────────────────
-
-function CategoryRow({
-  cat,
-  index,
-  total,
-  onMoveUp,
-  onMoveDown,
-  onEdit,
-  onDelete,
-  showEdit = true,
-  showDelete = true,
-}: {
-  cat: Category;
-  index: number;
-  total: number;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  showEdit?: boolean;
-  showDelete?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-2">
-      {/* Sequence controls */}
-      {showEdit && (
-        <div className="flex flex-col items-center gap-0.5 shrink-0">
-          <button
-            onClick={onMoveUp}
-            disabled={index === 0}
-            className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
-          >
-            <ChevronUp className="w-3.5 h-3.5" />
-          </button>
-          <span className="text-xs text-gray-400 font-mono w-5 text-center leading-none">{index + 1}</span>
-          <button
-            onClick={onMoveDown}
-            disabled={index === total - 1}
-            className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
-          >
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* Label */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{cat.name}</p>
-        {cat.description && <p className="text-xs text-gray-400 truncate">{cat.description}</p>}
-      </div>
-
-      {/* Edit / Delete */}
-      <div className="flex items-center gap-2 shrink-0">
-        {showEdit && (
-          <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {showDelete && (
-          <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Generic row with sequence reorder controls ───────────────────────────
-
-function ReorderRow({
-  label,
-  sublabel,
-  index,
-  total,
-  onMoveUp,
-  onMoveDown,
-  onEdit,
-  onDelete,
-  isDefault,
-  onSetDefault,
-  showEdit = true,
-  showDelete = true,
-}: {
-  label: string;
-  sublabel?: string;
-  index: number;
-  total: number;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  isDefault?: boolean;
-  onSetDefault?: () => void;
-  showEdit?: boolean;
-  showDelete?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-2">
-      {showEdit && (
-        <div className="flex flex-col items-center gap-0.5 shrink-0">
-          <button
-            onClick={onMoveUp}
-            disabled={index === 0}
-            className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
-          >
-            <ChevronUp className="w-3.5 h-3.5" />
-          </button>
-          <span className="text-xs text-gray-400 font-mono w-5 text-center leading-none">{index + 1}</span>
-          <button
-            onClick={onMoveDown}
-            disabled={index === total - 1}
-            className="p-0.5 text-gray-300 hover:text-gray-600 disabled:opacity-20 disabled:cursor-not-allowed"
-          >
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{label}</p>
-        {sublabel && <p className="text-xs text-gray-400 truncate">{sublabel}</p>}
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {onSetDefault && (
-          <button
-            onClick={onSetDefault}
-            title={isDefault ? 'Default preference' : 'Set as default'}
-            className={`p-1.5 rounded ${isDefault ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
-          >
-            <Star className="w-3.5 h-3.5" fill={isDefault ? 'currentColor' : 'none'} />
-          </button>
-        )}
-        {showEdit && (
-          <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {showDelete && (
-          <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Product row with image thumbnail ────────────────────────────────────
-
-const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000';
-
-function resolveUrl(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  try {
-    const path = raw.startsWith('http') ? new URL(raw).pathname : raw;
-    return `${apiBase}${path}`;
-  } catch { return raw; }
-}
-
-function ProductRow({
-  product,
-  onEdit,
-  onDelete,
-  showEdit = true,
-  showDelete = true,
-}: {
-  product: Product;
-  onEdit: () => void;
-  onDelete: () => void;
-  showEdit?: boolean;
-  showDelete?: boolean;
-}) {
-  const imageSrc = resolveUrl(product.image);
-  return (
-    <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
-          {imageSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageSrc} alt={product.name} className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-gray-300 text-xs">No img</span>
-          )}
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
-          <p className="text-xs text-gray-400">
-            ₱{product.price.toFixed(2)}{product.category?.name ? ` · ${product.category.name}` : ''}
-            {(product.sizes?.length ?? 0) > 0 && ` · ${product.sizes!.length} size${product.sizes!.length !== 1 ? 's' : ''}`}
-            {(product.addons?.length ?? 0) > 0 && ` · ${product.addons!.length} add-on${product.addons!.length !== 1 ? 's' : ''}`}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {showEdit && (
-          <button onClick={onEdit} className="p-1.5 text-gray-400 hover:opacity-70 rounded">
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {showDelete && (
-          <button onClick={onDelete} className="p-1.5 text-gray-400 hover:text-red-600 rounded">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Inline modal form ────────────────────────────────────────────────────
-
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white">
-          <h3 className="font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Main Page ────────────────────────────────────────────────────────────
 
@@ -306,7 +27,20 @@ const UPLOAD_MAX_SIZE = 5 * 1024 * 1024;
 const UPLOAD_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 export default function BrandDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <BrandDetailPageContent />
+    </Suspense>
+  );
+}
+
+// useSearchParams() (to restore the active tab when navigating back from a
+// Menu/InventorySetup workspace) requires a Suspense boundary around the
+// component that calls it, per Next.js App Router — see wrapper above.
+function BrandDetailPageContent() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const brandId = params.brandId as string;
   const companyId = params.id as string;
 
@@ -315,7 +49,10 @@ export default function BrandDetailPage() {
   const canDelete = true;
 
   const [brand, setBrand] = useState<Brand | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const tabParam = searchParams.get('tab');
+    return TABS.some(t => t.id === tabParam) ? (tabParam as Tab) : 'overview';
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -337,15 +74,7 @@ export default function BrandDetailPage() {
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
 
   // Tab data
-  const [productCategories, setProductCategories] = useState<Category[]>([]);
-  const [invCategories, setInvCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [sizes, setSizes] = useState<Size[]>([]);
-  const [addons, setAddons] = useState<Addon[]>([]);
-  const [preferences, setPreferences] = useState<Preference[]>([]);
-  const [invItems, setInvItems] = useState<InventoryBrandTemplate[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
-  const [priceTiers, setPriceTiers] = useState<PriceTier[]>([]);
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [editingStoreName, setEditingStoreName] = useState('');
   const [deliveryModalStore, setDeliveryModalStore] = useState<Store | null>(null);
@@ -358,31 +87,28 @@ export default function BrandDetailPage() {
   } | null>(null);
   const [tabLoading, setTabLoading] = useState(false);
 
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [inventorySetups, setInventorySetups] = useState<InventorySetup[]>([]);
+  const [menuModal, setMenuModal] = useState<{ mode: 'create' | 'edit'; item?: Menu } | null>(null);
+  const [setupModal, setSetupModal] = useState<{ mode: 'create' | 'edit'; item?: InventorySetup } | null>(null);
+  const [cloneMenuModal, setCloneMenuModal] = useState<{ item: Menu } | null>(null);
+  const [cloneSetupModal, setCloneSetupModal] = useState<{ item: InventorySetup } | null>(null);
 
-  // Price tier inline-edit state
-  const [newTierName, setNewTierName] = useState('');
-  const [newTierSaving, setNewTierSaving] = useState(false);
-  const [editingTierId, setEditingTierId] = useState<string | null>(null);
-  const [editingTierName, setEditingTierName] = useState('');
-
-  // Store price-tier edit — pending value while the row is in edit mode, committed on row Save
+  // Store price-tier / menu / inventory-setup edit — pending values while the row is in edit mode, committed on row Save.
+  // Price tiers are Menu-scoped, so the available tier list is refetched
+  // whenever the row's menu selection changes during edit.
   const [editingStorePriceTierValue, setEditingStorePriceTierValue] = useState<string | null>(null);
+  const [editingStoreMenuValue, setEditingStoreMenuValue] = useState<string | null>(null);
+  const [editingStoreInventorySetupValue, setEditingStoreInventorySetupValue] = useState<string | null>(null);
+  const [editingStoreAvailableTiers, setEditingStoreAvailableTiers] = useState<PriceTier[]>([]);
 
-  // Modal state
-  const [modal, setModal] = useState<{
-    type: Tab | null;
-    mode: 'create' | 'edit';
-    item?: unknown;
-  }>({ type: null, mode: 'create' });
-
-  const closeModal = () => setModal({ type: null, mode: 'create' });
-
-  // Load brand + price tiers
+  // Load brand + menus + inventory setups
   useEffect(() => {
-    Promise.all([api.getBrandById(brandId, companyId), api.getPriceTiers(brandId)])
-      .then(([b, tiers]) => {
+    Promise.all([api.getBrandById(brandId, companyId), api.getMenus(brandId), api.getInventorySetups(brandId)])
+      .then(([b, mns, setups]) => {
         setBrand(b);
-        setPriceTiers(tiers);
+        setMenus(mns);
+        setInventorySetups(setups);
         setSettingsName(b.name);
         setSettingsDescription(b.description || '');
         setSettingsTheme(b.themeColors || {});
@@ -394,32 +120,6 @@ export default function BrandDetailPage() {
       .catch(() => setError('Failed to load brand'))
       .finally(() => setLoading(false));
   }, [brandId, companyId]);
-
-
-  const reorderItem = async <T extends { id: string; sequenceNo?: number }>(
-    list: T[],
-    setList: React.Dispatch<React.SetStateAction<T[]>>,
-    index: number,
-    direction: 'up' | 'down',
-    updateFn: (id: string, sequenceNo: number) => Promise<T>,
-  ) => {
-    const swapIndex = direction === 'up' ? index - 1 : index + 1;
-    if (swapIndex < 0 || swapIndex >= list.length) return;
-
-    const reordered = [...list];
-    [reordered[index], reordered[swapIndex]] = [reordered[swapIndex], reordered[index]];
-    const stamped = reordered.map((item, i) => ({ ...item, sequenceNo: i }));
-
-    setList(stamped);
-    try {
-      await Promise.all([
-        updateFn(stamped[index].id, index),
-        updateFn(stamped[swapIndex].id, swapIndex),
-      ]);
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to reorder items'));
-    }
-  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -474,46 +174,12 @@ export default function BrandDetailPage() {
     }
   };
 
-  // Load tab data
   const loadTab = useCallback(
     async (tab: Tab) => {
-      if (tab === 'overview') return;
+      if (tab !== 'stores') return;
       setTabLoading(true);
       try {
-        if (tab === 'categories') {
-          const [pc, ic] = await Promise.all([
-            api.getCategories(brandId, 'PRODUCT'),
-            api.getCategories(brandId, 'INVENTORY'),
-          ]);
-          setProductCategories(pc);
-          setInvCategories(ic);
-        }
-        if (tab === 'products') {
-          const [cats, prods, szs, ads, prefs] = await Promise.all([
-            api.getCategories(brandId, 'PRODUCT'),
-            api.getProducts(brandId),
-            api.getSizes(brandId),
-            api.getAddons(brandId),
-            api.getPreferences(brandId),
-          ]);
-          setProductCategories(cats);
-          setProducts(prods);
-          setSizes(szs);
-          setAddons(ads);
-          setPreferences(prefs);
-        }
-        if (tab === 'sizes') setSizes(await api.getSizes(brandId));
-        if (tab === 'addons') setAddons(await api.getAddons(brandId));
-        if (tab === 'preferences') setPreferences(await api.getPreferences(brandId));
-        if (tab === 'inventory') {
-          const [items, ic] = await Promise.all([
-            api.getInventoryBrandTemplates(brandId),
-            api.getCategories(brandId, 'INVENTORY'),
-          ]);
-          setInvItems(items);
-          setInvCategories(ic);
-        }
-        if (tab === 'stores') setStores(await api.getStoresByBrand(brandId));
+        setStores(await api.getStoresByBrand(brandId));
       } catch {
         // silent — show empty list
       } finally {
@@ -527,26 +193,35 @@ export default function BrandDetailPage() {
     loadTab(activeTab);
   }, [activeTab, loadTab]);
 
-  const startEditingStore = (store: Store) => {
+  const startEditingStore = async (store: Store) => {
     setEditingStoreId(store.id);
     setEditingStoreName(store.name);
     setEditingStorePriceTierValue(store.priceTier?.id ?? null);
+    setEditingStoreMenuValue(store.menu?.id ?? null);
+    setEditingStoreInventorySetupValue(store.inventorySetup?.id ?? null);
+    setEditingStoreAvailableTiers(store.menu?.id ? await api.getPriceTiers(store.menu.id).catch(() => []) : []);
+  };
+
+  const handleEditingStoreMenuChange = async (newMenuId: string | null) => {
+    setEditingStoreMenuValue(newMenuId);
+    setEditingStorePriceTierValue(null);
+    setEditingStoreAvailableTiers(newMenuId ? await api.getPriceTiers(newMenuId).catch(() => []) : []);
   };
 
   const handleSaveStoreRow = async (storeId: string) => {
     if (!editingStoreName.trim()) return;
     try {
-      const payload: { name: string; priceTierId?: string | null } = { name: editingStoreName.trim() };
-      if (priceTiers.length > 0) {
-        payload.priceTierId = editingStorePriceTierValue;
-      }
-      const updated = await api.updateStore(storeId, payload);
-      setStores(prev => prev.map(s => s.id === storeId ? { ...s, name: updated.name, priceTier: updated.priceTier } : s));
+      const updated = await api.updateStore(storeId, {
+        name: editingStoreName.trim(),
+        priceTierId: editingStorePriceTierValue,
+        menuId: editingStoreMenuValue,
+        inventorySetupId: editingStoreInventorySetupValue,
+      });
+      setStores(prev => prev.map(s => s.id === storeId ? { ...s, name: updated.name, priceTier: updated.priceTier, menu: updated.menu, inventorySetup: updated.inventorySetup } : s));
       setEditingStoreId(null);
       toast.success('Store updated');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr?.response?.data?.message || 'Failed to update store');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update store'));
     }
   };
 
@@ -594,57 +269,45 @@ export default function BrandDetailPage() {
     }
   };
 
-  const handleCreateTier = async () => {
-    const name = newTierName.trim();
-    if (!name) return;
-    setNewTierSaving(true);
+  // ─── Menu CRUD ──────────────────────────────────────────────────────────
+  const handleToggleMenuActive = async (menu: Menu) => {
     try {
-      const tier = await api.createPriceTier(brandId, { name });
-      setPriceTiers(prev => [...prev, tier]);
-      setNewTierName('');
-      toast.success('Price tier created');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr?.response?.data?.message || 'Failed to create price tier');
-    } finally {
-      setNewTierSaving(false);
+      const updated = await api.updateMenu(brandId, menu.id, { isActive: !menu.isActive });
+      setMenus(prev => prev.map(m => (m.id === menu.id ? updated : m)));
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update menu'));
     }
   };
 
-  const handleRenameTier = async (tierId: string) => {
-    const name = editingTierName.trim();
-    if (!name) return;
+  const handleDeleteMenu = async (menu: Menu) => {
+    if (!confirm(`Delete "${menu.name}"? This is blocked if any store is currently assigned to it.`)) return;
     try {
-      const updated = await api.updatePriceTier(brandId, tierId, { name });
-      setPriceTiers(prev => prev.map(t => t.id === tierId ? updated : t));
-      setEditingTierId(null);
-      toast.success('Price tier renamed');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr?.response?.data?.message || 'Failed to rename tier');
+      await api.deleteMenu(brandId, menu.id);
+      setMenus(prev => prev.filter(m => m.id !== menu.id));
+      toast.success('Menu deleted');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to delete menu — it may still be assigned to a store'));
     }
   };
 
-  const handleSetDefaultTier = async (tierId: string) => {
+  // ─── Inventory Setup CRUD ───────────────────────────────────────────────
+  const handleToggleSetupActive = async (setup: InventorySetup) => {
     try {
-      const updated = await api.updatePriceTier(brandId, tierId, { isDefault: true });
-      setPriceTiers(prev => prev.map(t => t.id === tierId ? updated : { ...t, isDefault: false }));
-      toast.success('Default price tier updated');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr?.response?.data?.message || 'Failed to set default tier');
+      const updated = await api.updateInventorySetup(brandId, setup.id, { isActive: !setup.isActive });
+      setInventorySetups(prev => prev.map(s => (s.id === setup.id ? updated : s)));
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update inventory setup'));
     }
   };
 
-  const handleDeleteTier = async (tier: PriceTier) => {
-    if (!confirm(`Are you sure you want to delete this tier?`)) return;
+  const handleDeleteSetup = async (setup: InventorySetup) => {
+    if (!confirm(`Delete "${setup.name}"? This is blocked if any store is currently assigned to it.`)) return;
     try {
-      await api.deletePriceTier(brandId, tier.id);
-      setPriceTiers(prev => prev.filter(t => t.id !== tier.id));
-      toast.success('Price tier deleted');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      toast.error(axiosErr?.response?.data?.message || 'Failed to delete tier');
+      await api.deleteInventorySetup(brandId, setup.id);
+      setInventorySetups(prev => prev.filter(s => s.id !== setup.id));
+      toast.success('Inventory setup deleted');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to delete inventory setup — it may still be assigned to a store'));
     }
   };
 
@@ -723,271 +386,175 @@ export default function BrandDetailPage() {
           </div>
         )}
 
-        {/* Categories */}
-        {activeTab === 'categories' && !tabLoading && (
-          <div className="space-y-6">
-            {/* Product Categories */}
-            <TabSection
-              title="Product Categories"
-              onAdd={() => setModal({ type: 'categories', mode: 'create', item: { _catType: 'PRODUCT' } })}
-              showAdd={canWrite}
-            >
-              {productCategories.length === 0 ? (
-                <EmptyState message="No product categories yet" />
-              ) : (
-                productCategories.map((cat, i) => (
-                  <CategoryRow
-                    key={cat.id}
-                    cat={cat}
-                    index={i}
-                    total={productCategories.length}
-                    onMoveUp={() => reorderItem(productCategories, setProductCategories, i, 'up', (id, seq) => api.updateCategory(id, { sequenceNo: seq }))}
-                    onMoveDown={() => reorderItem(productCategories, setProductCategories, i, 'down', (id, seq) => api.updateCategory(id, { sequenceNo: seq }))}
-                    onEdit={() => setModal({ type: 'categories', mode: 'edit', item: cat })}
-                    onDelete={async () => {
-                      if (!confirm(`Delete "${cat.name}"?`)) return;
-                      try {
-                        await api.deleteCategory(cat.id);
-                        setProductCategories(prev => prev.filter(c => c.id !== cat.id));
-                        toast.success('Category deleted');
-                      } catch (err) {
-                        toast.error(getErrorMessage(err, 'Failed to delete category'));
-                      }
-                    }}
-                    showEdit={canWrite}
-                    showDelete={canDelete}
-                  />
-                ))
+        {/* Menus */}
+        {activeTab === 'menus' && (
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b gap-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">Menus</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Each menu has its own independent categories, products, sizes, add-ons, preferences, and price tiers — fully isolated from other menus. Click a menu to open its workspace. Assign a menu to a store on the Stores tab.
+                </p>
+              </div>
+              {canWrite && (
+                <button
+                  onClick={() => setMenuModal({ mode: 'create' })}
+                  className="flex items-center gap-1.5 px-3 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 shrink-0"
+                  style={{ backgroundColor: '#4f46e5' }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Menu
+                </button>
               )}
-            </TabSection>
-
-            {/* Inventory Categories */}
-            <TabSection
-              title="Inventory Categories"
-              onAdd={() => setModal({ type: 'categories', mode: 'create', item: { _catType: 'INVENTORY' } })}
-              showAdd={canWrite}
-            >
-              {invCategories.length === 0 ? (
-                <EmptyState message="No inventory categories yet" />
-              ) : (
-                invCategories.map((cat, i) => (
-                  <CategoryRow
-                    key={cat.id}
-                    cat={cat}
-                    index={i}
-                    total={invCategories.length}
-                    onMoveUp={() => reorderItem(invCategories, setInvCategories, i, 'up', (id, seq) => api.updateCategory(id, { sequenceNo: seq }))}
-                    onMoveDown={() => reorderItem(invCategories, setInvCategories, i, 'down', (id, seq) => api.updateCategory(id, { sequenceNo: seq }))}
-                    onEdit={() => setModal({ type: 'categories', mode: 'edit', item: cat })}
-                    onDelete={async () => {
-                      if (!confirm(`Delete "${cat.name}"?`)) return;
-                      try {
-                        await api.deleteCategory(cat.id);
-                        setInvCategories(prev => prev.filter(c => c.id !== cat.id));
-                        toast.success('Category deleted');
-                      } catch (err) {
-                        toast.error(getErrorMessage(err, 'Failed to delete category'));
-                      }
-                    }}
-                    showEdit={canWrite}
-                    showDelete={canDelete}
-                  />
-                ))
-              )}
-            </TabSection>
+            </div>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {menus.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-400">No menus yet.</td>
+                  </tr>
+                ) : menus.map(menu => (
+                  <tr
+                    key={menu.id}
+                    onClick={() => router.push(`/companies/${companyId}/brands/${brandId}/menus/${menu.id}`)}
+                    className="hover:bg-gray-50 cursor-pointer"
+                  >
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-gray-900">{menu.name}</span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                      {menu.description || <span className="text-gray-300 italic">—</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      {menu.isActive ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">Active</span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">Inactive</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                      {canWrite && (
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => setMenuModal({ mode: 'edit', item: menu })} title="Edit" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setCloneMenuModal({ item: menu })} title="Clone" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleMenuActive(menu)}
+                            title={menu.isActive ? 'Deactivate' : 'Activate'}
+                            className="p-1.5 text-gray-400 hover:opacity-70 rounded"
+                          >
+                            {menu.isActive ? <PowerOff className="w-3.5 h-3.5" /> : <Power className="w-3.5 h-3.5" />}
+                          </button>
+                          {canDelete && (
+                            <button onClick={() => handleDeleteMenu(menu)} title="Delete" className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* Products */}
-        {activeTab === 'products' && !tabLoading && (
-          <TabSection
-            title="Products"
-            onAdd={() => setModal({ type: 'products', mode: 'create' })}
-            showAdd={canWrite}
-          >
-            {products.length === 0 ? (
-              <EmptyState message="No products yet" />
-            ) : (
-              products.map(prod => (
-                <ProductRow
-                  key={prod.id}
-                  product={prod}
-                  onEdit={() => setModal({ type: 'products', mode: 'edit', item: prod })}
-                  onDelete={async () => {
-                    if (!confirm(`Delete "${prod.name}"?`)) return;
-                    try {
-                      await api.deleteProduct(prod.id);
-                      setProducts(prev => prev.filter(p => p.id !== prod.id));
-                      toast.success('Product deleted');
-                    } catch (err) {
-                      toast.error(getErrorMessage(err, 'Failed to delete product'));
-                    }
-                  }}
-                  showEdit={canWrite}
-                  showDelete={canDelete}
-                />
-              ))
-            )}
-          </TabSection>
+        {/* Inventory Setups */}
+        {activeTab === 'inventory-setups' && (
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b gap-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">Inventory Setups</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Each setup has its own independent inventory items and categories. Click a setup to open its workspace. Assign a setup to a store on the Stores tab — a store keeps its recorded stock history even if its setup later changes.
+                </p>
+              </div>
+              {canWrite && (
+                <button
+                  onClick={() => setSetupModal({ mode: 'create' })}
+                  className="flex items-center gap-1.5 px-3 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 shrink-0"
+                  style={{ backgroundColor: '#4f46e5' }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Inventory Setup
+                </button>
+              )}
+            </div>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {inventorySetups.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-sm text-gray-400">No inventory setups yet.</td>
+                  </tr>
+                ) : inventorySetups.map(setup => (
+                  <tr
+                    key={setup.id}
+                    onClick={() => router.push(`/companies/${companyId}/brands/${brandId}/inventory-setups/${setup.id}`)}
+                    className="hover:bg-gray-50 cursor-pointer"
+                  >
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-gray-900">{setup.name}</span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                      {setup.description || <span className="text-gray-300 italic">—</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      {setup.isActive ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">Active</span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">Inactive</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                      {canWrite && (
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => setSetupModal({ mode: 'edit', item: setup })} title="Edit" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setCloneSetupModal({ item: setup })} title="Clone" className="p-1.5 text-gray-400 hover:opacity-70 rounded">
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleSetupActive(setup)}
+                            title={setup.isActive ? 'Deactivate' : 'Activate'}
+                            className="p-1.5 text-gray-400 hover:opacity-70 rounded"
+                          >
+                            {setup.isActive ? <PowerOff className="w-3.5 h-3.5" /> : <Power className="w-3.5 h-3.5" />}
+                          </button>
+                          {canDelete && (
+                            <button onClick={() => handleDeleteSetup(setup)} title="Delete" className="p-1.5 text-gray-400 hover:text-red-600 rounded">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
-        {activeTab === 'sizes' && !tabLoading && (
-          <TabSection
-            title="Sizes"
-            onAdd={() => setModal({ type: 'sizes', mode: 'create' })}
-            showAdd={canWrite}
-          >
-            {sizes.length === 0 ? (
-              <EmptyState message="No sizes yet" />
-            ) : (
-              sizes.map((size, i) => (
-                <ReorderRow
-                  key={size.id}
-                  label={size.name}
-                  sublabel={`Price modifier: +₱${size.priceModifier.toFixed(2)}`}
-                  index={i}
-                  total={sizes.length}
-                  onMoveUp={() => reorderItem(sizes, setSizes, i, 'up', (id, seq) => api.updateSize(id, { sequenceNo: seq }))}
-                  onMoveDown={() => reorderItem(sizes, setSizes, i, 'down', (id, seq) => api.updateSize(id, { sequenceNo: seq }))}
-                  onEdit={() => setModal({ type: 'sizes', mode: 'edit', item: size })}
-                  onDelete={async () => {
-                    if (!confirm(`Delete "${size.name}"?`)) return;
-                    try {
-                      await api.deleteSize(size.id);
-                      setSizes(prev => prev.filter(s => s.id !== size.id));
-                      toast.success('Size deleted');
-                    } catch (err) {
-                      toast.error(getErrorMessage(err, 'Failed to delete size'));
-                    }
-                  }}
-                  showEdit={canWrite}
-                  showDelete={canDelete}
-                />
-              ))
-            )}
-          </TabSection>
-        )}
-
-        {/* Addons */}
-        {activeTab === 'addons' && !tabLoading && (
-          <TabSection
-            title="Add-ons"
-            onAdd={() => setModal({ type: 'addons', mode: 'create' })}
-            showAdd={canWrite}
-          >
-            {addons.length === 0 ? (
-              <EmptyState message="No add-ons yet" />
-            ) : (
-              addons.map((addon, i) => (
-                <ReorderRow
-                  key={addon.id}
-                  label={addon.name}
-                  sublabel={`₱${addon.price.toFixed(2)}`}
-                  index={i}
-                  total={addons.length}
-                  onMoveUp={() => reorderItem(addons, setAddons, i, 'up', (id, seq) => api.updateAddon(id, { sequenceNo: seq }))}
-                  onMoveDown={() => reorderItem(addons, setAddons, i, 'down', (id, seq) => api.updateAddon(id, { sequenceNo: seq }))}
-                  onEdit={() => setModal({ type: 'addons', mode: 'edit', item: addon })}
-                  onDelete={async () => {
-                    if (!confirm(`Delete "${addon.name}"?`)) return;
-                    try {
-                      await api.deleteAddon(addon.id);
-                      setAddons(prev => prev.filter(a => a.id !== addon.id));
-                      toast.success('Add-on deleted');
-                    } catch (err) {
-                      toast.error(getErrorMessage(err, 'Failed to delete add-on'));
-                    }
-                  }}
-                  showEdit={canWrite}
-                  showDelete={canDelete}
-                />
-              ))
-            )}
-          </TabSection>
-        )}
-
-        {/* Preferences */}
-        {activeTab === 'preferences' && !tabLoading && (
-          <TabSection
-            title="Preferences"
-            onAdd={() => setModal({ type: 'preferences', mode: 'create' })}
-            showAdd={canWrite}
-          >
-            {preferences.length === 0 ? (
-              <EmptyState message="No preference options yet" />
-            ) : (
-              preferences.map((pref, i) => (
-                <ReorderRow
-                  key={pref.id}
-                  label={pref.name}
-                  sublabel={pref.isDefault ? 'Default' : undefined}
-                  index={i}
-                  total={preferences.length}
-                  isDefault={pref.isDefault}
-                  onSetDefault={canWrite ? async () => {
-                    try {
-                      const updated = await api.updatePreference(pref.id, { isDefault: true });
-                      setPreferences(prev => prev.map(p => ({ ...p, isDefault: p.id === updated.id })));
-                      toast.success('Default preference updated');
-                    } catch (err) {
-                      toast.error(getErrorMessage(err, 'Failed to set default preference'));
-                    }
-                  } : undefined}
-                  onMoveUp={() => reorderItem(preferences, setPreferences, i, 'up', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
-                  onMoveDown={() => reorderItem(preferences, setPreferences, i, 'down', (id, seq) => api.updatePreference(id, { sequenceNo: seq }))}
-                  onEdit={() => setModal({ type: 'preferences', mode: 'edit', item: pref })}
-                  onDelete={async () => {
-                    if (!confirm(`Delete "${pref.name}"?`)) return;
-                    try {
-                      await api.deletePreference(pref.id);
-                      setPreferences(prev => prev.filter(p => p.id !== pref.id));
-                      toast.success('Preference deleted');
-                    } catch (err) {
-                      toast.error(getErrorMessage(err, 'Failed to delete preference'));
-                    }
-                  }}
-                  showEdit={canWrite}
-                  showDelete={canDelete}
-                />
-              ))
-            )}
-          </TabSection>
-        )}
-
-        {/* Inventory Items */}
-        {activeTab === 'inventory' && !tabLoading && (
-          <TabSection
-            title="Inventory Items"
-            onAdd={() => setModal({ type: 'inventory', mode: 'create' })}
-            showAdd={canWrite}
-          >
-            {invItems.length === 0 ? (
-              <EmptyState message="No inventory items yet" />
-            ) : (
-              invItems.map(item => (
-                <CRUDRow
-                  key={item.id}
-                  label={item.name}
-                  sublabel={`${item.unit}${item.category ? ` · ${item.category}` : ''}`}
-                  onEdit={() => setModal({ type: 'inventory', mode: 'edit', item })}
-                  onDelete={async () => {
-                    if (!confirm(`Delete "${item.name}"?`)) return;
-                    try {
-                      await api.deleteInventoryBrandTemplate(item.id);
-                      setInvItems(prev => prev.filter(i => i.id !== item.id));
-                      toast.success('Inventory item deleted');
-                    } catch (err) {
-                      toast.error(getErrorMessage(err, 'Failed to delete inventory item'));
-                    }
-                  }}
-                  showEdit={canWrite}
-                  showDelete={canDelete}
-                />
-              ))
-            )}
-          </TabSection>
-        )}
-
+        {/* Stores */}
         {activeTab === 'stores' && !tabLoading && (
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
@@ -995,16 +562,16 @@ export default function BrandDetailPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Store Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Store ID / Slug</th>
-                  {priceTiers.length > 0 && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price Tier</th>
-                  )}
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Menu</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Inventory Setup</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price Tier</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {stores.length === 0 ? (
                   <tr>
-                    <td colSpan={priceTiers.length > 0 ? 4 : 3} className="px-6 py-12 text-center text-sm text-gray-400">No stores under this brand yet.</td>
+                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-400">No stores under this brand yet.</td>
                   </tr>
                 ) : stores.map(store => (
                   <tr key={store.id} className="hover:bg-gray-50">
@@ -1027,38 +594,79 @@ export default function BrandDetailPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 font-mono">{store.slug}</td>
-                    {priceTiers.length > 0 && (
-                      <td className="px-6 py-4">
-                        {canWrite && editingStoreId === store.id ? (
-                          <select
-                            value={editingStorePriceTierValue ?? 'none'}
-                            onChange={e => setEditingStorePriceTierValue(e.target.value === 'none' ? null : e.target.value)}
-                            className="w-36 h-8 text-xs border border-gray-300 rounded-md px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          >
-                            <option value="none">— None —</option>
-                            {priceTiers.map(t => (
-                              <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (Default)' : ''}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <button
-                            onClick={canWrite ? () => startEditingStore(store) : undefined}
-                            className={`text-sm ${store.priceTier ? 'text-gray-700' : 'text-gray-400'} ${canWrite ? 'hover:opacity-70 cursor-pointer' : 'cursor-default'}`}
-                          >
-                            {store.priceTier ? (
-                              <span className="flex items-center gap-1.5">
-                                {store.priceTier.name}
-                                {store.priceTier.isDefault && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="italic">Not set</span>
-                            )}
-                          </button>
-                        )}
-                      </td>
-                    )}
+                    <td className="px-6 py-4">
+                      {canWrite && editingStoreId === store.id ? (
+                        <select
+                          value={editingStoreMenuValue ?? 'none'}
+                          onChange={e => handleEditingStoreMenuChange(e.target.value === 'none' ? null : e.target.value)}
+                          className="w-40 h-8 text-xs border border-gray-300 rounded-md px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="none">— Unassigned —</option>
+                          {menus.filter(m => m.isActive).map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <button
+                          onClick={canWrite ? () => startEditingStore(store) : undefined}
+                          className={`text-sm ${store.menu ? 'text-gray-700' : 'text-gray-400'} ${canWrite ? 'hover:opacity-70 cursor-pointer' : 'cursor-default'}`}
+                        >
+                          {store.menu ? store.menu.name : <span className="italic">Not set</span>}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {canWrite && editingStoreId === store.id ? (
+                        <select
+                          value={editingStoreInventorySetupValue ?? 'none'}
+                          onChange={e => setEditingStoreInventorySetupValue(e.target.value === 'none' ? null : e.target.value)}
+                          className="w-40 h-8 text-xs border border-gray-300 rounded-md px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="none">— Unassigned —</option>
+                          {inventorySetups.filter(s => s.isActive).map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <button
+                          onClick={canWrite ? () => startEditingStore(store) : undefined}
+                          className={`text-sm ${store.inventorySetup ? 'text-gray-700' : 'text-gray-400'} ${canWrite ? 'hover:opacity-70 cursor-pointer' : 'cursor-default'}`}
+                        >
+                          {store.inventorySetup ? store.inventorySetup.name : <span className="italic">Not set</span>}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {canWrite && editingStoreId === store.id ? (
+                        <select
+                          value={editingStorePriceTierValue ?? 'none'}
+                          onChange={e => setEditingStorePriceTierValue(e.target.value === 'none' ? null : e.target.value)}
+                          disabled={!editingStoreMenuValue}
+                          className="w-36 h-8 text-xs border border-gray-300 rounded-md px-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-50 disabled:text-gray-400"
+                        >
+                          <option value="none">{editingStoreMenuValue ? '— None —' : '— No menu —'}</option>
+                          {editingStoreAvailableTiers.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (Default)' : ''}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <button
+                          onClick={canWrite ? () => startEditingStore(store) : undefined}
+                          className={`text-sm ${store.priceTier ? 'text-gray-700' : 'text-gray-400'} ${canWrite ? 'hover:opacity-70 cursor-pointer' : 'cursor-default'}`}
+                        >
+                          {store.priceTier ? (
+                            <span className="flex items-center gap-1.5">
+                              {store.priceTier.name}
+                              {store.priceTier.isDefault && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="italic">Not set</span>
+                          )}
+                        </button>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-3">
                         {canWrite && (
@@ -1169,118 +777,7 @@ export default function BrandDetailPage() {
           </div>
         )}
 
-        {activeTab === 'price-tiers' && (
-          <div className="max-w-2xl">
-            <div className="bg-white rounded-lg border">
-              <div className="px-6 py-4 border-b">
-                <h2 className="font-semibold text-gray-900">Price Tiers</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Define pricing tiers and assign stores to them. The default tier is used when a store has no specific tier assigned.</p>
-              </div>
-              <div className="divide-y">
-                {priceTiers.length === 0 && (
-                  <div className="py-8 text-center text-gray-400 text-sm">No price tiers yet</div>
-                )}
-                {priceTiers.map(tier => (
-                  <div key={tier.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50">
-                    {editingTierId === tier.id ? (
-                      <input
-                        autoFocus
-                        type="text"
-                        value={editingTierName}
-                        onChange={e => setEditingTierName(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleRenameTier(tier.id);
-                          if (e.key === 'Escape') setEditingTierId(null);
-                        }}
-                        className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:border-transparent"
-                        style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-                      />
-                    ) : (
-                      <div className="flex-1 flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-medium text-gray-900 truncate">{tier.name}</span>
-                        {tier.isDefault && (
-                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
-                        )}
-                      </div>
-                    )}
-                    {canWrite && (
-                      <div className="flex items-center gap-1 shrink-0">
-                        {editingTierId === tier.id ? (
-                          <>
-                            <button
-                              onClick={() => handleRenameTier(tier.id)}
-                              className="text-xs px-2 py-1 rounded font-medium hover:opacity-80"
-                              style={{ color: '#4f46e5' }}
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setEditingTierId(null)}
-                              className="text-xs px-2 py-1 rounded text-gray-400 hover:text-gray-600"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            {!tier.isDefault && (
-                              <button
-                                onClick={() => handleSetDefaultTier(tier.id)}
-                                title="Set as default"
-                                className="p-1.5 text-gray-300 hover:text-amber-500 rounded"
-                              >
-                                <Star className="w-3.5 h-3.5" fill="none" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => { setEditingTierId(tier.id); setEditingTierName(tier.name); }}
-                              className="p-1.5 text-gray-400 hover:opacity-70 rounded"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            {canDelete && (
-                              <button
-                                onClick={() => handleDeleteTier(tier)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 rounded"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {canWrite && (
-                <div className="px-4 py-3 border-t bg-gray-50">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newTierName}
-                      onChange={e => setNewTierName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateTier(); } }}
-                      placeholder="New tier name (e.g. Airport)"
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:ring-2 focus:border-transparent bg-white"
-                      style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-                    />
-                    <button
-                      onClick={handleCreateTier}
-                      disabled={newTierSaving || !newTierName.trim()}
-                      className="flex items-center gap-1.5 px-3 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50"
-                      style={{ backgroundColor: '#4f46e5' }}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      {newTierSaving ? 'Adding...' : 'Add'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
+        {/* Settings */}
         {activeTab === 'settings' && (
           <div className="space-y-6 max-w-xl">
             {/* Logo */}
@@ -1292,8 +789,9 @@ export default function BrandDetailPage() {
               <div className="p-6 flex items-center gap-6">
                 <div className="w-20 h-20 rounded-xl border border-gray-200 flex items-center justify-center bg-gray-50 shrink-0 overflow-hidden">
                   {brand.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={brand.logoUrl.startsWith('http') ? brand.logoUrl : `${apiBase}${brand.logoUrl}`}
+                      src={brand.logoUrl.startsWith('http') ? brand.logoUrl : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3000'}${brand.logoUrl}`}
                       alt="Brand logo"
                       className="w-full h-full object-contain"
                     />
@@ -1465,125 +963,6 @@ export default function BrandDetailPage() {
         )}
       </div>
 
-      {modal.type === 'categories' && (
-        <CategoryModal
-          mode={modal.mode}
-          item={modal.mode === 'edit' ? modal.item as Category : undefined}
-          catType={(modal.item as any)?._catType ?? (modal.mode === 'edit' ? (modal.item as Category)?.type : 'PRODUCT')}
-          brandId={brandId}
-          onClose={closeModal}
-          onSave={cat => {
-            if (modal.mode === 'create') {
-              if (cat.type === 'INVENTORY') {
-                setInvCategories(prev => [...prev, cat]);
-              } else {
-                setProductCategories(prev => [...prev, cat]);
-              }
-            } else {
-              setProductCategories(prev => prev.map(c => (c.id === cat.id ? cat : c)));
-              setInvCategories(prev => prev.map(c => (c.id === cat.id ? cat : c)));
-            }
-            closeModal();
-          }}
-        />
-      )}
-
-      {modal.type === 'products' && (
-        <ProductModal
-          mode={modal.mode}
-          item={modal.item as Product | undefined}
-          brandId={brandId}
-          brand={brand}
-          priceTiers={priceTiers}
-          categories={productCategories}
-          sizes={sizes}
-          addons={addons}
-          preferences={preferences}
-          onClose={closeModal}
-          onSave={prod => {
-            if (modal.mode === 'create') {
-              setProducts(prev => [...prev, prod]);
-            } else {
-              setProducts(prev => prev.map(p => (p.id === prod.id ? prod : p)));
-            }
-            closeModal();
-          }}
-        />
-      )}
-
-      {modal.type === 'sizes' && (
-        <SizeModal
-          mode={modal.mode}
-          item={modal.item as Size | undefined}
-          brandId={brandId}
-          brand={brand}
-          priceTiers={priceTiers}
-          onClose={closeModal}
-          onSave={size => {
-            if (modal.mode === 'create') {
-              setSizes(prev => [...prev, size]);
-            } else {
-              setSizes(prev => prev.map(s => (s.id === size.id ? size : s)));
-            }
-            closeModal();
-          }}
-        />
-      )}
-
-      {modal.type === 'addons' && (
-        <AddonModal
-          mode={modal.mode}
-          item={modal.item as Addon | undefined}
-          brandId={brandId}
-          brand={brand}
-          priceTiers={priceTiers}
-          onClose={closeModal}
-          onSave={addon => {
-            if (modal.mode === 'create') {
-              setAddons(prev => [...prev, addon]);
-            } else {
-              setAddons(prev => prev.map(a => (a.id === addon.id ? addon : a)));
-            }
-            closeModal();
-          }}
-        />
-      )}
-
-      {modal.type === 'preferences' && (
-        <PreferenceModal
-          mode={modal.mode}
-          item={modal.item as Preference | undefined}
-          brandId={brandId}
-          onClose={closeModal}
-          onSave={pref => {
-            if (modal.mode === 'create') {
-              setPreferences(prev => [...prev, pref]);
-            } else {
-              setPreferences(prev => prev.map(p => (p.id === pref.id ? pref : p)));
-            }
-            closeModal();
-          }}
-        />
-      )}
-
-      {modal.type === 'inventory' && (
-        <InventoryModal
-          mode={modal.mode}
-          item={modal.item as InventoryBrandTemplate | undefined}
-          brandId={brandId}
-          categories={invCategories}
-          onClose={closeModal}
-          onSave={item => {
-            if (modal.mode === 'create') {
-              setInvItems(prev => [...prev, item]);
-            } else {
-              setInvItems(prev => prev.map(i => (i.id === item.id ? item : i)));
-            }
-            closeModal();
-          }}
-        />
-      )}
-
       {qrStore && (
         <StoreQRModal
           storeName={qrStore.storeName}
@@ -1591,6 +970,78 @@ export default function BrandDetailPage() {
           brandSlug={qrStore.brandSlug}
           storeSlug={qrStore.storeSlug}
           onClose={() => setQrStore(null)}
+        />
+      )}
+
+      {menuModal && (
+        <NameDescriptionModal
+          title={menuModal.mode === 'create' ? 'New Menu' : 'Edit Menu'}
+          namePlaceholder="e.g. Summer Menu 2026"
+          initialName={menuModal.item?.name ?? ''}
+          initialDescription={menuModal.item?.description ?? ''}
+          onClose={() => setMenuModal(null)}
+          onSubmit={async (name, description) => {
+            if (menuModal.mode === 'create') {
+              const menu = await api.createMenu(brandId, { name, description: description || undefined });
+              setMenus(prev => [...prev, menu]);
+              toast.success('Menu created');
+            } else {
+              const updated = await api.updateMenu(brandId, menuModal.item!.id, { name, description: description || undefined });
+              setMenus(prev => prev.map(m => (m.id === updated.id ? updated : m)));
+              toast.success('Menu updated');
+            }
+          }}
+        />
+      )}
+
+      {setupModal && (
+        <NameDescriptionModal
+          title={setupModal.mode === 'create' ? 'New Inventory Setup' : 'Edit Inventory Setup'}
+          namePlaceholder="e.g. Default Setup"
+          initialName={setupModal.item?.name ?? ''}
+          initialDescription={setupModal.item?.description ?? ''}
+          onClose={() => setSetupModal(null)}
+          onSubmit={async (name, description) => {
+            if (setupModal.mode === 'create') {
+              const setup = await api.createInventorySetup(brandId, { name, description: description || undefined });
+              setInventorySetups(prev => [...prev, setup]);
+              toast.success('Inventory setup created');
+            } else {
+              const updated = await api.updateInventorySetup(brandId, setupModal.item!.id, { name, description: description || undefined });
+              setInventorySetups(prev => prev.map(s => (s.id === updated.id ? updated : s)));
+              toast.success('Inventory setup updated');
+            }
+          }}
+        />
+      )}
+
+      {cloneMenuModal && (
+        <NameDescriptionModal
+          title={`Clone "${cloneMenuModal.item.name}"`}
+          namePlaceholder="e.g. Summer Menu 2026"
+          initialName={`${cloneMenuModal.item.name} (Copy)`}
+          initialDescription={cloneMenuModal.item.description ?? ''}
+          onClose={() => setCloneMenuModal(null)}
+          onSubmit={async (name, description) => {
+            const created = await api.cloneMenu(brandId, cloneMenuModal.item.id, { name, description: description || undefined });
+            setMenus(prev => [...prev, created]);
+            toast.success('Menu cloned');
+          }}
+        />
+      )}
+
+      {cloneSetupModal && (
+        <NameDescriptionModal
+          title={`Clone "${cloneSetupModal.item.name}"`}
+          namePlaceholder="e.g. Default Setup"
+          initialName={`${cloneSetupModal.item.name} (Copy)`}
+          initialDescription={cloneSetupModal.item.description ?? ''}
+          onClose={() => setCloneSetupModal(null)}
+          onSubmit={async (name, description) => {
+            const created = await api.cloneInventorySetup(brandId, cloneSetupModal.item.id, { name, description: description || undefined });
+            setInventorySetups(prev => [...prev, created]);
+            toast.success('Inventory setup cloned');
+          }}
         />
       )}
     </div>
@@ -1608,1136 +1059,102 @@ function StatCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function TabSection({
+function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  // Portaled directly to document.body — rendering this in-place inside the
+  // page's layout tree caused the fixed overlay to render ~24px short at the
+  // top (confirmed empirically: moving the same node to be a direct child of
+  // body fixes it, moving it back reproduces it, despite computed styles
+  // showing top:0 the whole time). Portaling sidesteps whatever in the
+  // ancestor chain is responsible.
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white">
+          <h3 className="font-semibold text-gray-900">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// Shared create/edit modal for Menu and InventorySetup — both are just a
+// name + optional description, so one component covers both instead of
+// duplicating near-identical forms.
+function NameDescriptionModal({
   title,
-  onAdd,
-  showAdd = true,
-  children,
+  namePlaceholder,
+  initialName,
+  initialDescription,
+  onClose,
+  onSubmit,
 }: {
   title: string;
-  onAdd: () => void;
-  showAdd?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white rounded-lg border">
-      <div className="flex items-center justify-between px-5 py-4 border-b">
-        <h2 className="font-semibold text-gray-900 text-sm">{title}</h2>
-        {showAdd && (
-          <button
-            onClick={onAdd}
-            className="flex items-center gap-1.5 text-sm font-medium hover:opacity-80" style={{ color: '#4f46e5' }}
-          >
-            <Plus className="w-4 h-4" /> Add
-          </button>
-        )}
-      </div>
-      <div className="divide-y">{children}</div>
-    </div>
-  );
-}
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="py-10 text-center text-gray-400 text-sm">{message}</div>
-  );
-}
-
-// ─── CRUD Modals ──────────────────────────────────────────────────────────
-
-function CategoryModal({
-  mode,
-  item,
-  catType = 'PRODUCT',
-  brandId,
-  onClose,
-  onSave,
-}: {
-  mode: 'create' | 'edit';
-  item?: Category;
-  catType?: 'PRODUCT' | 'INVENTORY';
-  brandId: string;
+  namePlaceholder?: string;
+  initialName: string;
+  initialDescription: string;
   onClose: () => void;
-  onSave: (cat: Category) => void;
+  onSubmit: (name: string, description: string) => Promise<void>;
 }) {
-  const [name, setName] = useState(item?.name || '');
-  const [description, setDescription] = useState(item?.description || '');
+  const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const typeLabel = catType === 'INVENTORY' ? 'Inventory Category' : 'Product Category';
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
     setError(null);
     setLoading(true);
     try {
-      let result: Category;
-      if (mode === 'create') {
-        result = await api.createCategory({ name, description: description || undefined, brandId, type: catType });
-      } else {
-        result = await api.updateCategory(item!.id, { name, description: description || undefined });
-      }
-      onSave(result);
-      toast.success(mode === 'create' ? `${typeLabel} created` : `${typeLabel} updated`);
+      await onSubmit(trimmed, description.trim());
+      onClose();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
-      toast.error(getErrorMessage(err, 'Failed to save'));
+      const message = getErrorMessage(err, 'Failed to save');
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title={mode === 'create' ? `New ${typeLabel}` : `Edit ${typeLabel}`} onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
           <input
+            autoFocus
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
             required
+            placeholder={namePlaceholder}
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
             style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
-          <input
-            type="text"
+          <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
+            rows={3}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white resize-none"
             style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
           />
         </div>
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
-            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+          <button type="submit" disabled={loading || !name.trim()} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
+            {loading ? 'Saving...' : 'Save'}
           </button>
         </div>
       </form>
     </Modal>
   );
 }
-
-function ProductModal({
-  mode,
-  item,
-  brandId,
-  brand,
-  priceTiers,
-  categories,
-  sizes,
-  addons,
-  preferences,
-  onClose,
-  onSave,
-}: {
-  mode: 'create' | 'edit';
-  item?: Product;
-  brandId: string;
-  brand: Brand | null;
-  priceTiers: PriceTier[];
-  categories: Category[];
-  sizes: Size[];
-  addons: Addon[];
-  preferences: Preference[];
-  onClose: () => void;
-  onSave: (prod: Product) => void;
-}) {
-  const [name, setName] = useState(item?.name || '');
-  const [categoryId, setCategoryId] = useState(item?.categoryId || '');
-  const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(item?.sizes?.map(s => s.id) ?? []);
-  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>(item?.addons?.map(a => a.id) ?? []);
-  const [selectedPreferenceIds, setSelectedPreferenceIds] = useState<string[]>(item?.preferences?.map(p => p.id) ?? []);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(resolveUrl(item?.image));
-  const [imageRemoved, setImageRemoved] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
-
-  // Per-tier price state: tierId → { price, foodpandaPrice, grabPrice }
-  const [tierPrices, setTierPrices] = useState<Record<string, { price: string; foodpandaPrice: string; grabPrice: string }>>(() => {
-    const init: Record<string, { price: string; foodpandaPrice: string; grabPrice: string }> = {};
-    for (const tier of priceTiers) {
-      const existing = item?.priceTiers?.find(pt => pt.tierId === tier.id);
-      init[tier.id] = {
-        price: existing?.price != null ? existing.price.toString() : (tier.isDefault && item?.price != null ? item.price.toString() : ''),
-        foodpandaPrice: existing?.foodpandaPrice != null ? existing.foodpandaPrice.toString() : '',
-        grabPrice: existing?.grabPrice != null ? existing.grabPrice.toString() : '',
-      };
-    }
-    return init;
-  });
-
-  // Fallback flat price (used when no price tiers exist)
-  const [flatPrice, setFlatPrice] = useState(item?.price?.toString() || '');
-  const [flatFoodpandaPrice, setFlatFoodpandaPrice] = useState(
-    item?.foodpandaPrice != null ? item.foodpandaPrice.toString() : ''
-  );
-  const [flatGrabPrice, setFlatGrabPrice] = useState(
-    item?.grabPrice != null ? item.grabPrice.toString() : ''
-  );
-
-  const hasTiers = priceTiers.length > 0;
-
-  const setTierField = (tierId: string, field: 'price' | 'foodpandaPrice' | 'grabPrice', value: string) => {
-    setTierPrices(prev => ({ ...prev, [tierId]: { ...prev[tierId], [field]: value } }));
-  };
-
-  const toggleId = (set: string[], setFn: (v: string[]) => void, id: string) =>
-    setFn(set.includes(id) ? set.filter(x => x !== id) : [...set, id]);
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!UPLOAD_ALLOWED_TYPES.includes(file.type)) {
-      setImageUploadError('Only JPEG, PNG, WebP, or GIF images are allowed.');
-      e.target.value = '';
-      return;
-    }
-    if (file.size > UPLOAD_MAX_SIZE) {
-      setImageUploadError('File too large. Maximum size is 5 MB.');
-      e.target.value = '';
-      return;
-    }
-    setImageUploadError(null);
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-    setImageRemoved(false);
-    e.target.value = '';
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const parseOptionalPrice = (val: string): number | null =>
-      val.trim() === '' ? null : parseFloat(val);
-    try {
-      let result: Product;
-      if (hasTiers) {
-        const builtTiers: ProductPriceTier[] = priceTiers.map(tier => ({
-          tierId: tier.id,
-          price: parseFloat(tierPrices[tier.id]?.price || '0') || 0,
-          foodpandaPrice: parseOptionalPrice(tierPrices[tier.id]?.foodpandaPrice ?? ''),
-          grabPrice: parseOptionalPrice(tierPrices[tier.id]?.grabPrice ?? ''),
-        }));
-        const defaultTier = priceTiers.find(t => t.isDefault);
-        const defaultTierPriceStr = defaultTier ? (tierPrices[defaultTier.id]?.price || '0') : '0';
-        if (mode === 'create') {
-          result = await api.createProduct({ name, price: parseFloat(defaultTierPriceStr) || 0, categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, preferenceIds: selectedPreferenceIds, brandId, priceTiers: builtTiers });
-        } else {
-          result = await api.updateProduct(item!.id, { name, price: parseFloat(defaultTierPriceStr) || 0, categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, preferenceIds: selectedPreferenceIds, priceTiers: builtTiers });
-        }
-      } else {
-        if (mode === 'create') {
-          result = await api.createProduct({ name, price: parseFloat(flatPrice), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, preferenceIds: selectedPreferenceIds, brandId, foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice), grabPrice: parseOptionalPrice(flatGrabPrice) });
-        } else {
-          result = await api.updateProduct(item!.id, { name, price: parseFloat(flatPrice), categoryId: categoryId || undefined, sizeIds: selectedSizeIds, addonIds: selectedAddonIds, preferenceIds: selectedPreferenceIds, foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice), grabPrice: parseOptionalPrice(flatGrabPrice) });
-        }
-      }
-      if (imageFile) {
-        result = await api.uploadProductImage(result.id, brandId, imageFile);
-      } else if (imageRemoved && item?.image) {
-        result = await api.removeProductImage(result.id, brandId);
-      }
-      onSave(result);
-      toast.success(mode === 'create' ? 'Product created' : 'Product updated');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
-      toast.error(getErrorMessage(err, 'Failed to save'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title={mode === 'create' ? 'New Product' : 'Edit Product'} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-
-        {/* Image upload */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Product Image <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
-              {imagePreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-              ) : (
-                <Upload className="w-6 h-6 text-gray-300" />
-              )}
-            </div>
-            <div className="flex-1">
-              <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-white hover:brightness-90 transition-colors" style={{ backgroundColor: '#4f46e5' }}>
-                <Upload className="w-3.5 h-3.5" />
-                {imagePreview ? 'Change Image' : 'Upload Image'}
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" onChange={handleImageChange} />
-              </label>
-              {imagePreview && (
-                <button
-                  type="button"
-                  onClick={() => { setImageFile(null); setImagePreview(null); setImageRemoved(true); }}
-                  className="ml-2 text-xs text-gray-400 hover:text-red-500"
-                >
-                  Remove
-                </button>
-              )}
-              <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP or GIF · Max 5 MB</p>
-              {imageUploadError && <p className="text-red-500 text-xs mt-1">{imageUploadError}</p>}
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-        </div>
-
-        {/* Price inputs: per-tier if tiers exist, else flat */}
-        {hasTiers ? (
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-700">Prices by Tier</p>
-            {priceTiers.map(tier => (
-              <div key={tier.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-gray-700">{tier.name}</span>
-                  {tier.isDefault && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
-                  )}
-                </div>
-                <div className={`grid gap-2 items-end ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Regular Price</label>
-                    <input
-                      type="number"
-                      value={tierPrices[tier.id]?.price ?? ''}
-                      onChange={e => setTierField(tier.id, 'price', e.target.value)}
-                      required={tier.isDefault}
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                      style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-                    />
-                  </div>
-                  {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">FoodPanda <span className="text-gray-400 font-normal">(opt.)</span></label>
-                      <input
-                        type="number"
-                        value={tierPrices[tier.id]?.foodpandaPrice ?? ''}
-                        onChange={e => setTierField(tier.id, 'foodpandaPrice', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="Same as regular"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                        style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
-                      />
-                    </div>
-                  )}
-                  {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Grab <span className="text-gray-400 font-normal">(opt.)</span></label>
-                      <input
-                        type="number"
-                        value={tierPrices[tier.id]?.grabPrice ?? ''}
-                        onChange={e => setTierField(tier.id, 'grabPrice', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="Same as regular"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                        style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-              <input type="number" value={flatPrice} onChange={e => setFlatPrice(e.target.value)} required min="0" step="0.01"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-            </div>
-            {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
-              brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
-              <div className="grid grid-cols-2 gap-3">
-                {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      FoodPanda Price <span className="text-gray-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="number"
-                      value={flatFoodpandaPrice}
-                      onChange={e => setFlatFoodpandaPrice(e.target.value)}
-                      min="0"
-                      step="0.01"
-                      placeholder="Same as regular price"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
-                      style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
-                    />
-                  </div>
-                )}
-                {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Grab Price <span className="text-gray-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="number"
-                      value={flatGrabPrice}
-                      onChange={e => setFlatGrabPrice(e.target.value)}
-                      min="0"
-                      step="0.01"
-                      placeholder="Same as regular price"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
-                      style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-          <select
-            value={categoryId || 'none'}
-            onChange={e => setCategoryId(e.target.value === 'none' ? '' : e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="none">— None —</option>
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-        </div>
-        {/* Sizes */}
-        {sizes.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Sizes</label>
-            <div className="border border-gray-200 rounded-lg divide-y max-h-40 overflow-y-auto">
-              {sizes.map(s => (
-                <label key={s.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedSizeIds.includes(s.id)}
-                    onChange={() => toggleId(selectedSizeIds, setSelectedSizeIds, s.id)}
-                    className="rounded border-gray-300" style={{ accentColor: '#4f46e5' }}
-                  />
-                  <span className="text-sm text-gray-800 flex-1">{s.name}</span>
-                  {s.priceModifier !== 0 && (
-                    <span className="text-xs text-gray-400">
-                      {s.priceModifier > 0 ? '+' : ''}₱{s.priceModifier}
-                    </span>
-                  )}
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Add-ons */}
-        {addons.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Add-ons</label>
-            <div className="border border-gray-200 rounded-lg divide-y max-h-40 overflow-y-auto">
-              {addons.map(a => (
-                <label key={a.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedAddonIds.includes(a.id)}
-                    onChange={() => toggleId(selectedAddonIds, setSelectedAddonIds, a.id)}
-                    className="rounded border-gray-300" style={{ accentColor: '#4f46e5' }}
-                  />
-                  <span className="text-sm text-gray-800 flex-1">{a.name}</span>
-                  <span className="text-xs text-gray-400">+₱{a.price}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Preferences */}
-        {preferences.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Preferences</label>
-            <div className="border border-gray-200 rounded-lg divide-y max-h-40 overflow-y-auto">
-              {preferences.map(p => (
-                <label key={p.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedPreferenceIds.includes(p.id)}
-                    onChange={() => toggleId(selectedPreferenceIds, setSelectedPreferenceIds, p.id)}
-                    className="rounded border-gray-300" style={{ accentColor: '#4f46e5' }}
-                  />
-                  <span className="text-sm text-gray-800">{p.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex gap-3">
-          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
-            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function SizeModal({
-  mode,
-  item,
-  brandId,
-  brand,
-  priceTiers,
-  onClose,
-  onSave,
-}: {
-  mode: 'create' | 'edit';
-  item?: Size;
-  brandId: string;
-  brand: Brand | null;
-  priceTiers: PriceTier[];
-  onClose: () => void;
-  onSave: (size: Size) => void;
-}) {
-  const [name, setName] = useState(item?.name || '');
-  const [flatPriceModifier, setFlatPriceModifier] = useState(item?.priceModifier?.toString() || '0');
-  const [flatFoodpandaPrice, setFlatFoodpandaPrice] = useState(
-    item?.foodpandaPrice != null ? item.foodpandaPrice.toString() : ''
-  );
-  const [flatGrabPrice, setFlatGrabPrice] = useState(
-    item?.grabPrice != null ? item.grabPrice.toString() : ''
-  );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const hasTiers = priceTiers.length > 0;
-
-  const [tierPrices, setTierPrices] = useState<Record<string, { priceModifier: string; foodpandaPrice: string; grabPrice: string }>>(() => {
-    const init: Record<string, { priceModifier: string; foodpandaPrice: string; grabPrice: string }> = {};
-    for (const tier of priceTiers) {
-      const existing = item?.priceTiers?.find(pt => pt.tierId === tier.id);
-      init[tier.id] = {
-        priceModifier: existing?.priceModifier != null ? existing.priceModifier.toString() : (tier.isDefault && item?.priceModifier != null ? item.priceModifier.toString() : '0'),
-        foodpandaPrice: existing?.foodpandaPrice != null ? existing.foodpandaPrice.toString() : '',
-        grabPrice: existing?.grabPrice != null ? existing.grabPrice.toString() : '',
-      };
-    }
-    return init;
-  });
-
-  const setTierField = (tierId: string, field: 'priceModifier' | 'foodpandaPrice' | 'grabPrice', value: string) => {
-    setTierPrices(prev => ({ ...prev, [tierId]: { ...prev[tierId], [field]: value } }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const parseOptionalPrice = (val: string): number | null =>
-      val.trim() === '' ? null : parseFloat(val);
-    try {
-      let result: Size;
-      if (hasTiers) {
-        const builtTiers: SizePriceTier[] = priceTiers.map(tier => ({
-          tierId: tier.id,
-          priceModifier: parseFloat(tierPrices[tier.id]?.priceModifier || '0') || 0,
-          foodpandaPrice: parseOptionalPrice(tierPrices[tier.id]?.foodpandaPrice ?? ''),
-          grabPrice: parseOptionalPrice(tierPrices[tier.id]?.grabPrice ?? ''),
-        }));
-        const defaultTier = priceTiers.find(t => t.isDefault);
-        const defaultModStr = defaultTier ? (tierPrices[defaultTier.id]?.priceModifier || '0') : '0';
-        if (mode === 'create') {
-          result = await api.createSize({ name, priceModifier: parseFloat(defaultModStr) || 0, brandId, priceTiers: builtTiers });
-        } else {
-          result = await api.updateSize(item!.id, { name, priceModifier: parseFloat(defaultModStr) || 0, priceTiers: builtTiers });
-        }
-      } else {
-        if (mode === 'create') {
-          result = await api.createSize({
-            name,
-            priceModifier: parseFloat(flatPriceModifier),
-            foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice),
-            grabPrice: parseOptionalPrice(flatGrabPrice),
-            brandId,
-          });
-        } else {
-          result = await api.updateSize(item!.id, {
-            name,
-            priceModifier: parseFloat(flatPriceModifier),
-            foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice),
-            grabPrice: parseOptionalPrice(flatGrabPrice),
-          });
-        }
-      }
-      onSave(result);
-      toast.success(mode === 'create' ? 'Size created' : 'Size updated');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
-      toast.error(getErrorMessage(err, 'Failed to save'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title={mode === 'create' ? 'New Size' : 'Edit Size'} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            placeholder="e.g. Small, Medium, Large"
-            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-        </div>
-
-        {/* Price modifier inputs: per-tier if tiers exist, else flat */}
-        {hasTiers ? (
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-700">Price Modifiers by Tier</p>
-            {priceTiers.map(tier => (
-              <div key={tier.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-gray-700">{tier.name}</span>
-                  {tier.isDefault && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
-                  )}
-                </div>
-                <div className={`grid gap-2 items-end ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Price Modifier (+₱)</label>
-                    <input
-                      type="number"
-                      value={tierPrices[tier.id]?.priceModifier ?? '0'}
-                      onChange={e => setTierField(tier.id, 'priceModifier', e.target.value)}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                      style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-                    />
-                  </div>
-                  {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">FoodPanda Mod. <span className="text-gray-400 font-normal">(opt.)</span></label>
-                      <input
-                        type="number"
-                        value={tierPrices[tier.id]?.foodpandaPrice ?? ''}
-                        onChange={e => setTierField(tier.id, 'foodpandaPrice', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="Same as regular"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                        style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
-                      />
-                    </div>
-                  )}
-                  {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Grab Mod. <span className="text-gray-400 font-normal">(opt.)</span></label>
-                      <input
-                        type="number"
-                        value={tierPrices[tier.id]?.grabPrice ?? ''}
-                        onChange={e => setTierField(tier.id, 'grabPrice', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="Same as regular"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                        style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Price Modifier (+₱)</label>
-              <input type="number" value={flatPriceModifier} onChange={e => setFlatPriceModifier(e.target.value)} required min="0" step="0.01"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-            </div>
-            {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
-              brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
-              <div className="grid grid-cols-2 gap-3">
-                {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      FoodPanda Modifier <span className="text-gray-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="number" value={flatFoodpandaPrice}
-                      onChange={e => setFlatFoodpandaPrice(e.target.value)}
-                      min="0" step="0.01" placeholder="Same as regular"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
-                      style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
-                    />
-                  </div>
-                )}
-                {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Grab Modifier <span className="text-gray-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="number" value={flatGrabPrice}
-                      onChange={e => setFlatGrabPrice(e.target.value)}
-                      min="0" step="0.01" placeholder="Same as regular"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
-                      style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-        <div className="flex gap-3">
-          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
-            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function AddonModal({
-  mode,
-  item,
-  brandId,
-  brand,
-  priceTiers,
-  onClose,
-  onSave,
-}: {
-  mode: 'create' | 'edit';
-  item?: Addon;
-  brandId: string;
-  brand: Brand | null;
-  priceTiers: PriceTier[];
-  onClose: () => void;
-  onSave: (addon: Addon) => void;
-}) {
-  const [name, setName] = useState(item?.name || '');
-  const [flatPrice, setFlatPrice] = useState(item?.price?.toString() || '0');
-  const [flatFoodpandaPrice, setFlatFoodpandaPrice] = useState(
-    item?.foodpandaPrice != null ? item.foodpandaPrice.toString() : ''
-  );
-  const [flatGrabPrice, setFlatGrabPrice] = useState(
-    item?.grabPrice != null ? item.grabPrice.toString() : ''
-  );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const hasTiers = priceTiers.length > 0;
-
-  const [tierPrices, setTierPrices] = useState<Record<string, { price: string; foodpandaPrice: string; grabPrice: string }>>(() => {
-    const init: Record<string, { price: string; foodpandaPrice: string; grabPrice: string }> = {};
-    for (const tier of priceTiers) {
-      const existing = item?.priceTiers?.find(pt => pt.tierId === tier.id);
-      init[tier.id] = {
-        price: existing?.price != null ? existing.price.toString() : (tier.isDefault && item?.price != null ? item.price.toString() : '0'),
-        foodpandaPrice: existing?.foodpandaPrice != null ? existing.foodpandaPrice.toString() : '',
-        grabPrice: existing?.grabPrice != null ? existing.grabPrice.toString() : '',
-      };
-    }
-    return init;
-  });
-
-  const setTierField = (tierId: string, field: 'price' | 'foodpandaPrice' | 'grabPrice', value: string) => {
-    setTierPrices(prev => ({ ...prev, [tierId]: { ...prev[tierId], [field]: value } }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const parseOptionalPrice = (val: string): number | null =>
-      val.trim() === '' ? null : parseFloat(val);
-    try {
-      let result: Addon;
-      if (hasTiers) {
-        const builtTiers: AddonPriceTier[] = priceTiers.map(tier => ({
-          tierId: tier.id,
-          price: parseFloat(tierPrices[tier.id]?.price || '0') || 0,
-          foodpandaPrice: parseOptionalPrice(tierPrices[tier.id]?.foodpandaPrice ?? ''),
-          grabPrice: parseOptionalPrice(tierPrices[tier.id]?.grabPrice ?? ''),
-        }));
-        const defaultTier = priceTiers.find(t => t.isDefault);
-        const defaultPriceStr = defaultTier ? (tierPrices[defaultTier.id]?.price || '0') : '0';
-        if (mode === 'create') {
-          result = await api.createAddon({ name, price: parseFloat(defaultPriceStr) || 0, brandId, priceTiers: builtTiers });
-        } else {
-          result = await api.updateAddon(item!.id, { name, price: parseFloat(defaultPriceStr) || 0, priceTiers: builtTiers });
-        }
-      } else {
-        if (mode === 'create') {
-          result = await api.createAddon({ name, price: parseFloat(flatPrice), brandId, foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice), grabPrice: parseOptionalPrice(flatGrabPrice) });
-        } else {
-          result = await api.updateAddon(item!.id, { name, price: parseFloat(flatPrice), foodpandaPrice: parseOptionalPrice(flatFoodpandaPrice), grabPrice: parseOptionalPrice(flatGrabPrice) });
-        }
-      }
-      onSave(result);
-      toast.success(mode === 'create' ? 'Add-on created' : 'Add-on updated');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
-      toast.error(getErrorMessage(err, 'Failed to save'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title={mode === 'create' ? 'New Add-on' : 'Edit Add-on'} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            placeholder="e.g. Tapioca, Jelly"
-            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-        </div>
-
-        {/* Price inputs: per-tier if tiers exist, else flat */}
-        {hasTiers ? (
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-gray-700">Prices by Tier</p>
-            {priceTiers.map(tier => (
-              <div key={tier.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-gray-700">{tier.name}</span>
-                  {tier.isDefault && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">Default</span>
-                  )}
-                </div>
-                <div className={`grid gap-2 items-end ${(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') || brand?.enabledDeliveryPlatforms?.includes('GRAB')) ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Price (+₱)</label>
-                    <input
-                      type="number"
-                      value={tierPrices[tier.id]?.price ?? '0'}
-                      onChange={e => setTierField(tier.id, 'price', e.target.value)}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                      style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-                    />
-                  </div>
-                  {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">FoodPanda <span className="text-gray-400 font-normal">(opt.)</span></label>
-                      <input
-                        type="number"
-                        value={tierPrices[tier.id]?.foodpandaPrice ?? ''}
-                        onChange={e => setTierField(tier.id, 'foodpandaPrice', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="Same as regular"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                        style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
-                      />
-                    </div>
-                  )}
-                  {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Grab <span className="text-gray-400 font-normal">(opt.)</span></label>
-                      <input
-                        type="number"
-                        value={tierPrices[tier.id]?.grabPrice ?? ''}
-                        onChange={e => setTierField(tier.id, 'grabPrice', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        placeholder="Same as regular"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                        style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Price (+₱)</label>
-              <input type="number" value={flatPrice} onChange={e => setFlatPrice(e.target.value)} required min="0" step="0.01"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-            </div>
-            {(brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') ||
-              brand?.enabledDeliveryPlatforms?.includes('GRAB')) && (
-              <div className="grid grid-cols-2 gap-3">
-                {brand?.enabledDeliveryPlatforms?.includes('FOODPANDA') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      FoodPanda Price <span className="text-gray-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="number"
-                      value={flatFoodpandaPrice}
-                      onChange={e => setFlatFoodpandaPrice(e.target.value)}
-                      min="0"
-                      step="0.01"
-                      placeholder="Same as regular price"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
-                      style={{ '--tw-ring-color': '#ec4899' } as React.CSSProperties}
-                    />
-                  </div>
-                )}
-                {brand?.enabledDeliveryPlatforms?.includes('GRAB') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Grab Price <span className="text-gray-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="number"
-                      value={flatGrabPrice}
-                      onChange={e => setFlatGrabPrice(e.target.value)}
-                      min="0"
-                      step="0.01"
-                      placeholder="Same as regular price"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white text-sm"
-                      style={{ '--tw-ring-color': '#22c55e' } as React.CSSProperties}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-        <div className="flex gap-3">
-          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
-            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function PreferenceModal({
-  mode,
-  item,
-  brandId,
-  onClose,
-  onSave,
-}: {
-  mode: 'create' | 'edit';
-  item?: Preference;
-  brandId: string;
-  onClose: () => void;
-  onSave: (pref: Preference) => void;
-}) {
-  const [name, setName] = useState(item?.name || '');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      let result: Preference;
-      if (mode === 'create') {
-        result = await api.createPreference({ name, brandId });
-      } else {
-        result = await api.updatePreference(item!.id, { name });
-      }
-      onSave(result);
-      toast.success(mode === 'create' ? 'Preference created' : 'Preference updated');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
-      toast.error(getErrorMessage(err, 'Failed to save'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title={mode === 'create' ? 'New Preference' : 'Edit Preference'} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
-            placeholder="e.g. Light Sweet (50%)"
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties}
-          />
-        </div>
-        <div className="flex gap-3">
-          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
-            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function InventoryModal({
-  mode,
-  item,
-  brandId,
-  categories,
-  onClose,
-  onSave,
-}: {
-  mode: 'create' | 'edit';
-  item?: InventoryBrandTemplate;
-  brandId: string;
-  categories: Category[];
-  onClose: () => void;
-  onSave: (item: InventoryBrandTemplate) => void;
-}) {
-  const [name, setName] = useState(item?.name || '');
-  const [unit, setUnit] = useState(item?.unit || '');
-  const [category, setCategory] = useState(item?.category || '');
-  const [minStockLevel, setMinStockLevel] = useState(item?.minStockLevel?.toString() || '');
-  const [requiresExpirationDate, setRequiresExpirationDate] = useState(item?.requiresExpirationDate ?? false);
-  const [expirationWarningDays, setExpirationWarningDays] = useState(
-    item?.expirationWarningDays?.toString() || ''
-  );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      const body = {
-        name,
-        unit,
-        category: category || undefined,
-        minStockLevel: minStockLevel ? parseInt(minStockLevel) : undefined,
-        requiresExpirationDate,
-        expirationWarningDays: requiresExpirationDate && expirationWarningDays ? parseInt(expirationWarningDays) : undefined,
-      };
-      let result: InventoryBrandTemplate;
-      if (mode === 'create') {
-        result = await api.createInventoryBrandTemplate({ ...body, brandId });
-      } else {
-        result = await api.updateInventoryBrandTemplate(item!.id, body);
-      }
-      onSave(result);
-      toast.success(mode === 'create' ? 'Inventory item created' : 'Inventory item updated');
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to save');
-      toast.error(getErrorMessage(err, 'Failed to save'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title={mode === 'create' ? 'New Inventory Item' : 'Edit Inventory Item'} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
-          <input type="text" value={unit} onChange={e => setUnit(e.target.value)} required
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            placeholder="e.g. kg, liters, bags"
-            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Category (optional)</label>
-          <select
-            value={category || 'none'}
-            onChange={e => setCategory(e.target.value === 'none' ? '' : e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="none">— None —</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.name}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Min Stock Level</label>
-          <input type="number" value={minStockLevel} onChange={e => setMinStockLevel(e.target.value)} min="0"
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-            style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-        </div>
-        <div>
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={requiresExpirationDate}
-              onChange={e => setRequiresExpirationDate(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300" style={{ accentColor: '#4f46e5' }}
-            />
-            <span className="text-sm font-medium text-gray-700">Track expiration dates</span>
-          </label>
-          {requiresExpirationDate && (
-            <div className="mt-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Expiry Warning (days before)
-              </label>
-              <input type="number" value={expirationWarningDays} onChange={e => setExpirationWarningDays(e.target.value)} min="1"
-                placeholder="7"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-900 outline-none transition focus:ring-2 focus:border-transparent hover:border-gray-300 bg-white"
-                style={{ '--tw-ring-color': '#4f46e5' } as React.CSSProperties} />
-              <p className="mt-1 text-xs text-gray-400">
-                How many days before expiry to show a warning. Defaults to 7 days if left blank.
-              </p>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-3">
-          <button type="button" onClick={onClose} className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-          <button type="submit" disabled={loading} className="flex-1 py-2 text-white rounded-lg text-sm font-medium hover:brightness-90 disabled:opacity-50" style={{ backgroundColor: '#4f46e5' }}>
-            {loading ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-

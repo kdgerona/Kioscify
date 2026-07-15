@@ -63,8 +63,8 @@ export const formatDate = (date: Date | null): string => {
   });
 };
 
+// Category is now a real display name set by the brand admin (e.g. "Cold
+// Drinks"), not a fixed code-style enum value (e.g. "MAINS") — shown as-is,
+// no case transformation needed.
 export const getCategoryLabel = (category: string): string =>
-  category
-    .split("_")
-    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-    .join(" ");
+  category?.trim() || "Uncategorized";

@@ -85,7 +85,7 @@ export default function SettingsPage() {
                 Created
               </label>
               <p className="text-sm sm:text-base text-gray-900">
-                {tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : 'N/A'}
+                {tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString('en-US', { timeZone: 'Asia/Manila' }) : 'N/A'}
               </p>
             </div>
           </div>

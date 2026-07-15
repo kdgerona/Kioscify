@@ -72,7 +72,9 @@ function describeDevice(userAgent: string | null): string {
 
 export default function SessionsPage() {
   const router = useRouter();
-  const { tenant } = useTenant();
+  const { tenant, brand } = useTenant();
+  const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
+  const textColor = "#1f2937";
 
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -135,10 +137,10 @@ export default function SessionsPage() {
           value={status || "all"}
           onValueChange={(v) => { setStatus(v === "all" ? "" : (v as SessionStatus)); setPage(1); }}
         >
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[160px]" style={{ color: textColor }}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent style={{ '--select-hover-bg': `${primaryColor}20`, '--select-hover-text': textColor } as React.CSSProperties}>
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
             <SelectItem value="ENDED">Ended</SelectItem>
@@ -179,10 +181,10 @@ export default function SessionsPage() {
                     <td className="px-6 py-4 text-sm text-gray-600">{formatRole(session.user.role)}</td>
                     <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                       <Clock className="h-3.5 w-3.5 inline mr-1.5 text-gray-400" />
-                      {new Date(session.loginAt).toLocaleString()}
+                      {new Date(session.loginAt).toLocaleString("en-US", { timeZone: "Asia/Manila" })}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                      {session.loggedOutAt ? new Date(session.loggedOutAt).toLocaleString() : "—"}
+                      {session.loggedOutAt ? new Date(session.loggedOutAt).toLocaleString("en-US", { timeZone: "Asia/Manila" }) : "—"}
                     </td>
                     <td className={`px-6 py-4 text-sm ${STATUS_CLASS[session.status]}`}>
                       {STATUS_LABEL[session.status]}

@@ -10,6 +10,7 @@ import type {
   Tenant,
   ApiError,
   InventoryItem,
+  InventoryItemsResponse,
   InventoryRecord,
   LatestInventoryItem,
   InventoryStats,
@@ -481,49 +482,17 @@ class ApiClient {
     return data;
   }
 
-  // Inventory Items endpoints
-  async getInventoryItems(category?: string): Promise<InventoryItem[]> {
-    const { data } = await this.client.get<InventoryItem[]>(
+  // Inventory Items endpoints — returns active (in the store's current
+  // setup) and legacy (has recorded history but no longer in the current
+  // setup — preserved for record-keeping) buckets.
+  async getInventoryItems(categoryId?: string): Promise<InventoryItemsResponse> {
+    const { data } = await this.client.get<InventoryItemsResponse>(
       "/inventory/items",
       {
-        params: category ? { category } : undefined,
+        params: categoryId ? { categoryId } : undefined,
       }
     );
     return data;
-  }
-
-  async getInventoryItemById(id: string): Promise<InventoryItem> {
-    const { data } = await this.client.get<InventoryItem>(
-      `/inventory/items/${id}`
-    );
-    return data;
-  }
-
-  async createInventoryItem(
-    item: Omit<InventoryItem, "id" | "tenantId" | "createdAt" | "updatedAt">
-  ): Promise<InventoryItem> {
-    const { data } = await this.client.post<InventoryItem>(
-      "/inventory/items",
-      item
-    );
-    return data;
-  }
-
-  async updateInventoryItem(
-    id: string,
-    item: Partial<
-      Omit<InventoryItem, "id" | "tenantId" | "createdAt" | "updatedAt">
-    >
-  ): Promise<InventoryItem> {
-    const { data } = await this.client.patch<InventoryItem>(
-      `/inventory/items/${id}`,
-      item
-    );
-    return data;
-  }
-
-  async deleteInventoryItem(id: string): Promise<void> {
-    await this.client.delete(`/inventory/items/${id}`);
   }
 
   // Inventory Records endpoints
@@ -754,6 +723,11 @@ class ApiClient {
     return data;
   }
 
+  async deleteStoreUserPermanently(storeId: string, userId: string): Promise<{ message: string }> {
+    const { data } = await this.client.delete(`/users/stores/${storeId}/${userId}/permanent`);
+    return data;
+  }
+
   async resetStoreUserPassword(storeId: string, userId: string): Promise<{ user: User; temporaryPassword: string }> {
     const { data } = await this.client.post(`/users/stores/${storeId}/${userId}/reset-password`);
     return data;
@@ -803,16 +777,9 @@ class ApiClient {
     return data;
   }
 
-  // ─── Store inventory items (brand copies) ─────────────────────────────────
+  // ─── Store inventory threshold overrides ───────────────────────────────────
 
-  async getStoreInventoryItems(category?: string): Promise<InventoryItem[]> {
-    const { data } = await this.client.get<InventoryItem[]>("/inventory/items", {
-      params: category ? { category } : undefined,
-    });
-    return data;
-  }
-
-  async updateStoreInventoryItem(id: string, payload: Partial<{ minStockLevel: number; expirationWarningDays: number }>): Promise<InventoryItem> {
+  async updateStoreInventoryItem(id: string, payload: Partial<{ minStockLevel: number; requiresExpirationDate: boolean; expirationWarningDays: number }>): Promise<InventoryItem> {
     const { data } = await this.client.patch<InventoryItem>(`/inventory/items/${id}/store-config`, payload);
     return data;
   }

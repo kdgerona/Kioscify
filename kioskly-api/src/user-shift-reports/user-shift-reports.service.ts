@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubmittedReportDto } from '../submitted-reports/dto/create-submitted-report.dto';
 import { UserShiftReportFiltersDto } from './dto/user-shift-report-filters.dto';
@@ -9,6 +9,19 @@ export class UserShiftReportsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateSubmittedReportDto, userId: string, tenantId: string) {
+    // Offline deduplication — see schema.prisma's UserShiftInventoryReport comment for why.
+    if (dto.clientId) {
+      const existing = await this.prisma.userShiftReport.findFirst({
+        where: { tenantId, clientId: dto.clientId },
+      });
+      if (existing) {
+        throw new ConflictException({
+          message: 'Shift report already synced',
+          id: existing.id,
+        });
+      }
+    }
+
     return this.prisma.userShiftReport.create({
       data: {
         tenantId,

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -106,15 +107,36 @@ export class CompaniesService {
   }
 
   async remove(id: string) {
-    await this.assertExists(id);
+    const company = await this.assertExists(id);
+    await this.assertNoActiveDependents(id);
+    // Mirrors tombstoneUser's "disable before delete" gate — company.isActive
+    // gates loginCompany(), but nothing cascades an isActive change down to
+    // dependents, so this is checked independently of assertNoActiveDependents
+    // above, not as a replacement for it.
+    if (company.isActive) {
+      throw new BadRequestException('Disable the company before deleting it');
+    }
     return this.prisma.company.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  private async assertNoActiveDependents(companyId: string) {
+    const [brands, stores] = await Promise.all([
+      this.prisma.brand.findMany({ where: { companyId, tombstone: { not: 1 } }, select: { name: true } }),
+      this.prisma.tenant.findMany({ where: { companyId, tombstone: { not: 1 } }, select: { name: true } }),
+    ]);
+    const names = [...brands, ...stores].map((b) => b.name);
+    if (names.length > 0) {
+      throw new ConflictException(
+        `Cannot delete this company — it still has the following active brand(s)/store(s): ${names.join(', ')}`,
+      );
+    }
   }
 
   async onboardAdmin(companyId: string, dto: OnboardAdminDto) {
     await this.assertExists(companyId);
 
     const existing = await this.prisma.user.findFirst({
-      where: { companyId, username: dto.username },
+      where: { companyId, username: dto.username, tombstone: { not: 1 } },
     });
     if (existing) throw new ConflictException('Username already exists in this company');
 

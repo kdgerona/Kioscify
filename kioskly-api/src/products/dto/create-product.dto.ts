@@ -48,7 +48,7 @@ export class CreateProductDto {
   @IsOptional()
   grabPrice?: number;
 
-  @ApiProperty({ example: 'lemonade' })
+  @ApiProperty({ example: 'lemonade', description: 'Must belong to the same menu this product is being added to' })
   @IsString()
   @IsNotEmpty()
   categoryId: string;
@@ -61,7 +61,8 @@ export class CreateProductDto {
   @ApiProperty({
     example: ['regular-16oz', 'large-22oz'],
     required: false,
-    type: [String]
+    type: [String],
+    description: 'Must belong to the same menu',
   })
   @IsArray()
   @IsOptional()
@@ -70,7 +71,8 @@ export class CreateProductDto {
   @ApiProperty({
     example: ['nata-de-coco', 'popping-bobba'],
     required: false,
-    type: [String]
+    type: [String],
+    description: 'Must belong to the same menu',
   })
   @IsArray()
   @IsOptional()
@@ -79,14 +81,15 @@ export class CreateProductDto {
   @ApiProperty({
     example: ['light-sweet', 'signature-sweetness'],
     required: false,
-    type: [String]
+    type: [String],
+    description: 'Must belong to the same menu',
   })
   @IsArray()
   @IsOptional()
   preferenceIds?: string[];
 
   @ApiPropertyOptional({
-    description: 'Per-tier pricing overrides',
+    description: 'Per-tier pricing overrides, scoped to this product-on-this-menu',
     type: [ProductPriceTierDto],
   })
   @IsArray()

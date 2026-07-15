@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { hasPrivilege } from "@/lib/privileges";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
@@ -19,6 +19,8 @@ import Link from "next/link";
 
 type AlertType = "LOW_STOCK" | "USAGE_SPIKE" | "PROJECTED_STOCKOUT" | "EXPIRED" | "EXPIRING_SOON";
 type Severity = "HIGH" | "MEDIUM" | "LOW";
+
+const ALERT_TYPES: AlertType[] = ["LOW_STOCK", "USAGE_SPIKE", "PROJECTED_STOCKOUT", "EXPIRED", "EXPIRING_SOON"];
 
 interface InventoryAlert {
   type: AlertType;
@@ -61,7 +63,16 @@ interface AlertsData {
 }
 
 export default function InventoryAlertsPage() {
+  return (
+    <Suspense fallback={null}>
+      <InventoryAlertsContent />
+    </Suspense>
+  );
+}
+
+function InventoryAlertsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tenant, brand } = useTenant();
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
 
@@ -72,7 +83,15 @@ export default function InventoryAlertsPage() {
   const [alertsData, setAlertsData] = useState<AlertsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedType, setSelectedType] = useState<AlertType | null>(null);
+
+  // Pre-filtered when arriving via a link like /inventory-alerts?type=LOW_STOCK
+  // (e.g. the Inventory Overview page's low-stock banner) — validated against
+  // the known alert types rather than trusted as-is, since it's user-editable
+  // URL state.
+  const initialType = searchParams.get("type");
+  const [selectedType, setSelectedType] = useState<AlertType | null>(
+    ALERT_TYPES.includes(initialType as AlertType) ? (initialType as AlertType) : null
+  );
 
   useEffect(() => {
     loadAlerts();
@@ -101,6 +120,7 @@ export default function InventoryAlertsPage() {
       month: "short",
       day: "numeric",
       year: "numeric",
+      timeZone: "Asia/Manila",
     });
   };
 

@@ -2,7 +2,27 @@ export interface PriceTier {
   id: string;
   name: string;
   isDefault: boolean;
+  menuId: string;
+}
+
+export interface Menu {
+  id: string;
   brandId: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventorySetup {
+  id: string;
+  brandId: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ProductPriceTier {
@@ -113,6 +133,8 @@ export interface Store {
   isActive: boolean;
   enabledDeliveryPlatforms?: string[];
   priceTier?: PriceTier;
+  menu?: { id: string; name: string } | null;
+  inventorySetup?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -123,6 +145,8 @@ export interface Category {
   type: 'PRODUCT' | 'INVENTORY';
   description?: string;
   sequenceNo?: number;
+  menuId?: string;
+  inventorySetupId?: string;
   brandId?: string;
   tenantId?: string;
   createdAt: string;
@@ -137,6 +161,7 @@ export interface Product {
   grabPrice?: number | null;
   categoryId: string;
   category?: Category;
+  menuId: string;
   image?: string;
   sizes?: Size[];
   addons?: Addon[];
@@ -144,7 +169,6 @@ export interface Product {
   priceTiers?: ProductPriceTier[];
   brandId?: string;
   tenantId?: string;
-  isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -156,6 +180,7 @@ export interface Size {
   foodpandaPrice?: number | null;
   grabPrice?: number | null;
   priceTiers?: SizePriceTier[];
+  menuId?: string;
   brandId?: string;
   tenantId?: string;
   sequenceNo?: number;
@@ -170,6 +195,7 @@ export interface Addon {
   foodpandaPrice?: number | null;
   grabPrice?: number | null;
   priceTiers?: AddonPriceTier[];
+  menuId?: string;
   brandId?: string;
   tenantId?: string;
   sequenceNo?: number;
@@ -181,6 +207,7 @@ export interface Preference {
   id: string;
   name: string;
   isDefault?: boolean;
+  menuId?: string;
   brandId?: string;
   tenantId?: string;
   sequenceNo?: number;
@@ -188,16 +215,21 @@ export interface Preference {
   updatedAt: string;
 }
 
-export interface InventoryBrandTemplate {
+// Directly owned by one InventorySetup (mirrors Product's direct Menu
+// ownership) — admin/builder shape, used in the Inventory Setup workspace.
+export interface InventoryItem {
   id: string;
   name: string;
   unit: string;
-  category?: string;
   description?: string;
-  minStockLevel?: number;
-  requiresExpirationDate?: boolean;
-  expirationWarningDays?: number;
-  brandId: string;
+  categoryId: string;
+  category?: Category;
+  inventorySetupId: string;
+  brandId?: string;
+  minStockLevel?: number | null;
+  requiresExpirationDate: boolean;
+  expirationWarningDays?: number | null;
+  tombstone?: number;
   createdAt: string;
   updatedAt: string;
 }

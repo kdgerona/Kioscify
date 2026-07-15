@@ -23,6 +23,7 @@ import { SizesModule } from './sizes/sizes.module';
 import { AddonsModule } from './addons/addons.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { HeldOrdersModule } from './held-orders/held-orders.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { StaffTimeLogsModule } from './staff-time-logs/staff-time-logs.module';
 import { ReportsModule } from './reports/reports.module';
@@ -36,6 +37,8 @@ import { StorageModule } from './storage/storage.module';
 import { PriceTiersModule } from './price-tiers/price-tiers.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { MenusModule } from './menus/menus.module';
+import { InventorySetupsModule } from './inventory-setups/inventory-setups.module';
 
 @Module({
   imports: [
@@ -96,6 +99,7 @@ import { SessionsModule } from './sessions/sessions.module';
 
     // Store operations
     TransactionsModule,
+    HeldOrdersModule,
     ExpensesModule,
     StaffTimeLogsModule,
     ReportsModule,
@@ -107,6 +111,8 @@ import { SessionsModule } from './sessions/sessions.module';
 
     // Price tiers (brand-scoped)
     PriceTiersModule,
+    MenusModule,
+    InventorySetupsModule,
 
     // App releases (APK auto-update)
     AppReleasesModule,

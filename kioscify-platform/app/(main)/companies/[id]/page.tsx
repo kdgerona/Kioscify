@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -25,6 +26,7 @@ import {
   UserCheck,
   UserX,
   Shield,
+  Unlink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
@@ -56,7 +58,10 @@ function Modal({
   children: React.ReactNode;
   onClose: () => void;
 }) {
-  return (
+  // Portaled to document.body — rendering in-place caused the fixed overlay
+  // to be offset short at the top; see brands/[brandId]/page.tsx Modal for
+  // the full investigation notes.
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white">
@@ -67,7 +72,8 @@ function Modal({
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -673,6 +679,29 @@ export default function CompanyDetailPage() {
     }
   };
 
+  const handleRevokeStoreAccess = async (storeId: string, user: User) => {
+    try {
+      await api.revokeStoreAccess(storeId, user.id);
+      await loadUsers();
+      toast.success('Store access revoked');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to revoke store access'));
+    }
+  };
+
+  const handleDeleteUserPermanently = async (user: User) => {
+    if (!window.confirm(`Permanently delete ${user.firstName} ${user.lastName} (@${user.username})? Their username and email will be freed up for reuse. This cannot be undone from the UI.`)) {
+      return;
+    }
+    try {
+      await api.deleteUserPermanently(user.id);
+      await loadUsers();
+      toast.success('Account deleted');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to delete account'));
+    }
+  };
+
   const handleToggleUser = async (user: User) => {
     if (!company?.id) return;
     try {
@@ -1173,7 +1202,7 @@ export default function CompanyDetailPage() {
                 ) : (
                   <div className="divide-y">
                     {companyAdmins.map(user => (
-                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} onEditPrivileges={setEditingPrivilegesUser} currentUserId={currentUserId} />
+                      <UserRow key={user.id} user={user} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} onEditPrivileges={setEditingPrivilegesUser} onDeletePermanently={handleDeleteUserPermanently} currentUserId={currentUserId} />
                     ))}
                   </div>
                 )}
@@ -1230,7 +1259,18 @@ export default function CompanyDetailPage() {
                                 ) : (
                                   <div className="divide-y">
                                     {staff.map(user => (
-                                      <UserRow key={`${user.id}-${store.id}`} user={{ ...user, role: user.assignedRole as any }} isAssigned={user.isAssigned} onReset={handleResetPassword} resetting={resetingUserId === user.id} onRemove={handleRemoveUser} onToggle={handleToggleUser} currentUserId={currentUserId} />
+                                      <UserRow
+                                        key={`${user.id}-${store.id}`}
+                                        user={{ ...user, role: user.assignedRole as any }}
+                                        isAssigned={user.isAssigned}
+                                        onReset={handleResetPassword}
+                                        resetting={resetingUserId === user.id}
+                                        onRemove={handleRemoveUser}
+                                        onToggle={handleToggleUser}
+                                        onRevokeAccess={user.isAssigned ? () => handleRevokeStoreAccess(store.id, user) : undefined}
+                                        onDeletePermanently={handleDeleteUserPermanently}
+                                        currentUserId={currentUserId}
+                                      />
                                     ))}
                                   </div>
                                 )}
@@ -1754,6 +1794,8 @@ function UserRow({
   onRemove,
   onToggle,
   onEditPrivileges,
+  onRevokeAccess,
+  onDeletePermanently,
   currentUserId,
 }: {
   user: User;
@@ -1763,6 +1805,8 @@ function UserRow({
   onRemove: (user: User) => void;
   onToggle: (user: User) => void;
   onEditPrivileges?: (user: User) => void;
+  onRevokeAccess?: () => void;
+  onDeletePermanently?: (user: User) => void;
   currentUserId: string | null;
 }) {
   const roleBadge: Record<string, string> = {
@@ -1810,6 +1854,16 @@ function UserRow({
             <UserCheck className="w-3.5 h-3.5" />
           </button>
         )}
+        {!isSelf && !user.isActive && onDeletePermanently && (
+          <button
+            onClick={() => onDeletePermanently(user)}
+            title="Delete account"
+            aria-label="Delete account"
+            className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
         {!isSelf && user.isActive && user.isFirstLogin && (
           <button
             onClick={() => onRemove(user)}
@@ -1828,6 +1882,16 @@ function UserRow({
             className="p-1.5 text-gray-400 hover:text-gray-600 rounded transition-colors"
           >
             <UserX className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {!isSelf && user.isActive && onRevokeAccess && (
+          <button
+            onClick={onRevokeAccess}
+            title="Remove from this store"
+            aria-label="Remove from this store"
+            className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
+          >
+            <Unlink className="w-3.5 h-3.5" />
           </button>
         )}
         {!isSelf && user.isActive && (

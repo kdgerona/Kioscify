@@ -47,4 +47,10 @@ export class UpdateStoreDto extends PartialType(CreateStoreDto) {
 
   @ApiPropertyOptional({ example: 'price-tier-id-here' })
   @IsString() @IsOptional() priceTierId?: string;
+
+  @ApiPropertyOptional({ example: 'menu-id-here', description: 'Assign this store to a Menu — can be left unset and configured later' })
+  @IsString() @IsOptional() menuId?: string;
+
+  @ApiPropertyOptional({ example: 'inventory-setup-id-here', description: 'Assign this store to an InventorySetup — can be left unset and configured later' })
+  @IsString() @IsOptional() inventorySetupId?: string;
 }

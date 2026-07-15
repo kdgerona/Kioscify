@@ -128,6 +128,21 @@ export class UsersController {
     return this.usersService.deleteStoreUser(storeId, userId, tenantId, req.user.id);
   }
 
+  @Delete('stores/:storeId/:userId/permanent')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard, StorePrivilegeGuard)
+  @Roles('STORE_ADMIN')
+  @RequireStorePrivilege('users', 'all')
+  @ApiOperation({ summary: 'Permanently delete a disabled store user (soft delete — must be disabled first)' })
+  permanentlyDeleteStoreUser(
+    @Param('storeId') storeId: string,
+    @Param('userId') userId: string,
+    @TenantId() tenantId: string,
+    @Request() req,
+  ) {
+    return this.usersService.permanentlyDeleteStoreUser(storeId, userId, tenantId, req.user.id);
+  }
+
   @Post('stores/:storeId/:userId/reset-password')
   @UseGuards(RolesGuard, StorePrivilegeGuard)
   @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
@@ -240,6 +255,21 @@ export class UsersController {
     return this.usersService.deleteCompanyUser(companyId, userId, requestingCompanyId, req.user.role, req.user.id);
   }
 
+  @Delete('companies/:companyId/:userId/permanent')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard, PrivilegeGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @RequirePrivilege('users', 'all')
+  @ApiOperation({ summary: 'Permanently delete a disabled company user (soft delete — must be disabled first)' })
+  permanentlyDeleteCompanyUser(
+    @Param('companyId') companyId: string,
+    @Param('userId') userId: string,
+    @CompanyId() requestingCompanyId: string,
+    @Request() req,
+  ) {
+    return this.usersService.permanentlyDeleteCompanyUser(companyId, userId, requestingCompanyId, req.user.role, req.user.id);
+  }
+
   @Post('companies/:companyId/:userId/reset-password')
   @UseGuards(RolesGuard, PrivilegeGuard)
   @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
@@ -264,6 +294,18 @@ export class UsersController {
     @Request() req,
   ) {
     return this.usersService.deleteUser(userId, req.user.id);
+  }
+
+  @Delete(':userId/permanent')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Permanently delete any disabled user (soft delete — must be disabled first, PLATFORM_ADMIN only)' })
+  permanentlyDeleteUser(
+    @Param('userId') userId: string,
+    @Request() req,
+  ) {
+    return this.usersService.permanentlyDeleteUser(userId, req.user.id);
   }
 
   // ─── Multi-store access management ───────────────────────────────────────

@@ -58,6 +58,7 @@ export default function InventoryProgressionPage() {
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
+      timeZone: "Asia/Manila",
     });
   };
 

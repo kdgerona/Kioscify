@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Search, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -92,7 +93,10 @@ export default function AssignUserModal({ isOpen, onClose, storeId, primaryColor
   const displayName = (u: AssignableUser) =>
     u.firstName || u.lastName ? `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() : u.username;
 
-  return (
+  // Portaled to document.body — an in-place fixed overlay nested this deep
+  // in the layout tree renders short at the top edge (see kioscify-company's
+  // brands/[brandId]/page.tsx Modal for the investigation notes).
+  return createPortal(
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
@@ -213,6 +217,7 @@ export default function AssignUserModal({ isOpen, onClose, storeId, primaryColor
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

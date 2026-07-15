@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { hasPrivilege } from "@/lib/privileges";
@@ -281,7 +282,29 @@ export default function TransactionsPage() {
     }
   };
 
+  // For SPLIT transactions, flattens each leg into "Method: amount" pairs so the
+  // per-method breakdown survives the export instead of collapsing to "SPLIT".
+  const formatPaymentSplitSummary = (t: Transaction): string => {
+    if (t.paymentMethod !== "SPLIT" || !t.payments?.length) return "";
+    return t.payments
+      .map((p) => `${getPaymentMethodLabel(p.method)}: ${p.amount.toFixed(2)}`)
+      .join(" | ");
+  };
+
   const exportToCSV = () => {
+    const escapeCSV = (value: unknown): string => {
+      if (value === null || value === undefined) return "";
+      const stringValue = String(value);
+      if (
+        stringValue.includes(",") ||
+        stringValue.includes('"') ||
+        stringValue.includes("\n")
+      ) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
     const headers = [
       "Transaction ID",
       "Date",
@@ -289,17 +312,21 @@ export default function TransactionsPage() {
       "Total",
       "Discount",
       "Payment Method",
+      "Split Breakdown",
       "Status",
     ];
-    const rows = transactions.map((t) => [
-      t.transactionId,
-      formatDateTime(t.timestamp),
-      formatUserName(t.user),
-      t.total,
-      getCombinedDiscount(t) || "",
-      t.paymentMethod,
-      t.paymentStatus || "COMPLETED",
-    ]);
+    const rows = transactions.map((t) =>
+      [
+        t.transactionId,
+        formatDateTime(t.timestamp),
+        formatUserName(t.user),
+        t.total,
+        getCombinedDiscount(t) || "",
+        t.paymentMethod,
+        formatPaymentSplitSummary(t),
+        t.paymentStatus || "COMPLETED",
+      ].map(escapeCSV)
+    );
 
     const csv = [headers.join(","), ...rows.map((row) => row.join(","))].join(
       "\n"
@@ -309,7 +336,24 @@ export default function TransactionsPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`;
+
+    const filterParts: string[] = [];
+    if (filterStatus !== "ALL") filterParts.push(filterStatus.toLowerCase());
+    if (filterMethod !== "ALL") filterParts.push(filterMethod.toLowerCase());
+    if (startDate) filterParts.push(`from-${startDate.toISOString().split("T")[0]}`);
+    if (endDate) filterParts.push(`to-${endDate.toISOString().split("T")[0]}`);
+    if (debouncedSearchTerm) {
+      filterParts.push(
+        `search-${debouncedSearchTerm
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 30)}`
+      );
+    }
+    const filterSuffix = filterParts.length ? `-${filterParts.join("-")}` : "";
+
+    a.download = `transactions-${new Date().toISOString().split("T")[0]}${filterSuffix}.csv`;
     a.click();
   };
 
@@ -446,6 +490,7 @@ export default function TransactionsPage() {
                   <SelectItem value="ONLINE">Online</SelectItem>
                   <SelectItem value="FOODPANDA">FoodPanda</SelectItem>
                   <SelectItem value="GRAB">Grab</SelectItem>
+                  <SelectItem value="SPLIT">Split Payment</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -736,8 +781,11 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      {/* Rejection Modal */}
-      {showRejectModal && selectedVoidRequest && (
+      {/* Rejection Modal — portaled to document.body; an in-place fixed
+          overlay nested this deep in the layout tree renders short at the
+          top edge (see kioscify-company's brands/[brandId]/page.tsx Modal
+          for notes). */}
+      {showRejectModal && selectedVoidRequest && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-lg w-full p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">
@@ -788,11 +836,12 @@ export default function TransactionsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {/* Transaction Details Modal */}
-      {selectedTransaction && (
+      {/* Transaction Details Modal — portaled to document.body */}
+      {selectedTransaction && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
             <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
@@ -1016,6 +1065,7 @@ export default function TransactionsPage() {
 
                   {/* Digital Payment Reference */}
                   {selectedTransaction.paymentMethod !== "CASH" &&
+                    selectedTransaction.paymentMethod !== "SPLIT" &&
                     selectedTransaction.referenceNumber && (
                       <div>
                         <p className="text-xs sm:text-sm text-gray-600 mb-1">
@@ -1024,6 +1074,45 @@ export default function TransactionsPage() {
                         <p className="text-xs sm:text-sm font-mono font-medium text-gray-900 break-all">
                           {selectedTransaction.referenceNumber}
                         </p>
+                      </div>
+                    )}
+
+                  {/* Split Payment Breakdown */}
+                  {selectedTransaction.paymentMethod === "SPLIT" &&
+                    (selectedTransaction.payments ?? []).length > 0 && (
+                      <div>
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2">
+                          Split Breakdown
+                        </p>
+                        <div className="space-y-2">
+                          {(selectedTransaction.payments ?? []).map((split, index) => (
+                            <div
+                              key={`${split.method}-${index}`}
+                              className="flex items-center justify-between bg-white rounded-md px-3 py-2 border border-gray-200"
+                            >
+                              <div>
+                                <p className="text-xs sm:text-sm font-medium text-gray-900">
+                                  {getPaymentMethodLabel(split.method)}
+                                </p>
+                                {split.method === "CASH" ? (
+                                  <p className="text-xs text-gray-500">
+                                    Received {formatCurrency(split.cashReceived ?? 0)} · Change{" "}
+                                    {formatCurrency(split.change ?? 0)}
+                                  </p>
+                                ) : (
+                                  split.referenceNumber && (
+                                    <p className="text-xs text-gray-500 font-mono break-all">
+                                      Ref #{split.referenceNumber}
+                                    </p>
+                                  )
+                                )}
+                              </div>
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900">
+                                {formatCurrency(split.amount)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                 </div>
@@ -1199,7 +1288,8 @@ export default function TransactionsPage() {
                 )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

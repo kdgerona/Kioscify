@@ -4,6 +4,17 @@
  * Matches store copies to brand templates via the brand's tenants + name (not brandId on the copy,
  * which may be null for legacy items). Safe to run multiple times (idempotent).
  *
+ * Deliberately matches against templates REGARDLESS of tombstone status. tombstone marks "no longer
+ * offered in the active brand catalog" — a display/picker concern for live app code — not "this
+ * template is no longer a valid identity to resolve history against". Verified against real
+ * production data (2026-07-10): a brand can tombstone a template (e.g. discontinuing an item) while
+ * a store still has an active, never-tombstoned copy of it with real InventoryRecord history. Only
+ * matching non-tombstoned templates left that copy unlinked, which forced
+ * migrate-inventory-to-setups.ts's orphan path to mint a brand-new duplicate InventoryItem instead of
+ * resolving to the original template it actually corresponds to. Confirmed safe to match across all
+ * tombstone states: no brand in production (or in this repo's test fixtures) has two templates
+ * sharing the same name, so there is no ambiguity between an active and a tombstoned template.
+ *
  * Usage:
  *   npm run migrate:inventory-templates              # live run
  *   npm run migrate:inventory-templates -- --dry-run # preview only
@@ -19,10 +30,10 @@ async function main() {
   console.log(`Starting inventory template migration${DRY_RUN ? ' (DRY RUN)' : ''}...`);
 
   const templates = await prisma.inventoryItem.findMany({
-    where: { isTemplate: true, tombstone: { not: 1 } },
+    where: { isTemplate: true },
   });
 
-  console.log(`Found ${templates.length} brand templates.`);
+  console.log(`Found ${templates.length} brand templates (including tombstoned — see header comment).`);
 
   let linked = 0;
   let skipped = 0;

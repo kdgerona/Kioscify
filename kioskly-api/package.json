@@ -22,11 +22,19 @@
     "prisma:generate": "dotenv -e .env -- prisma generate --schema=prisma/schema.prisma",
     "prisma:migrate": "dotenv -e .env -- prisma migrate dev --schema=prisma/schema.prisma",
     "prisma:studio": "dotenv -e .env -- prisma studio --schema=prisma/schema.prisma",
+    "prisma:push": "dotenv -e .env -- prisma db push --schema=prisma/schema.prisma",
+    "prisma:push:cleanup": "dotenv -e .env -- prisma db push --schema=prisma/schema.cleanup.prisma",
     "prisma:seed": "dotenv -e .env -- prisma db seed",
     "create:platform-admin": "dotenv -e .env -- ts-node prisma/create-platform-admin.ts",
     "migrate:minio": "dotenv -e .env -- ts-node -r tsconfig-paths/register scripts/migrate-to-minio.ts",
     "migrate:price-tiers": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-price-tiers.ts",
-    "migrate:inventory-templates": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-inventory-template-ids.ts"
+    "migrate:inventory-templates": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-inventory-template-ids.ts",
+    "migrate:user-tombstone": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-user-tombstone.ts",
+    "migrate:transaction-payments-backfill": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-transaction-payments.ts",
+    "migrate:catalog-to-menus": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-catalog-to-menus.ts",
+    "migrate:inventory-to-setups": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/migrate-inventory-to-setups.ts",
+    "migrate:inventory-record-item-ids": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-inventory-record-item-ids.ts",
+    "migrate:inventory-snapshot-item-ids": "dotenv -e .env -- ts-node -r tsconfig-paths/register src/scripts/backfill-inventory-snapshot-item-ids.ts"
   },
   "dependencies": {
     "@keyv/redis": "5.1.6",

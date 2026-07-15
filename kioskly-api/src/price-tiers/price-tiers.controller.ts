@@ -23,7 +23,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('price-tiers')
-@Controller('brands/:brandId/price-tiers')
+@Controller('menus/:menuId/price-tiers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
 @ApiBearerAuth()
@@ -31,37 +31,37 @@ export class PriceTiersController {
   constructor(private readonly priceTiersService: PriceTiersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all price tiers for a brand' })
-  findAll(@Param('brandId') brandId: string) {
-    return this.priceTiersService.findAllByBrand(brandId);
+  @ApiOperation({ summary: 'List all price tiers for a menu' })
+  findAll(@Param('menuId') menuId: string) {
+    return this.priceTiersService.findAllByMenu(menuId);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a price tier for a brand' })
+  @ApiOperation({ summary: 'Create a price tier for a menu' })
   create(
-    @Param('brandId') brandId: string,
+    @Param('menuId') menuId: string,
     @Body() dto: CreatePriceTierDto,
   ) {
-    return this.priceTiersService.create(brandId, dto);
+    return this.priceTiersService.create(menuId, dto);
   }
 
   @Patch(':tierId')
   @ApiOperation({ summary: 'Update a price tier' })
   update(
-    @Param('brandId') brandId: string,
+    @Param('menuId') menuId: string,
     @Param('tierId') tierId: string,
     @Body() dto: UpdatePriceTierDto,
   ) {
-    return this.priceTiersService.update(brandId, tierId, dto);
+    return this.priceTiersService.update(menuId, tierId, dto);
   }
 
   @Delete(':tierId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a price tier (blocked if assigned to any store)' })
   remove(
-    @Param('brandId') brandId: string,
+    @Param('menuId') menuId: string,
     @Param('tierId') tierId: string,
   ) {
-    return this.priceTiersService.remove(brandId, tierId);
+    return this.priceTiersService.remove(menuId, tierId);
   }
 }
