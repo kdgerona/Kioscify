@@ -73,19 +73,27 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
     }
 
     setCompanyName(user.companyName || 'Company Portal');
-    setLoading(false);
 
     // Post-login / session-restore account-status check — this must run
     // regardless of which route under (main)/ the user landed on, since the
-    // gating effect below only acts once `accountStatus` is known.
+    // gating effect below only acts once `accountStatus` is known. `loading`
+    // is intentionally NOT cleared until this settles: it is the single gate
+    // that keeps every sibling (main)/ route (children) from rendering
+    // before we know the account is ACTIVE. Clearing it earlier (before this
+    // fetch resolves) would let a GRACE_PERIOD/DEACTIVATED user's browser
+    // paint the real protected page for one render before the redirect
+    // effect below has a chance to fire.
     api
       .getAccountStatus()
       .then(res => setAccountStatus(res.status))
       .catch(() => {
         // A 401 (DEACTIVATED account) is already handled by the axios
         // interceptor's existing force-logout behavior; anything else fails
-        // open so a transient error doesn't lock users out.
-      });
+        // open so a transient error doesn't lock users out. `accountStatus`
+        // stays null, which the redirect effect below treats as "nothing to
+        // gate" and the render logic below treats as "allowed".
+      })
+      .finally(() => setLoading(false));
   }, [router]);
 
   // Gate every route under (main)/ behind an ACTIVE account status. Runs on
@@ -136,6 +144,25 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
   // so it shouldn't offer navigation back into the gated app via the sidebar.
   if (isAccountStatusRoute) {
     return <>{children}</>;
+  }
+
+  // `loading` being false only tells us the account-status fetch has
+  // settled — it does not by itself mean we're clear to render `children`.
+  // If the fetch resolved to a non-ACTIVE status, the effect above has just
+  // been scheduled to call router.replace('/account-status'), but that
+  // navigation completes on its own tick. Without this check, this render
+  // (with the now-known accountStatus, pre-redirect) would paint the actual
+  // protected page for a frame. Keep showing the spinner until the redirect
+  // takes effect and `pathname`/`isAccountStatusRoute` catches up.
+  if (accountStatus && accountStatus !== 'ACTIVE') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderBottomColor: primaryColor }} />
+          <p className="mt-4 text-gray-600 text-sm">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
