@@ -18,6 +18,7 @@ import * as crypto from 'crypto';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { SessionsService } from '../sessions/sessions.service';
+import { computeAccountStatus } from '../common/utils/account-status.util';
 
 export interface RequestMeta {
   ipAddress?: string | null;
@@ -104,14 +105,12 @@ export class AuthService {
   // ─── Store Login ──────────────────────────────────────────────────────────
 
   async loginStore(dto: LoginDto, meta?: RequestMeta) {
-    // Resolve store by slug (optionally scoped to company for uniqueness)
+    // Resolve store by slug (optionally scoped to company for uniqueness).
+    // No `isActive` filter — deactivated stores must still be found so a
+    // GRACE_PERIOD store can log in; DEACTIVATED is rejected explicitly below.
     const storeWhere = dto.companySlug
-      ? {
-          slug: dto.storeSlug,
-          company: { slug: dto.companySlug },
-          isActive: true,
-        }
-      : { slug: dto.storeSlug, isActive: true };
+      ? { slug: dto.storeSlug, company: { slug: dto.companySlug } }
+      : { slug: dto.storeSlug };
 
     const matches = await this.prisma.tenant.findMany({ where: storeWhere });
     if (matches.length === 0) {
@@ -129,6 +128,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
     const store = matches[0];
+
+    const storeAccountStatus = computeAccountStatus(store);
+    if (storeAccountStatus === 'DEACTIVATED') {
+      this.logger.warn(
+        { storeSlug: dto.storeSlug, reason: 'store_deactivated' },
+        'Store login failed',
+      );
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     // Simple lookup — no complex nested includes (Prisma MongoDB can silently return
     // null when include chains are too deep). Tenant data is fetched separately.
@@ -225,6 +233,9 @@ export class AuthService {
       accessToken: await this.issueTokenAndRecordSession(payload, meta),
       mustChangePassword: user.isFirstLogin,
       stores: accessibleStores,
+      status: storeAccountStatus,
+      gracePeriodEndsAt: store.gracePeriodEndsAt,
+      scopeName: store.name,
       user: {
         id: user.id,
         username: user.username,
@@ -353,13 +364,24 @@ export class AuthService {
   // ─── Company Login ────────────────────────────────────────────────────────
 
   async loginCompany(dto: CompanyLoginDto, meta?: RequestMeta) {
+    // No `isActive` filter — deactivated companies must still be found so a
+    // GRACE_PERIOD company can log in; DEACTIVATED is rejected explicitly below.
     const company = await this.prisma.company.findFirst({
-      where: { slug: dto.companySlug, isActive: true },
+      where: { slug: dto.companySlug },
     });
 
     if (!company) {
       this.logger.warn(
         { companySlug: dto.companySlug, reason: 'company_not_found' },
+        'Company login failed',
+      );
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const companyAccountStatus = computeAccountStatus(company);
+    if (companyAccountStatus === 'DEACTIVATED') {
+      this.logger.warn(
+        { companySlug: dto.companySlug, reason: 'company_deactivated' },
         'Company login failed',
       );
       throw new UnauthorizedException('Invalid credentials');
@@ -402,6 +424,9 @@ export class AuthService {
     return {
       accessToken: await this.issueTokenAndRecordSession(payload, meta),
       mustChangePassword: user.isFirstLogin,
+      status: companyAccountStatus,
+      gracePeriodEndsAt: company.gracePeriodEndsAt,
+      scopeName: company.name,
       user: {
         id: user.id,
         username: user.username,
@@ -491,6 +516,42 @@ export class AuthService {
     });
 
     return { message: 'Password changed successfully' };
+  }
+
+  // ─── Account Status ───────────────────────────────────────────────────────
+
+  // Tenant takes priority over companyId, mirroring JwtStrategy.validate() —
+  // STORE_ADMIN/CASHIER carry both, but the Tenant's own status (which
+  // already reflects any company-level cascade) is what's relevant to them.
+  async getAccountStatus(user: { tenantId?: string | null; companyId?: string | null }) {
+    if (user.tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: user.tenantId },
+        select: { name: true, isActive: true, gracePeriodEndsAt: true },
+      });
+      if (!tenant) throw new UnauthorizedException();
+      return {
+        status: computeAccountStatus(tenant),
+        gracePeriodEndsAt: tenant.gracePeriodEndsAt,
+        scopeName: tenant.name,
+      };
+    }
+
+    if (user.companyId) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { name: true, isActive: true, gracePeriodEndsAt: true },
+      });
+      if (!company) throw new UnauthorizedException();
+      return {
+        status: computeAccountStatus(company),
+        gracePeriodEndsAt: company.gracePeriodEndsAt,
+        scopeName: company.name,
+      };
+    }
+
+    // PLATFORM_ADMIN (or any user tied to neither) — always ACTIVE.
+    return { status: 'ACTIVE' as const, gracePeriodEndsAt: null, scopeName: 'Kioscify Platform' };
   }
 
   // ─── Profile ──────────────────────────────────────────────────────────────

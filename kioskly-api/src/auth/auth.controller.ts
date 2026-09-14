@@ -25,6 +25,7 @@ import {
 } from './dto/login.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
+import { AllowInGracePeriod } from '../common/decorators/allow-in-grace-period.decorator';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
 
 // Configurable via env — defaults to 20 attempts per 15 min
@@ -118,6 +119,20 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Profile retrieved' })
   getProfile(@Request() req) {
     return this.authService.getProfile(req.user.id);
+  }
+
+  @Get('account-status')
+  @UseGuards(JwtAuthGuard)
+  @AllowInGracePeriod()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the account status (ACTIVE/GRACE_PERIOD/DEACTIVATED) of the caller\'s Company/Tenant' })
+  @ApiResponse({ status: 200, description: 'Account status retrieved' })
+  getAccountStatus(@Request() req) {
+    const user = req.user as AuthenticatedUser;
+    return this.authService.getAccountStatus({
+      tenantId: user.tenantId,
+      companyId: user.companyId,
+    });
   }
 
   @Post('logout')

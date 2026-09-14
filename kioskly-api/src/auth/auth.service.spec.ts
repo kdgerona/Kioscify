@@ -15,7 +15,7 @@ const mockPrisma = {
   tenant: { findFirst: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
   user: { findFirst: jest.fn(), findUnique: jest.fn() },
   userStoreAccess: { findFirst: jest.fn() },
-  company: { findFirst: jest.fn() },
+  company: { findFirst: jest.fn(), findUnique: jest.fn() },
 };
 const mockJwt = {
   sign: jest.fn().mockReturnValue('mock-token'),
@@ -28,8 +28,11 @@ const mockSessionsService = { recordSession: jest.fn(), endSession: jest.fn() };
 const mockStore = {
   id: 'store-1',
   slug: 'store-1',
+  name: 'Store One',
   brandId: 'brand-1',
   companyId: 'company-1',
+  isActive: true,
+  gracePeriodEndsAt: null,
 };
 const mockUser = {
   id: 'user-1',
@@ -141,7 +144,13 @@ describe('AuthService — logging', () => {
   });
 
   describe('loginCompany', () => {
-    const mockCompany = { id: 'company-1', slug: 'acme' };
+    const mockCompany = {
+      id: 'company-1',
+      slug: 'acme',
+      name: 'Acme Co',
+      isActive: true,
+      gracePeriodEndsAt: null,
+    };
     const mockCompanyUser = {
       id: 'user-2',
       username: 'admin',
@@ -233,6 +242,107 @@ describe('AuthService — logging', () => {
         expect.objectContaining({ username: 'kevin', role: 'PLATFORM_ADMIN' }),
         expect.any(String),
       );
+    });
+  });
+
+  describe('loginStore — deactivation grace period', () => {
+    const graceStore = {
+      ...mockStore,
+      name: 'Grace Store',
+      isActive: false,
+      gracePeriodEndsAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days out
+    };
+    const deactivatedStore = {
+      ...mockStore,
+      name: 'Dead Store',
+      isActive: false,
+      gracePeriodEndsAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // expired yesterday
+    };
+
+    it('succeeds and returns GRACE_PERIOD status when the store is mid-grace-period', async () => {
+      mockPrisma.tenant.findMany.mockResolvedValue([graceStore]);
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+      bcryptCompare.mockResolvedValue(true);
+      mockPrisma.userStoreAccess.findFirst.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue(mockUserWithRelations);
+
+      const result = await service.loginStore({
+        storeSlug: 'store-1',
+        username: 'john',
+        password: 'correct',
+      });
+
+      expect(result.accessToken).toBe('mock-token');
+      expect(result.status).toBe('GRACE_PERIOD');
+      expect(result.gracePeriodEndsAt).toBe(graceStore.gracePeriodEndsAt);
+      expect(result.scopeName).toBe('Grace Store');
+    });
+
+    it('rejects with the same "Invalid credentials" message once the grace period has expired (DEACTIVATED)', async () => {
+      mockPrisma.tenant.findMany.mockResolvedValue([deactivatedStore]);
+
+      await expect(
+        service.loginStore({ storeSlug: 'store-1', username: 'john', password: 'x' }),
+      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+
+      // Password/user lookup must not even be attempted once DEACTIVATED is known.
+      expect(mockPrisma.user.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('loginCompany — deactivation grace period', () => {
+    const graceCompany = {
+      id: 'company-1',
+      slug: 'acme',
+      name: 'Grace Co',
+      isActive: false,
+      gracePeriodEndsAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+    };
+    const deactivatedCompany = {
+      id: 'company-1',
+      slug: 'acme',
+      name: 'Dead Co',
+      isActive: false,
+      gracePeriodEndsAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    };
+    const mockCompanyUser = {
+      id: 'user-2',
+      username: 'admin',
+      password: '$hashed$',
+      role: 'COMPANY_ADMIN',
+      companyId: 'company-1',
+      isActive: true,
+      isFirstLogin: false,
+      firstName: 'A',
+      lastName: 'B',
+      email: 'a@b.com',
+    };
+
+    it('succeeds and returns GRACE_PERIOD status when the company is mid-grace-period', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(graceCompany);
+      mockPrisma.user.findFirst.mockResolvedValue(mockCompanyUser);
+      bcryptCompare.mockResolvedValue(true);
+
+      const result = await service.loginCompany({
+        companySlug: 'acme',
+        username: 'admin',
+        password: 'correct',
+      });
+
+      expect(result.accessToken).toBe('mock-token');
+      expect(result.status).toBe('GRACE_PERIOD');
+      expect(result.gracePeriodEndsAt).toBe(graceCompany.gracePeriodEndsAt);
+      expect(result.scopeName).toBe('Grace Co');
+    });
+
+    it('rejects with the same "Invalid credentials" message once the grace period has expired (DEACTIVATED)', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(deactivatedCompany);
+
+      await expect(
+        service.loginCompany({ companySlug: 'acme', username: 'admin', password: 'x' }),
+      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+
+      expect(mockPrisma.user.findFirst).not.toHaveBeenCalled();
     });
   });
 

@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TokenBlacklistService } from '../token-blacklist.service';
 import { auth } from '../../constants/env.constants';
+import { AccountStatus, computeAccountStatus } from '../../common/utils/account-status.util';
 
 export interface JwtPayload {
   sub: string;
@@ -33,6 +34,13 @@ export interface AuthenticatedUser {
   mustChangePassword: boolean;
   jti?: string;
   exp?: number;
+  // Computed fresh on every request from the referenced Company/Tenant's
+  // current isActive/gracePeriodEndsAt — never taken from the JWT itself,
+  // so a mid-session deactivation or expiring grace period is enforced on
+  // the very next request without needing to invalidate the token.
+  // Undefined for PLATFORM_ADMIN (tied to neither) — AccountStatusGuard
+  // treats a missing accountStatus the same as ACTIVE.
+  accountStatus?: AccountStatus;
 }
 
 @Injectable()
@@ -95,6 +103,29 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // When the JWT's tenantId is accepted, also honour its brandId/companyId
     // since they are stamped together by the server in loginStore/switchStore.
     const usingJwtStore = effectiveTenantId === jwtTenantId;
+    const effectiveCompanyId =
+      usingJwtStore && payload.companyId ? payload.companyId : user.companyId;
+
+    // Fetch the Company/Tenant this user is scoped to and compute its
+    // current account status. Tenant takes priority over Company since
+    // STORE_ADMIN/CASHIER carry both — the Tenant's own status (which
+    // already reflects any company-level cascade, see companies.service.ts
+    // deactivate()) is the one that matters for them. PLATFORM_ADMIN has
+    // neither, so accountStatus is left undefined (treated as exempt).
+    let accountStatus: AccountStatus | undefined;
+    if (effectiveTenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: effectiveTenantId },
+        select: { isActive: true, gracePeriodEndsAt: true },
+      });
+      if (tenant) accountStatus = computeAccountStatus(tenant);
+    } else if (effectiveCompanyId) {
+      const company = await this.prisma.company.findUnique({
+        where: { id: effectiveCompanyId },
+        select: { isActive: true, gracePeriodEndsAt: true },
+      });
+      if (company) accountStatus = computeAccountStatus(company);
+    }
 
     return {
       id: user.id,
@@ -105,11 +136,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role: user.role,
       tenantId: effectiveTenantId,
       brandId: usingJwtStore && payload.brandId ? payload.brandId : user.brandId,
-      companyId: usingJwtStore && payload.companyId ? payload.companyId : user.companyId,
+      companyId: effectiveCompanyId,
       isFirstLogin: user.isFirstLogin,
       mustChangePassword: user.isFirstLogin,
       jti: payload.jti,
       exp: payload.exp,
+      accountStatus,
     };
   }
 }

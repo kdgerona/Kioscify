@@ -29,6 +29,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : (rawResponse as { message?: string | string[] }).message ?? exception.message
       : 'Internal server error';
 
+    // Optional machine-readable code (e.g. ACCOUNT_GRACE_PERIOD) carried on
+    // the exception's response body — passed through unchanged so callers
+    // can branch on it without parsing `message`.
+    const code =
+      isHttp && rawResponse !== null && typeof rawResponse === 'object'
+        ? (rawResponse as { code?: string }).code
+        : undefined;
+
     const logMeta = { statusCode, path: request.url };
     const logMessage = typeof message === 'string' ? message : JSON.stringify(message);
 
@@ -44,6 +52,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     response.status(statusCode).json({
       statusCode,
       message,
+      ...(code ? { code } : {}),
       timestamp: new Date().toISOString(),
       path: request.url,
     });

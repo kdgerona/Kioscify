@@ -7,6 +7,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import KeyvRedis from '@keyv/redis';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { AccountStatusGuard } from './common/guards/account-status.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -124,10 +125,15 @@ import { InventorySetupsModule } from './inventory-setups/inventory-setups.modul
   controllers: [AppController],
   providers: [
     AppService,
-    // Global guard order: throttle → JWT auth → roles
+    // Global guard order: throttle → JWT auth → roles → account status.
+    // AccountStatusGuard runs last so it sees the fully-resolved req.user
+    // (role, accountStatus) that JwtAuthGuard's strategy attaches — it
+    // enforces the Company/Tenant deactivation grace period on every
+    // authenticated request without needing per-controller wiring.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: AccountStatusGuard },
   ],
 })
 export class AppModule {}
