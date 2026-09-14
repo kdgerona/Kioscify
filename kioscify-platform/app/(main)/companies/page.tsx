@@ -8,6 +8,16 @@ import { getErrorMessage } from '@/lib/utils';
 import type { Company } from '@/types';
 import { Plus, ArrowRight, Building2, X } from 'lucide-react';
 
+function formatGracePeriod(gracePeriodEndsAt: string | null | undefined): string | undefined {
+  if (!gracePeriodEndsAt) return undefined;
+  const endsAt = new Date(gracePeriodEndsAt).getTime();
+  if (Number.isNaN(endsAt)) return undefined;
+  const msRemaining = endsAt - Date.now();
+  if (msRemaining <= 0) return 'Grace period ended';
+  const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+  return `Grace period ends in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`;
+}
+
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -220,6 +230,7 @@ export default function CompaniesPage() {
                           ? 'bg-green-50 text-green-700'
                           : 'bg-gray-100 text-gray-500'
                       }`}
+                      title={!company.isActive ? formatGracePeriod(company.gracePeriodEndsAt) : undefined}
                     >
                       {company.isActive ? 'Active' : 'Inactive'}
                     </span>

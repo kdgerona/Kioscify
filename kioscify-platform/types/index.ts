@@ -35,6 +35,8 @@ export interface Company {
   canCreateBrands: boolean;
   canOnboardStores: boolean;
   isActive: boolean;
+  deactivatedAt?: string | null;
+  gracePeriodEndsAt?: string | null;
   brandCount?: number;
   storeCount?: number;
   createdAt: string;
@@ -78,6 +80,8 @@ export interface Store {
   brandId: string;
   companyId: string;
   isActive: boolean;
+  deactivatedAt?: string | null;
+  gracePeriodEndsAt?: string | null;
   enabledDeliveryPlatforms?: string[];
   priceTier?: PriceTier;
   menu?: { id: string; name: string } | null;

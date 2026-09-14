@@ -254,11 +254,20 @@ class ApiClient {
       description: string;
       canCreateBrands: boolean;
       canOnboardStores: boolean;
-      isActive: boolean;
       themeColors: ThemeColors;
     }>
   ): Promise<Company> {
     const { data } = await this.client.patch<Company>(`/companies/${id}`, payload);
+    return data;
+  }
+
+  async deactivateCompany(id: string): Promise<Company> {
+    const { data } = await this.client.post<Company>(`/companies/${id}/deactivate`);
+    return data;
+  }
+
+  async reactivateCompany(id: string): Promise<Company> {
+    const { data } = await this.client.post<Company>(`/companies/${id}/reactivate`);
     return data;
   }
 
@@ -600,9 +609,19 @@ class ApiClient {
 
   async updateStore(
     id: string,
-    payload: Partial<{ name: string; isActive: boolean; enabledDeliveryPlatforms: string[]; priceTierId: string | null; menuId: string | null; inventorySetupId: string | null }>
+    payload: Partial<{ name: string; enabledDeliveryPlatforms: string[]; priceTierId: string | null; menuId: string | null; inventorySetupId: string | null }>
   ): Promise<Store> {
     const { data } = await this.client.patch<Store>(`/stores/${id}`, payload);
+    return data;
+  }
+
+  async deactivateStore(id: string): Promise<Store> {
+    const { data } = await this.client.post<Store>(`/stores/${id}/deactivate`);
+    return data;
+  }
+
+  async reactivateStore(id: string): Promise<Store> {
+    const { data } = await this.client.post<Store>(`/stores/${id}/reactivate`);
     return data;
   }
 

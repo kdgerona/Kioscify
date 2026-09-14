@@ -146,6 +146,18 @@ function AdminFields({
   );
 }
 
+// ─── Grace period helper ───────────────────────────────────────────────────
+
+function formatGracePeriod(gracePeriodEndsAt: string | null | undefined): string | null {
+  if (!gracePeriodEndsAt) return null;
+  const endsAt = new Date(gracePeriodEndsAt).getTime();
+  if (Number.isNaN(endsAt)) return null;
+  const msRemaining = endsAt - Date.now();
+  if (msRemaining <= 0) return 'Grace period ended';
+  const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+  return `Grace period ends in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`;
+}
+
 // ─── Clipboard helper ─────────────────────────────────────────────────────
 
 const copyToClipboard = async (text: string, successMessage = 'Password copied to clipboard!') => {
@@ -244,9 +256,9 @@ export default function CompanyDetailPage() {
   const [canOnboardStores, setCanOnboardStores] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
-  const [isActive, setIsActive] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [companyStatusSaving, setCompanyStatusSaving] = useState(false);
 
   // Logo upload
   const [logoUploading, setLogoUploading] = useState(false);
@@ -328,7 +340,6 @@ export default function CompanyDetailPage() {
       setCanOnboardStores(companyData.canOnboardStores);
       setCompanyName(companyData.name);
       setContactEmail(companyData.contactEmail || '');
-      setIsActive(companyData.isActive);
       const tc = companyData.themeColors || {};
       setCompanyTheme(tc);
       setCompanyThemeHex({ ...tc });
@@ -369,7 +380,6 @@ export default function CompanyDetailPage() {
         contactEmail,
         canCreateBrands,
         canOnboardStores,
-        isActive,
       });
       setCompany(updated);
       setSettingsSuccess(true);
@@ -379,6 +389,33 @@ export default function CompanyDetailPage() {
       toast.error(getErrorMessage(err, 'Failed to save company settings'));
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleToggleCompanyActive = async () => {
+    if (!company) return;
+    if (company.isActive) {
+      if (
+        !window.confirm(
+          `Deactivate ${company.name}? This will also deactivate all of its currently-active stores.`
+        )
+      ) {
+        return;
+      }
+    }
+    setCompanyStatusSaving(true);
+    try {
+      const updated = company.isActive
+        ? await api.deactivateCompany(companyId)
+        : await api.reactivateCompany(companyId);
+      toast.success(updated.isActive ? 'Company reactivated' : 'Company deactivated');
+      // Deactivating/reactivating a company cascades to its stores, so refetch
+      // both rather than just patching local company state.
+      await loadData();
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update company status'));
+    } finally {
+      setCompanyStatusSaving(false);
     }
   };
 
@@ -644,7 +681,9 @@ export default function CompanyDetailPage() {
 
   const handleToggleStoreActive = async (store: Store) => {
     try {
-      const updated = await api.updateStore(store.id, { isActive: !store.isActive });
+      const updated = store.isActive
+        ? await api.deactivateStore(store.id)
+        : await api.reactivateStore(store.id);
       setStores(prev => prev.map(s => s.id === store.id ? updated : s));
       toast.success('Store status updated');
     } catch (err) {
@@ -735,34 +774,60 @@ export default function CompanyDetailPage() {
   return (
     <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/companies" className="text-gray-400 hover:text-gray-600">
-          <ChevronLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{company.name}</h1>
-          <div className="flex items-center gap-1.5">
-            <p className="text-sm text-gray-500">{company.slug}.kioscify.com</p>
-            <button
-              onClick={async () => {
-                await navigator.clipboard.writeText(`https://${company.slug}.kioscify.com`).catch(() => {
-                  const el = document.createElement('textarea');
-                  el.value = `https://${company.slug}.kioscify.com`;
-                  el.setAttribute('readonly', '');
-                  el.style.cssText = 'position:absolute;left:-9999px';
-                  document.body.appendChild(el);
-                  el.select();
-                  document.execCommand('copy');
-                  document.body.removeChild(el);
-                });
-                toast.success('Company URL copied!');
-              }}
-              title="Copy company URL"
-              className="text-gray-400 hover:text-indigo-600 transition-colors"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Link href="/companies" className="text-gray-400 hover:text-gray-600">
+            <ChevronLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{company.name}</h1>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm text-gray-500">{company.slug}.kioscify.com</p>
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(`https://${company.slug}.kioscify.com`).catch(() => {
+                    const el = document.createElement('textarea');
+                    el.value = `https://${company.slug}.kioscify.com`;
+                    el.setAttribute('readonly', '');
+                    el.style.cssText = 'position:absolute;left:-9999px';
+                    document.body.appendChild(el);
+                    el.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(el);
+                  });
+                  toast.success('Company URL copied!');
+                }}
+                title="Copy company URL"
+                className="text-gray-400 hover:text-indigo-600 transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col items-end gap-0.5">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              company.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+            }`}>
+              {company.isActive ? 'Active' : 'Inactive'}
+            </span>
+            {!company.isActive && formatGracePeriod(company.gracePeriodEndsAt) && (
+              <span className="text-[11px] text-gray-400">{formatGracePeriod(company.gracePeriodEndsAt)}</span>
+            )}
+          </div>
+          <button
+            onClick={handleToggleCompanyActive}
+            disabled={companyStatusSaving}
+            className={`flex items-center gap-1.5 text-sm font-medium border rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50 ${
+              company.isActive
+                ? 'text-red-600 border-red-200 hover:bg-red-50'
+                : 'text-green-700 border-green-200 hover:bg-green-50'
+            }`}
+          >
+            {company.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+            {companyStatusSaving ? 'Saving...' : company.isActive ? 'Deactivate Company' : 'Reactivate Company'}
+          </button>
         </div>
       </div>
 
@@ -888,12 +953,6 @@ export default function CompanyDetailPage() {
                   description="Company can onboard new store locations"
                   enabled={canOnboardStores}
                   onToggle={() => setCanOnboardStores(v => !v)}
-                />
-                <ToggleRow
-                  label="Active"
-                  description="Company is active and accessible on the platform"
-                  enabled={isActive}
-                  onToggle={() => setIsActive(v => !v)}
                 />
               </div>
 
@@ -1144,9 +1203,12 @@ export default function CompanyDetailPage() {
                               >
                                 <Copy className="w-4 h-4" />
                               </button>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                                store.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
-                              }`}>
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  store.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                                }`}
+                                title={!store.isActive ? (formatGracePeriod(store.gracePeriodEndsAt) ?? undefined) : undefined}
+                              >
                                 {store.isActive ? 'Active' : 'Inactive'}
                               </span>
                               <button
