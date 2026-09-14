@@ -21,6 +21,8 @@ export interface User {
   mustChangePassword?: boolean;
 }
 
+export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED";
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -28,11 +30,15 @@ interface AuthContextType {
   error: string | null;
   initializing: boolean;
   mustChangePassword: boolean;
+  accountStatus: AccountStatus | null;
+  gracePeriodEndsAt: string | null;
+  scopeName: string | null;
   login: (username: string, password: string, storeSlug: string) => Promise<{ mustChangePassword: boolean; stores: any[] }>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
   clearError: () => void;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  getAccountStatus: (authToken?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,6 +52,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
   const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
+  const [gracePeriodEndsAt, setGracePeriodEndsAt] = useState<string | null>(null);
+  const [scopeName, setScopeName] = useState<string | null>(null);
+
+  // Fetches the caller's current account status from the server. Reads the
+  // token from AsyncStorage when not passed explicitly, so it can be called
+  // right after loadStoredAuth() restores a token without depending on React
+  // state having flushed yet. A DEACTIVATED account gets a 401 here too (see
+  // AccountStatusGuard on the API) — that's fine, we simply leave state as-is
+  // and rely on the existing apiRequest() 401 -> forced-logout path (wired in
+  // the effect below) to catch it on the next authenticated API call.
+  const getAccountStatus = useCallback(async (authToken?: string) => {
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+      const useToken = authToken ?? (await AsyncStorage.getItem(TOKEN_KEY));
+      if (!apiUrl || !useToken) return;
+
+      const response = await fetch(`${apiUrl}/auth/account-status`, {
+        headers: { Authorization: `Bearer ${useToken}` },
+      });
+      if (!response.ok) return;
+
+      const data = await response.json();
+      setAccountStatus(data.status ?? null);
+      setGracePeriodEndsAt(data.gracePeriodEndsAt ?? null);
+      setScopeName(data.scopeName ?? null);
+    } catch {
+      // no-op — network failure; leave existing state as-is
+    }
+  }, []);
 
   const login = useCallback(
     async (username: string, password: string, storeSlug: string) => {
@@ -124,6 +160,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setToken(data.accessToken);
         setUser(data.user);
         setMustChangePassword(!!data.mustChangePassword);
+
+        // Login response already carries the account status inline — no
+        // extra round trip needed for the post-login case.
+        setAccountStatus(data.status ?? null);
+        setGracePeriodEndsAt(data.gracePeriodEndsAt ?? null);
+        setScopeName(data.scopeName ?? null);
+
         return { mustChangePassword: !!data.mustChangePassword, stores: data.stores ?? [] };
       } catch (err) {
         const errorMessage =
@@ -156,6 +199,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(null);
       setToken(null);
       setError(null);
+      setAccountStatus(null);
+      setGracePeriodEndsAt(null);
+      setScopeName(null);
       await AsyncStorage.removeItem(TOKEN_KEY);
       await AsyncStorage.removeItem(USER_KEY);
     }
@@ -169,6 +215,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        // Offline-first restore above doesn't carry a fresh account status,
+        // so fetch it once here (a real network call, not from cache).
+        await getAccountStatus(storedToken);
       }
     } catch (err) {
       console.error("Failed to load stored auth:", err);
@@ -177,7 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setInitializing(false);
     }
-  }, [logout]);
+  }, [logout, getAccountStatus]);
 
   // Auto-load stored auth on mount
   React.useEffect(() => {
@@ -227,11 +276,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         error,
         initializing,
         mustChangePassword,
+        accountStatus,
+        gracePeriodEndsAt,
+        scopeName,
         login,
         logout,
         loadStoredAuth,
         clearError,
         changePassword,
+        getAccountStatus,
       }}
     >
       {children}

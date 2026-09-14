@@ -1,9 +1,9 @@
 import "../ReactotronConfig";
 import React, { useEffect, useState } from "react";
 import { View } from "react-native";
-import { Stack } from "expo-router";
+import { Stack, usePathname, useRouter, Href } from "expo-router";
 import { TenantProvider } from "../contexts/TenantContext";
-import { AuthProvider } from "../contexts/AuthContext";
+import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { SyncProvider } from "../contexts/SyncContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { initDb } from "../lib/db";
@@ -16,6 +16,30 @@ import Toast from "react-native-toast-message";
 
 // Inner component — must live inside SyncProvider to call useSync() via OfflineBanner.
 function AppNavigator() {
+  const { accountStatus } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Post-auth account-status gate — redirects to the blocked screen whenever
+  // the logged-in user's account isn't ACTIVE, and back to /home once it is
+  // again (e.g. after reactivation). Uses setTimeout(..., 0) to ensure the
+  // router is mounted, mirroring the existing auth-redirect pattern in
+  // app/home.tsx.
+  useEffect(() => {
+    if (accountStatus && accountStatus !== "ACTIVE" && pathname !== "/account-status") {
+      const timer = setTimeout(() => {
+        router.replace("/account-status" as Href);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+    if (accountStatus === "ACTIVE" && pathname === "/account-status") {
+      const timer = setTimeout(() => {
+        router.replace("/home" as Href);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [accountStatus, pathname, router]);
+
   return (
     <View style={{ flex: 1 }}>
       <OfflineBanner />
