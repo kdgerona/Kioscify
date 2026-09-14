@@ -62,6 +62,14 @@ export async function middleware(request: NextRequest) {
     });
     const data = await res.json();
 
+    // Fully deactivated (past its grace period) — show the static
+    // account-deactivated page instead of routing to /login. GRACE_PERIOD
+    // does not hit this branch — it falls through to the existing
+    // !isActive handling below, unchanged from today's behavior.
+    if (data.accountStatus === 'DEACTIVATED' && pathname !== '/account-deactivated') {
+      return NextResponse.rewrite(new URL('/account-deactivated', request.url));
+    }
+
     if (!data.valid || !data.isActive) {
       // Unknown or inactive company — redirect to the generic portal.
       // Clone the incoming URL so the redirect inherits the correct protocol and port.

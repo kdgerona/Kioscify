@@ -111,4 +111,73 @@ describe('CompaniesService', () => {
       });
     });
   });
+
+  describe('validateSubdomain()', () => {
+    it('returns valid:false and accountStatus DEACTIVATED when no company matches the slug', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+
+      const result = await service.validateSubdomain('missing-slug');
+
+      expect(result).toEqual({
+        valid: false,
+        companyId: null,
+        isActive: false,
+        name: null,
+        logoUrl: null,
+        themeColors: null,
+        accountStatus: 'DEACTIVATED',
+      });
+    });
+
+    it('returns accountStatus ACTIVE for an active company, keeping isActive for backward compat', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        slug: 'acme',
+        name: 'Acme Corp',
+        logoUrl: 'acme.png',
+        isActive: true,
+        themeColors: { primary: '#000' },
+        gracePeriodEndsAt: null,
+      });
+
+      const result = await service.validateSubdomain('acme');
+
+      expect(result.isActive).toBe(true);
+      expect(result.accountStatus).toBe('ACTIVE');
+    });
+
+    it('returns accountStatus GRACE_PERIOD for an inactive company whose grace period has not expired', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        slug: 'acme',
+        name: 'Acme Corp',
+        logoUrl: null,
+        isActive: false,
+        themeColors: null,
+        gracePeriodEndsAt: new Date('2026-07-10T12:00:00.000Z'), // after the frozen system time
+      });
+
+      const result = await service.validateSubdomain('acme');
+
+      expect(result.isActive).toBe(false);
+      expect(result.accountStatus).toBe('GRACE_PERIOD');
+    });
+
+    it('returns accountStatus DEACTIVATED for an inactive company whose grace period has expired', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        slug: 'acme',
+        name: 'Acme Corp',
+        logoUrl: null,
+        isActive: false,
+        themeColors: null,
+        gracePeriodEndsAt: new Date('2026-06-01T12:00:00.000Z'), // before the frozen system time
+      });
+
+      const result = await service.validateSubdomain('acme');
+
+      expect(result.isActive).toBe(false);
+      expect(result.accountStatus).toBe('DEACTIVATED');
+    });
+  });
 });

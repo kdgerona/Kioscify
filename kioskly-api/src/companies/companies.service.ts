@@ -13,7 +13,7 @@ import {
   UpdateCompanyDto,
   OnboardAdminDto,
 } from './dto/company.dto';
-import { GRACE_PERIOD_DAYS } from '../common/utils/account-status.util';
+import { GRACE_PERIOD_DAYS, computeAccountStatus } from '../common/utils/account-status.util';
 import * as bcrypt from 'bcrypt';
 import { extname } from 'path';
 
@@ -28,7 +28,15 @@ export class CompaniesService {
   async validateSubdomain(slug: string) {
     const company = await this.prisma.company.findFirst({
       where: { slug, tombstone: { not: 1 } },
-      select: { id: true, slug: true, name: true, logoUrl: true, isActive: true, themeColors: true },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        logoUrl: true,
+        isActive: true,
+        themeColors: true,
+        gracePeriodEndsAt: true,
+      },
     });
     return {
       valid: !!company,
@@ -37,6 +45,9 @@ export class CompaniesService {
       name: company?.name ?? null,
       logoUrl: company?.logoUrl ?? null,
       themeColors: company?.themeColors ?? null,
+      accountStatus: computeAccountStatus(
+        company ?? { isActive: false, gracePeriodEndsAt: null },
+      ),
     };
   }
 

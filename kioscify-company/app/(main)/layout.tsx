@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { resolveLogoUrl } from '@/lib/utils';
 import { hasPrivilege } from '@/lib/privileges';
 import { CompanyProvider, useCompany } from '@/contexts/CompanyContext';
+import type { AccountStatus } from '@/types';
 import {
   LayoutDashboard,
   BookOpen,
@@ -35,6 +36,9 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string | null>(null);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
+
+  const isAccountStatusRoute = pathname === '/account-status';
 
   const primaryColor = company?.themeColors?.primary ?? '#ea580c';
 
@@ -70,7 +74,34 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
 
     setCompanyName(user.companyName || 'Company Portal');
     setLoading(false);
+
+    // Post-login / session-restore account-status check — this must run
+    // regardless of which route under (main)/ the user landed on, since the
+    // gating effect below only acts once `accountStatus` is known.
+    api
+      .getAccountStatus()
+      .then(res => setAccountStatus(res.status))
+      .catch(() => {
+        // A 401 (DEACTIVATED account) is already handled by the axios
+        // interceptor's existing force-logout behavior; anything else fails
+        // open so a transient error doesn't lock users out.
+      });
   }, [router]);
+
+  // Gate every route under (main)/ behind an ACTIVE account status. Runs on
+  // every navigation (not just mount) because this layout persists across
+  // client-side route changes — a sibling route becoming the active
+  // `children` re-renders this component via `usePathname()` changing, which
+  // is what re-triggers this check.
+  useEffect(() => {
+    if (accountStatus && accountStatus !== 'ACTIVE' && !isAccountStatusRoute) {
+      router.replace('/account-status');
+    } else if (accountStatus === 'ACTIVE' && isAccountStatusRoute) {
+      // Account was reactivated (or this was reached directly) — no reason
+      // to keep the user parked on the status page.
+      router.replace('/dashboard');
+    }
+  }, [accountStatus, isAccountStatusRoute, pathname, router]);
 
   useEffect(() => {
     if (company) {
@@ -98,6 +129,13 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  // The account-status page renders full-bleed, without the sidebar-bearing
+  // app shell — it's reachable precisely when no other (main)/ route is,
+  // so it shouldn't offer navigation back into the gated app via the sidebar.
+  if (isAccountStatusRoute) {
+    return <>{children}</>;
   }
 
   return (

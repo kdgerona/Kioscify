@@ -234,9 +234,20 @@ export interface InventoryItem {
   updatedAt: string;
 }
 
+export type AccountStatus = 'ACTIVE' | 'GRACE_PERIOD' | 'DEACTIVATED';
+
+export interface AccountStatusResponse {
+  status: AccountStatus;
+  gracePeriodEndsAt: string | null;
+  scopeName: string | null;
+}
+
 export interface AuthResponse {
   accessToken: string;
   mustChangePassword?: boolean;
+  status?: AccountStatus;
+  gracePeriodEndsAt?: string | null;
+  scopeName?: string | null;
   user: User;
 }
 
