@@ -111,6 +111,24 @@ export class CompaniesController {
     return this.companiesService.remove(id);
   }
 
+  @Post(':id/deactivate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PLATFORM_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Deactivate a company and cascade to its active stores (PLATFORM_ADMIN)' })
+  deactivate(@Param('id') id: string) {
+    return this.companiesService.deactivate(id);
+  }
+
+  @Post(':id/reactivate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PLATFORM_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reactivate a company and clear grace period on its cascaded stores (PLATFORM_ADMIN)' })
+  reactivate(@Param('id') id: string) {
+    return this.companiesService.reactivate(id);
+  }
+
   @Post(':id/onboard-admin')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PLATFORM_ADMIN')

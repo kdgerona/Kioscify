@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsEmail, Matches, ValidateNested, IsArray, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEmail, Matches, ValidateNested, IsArray, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DeliveryPlatform } from '@prisma/client';
 
@@ -37,7 +37,9 @@ export class CreateStoreDto {
 }
 
 export class UpdateStoreDto extends PartialType(CreateStoreDto) {
-  @ApiPropertyOptional() @IsBoolean() @IsOptional() isActive?: boolean;
+  // isActive is intentionally NOT here — it must go through the dedicated
+  // deactivate/reactivate endpoints so grace-period bookkeeping
+  // (deactivatedAt/gracePeriodEndsAt/deactivationCascaded) can't be bypassed.
 
   @ApiPropertyOptional({ enum: DeliveryPlatform, isArray: true, example: ['FOODPANDA', 'GRAB'] })
   @IsArray()

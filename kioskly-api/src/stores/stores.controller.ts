@@ -118,6 +118,22 @@ export class StoresController {
     return this.storesService.remove(id);
   }
 
+  @Post(':id/deactivate')
+  @UseGuards(RolesGuard)
+  @Roles('PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Deactivate a store directly (PLATFORM_ADMIN only)' })
+  deactivate(@Param('id') id: string) {
+    return this.storesService.deactivate(id);
+  }
+
+  @Post(':id/reactivate')
+  @UseGuards(RolesGuard)
+  @Roles('PLATFORM_ADMIN')
+  @ApiOperation({ summary: 'Reactivate a store directly, regardless of parent company state (PLATFORM_ADMIN only)' })
+  reactivate(@Param('id') id: string) {
+    return this.storesService.reactivate(id);
+  }
+
   @Post(':id/onboard-admin')
   @UseGuards(RolesGuard)
   @Roles('PLATFORM_ADMIN', 'COMPANY_ADMIN')

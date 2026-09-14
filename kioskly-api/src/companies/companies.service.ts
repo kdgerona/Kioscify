@@ -13,6 +13,7 @@ import {
   UpdateCompanyDto,
   OnboardAdminDto,
 } from './dto/company.dto';
+import { GRACE_PERIOD_DAYS } from '../common/utils/account-status.util';
 import * as bcrypt from 'bcrypt';
 import { extname } from 'path';
 
@@ -117,6 +118,53 @@ export class CompaniesService {
       throw new BadRequestException('Disable the company before deleting it');
     }
     return this.prisma.company.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  async deactivate(id: string) {
+    await this.assertExists(id);
+    const now = new Date();
+    const gracePeriodEndsAt = new Date(now.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+
+    const company = await this.prisma.company.update({
+      where: { id },
+      data: { isActive: false, deactivatedAt: now, gracePeriodEndsAt },
+    });
+
+    // Cascade the same stamp to every currently-active child Tenant, tagging
+    // it as cascaded so a later company reactivate() knows it's safe to
+    // clear. Tenants already inactive are left untouched — their own
+    // deactivatedAt/gracePeriodEndsAt/deactivationCascaded must survive
+    // whatever independent deactivation put them there.
+    await this.prisma.tenant.updateMany({
+      where: { companyId: id, isActive: true, tombstone: { not: 1 } },
+      data: { isActive: false, deactivatedAt: now, gracePeriodEndsAt, deactivationCascaded: true },
+    });
+
+    return company;
+  }
+
+  async reactivate(id: string) {
+    await this.assertExists(id);
+
+    const company = await this.prisma.company.update({
+      where: { id },
+      data: { isActive: true, deactivatedAt: null, gracePeriodEndsAt: null },
+    });
+
+    // Only clear Tenants this company's own deactivate() cascaded to — a
+    // Tenant deactivated independently (deactivationCascaded=false) must not
+    // be silently reactivated by a Company-level reactivate.
+    await this.prisma.tenant.updateMany({
+      where: { companyId: id, deactivationCascaded: true, tombstone: { not: 1 } },
+      data: {
+        isActive: true,
+        deactivatedAt: null,
+        gracePeriodEndsAt: null,
+        deactivationCascaded: false,
+      },
+    });
+
+    return company;
   }
 
   private async assertNoActiveDependents(companyId: string) {

@@ -37,10 +37,9 @@ export class CreateCompanyDto {
 }
 
 export class UpdateCompanyDto extends PartialType(CreateCompanyDto) {
-  @ApiPropertyOptional()
-  @IsBoolean()
-  @IsOptional()
-  isActive?: boolean;
+  // isActive is intentionally NOT here — it must go through the dedicated
+  // deactivate/reactivate endpoints so grace-period bookkeeping
+  // (deactivatedAt/gracePeriodEndsAt + Tenant cascade) can't be bypassed.
 
   @ApiPropertyOptional({ default: false, description: 'Allow company to create their own brands' })
   @IsBoolean()

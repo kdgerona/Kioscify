@@ -11,6 +11,7 @@ import { StorageService } from '../storage/storage.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
 import { OnboardAdminDto } from '../companies/dto/company.dto';
+import { GRACE_PERIOD_DAYS } from '../common/utils/account-status.util';
 import { app as appConstants } from '../constants/env.constants';
 import { Tenant, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -178,6 +179,39 @@ export class StoresService {
       throw new BadRequestException('Disable the store before deleting it');
     }
     return this.prisma.tenant.update({ where: { id }, data: { tombstone: 1 } });
+  }
+
+  async deactivate(id: string) {
+    await this.findOne(id);
+    const now = new Date();
+    const gracePeriodEndsAt = new Date(now.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+
+    const updated = await this.prisma.tenant.update({
+      where: { id },
+      // A direct store-level action always supersedes cascade provenance —
+      // even if this store was previously cascade-deactivated by its
+      // company, deactivating it directly makes it independent going
+      // forward, so deactivationCascaded is force-reset to false.
+      data: { isActive: false, deactivatedAt: now, gracePeriodEndsAt, deactivationCascaded: false },
+    });
+    return this.formatLogoUrl(updated);
+  }
+
+  async reactivate(id: string) {
+    await this.findOne(id);
+
+    const updated = await this.prisma.tenant.update({
+      where: { id },
+      // Clears independently of parent Company state — reactivating a store
+      // directly never touches or depends on the Company's own status.
+      data: {
+        isActive: true,
+        deactivatedAt: null,
+        gracePeriodEndsAt: null,
+        deactivationCascaded: false,
+      },
+    });
+    return this.formatLogoUrl(updated);
   }
 
   private async assertNoActiveDependents(tenantId: string) {
