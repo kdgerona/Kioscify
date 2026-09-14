@@ -87,11 +87,13 @@ export class BrandsService {
     const brands = await this.prisma.brand.findMany({
       where: companyId ? { companyId, tombstone: { not: 1 } } : { tombstone: { not: 1 } },
       include: {
-        _count: { select: { stores: true, products: true, categories: true, inventoryItems: true } },
+        _count: { select: { stores: true } },
       },
       orderBy: { name: 'asc' },
     });
-    return brands.map(b => this.mapBrand(b));
+    return Promise.all(
+      brands.map(async (b) => this.mapBrand(b, await this.countCatalogStats(b.id))),
+    );
   }
 
   async findOne(id: string, companyId: string | undefined) {
@@ -104,20 +106,34 @@ export class BrandsService {
         company: {
           select: { slug: true, canOnboardStores: true },
         },
-        _count: { select: { stores: true, products: true, categories: true, inventoryItems: true } },
+        _count: { select: { stores: true } },
       },
     });
     if (!brand) throw new NotFoundException(`Brand ${id} not found`);
-    return this.mapBrand(brand);
+    return this.mapBrand(brand, await this.countCatalogStats(brand.id));
   }
 
-  private mapBrand<T extends { _count?: { stores?: number; products?: number; inventoryItems?: number } }>(brand: T) {
+  // Products/InventoryItems are no longer direct Brand relations (they live
+  // under a Brand's Menus/InventorySetups respectively), so Prisma's
+  // single-level `_count` can't aggregate them — counted separately here.
+  private async countCatalogStats(brandId: string) {
+    const [productCount, inventoryItemCount] = await Promise.all([
+      this.prisma.product.count({ where: { menu: { brandId }, tombstone: { not: 1 } } }),
+      this.prisma.inventoryItem.count({ where: { inventorySetup: { brandId }, tombstone: { not: 1 } } }),
+    ]);
+    return { productCount, inventoryItemCount };
+  }
+
+  private mapBrand<T extends { _count?: { stores?: number } }>(
+    brand: T,
+    catalogStats: { productCount: number; inventoryItemCount: number },
+  ) {
     const { _count, ...rest } = brand as any;
     return {
       ...rest,
       storeCount: _count?.stores ?? 0,
-      productCount: _count?.products ?? 0,
-      inventoryItemCount: _count?.inventoryItems ?? 0,
+      productCount: catalogStats.productCount,
+      inventoryItemCount: catalogStats.inventoryItemCount,
     };
   }
 

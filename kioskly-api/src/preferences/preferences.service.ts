@@ -26,11 +26,11 @@ export class PreferencesService {
       if (existing) throw new ConflictException('Preference with this ID already exists');
     }
 
-    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { brandId: true } });
+    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { id: true } });
     if (!menu) throw new BadRequestException(`Menu ${menuId} not found`);
 
     return this.prisma.preference.create({
-      data: { id, name, menuId, brandId: menu.brandId },
+      data: { id, name, menuId },
     });
   }
 

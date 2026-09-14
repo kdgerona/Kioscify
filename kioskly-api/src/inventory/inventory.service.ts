@@ -44,7 +44,7 @@ export class InventoryService {
   // ─── Admin/builder CRUD — items directly owned by an InventorySetup ───────
 
   async createSetupItem(dto: CreateInventoryItemDto, inventorySetupId: string) {
-    const setup = await this.prisma.inventorySetup.findUnique({ where: { id: inventorySetupId }, select: { brandId: true } });
+    const setup = await this.prisma.inventorySetup.findUnique({ where: { id: inventorySetupId }, select: { id: true } });
     if (!setup) throw new BadRequestException(`Inventory setup ${inventorySetupId} not found`);
     await this.assertCategoryBelongsToSetup(dto.categoryId, inventorySetupId);
 
@@ -58,7 +58,6 @@ export class InventoryService {
         requiresExpirationDate: dto.requiresExpirationDate ?? false,
         expirationWarningDays: dto.expirationWarningDays ?? 7,
         inventorySetupId,
-        brandId: setup.brandId,
       },
     });
   }
@@ -172,7 +171,6 @@ export class InventoryService {
 
     const item = await this.prisma.inventoryItem.create({
       data: {
-        brandId: tenant.brandId,
         inventorySetupId: tenant.inventorySetupId,
         name: dto.name,
         unit: dto.unit,
@@ -285,7 +283,11 @@ export class InventoryService {
     const itemIds = [...new Set(dto.records.map((r) => r.inventoryItemId))];
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { brandId: true } });
     const items = await this.prisma.inventoryItem.findMany({
-      where: { id: { in: itemIds }, brandId: tenant?.brandId ?? undefined, tombstone: { not: 1 } },
+      where: {
+        id: { in: itemIds },
+        inventorySetup: { brandId: tenant?.brandId ?? undefined },
+        tombstone: { not: 1 },
+      },
     });
     if (items.length !== itemIds.length) {
       throw new NotFoundException('One or more inventory items not found');
@@ -328,7 +330,11 @@ export class InventoryService {
   private async assertItemRecordable(inventoryItemId: string, tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { brandId: true } });
     const item = await this.prisma.inventoryItem.findFirst({
-      where: { id: inventoryItemId, brandId: tenant?.brandId ?? undefined, tombstone: { not: 1 } },
+      where: {
+        id: inventoryItemId,
+        inventorySetup: { brandId: tenant?.brandId ?? undefined },
+        tombstone: { not: 1 },
+      },
     });
     if (!item) throw new NotFoundException(`Inventory item ${inventoryItemId} not found`);
     return item;

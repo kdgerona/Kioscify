@@ -187,7 +187,6 @@ describe('InventorySetupsService', () => {
 
       expect(tx.inventoryItem.create).toHaveBeenCalledWith({
         data: {
-          brandId: 'brand-1',
           inventorySetupId: 'new-setup-id',
           name: 'Milk',
           unit: 'liters',

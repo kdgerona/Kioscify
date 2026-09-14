@@ -88,7 +88,7 @@ export class ProductsService {
     const { id, name, price, foodpandaPrice, grabPrice, categoryId, image, sizeIds, addonIds, preferenceIds, priceTiers } =
       createProductDto;
 
-    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { brandId: true } });
+    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { id: true } });
     if (!menu) throw new BadRequestException(`Menu ${menuId} not found`);
 
     await this.assertCategoryBelongsToMenu(categoryId, menuId);
@@ -121,7 +121,6 @@ export class ProductsService {
         categoryId,
         image,
         menuId,
-        brandId: menu.brandId,
         productSizes: validSizeIds
           ? { create: validSizeIds.map((sizeId) => ({ size: { connect: { id: sizeId } } })) }
           : undefined,

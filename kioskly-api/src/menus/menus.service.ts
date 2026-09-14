@@ -115,7 +115,6 @@ export class MenusService {
           const created = await tx.category.create({
             data: {
               id: randomUUID(),
-              brandId: category.brandId,
               menuId: newMenu.id,
               type: 'PRODUCT',
               name: category.name,
@@ -132,7 +131,6 @@ export class MenusService {
           const created = await tx.size.create({
             data: {
               id: randomUUID(),
-              brandId: size.brandId,
               menuId: newMenu.id,
               name: size.name,
               priceModifier: size.priceModifier,
@@ -151,7 +149,6 @@ export class MenusService {
           const created = await tx.addon.create({
             data: {
               id: randomUUID(),
-              brandId: addon.brandId,
               menuId: newMenu.id,
               name: addon.name,
               price: addon.price,
@@ -169,7 +166,6 @@ export class MenusService {
           const created = await tx.preference.create({
             data: {
               id: randomUUID(),
-              brandId: preference.brandId,
               menuId: newMenu.id,
               name: preference.name,
               isDefault: preference.isDefault,
@@ -245,7 +241,6 @@ export class MenusService {
           await tx.product.create({
             data: {
               id: newProductId,
-              brandId: product.brandId,
               menuId: newMenu.id,
               name: product.name,
               price: product.price,

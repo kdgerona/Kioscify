@@ -111,7 +111,6 @@ export class InventorySetupsService {
           const created = await tx.category.create({
             data: {
               id: randomUUID(),
-              brandId: category.brandId,
               inventorySetupId: newSetup.id,
               type: 'INVENTORY',
               name: category.name,
@@ -129,7 +128,6 @@ export class InventorySetupsService {
           const newCategoryId = item.categoryId ? categoryIdMap.get(item.categoryId) : undefined;
           await tx.inventoryItem.create({
             data: {
-              brandId: item.brandId,
               inventorySetupId: newSetup.id,
               name: item.name,
               unit: item.unit,

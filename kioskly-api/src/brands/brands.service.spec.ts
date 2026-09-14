@@ -5,8 +5,10 @@ import { StorageService } from '../storage/storage.service';
 
 const mockPrisma = {
   company: { findUnique: jest.fn() },
-  brand: { findFirst: jest.fn() },
+  brand: { findFirst: jest.fn(), findMany: jest.fn() },
   tenant: { findFirst: jest.fn() },
+  product: { count: jest.fn() },
+  inventoryItem: { count: jest.fn() },
 };
 
 const mockStorage = {};
@@ -230,6 +232,55 @@ describe('BrandsService', () => {
         brand: null,
         accountStatus: 'ACTIVE',
       });
+    });
+  });
+
+  describe('catalog stats (productCount / inventoryItemCount)', () => {
+    // Product and InventoryItem are no longer direct Brand relations (they
+    // live under a Brand's Menus/InventorySetups respectively), so these
+    // must be computed via the relation chain rather than Prisma's
+    // single-level `_count` — this is what previously crashed `nest build`
+    // (TS2353: 'products'/'inventoryItems' does not exist on
+    // BrandCountOutputTypeSelect) and is the one behavior change (not just
+    // a dead-field removal) in this fix, so it gets explicit coverage.
+
+    it('findOne() computes productCount/inventoryItemCount via the Menu/InventorySetup relation, not Brand._count', async () => {
+      mockPrisma.brand.findFirst.mockResolvedValue({
+        id: 'brand-1',
+        name: 'Burger Co',
+        _count: { stores: 3 },
+      });
+      mockPrisma.product.count.mockResolvedValue(12);
+      mockPrisma.inventoryItem.count.mockResolvedValue(7);
+
+      const result = await service.findOne('brand-1', 'company-1');
+
+      expect(mockPrisma.product.count).toHaveBeenCalledWith({
+        where: { menu: { brandId: 'brand-1' }, tombstone: { not: 1 } },
+      });
+      expect(mockPrisma.inventoryItem.count).toHaveBeenCalledWith({
+        where: { inventorySetup: { brandId: 'brand-1' }, tombstone: { not: 1 } },
+      });
+      expect(result.storeCount).toBe(3);
+      expect(result.productCount).toBe(12);
+      expect(result.inventoryItemCount).toBe(7);
+      expect((result as any)._count).toBeUndefined();
+    });
+
+    it('findAllByCompany() computes per-brand catalog stats for every brand returned', async () => {
+      mockPrisma.brand.findMany.mockResolvedValue([
+        { id: 'brand-1', name: 'Burger Co', _count: { stores: 2 } },
+        { id: 'brand-2', name: 'Taco Co', _count: { stores: 0 } },
+      ]);
+      mockPrisma.product.count.mockResolvedValueOnce(5).mockResolvedValueOnce(0);
+      mockPrisma.inventoryItem.count.mockResolvedValueOnce(9).mockResolvedValueOnce(0);
+
+      const result = await service.findAllByCompany('company-1');
+
+      expect(result).toEqual([
+        expect.objectContaining({ id: 'brand-1', storeCount: 2, productCount: 5, inventoryItemCount: 9 }),
+        expect.objectContaining({ id: 'brand-2', storeCount: 0, productCount: 0, inventoryItemCount: 0 }),
+      ]);
     });
   });
 });

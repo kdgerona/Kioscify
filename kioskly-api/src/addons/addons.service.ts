@@ -39,11 +39,11 @@ export class AddonsService {
       if (existing) throw new ConflictException('Addon with this ID already exists');
     }
 
-    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { brandId: true } });
+    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { id: true } });
     if (!menu) throw new BadRequestException(`Menu ${menuId} not found`);
 
     const addon = await this.prisma.addon.create({
-      data: { id, name, price, foodpandaPrice, grabPrice, menuId, brandId: menu.brandId },
+      data: { id, name, price, foodpandaPrice, grabPrice, menuId },
       include: ADDON_INCLUDE,
     });
 
@@ -246,8 +246,6 @@ export class AddonsService {
       grabPrice: resolvedGrabPrice,
       sequenceNo: addon.sequenceNo,
       menuId: addon.menuId,
-      brandId: addon.brandId,
-      tenantId: addon.tenantId,
       createdAt: addon.createdAt,
       updatedAt: addon.updatedAt,
     };

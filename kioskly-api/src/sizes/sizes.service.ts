@@ -48,7 +48,7 @@ export class SizesService {
         throw new ConflictException('Size with this ID already exists');
     }
 
-    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { brandId: true } });
+    const menu = await this.prisma.menu.findUnique({ where: { id: menuId }, select: { id: true } });
     if (!menu) throw new BadRequestException(`Menu ${menuId} not found`);
 
     const size = await this.prisma.size.create({
@@ -60,7 +60,6 @@ export class SizesService {
         grabPrice,
         volume,
         menuId,
-        brandId: menu.brandId, // denormalized, matches PriceTier's brand scope
       },
       include: SIZE_INCLUDE,
     });
@@ -265,8 +264,6 @@ export class SizesService {
       volume: size.volume ?? null,
       sequenceNo: size.sequenceNo,
       menuId: size.menuId,
-      brandId: size.brandId,
-      tenantId: size.tenantId,
       createdAt: size.createdAt,
       updatedAt: size.updatedAt,
     };
