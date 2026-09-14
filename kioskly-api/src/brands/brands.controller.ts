@@ -65,8 +65,9 @@ export class BrandsController {
   validateSubdomain(
     @Query('companySlug') companySlug: string,
     @Query('brandSlug') brandSlug: string,
+    @Query('storeSlug') storeSlug?: string,
   ) {
-    return this.brandsService.validateSubdomain(companySlug, brandSlug);
+    return this.brandsService.validateSubdomain(companySlug, brandSlug, storeSlug);
   }
 
   @Get(':id')

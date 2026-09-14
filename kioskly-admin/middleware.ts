@@ -31,14 +31,24 @@ export async function middleware(request: NextRequest) {
 
   const [, companySlug, brandSlug, storeSlug, rest] = match;
   try {
+    const storeSlugParam = storeSlug ? `&storeSlug=${encodeURIComponent(storeSlug)}` : '';
     const res = await fetch(
-      `${apiUrl}/brands/validate-subdomain?companySlug=${encodeURIComponent(companySlug)}&brandSlug=${encodeURIComponent(brandSlug)}`,
+      `${apiUrl}/brands/validate-subdomain?companySlug=${encodeURIComponent(companySlug)}&brandSlug=${encodeURIComponent(brandSlug)}${storeSlugParam}`,
       { cache: 'no-store' }
     );
     const data = await res.json();
 
+    if (data.accountStatus === 'DEACTIVATED') {
+      // Company or store is past its grace period — send to the static
+      // deactivated page rather than login (checked before `!data.valid`
+      // below, since a DEACTIVATED company also reports valid:false).
+      return NextResponse.rewrite(new URL('/account-deactivated', request.url));
+    }
+
     if (!data.valid) {
-      // Unknown or inactive company/brand — send to generic login
+      // Unknown or inactive company/brand — send to generic login.
+      // GRACE_PERIOD reaches this branch too (company.isActive is false
+      // during grace) and is intentionally left to reach /login as today.
       return NextResponse.redirect(new URL('/login', request.url));
     }
   } catch {

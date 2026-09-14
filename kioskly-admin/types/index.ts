@@ -76,6 +76,14 @@ export interface User {
   storePrivileges?: StorePrivileges | null;
 }
 
+export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED";
+
+export interface AccountStatusResponse {
+  status: AccountStatus;
+  gracePeriodEndsAt: string | null;
+  scopeName: string | null;
+}
+
 export interface AssignableUser {
   id: string;
   username: string;

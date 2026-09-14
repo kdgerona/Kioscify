@@ -7,7 +7,23 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateBrandDto, UpdateBrandDto } from './dto/brand.dto';
+import {
+  computeAccountStatus,
+  AccountStatus,
+} from '../common/utils/account-status.util';
 import { extname } from 'path';
+
+// DEACTIVATED > GRACE_PERIOD > ACTIVE — higher number wins when combining
+// a company's and a store's independently-computed account statuses.
+const STATUS_PRIORITY: Record<AccountStatus, number> = {
+  ACTIVE: 0,
+  GRACE_PERIOD: 1,
+  DEACTIVATED: 2,
+};
+
+function worstAccountStatus(a: AccountStatus, b: AccountStatus): AccountStatus {
+  return STATUS_PRIORITY[b] > STATUS_PRIORITY[a] ? b : a;
+}
 
 @Injectable()
 export class BrandsService {
@@ -16,27 +32,66 @@ export class BrandsService {
     private storage: StorageService,
   ) {}
 
-  async validateSubdomain(companySlug: string, brandSlug: string) {
+  async validateSubdomain(companySlug: string, brandSlug: string, storeSlug?: string) {
     const company = await this.prisma.company.findUnique({
       where: { slug: companySlug },
-      select: { id: true, name: true, isActive: true },
+      select: { id: true, name: true, isActive: true, gracePeriodEndsAt: true },
     });
+    const companyStatus = company ? computeAccountStatus(company) : undefined;
     if (!company || !company.isActive) {
-      return { valid: false, companyId: null, brandId: null, company: null, brand: null };
+      return {
+        valid: false,
+        companyId: null,
+        brandId: null,
+        company: null,
+        brand: null,
+        accountStatus: companyStatus ?? 'DEACTIVATED',
+      };
     }
     const brand = await this.prisma.brand.findFirst({
       where: { slug: brandSlug, companyId: company.id, isActive: true, tombstone: { not: 1 } },
       select: { id: true, name: true, logoUrl: true, themeColors: true, isActive: true },
     });
     if (!brand) {
-      return { valid: false, companyId: company.id, brandId: null, company: null, brand: null };
+      return {
+        valid: false,
+        companyId: company.id,
+        brandId: null,
+        company: null,
+        brand: null,
+        accountStatus: companyStatus,
+      };
     }
+
+    // companyStatus is always ACTIVE here — the early-return above already
+    // sent GRACE_PERIOD/DEACTIVATED companies out with valid:false. The
+    // combining logic still runs (rather than special-casing) so a worse
+    // store status is never masked, and so it stays correct if that gate
+    // ever changes.
+    let accountStatus: AccountStatus = companyStatus as AccountStatus;
+    if (storeSlug) {
+      const tenant = await this.prisma.tenant.findFirst({
+        where: {
+          slug: storeSlug,
+          company: { slug: companySlug },
+          brand: { slug: brandSlug },
+          tombstone: { not: 1 },
+        },
+        select: { isActive: true, gracePeriodEndsAt: true },
+      });
+      if (tenant) {
+        const storeStatus = computeAccountStatus(tenant);
+        accountStatus = worstAccountStatus(accountStatus, storeStatus);
+      }
+    }
+
     return {
       valid: true,
       companyId: company.id,
       brandId: brand.id,
       company: { name: company.name },
       brand: { name: brand.name, logoUrl: brand.logoUrl, themeColors: brand.themeColors },
+      accountStatus,
     };
   }
 

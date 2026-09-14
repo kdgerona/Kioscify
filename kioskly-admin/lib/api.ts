@@ -28,6 +28,7 @@ import type {
   SessionStatus,
   StaffTimeLog,
   TimeLogEventType,
+  AccountStatusResponse,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -68,6 +69,20 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       (error: AxiosError<ApiError>) => {
+        const code = (error.response?.data as { code?: string } | undefined)?.code;
+
+        // Account is in its deactivation grace period — every non-allowlisted
+        // endpoint returns this instead of the requested resource. Park the
+        // user on the account-status page rather than force-logging them out
+        // (a DEACTIVATED account still hits the plain 401 branch below, which
+        // already reuses the existing force-logout behavior).
+        if (code === "ACCOUNT_GRACE_PERIOD") {
+          if (typeof window !== "undefined" && window.location.pathname !== "/account-status") {
+            window.location.href = "/account-status";
+          }
+          return Promise.reject(error);
+        }
+
         const isAuthEndpoint = error.config?.url?.includes('/auth/');
         if (error.response?.status === 401 && !isAuthEndpoint) {
           this.clearToken();
@@ -157,6 +172,41 @@ class ApiClient {
           companySlug && brandSlug ? `/${companySlug}/${brandSlug}` : "/login";
       }
     }
+  }
+
+  async getAccountStatus(): Promise<AccountStatusResponse> {
+    const { data } = await this.client.get<AccountStatusResponse>("/auth/account-status");
+    return data;
+  }
+
+  getCurrentUser(): User | null {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem("user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async exportStoreData(id: string): Promise<void> {
+    const response = await this.client.get(`/stores/${id}/export`, {
+      responseType: "blob",
+    });
+
+    const disposition = response.headers["content-disposition"] as string | undefined;
+    const match = disposition?.match(/filename="?([^"]+)"?/);
+    const filename = match?.[1] || `store-export-${id}.zip`;
+
+    const blob = new Blob([response.data], { type: "application/zip" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
   }
 
   // Transactions endpoints
