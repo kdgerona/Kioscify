@@ -33,24 +33,26 @@ datasource db {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Company {
-  id               String       @id @default(auto()) @map("_id") @db.ObjectId
-  name             String
-  slug             String       @unique // becomes subdomain: <slug>.kioscify.com
-  description      String?
-  logoUrl          String?
-  contactEmail     String?
-  contactPhone     String?
-  address          String?
-  themeColors      ThemeColors?
-  isActive         Boolean      @default(true)
-  canCreateBrands  Boolean      @default(false) // platform toggle: allow company to create brands
-  canOnboardStores Boolean      @default(false) // platform toggle: allow company to create stores
-  tombstone        Int          @default(0)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  brands           Brand[]
-  stores           Tenant[]
-  users            User[]
+  id                String       @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  slug              String       @unique // becomes subdomain: <slug>.kioscify.com
+  description       String?
+  logoUrl           String?
+  contactEmail      String?
+  contactPhone      String?
+  address           String?
+  themeColors       ThemeColors?
+  isActive          Boolean      @default(true)
+  deactivatedAt     DateTime?
+  gracePeriodEndsAt DateTime?
+  canCreateBrands   Boolean      @default(false) // platform toggle: allow company to create brands
+  canOnboardStores  Boolean      @default(false) // platform toggle: allow company to create stores
+  tombstone         Int          @default(0)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  brands            Brand[]
+  stores            Tenant[]
+  users             User[]
 
   @@map("companies")
 }
@@ -99,6 +101,9 @@ model Tenant {
   address                  String?
   themeColors              ThemeColors?
   isActive                 Boolean            @default(true)
+  deactivatedAt            DateTime?
+  gracePeriodEndsAt        DateTime?
+  deactivationCascaded     Boolean            @default(false)
   enabledDeliveryPlatforms DeliveryPlatform[] @default([])
   tombstone                Int                @default(0)
   createdAt                DateTime           @default(now())
