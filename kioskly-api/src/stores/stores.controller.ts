@@ -9,11 +9,14 @@ import {
   Query,
   UseGuards,
   Request,
+  Response,
   UploadedFile,
   UseInterceptors,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response as ExpressResponse } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -29,14 +32,19 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { AllowInGracePeriod } from '../common/decorators/allow-in-grace-period.decorator';
 import { CompanyId, TenantId } from '../common/decorators/tenant.decorator';
+import { ExportService } from '../export/export.service';
 
 @ApiTags('stores')
 @Controller('stores')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class StoresController {
-  constructor(private storesService: StoresService) {}
+  constructor(
+    private storesService: StoresService,
+    private exportService: ExportService,
+  ) {}
 
   @Get()
   @UseGuards(RolesGuard)
@@ -85,6 +93,27 @@ export class StoresController {
   @ApiOperation({ summary: 'Get store by ID' })
   findOne(@Param('id') id: string) {
     return this.storesService.findOne(id);
+  }
+
+  @Get(':id/export')
+  @UseGuards(RolesGuard)
+  @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
+  @AllowInGracePeriod()
+  @ApiOperation({
+    summary:
+      "Export a store's operational history (transactions, expenses, inventory items/records, submitted reports) as a ZIP. STORE_ADMIN limited to their own store; PLATFORM_ADMIN any store.",
+  })
+  async exportStore(
+    @Param('id') id: string,
+    @Request() req,
+    @Response() res: ExpressResponse,
+  ) {
+    if (req.user.role !== 'PLATFORM_ADMIN' && id !== req.user.tenantId) {
+      throw new ForbiddenException(
+        'STORE_ADMIN can only export their own store',
+      );
+    }
+    await this.exportService.streamStoreExport(id, res);
   }
 
   @Post()

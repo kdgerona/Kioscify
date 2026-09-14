@@ -8,13 +8,16 @@ import {
   Param,
   UseGuards,
   Request,
+  Response,
   UploadedFile,
   UseInterceptors,
   HttpCode,
   HttpStatus,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response as ExpressResponse } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -35,12 +38,17 @@ import { PrivilegeGuard } from '../common/guards/privilege.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RequirePrivilege } from '../common/decorators/require-privilege.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { AllowInGracePeriod } from '../common/decorators/allow-in-grace-period.decorator';
 import { CompanyId } from '../common/decorators/tenant.decorator';
+import { ExportService } from '../export/export.service';
 
 @ApiTags('companies')
 @Controller('companies')
 export class CompaniesController {
-  constructor(private companiesService: CompaniesService) {}
+  constructor(
+    private companiesService: CompaniesService,
+    private exportService: ExportService,
+  ) {}
 
   @Get('validate-subdomain/:slug')
   @Public()
@@ -77,6 +85,28 @@ export class CompaniesController {
   @ApiOperation({ summary: 'Get company by ID (PLATFORM_ADMIN)' })
   findOne(@Param('id') id: string) {
     return this.companiesService.findOne(id);
+  }
+
+  @Get(':id/export')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('COMPANY_ADMIN', 'PLATFORM_ADMIN')
+  @AllowInGracePeriod()
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      "Export a company's catalog (company info + per-brand categories/products/sizes/addons/preferences) as a ZIP. COMPANY_ADMIN limited to their own company; PLATFORM_ADMIN any company.",
+  })
+  async exportCompany(
+    @Param('id') id: string,
+    @Request() req,
+    @Response() res: ExpressResponse,
+  ) {
+    if (req.user.role !== 'PLATFORM_ADMIN' && id !== req.user.companyId) {
+      throw new ForbiddenException(
+        'COMPANY_ADMIN can only export their own company',
+      );
+    }
+    await this.exportService.streamCompanyExport(id, res);
   }
 
   @Post()
