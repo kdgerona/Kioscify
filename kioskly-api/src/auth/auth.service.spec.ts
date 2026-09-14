@@ -346,6 +346,68 @@ describe('AuthService — logging', () => {
     });
   });
 
+  describe('getAccountStatus — combines Tenant with its parent Company', () => {
+    it('store ACTIVE + company DEACTIVATED combines to DEACTIVATED, surfacing the company\'s gracePeriodEndsAt/name', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        name: 'Store One',
+        isActive: true,
+        gracePeriodEndsAt: null,
+        company: { name: 'Dead Co', isActive: false, gracePeriodEndsAt: null },
+      });
+
+      const result = await service.getAccountStatus({ tenantId: 'store-1' });
+
+      expect(result.status).toBe('DEACTIVATED');
+      expect(result.scopeName).toBe('Dead Co');
+    });
+
+    it('store ACTIVE + company GRACE_PERIOD combines to GRACE_PERIOD, surfacing the company\'s gracePeriodEndsAt/name', async () => {
+      const companyGraceEnd = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        name: 'Store One',
+        isActive: true,
+        gracePeriodEndsAt: null,
+        company: { name: 'Grace Co', isActive: false, gracePeriodEndsAt: companyGraceEnd },
+      });
+
+      const result = await service.getAccountStatus({ tenantId: 'store-1' });
+
+      expect(result.status).toBe('GRACE_PERIOD');
+      expect(result.gracePeriodEndsAt).toBe(companyGraceEnd);
+      expect(result.scopeName).toBe('Grace Co');
+    });
+
+    it('store GRACE_PERIOD + company ACTIVE: the store\'s own worse status still applies (combines to GRACE_PERIOD), surfacing the store\'s own gracePeriodEndsAt/name', async () => {
+      const storeGraceEnd = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        name: 'Store One',
+        isActive: false,
+        gracePeriodEndsAt: storeGraceEnd,
+        company: { name: 'Acme Corp', isActive: true, gracePeriodEndsAt: null },
+      });
+
+      const result = await service.getAccountStatus({ tenantId: 'store-1' });
+
+      expect(result.status).toBe('GRACE_PERIOD');
+      expect(result.gracePeriodEndsAt).toBe(storeGraceEnd);
+      expect(result.scopeName).toBe('Store One');
+    });
+
+    it('store with no parent Company: accountStatus comes from the Tenant alone', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        name: 'Store One',
+        isActive: true,
+        gracePeriodEndsAt: null,
+        company: null,
+      });
+
+      const result = await service.getAccountStatus({ tenantId: 'store-1' });
+
+      expect(result.status).toBe('ACTIVE');
+      expect(result.scopeName).toBe('Store One');
+    });
+  });
+
   describe('soft-deleted (tombstoned) users are rejected', () => {
     const tombstonedUser = { ...mockUser, tombstone: 1 };
 

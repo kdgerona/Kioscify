@@ -16,7 +16,11 @@ async function fetchCompanyInfo(slug: string): Promise<CompanyInfo | null> {
     });
     if (!res.ok) return null;
     const data = await res.json();
-    if (!data.valid || !data.isActive) return null;
+    // Only bail out for an unknown or fully-deactivated company. A
+    // GRACE_PERIOD company (isActive: false, but not yet past its grace
+    // window) should still render its branded login form — the post-login
+    // (main) layout gate is what routes the user to /account-status.
+    if (!data.valid || data.accountStatus === 'DEACTIVATED') return null;
     return { name: data.name, logoUrl: data.logoUrl, slug, primaryColor: data.themeColors?.primary };
   } catch {
     return null;

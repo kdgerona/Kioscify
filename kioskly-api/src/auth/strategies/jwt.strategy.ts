@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TokenBlacklistService } from '../token-blacklist.service';
 import { auth } from '../../constants/env.constants';
-import { AccountStatus, computeAccountStatus } from '../../common/utils/account-status.util';
+import { AccountStatus, computeAccountStatus, worstAccountStatus } from '../../common/utils/account-status.util';
 
 export interface JwtPayload {
   sub: string;
@@ -107,18 +107,29 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       usingJwtStore && payload.companyId ? payload.companyId : user.companyId;
 
     // Fetch the Company/Tenant this user is scoped to and compute its
-    // current account status. Tenant takes priority over Company since
-    // STORE_ADMIN/CASHIER carry both — the Tenant's own status (which
-    // already reflects any company-level cascade, see companies.service.ts
-    // deactivate()) is the one that matters for them. PLATFORM_ADMIN has
+    // current account status. A Store can be individually reactivated
+    // (POST /stores/:id/reactivate) or created after its parent Company was
+    // already deactivated, so a Tenant's own status alone is not enough —
+    // its parent Company is fetched in the same query and the two are
+    // combined worst-of (DEACTIVATED > GRACE_PERIOD > ACTIVE) so this layer
+    // agrees with brands.service.ts's validateSubdomain. PLATFORM_ADMIN has
     // neither, so accountStatus is left undefined (treated as exempt).
     let accountStatus: AccountStatus | undefined;
     if (effectiveTenantId) {
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: effectiveTenantId },
-        select: { isActive: true, gracePeriodEndsAt: true },
+        select: {
+          isActive: true,
+          gracePeriodEndsAt: true,
+          company: { select: { isActive: true, gracePeriodEndsAt: true } },
+        },
       });
-      if (tenant) accountStatus = computeAccountStatus(tenant);
+      if (tenant) {
+        accountStatus = computeAccountStatus(tenant);
+        if (tenant.company) {
+          accountStatus = worstAccountStatus(accountStatus, computeAccountStatus(tenant.company));
+        }
+      }
     } else if (effectiveCompanyId) {
       const company = await this.prisma.company.findUnique({
         where: { id: effectiveCompanyId },

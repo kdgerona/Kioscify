@@ -70,8 +70,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.rewrite(new URL('/account-deactivated', request.url));
     }
 
-    if (!data.valid || !data.isActive) {
-      // Unknown or inactive company — redirect to the generic portal.
+    if (!data.valid) {
+      // Unknown or fully-deactivated company (DEACTIVATED was already
+      // handled above) — redirect to the generic portal. GRACE_PERIOD
+      // companies have data.valid: true (isActive is false but they should
+      // still render their branded subdomain normally — the post-login
+      // (main) layout gate is what routes them to /account-status).
       // Clone the incoming URL so the redirect inherits the correct protocol and port.
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.hostname = `company.${platformDomain}`;

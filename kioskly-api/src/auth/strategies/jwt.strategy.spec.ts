@@ -41,7 +41,7 @@ describe('JwtStrategy.validate — accountStatus computation', () => {
     strategy = makeStrategy();
   });
 
-  it('store-login payload (tenantId present): fetches the Tenant and attaches accountStatus computed from its isActive/gracePeriodEndsAt', async () => {
+  it('store-login payload (tenantId present): fetches the Tenant (with its parent Company in the same query) and attaches accountStatus computed from its isActive/gracePeriodEndsAt', async () => {
     const payload: JwtPayload = {
       sub: 'user-1',
       username: 'john',
@@ -56,16 +56,115 @@ describe('JwtStrategy.validate — accountStatus computation', () => {
     mockPrisma.tenant.findUnique.mockResolvedValue({
       isActive: false,
       gracePeriodEndsAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days out
+      company: { isActive: true, gracePeriodEndsAt: null },
     });
 
     const result = await strategy.validate(payload);
 
     expect(mockPrisma.tenant.findUnique).toHaveBeenCalledWith({
       where: { id: 'store-1' },
-      select: { isActive: true, gracePeriodEndsAt: true },
+      select: {
+        isActive: true,
+        gracePeriodEndsAt: true,
+        company: { select: { isActive: true, gracePeriodEndsAt: true } },
+      },
     });
+    // Company is now fetched too (nested in the Tenant query) so its status
+    // can be combined worst-of with the Tenant's — see jwt.strategy.ts.
     expect(mockPrisma.company.findUnique).not.toHaveBeenCalled();
     expect(result.accountStatus).toBe('GRACE_PERIOD');
+  });
+
+  it('store ACTIVE + parent company DEACTIVATED: combines to accountStatus DEACTIVATED', async () => {
+    const payload: JwtPayload = {
+      sub: 'user-1',
+      username: 'john',
+      role: 'STORE_ADMIN',
+      tenantId: 'store-1',
+    };
+    mockPrisma.user.findUnique.mockResolvedValue({
+      ...baseUser,
+      tenantId: 'store-1',
+      companyId: 'company-1',
+    });
+    mockPrisma.tenant.findUnique.mockResolvedValue({
+      isActive: true,
+      gracePeriodEndsAt: null,
+      company: { isActive: false, gracePeriodEndsAt: null }, // no grace window — DEACTIVATED
+    });
+
+    const result = await strategy.validate(payload);
+
+    expect(result.accountStatus).toBe('DEACTIVATED');
+  });
+
+  it('store ACTIVE + parent company GRACE_PERIOD: combines to accountStatus GRACE_PERIOD', async () => {
+    const payload: JwtPayload = {
+      sub: 'user-1',
+      username: 'john',
+      role: 'STORE_ADMIN',
+      tenantId: 'store-1',
+    };
+    mockPrisma.user.findUnique.mockResolvedValue({
+      ...baseUser,
+      tenantId: 'store-1',
+      companyId: 'company-1',
+    });
+    mockPrisma.tenant.findUnique.mockResolvedValue({
+      isActive: true,
+      gracePeriodEndsAt: null,
+      company: { isActive: false, gracePeriodEndsAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000) },
+    });
+
+    const result = await strategy.validate(payload);
+
+    expect(result.accountStatus).toBe('GRACE_PERIOD');
+  });
+
+  it('store GRACE_PERIOD + parent company ACTIVE: the store\'s own worse status still applies (combines to GRACE_PERIOD)', async () => {
+    const payload: JwtPayload = {
+      sub: 'user-1',
+      username: 'john',
+      role: 'STORE_ADMIN',
+      tenantId: 'store-1',
+    };
+    mockPrisma.user.findUnique.mockResolvedValue({
+      ...baseUser,
+      tenantId: 'store-1',
+      companyId: 'company-1',
+    });
+    mockPrisma.tenant.findUnique.mockResolvedValue({
+      isActive: false,
+      gracePeriodEndsAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      company: { isActive: true, gracePeriodEndsAt: null },
+    });
+
+    const result = await strategy.validate(payload);
+
+    expect(result.accountStatus).toBe('GRACE_PERIOD');
+  });
+
+  it('store with no parent Company (companyId null on the Tenant): accountStatus comes from the Tenant alone', async () => {
+    const payload: JwtPayload = {
+      sub: 'user-1',
+      username: 'john',
+      role: 'STORE_ADMIN',
+      tenantId: 'store-1',
+    };
+    mockPrisma.user.findUnique.mockResolvedValue({
+      ...baseUser,
+      tenantId: 'store-1',
+      companyId: null,
+    });
+    mockPrisma.tenant.findUnique.mockResolvedValue({
+      isActive: true,
+      gracePeriodEndsAt: null,
+      company: null,
+    });
+
+    const result = await strategy.validate(payload);
+
+    expect(result.accountStatus).toBe('ACTIVE');
   });
 
   it('company-login payload (companyId present, no tenantId): fetches the Company and attaches accountStatus computed from its isActive/gracePeriodEndsAt', async () => {
@@ -118,7 +217,7 @@ describe('JwtStrategy.validate — accountStatus computation', () => {
     expect(result.accountStatus).toBeUndefined();
   });
 
-  it('prioritizes Tenant over Company when both tenantId and companyId are present (store-login payloads carry both)', async () => {
+  it('prioritizes the Tenant branch over the Company branch when both tenantId and companyId are present (store-login payloads carry both) — Company is still fetched, but nested inside the Tenant query, not via a separate company.findUnique call', async () => {
     const payload: JwtPayload = {
       sub: 'user-1',
       username: 'john',
@@ -134,14 +233,22 @@ describe('JwtStrategy.validate — accountStatus computation', () => {
     mockPrisma.tenant.findUnique.mockResolvedValue({
       isActive: true,
       gracePeriodEndsAt: null,
+      company: { isActive: true, gracePeriodEndsAt: null },
     });
 
     const result = await strategy.validate(payload);
 
     expect(mockPrisma.tenant.findUnique).toHaveBeenCalledWith({
       where: { id: 'store-1' },
-      select: { isActive: true, gracePeriodEndsAt: true },
+      select: {
+        isActive: true,
+        gracePeriodEndsAt: true,
+        company: { select: { isActive: true, gracePeriodEndsAt: true } },
+      },
     });
+    // Company IS now fetched (for the worst-of combination), but as a
+    // nested select on the Tenant query above — never via a standalone
+    // company.findUnique round trip.
     expect(mockPrisma.company.findUnique).not.toHaveBeenCalled();
     expect(result.accountStatus).toBe('ACTIVE');
     expect(result.tenantId).toBe('store-1');

@@ -103,6 +103,7 @@ export class AuthController {
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
+  @AllowInGracePeriod()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change password (required on first login)' })
   @ApiResponse({ status: 200, description: 'Password changed successfully' })
@@ -137,6 +138,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
+  @AllowInGracePeriod()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout and revoke current token' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })

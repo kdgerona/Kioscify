@@ -46,9 +46,11 @@ export async function middleware(request: NextRequest) {
     }
 
     if (!data.valid) {
-      // Unknown or inactive company/brand — send to generic login.
-      // GRACE_PERIOD reaches this branch too (company.isActive is false
-      // during grace) and is intentionally left to reach /login as today.
+      // Unknown company/brand, or a fully DEACTIVATED company/store that
+      // fell through here for some other reason — send to generic login.
+      // A GRACE_PERIOD company/store now reports valid:true (see
+      // brands.service.ts's validateSubdomain) and does not reach this
+      // branch — it proceeds to the rewrite below like an ACTIVE one.
       return NextResponse.redirect(new URL('/login', request.url));
     }
   } catch {

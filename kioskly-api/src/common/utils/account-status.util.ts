@@ -18,3 +18,18 @@ export function computeAccountStatus(entity: {
   if (entity.gracePeriodEndsAt && entity.gracePeriodEndsAt > new Date()) return 'GRACE_PERIOD';
   return 'DEACTIVATED';
 }
+
+// DEACTIVATED > GRACE_PERIOD > ACTIVE — higher number wins when combining
+// two independently-computed account statuses (e.g. a Company's and its
+// Tenant's, or a Company's and its Brand-scoped Store's). Shared so every
+// call site (brands.service.ts, jwt.strategy.ts, auth.service.ts, ...)
+// agrees on the same priority order rather than keeping its own copy.
+const STATUS_PRIORITY: Record<AccountStatus, number> = {
+  ACTIVE: 0,
+  GRACE_PERIOD: 1,
+  DEACTIVATED: 2,
+};
+
+export function worstAccountStatus(a: AccountStatus, b: AccountStatus): AccountStatus {
+  return STATUS_PRIORITY[b] > STATUS_PRIORITY[a] ? b : a;
+}

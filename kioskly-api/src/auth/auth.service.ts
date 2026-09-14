@@ -18,7 +18,7 @@ import * as crypto from 'crypto';
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { SessionsService } from '../sessions/sessions.service';
-import { computeAccountStatus } from '../common/utils/account-status.util';
+import { computeAccountStatus, worstAccountStatus } from '../common/utils/account-status.util';
 
 export interface RequestMeta {
   ipAddress?: string | null;
@@ -525,13 +525,37 @@ export class AuthService {
   // already reflects any company-level cascade) is what's relevant to them.
   async getAccountStatus(user: { tenantId?: string | null; companyId?: string | null }) {
     if (user.tenantId) {
+      // A Store can be individually reactivated (POST /stores/:id/reactivate)
+      // or created after its parent Company was already deactivated, so the
+      // Tenant's own status alone is not enough — fetch its parent Company in
+      // the same query and combine worst-of, matching jwt.strategy.ts and
+      // brands.service.ts. When the Company is the worse of the two, surface
+      // its gracePeriodEndsAt/name instead so the account-status page shows
+      // the deadline that actually governs the account.
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: user.tenantId },
-        select: { name: true, isActive: true, gracePeriodEndsAt: true },
+        select: {
+          name: true,
+          isActive: true,
+          gracePeriodEndsAt: true,
+          company: { select: { name: true, isActive: true, gracePeriodEndsAt: true } },
+        },
       });
       if (!tenant) throw new UnauthorizedException();
+
+      const tenantStatus = computeAccountStatus(tenant);
+      if (tenant.company) {
+        const combined = worstAccountStatus(tenantStatus, computeAccountStatus(tenant.company));
+        if (combined !== tenantStatus) {
+          return {
+            status: combined,
+            gracePeriodEndsAt: tenant.company.gracePeriodEndsAt,
+            scopeName: tenant.company.name,
+          };
+        }
+      }
       return {
-        status: computeAccountStatus(tenant),
+        status: tenantStatus,
         gracePeriodEndsAt: tenant.gracePeriodEndsAt,
         scopeName: tenant.name,
       };

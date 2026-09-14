@@ -56,18 +56,65 @@ describe('BrandsService', () => {
       expect(mockPrisma.tenant.findFirst).not.toHaveBeenCalled();
     });
 
-    it('returns valid:false and accountStatus GRACE_PERIOD when the company is inactive but within its grace period, regardless of storeSlug', async () => {
+    it('proceeds past the company gate and returns valid:true, accountStatus GRACE_PERIOD when the company is inactive but within its grace period and the brand matches', async () => {
       mockPrisma.company.findUnique.mockResolvedValue({
         id: 'company-1',
         name: 'Acme Corp',
         isActive: false,
         gracePeriodEndsAt: new Date('2026-07-10T12:00:00.000Z'), // in the future — still grace
       });
+      mockPrisma.brand.findFirst.mockResolvedValue({
+        id: 'brand-1',
+        name: 'Burger Co',
+        logoUrl: null,
+        themeColors: null,
+        isActive: true,
+      });
+
+      const result = await service.validateSubdomain('acme', 'burgers');
+
+      expect(result.valid).toBe(true);
+      expect(result.accountStatus).toBe('GRACE_PERIOD');
+      expect(mockPrisma.brand.findFirst).toHaveBeenCalled();
+    });
+
+    it('combines a GRACE_PERIOD company with a DEACTIVATED store into accountStatus DEACTIVATED (worst-of), while still valid:true', async () => {
+      mockPrisma.company.findUnique.mockResolvedValue({
+        id: 'company-1',
+        name: 'Acme Corp',
+        isActive: false,
+        gracePeriodEndsAt: new Date('2026-07-10T12:00:00.000Z'), // in the future — still grace
+      });
+      mockPrisma.brand.findFirst.mockResolvedValue({
+        id: 'brand-1',
+        name: 'Burger Co',
+        logoUrl: null,
+        themeColors: null,
+        isActive: true,
+      });
+      mockPrisma.tenant.findFirst.mockResolvedValue({
+        isActive: false,
+        gracePeriodEndsAt: new Date('2026-06-01T12:00:00.000Z'), // in the past — expired
+      });
+
+      const result = await service.validateSubdomain('acme', 'burgers', 'downtown');
+
+      expect(result.valid).toBe(true);
+      expect(result.accountStatus).toBe('DEACTIVATED');
+    });
+
+    it('returns valid:false and accountStatus DEACTIVATED when the company is inactive with a null gracePeriodEndsAt', async () => {
+      mockPrisma.company.findUnique.mockResolvedValue({
+        id: 'company-1',
+        name: 'Acme Corp',
+        isActive: false,
+        gracePeriodEndsAt: null,
+      });
 
       const result = await service.validateSubdomain('acme', 'burgers', 'downtown');
 
       expect(result.valid).toBe(false);
-      expect(result.accountStatus).toBe('GRACE_PERIOD');
+      expect(result.accountStatus).toBe('DEACTIVATED');
       expect(mockPrisma.brand.findFirst).not.toHaveBeenCalled();
     });
 
