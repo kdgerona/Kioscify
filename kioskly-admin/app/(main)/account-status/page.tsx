@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Download, Mail } from 'lucide-react';
+import { AlertTriangle, Download, Mail, LogOut } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
 import type { AccountStatusResponse } from '@/types';
@@ -104,6 +104,14 @@ export default function AccountStatusPage() {
             to resubscribe.
           </span>
         </div>
+
+        <button
+          onClick={() => api.logout()}
+          className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
+        </button>
       </div>
     </div>
   );

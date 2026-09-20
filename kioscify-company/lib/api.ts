@@ -38,6 +38,11 @@ class ApiClient {
     this.client = axios.create({
       baseURL: API_BASE_URL,
       headers: { 'Content-Type': 'application/json' },
+      // Without this, a request that never gets a response (a dropped
+      // connection, a genuinely hung upstream) sits pending forever with no
+      // way for the UI to recover — this is what made the export button
+      // look permanently "stuck" on Preparing export.
+      timeout: 30000,
     });
 
     // Always read latest token from localStorage on each request
@@ -56,7 +61,26 @@ class ApiClient {
     // Handle 401 globally — but not on auth endpoints (wrong password should show inline error)
     this.client.interceptors.response.use(
       response => response,
-      (error: AxiosError) => {
+      async (error: AxiosError) => {
+        // A `responseType: 'blob'` request (the data export) gets its error
+        // body back as a Blob too, not parsed JSON — `.code`/`.message`
+        // below would silently read as undefined otherwise, which both
+        // hid the real error and meant a grace-period block during export
+        // never triggered the redirect below. Parse it back into JSON so
+        // this interceptor (and getErrorMessage downstream) see the same
+        // shape as any other request.
+        if (
+          error.response?.data instanceof Blob &&
+          error.response.data.type.includes('json')
+        ) {
+          try {
+            const text = await error.response.data.text();
+            error.response.data = JSON.parse(text);
+          } catch {
+            // Not parseable JSON (e.g. an nginx HTML error page) — leave as-is.
+          }
+        }
+
         const code = (error.response?.data as { code?: string } | undefined)?.code;
 
         // Account is in its deactivation grace period — every non-allowlisted
@@ -186,8 +210,11 @@ class ApiClient {
 
   /** Downloads the company's data export ZIP and triggers a browser save. */
   async exportCompanyData(id: string): Promise<void> {
+    // Longer than the client's default 30s timeout — a large catalog's ZIP
+    // can legitimately take a while to generate and stream.
     const response = await this.client.get(`/companies/${id}/export`, {
       responseType: 'blob',
+      timeout: 120000,
     });
 
     const disposition = response.headers['content-disposition'] as string | undefined;

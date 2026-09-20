@@ -45,6 +45,11 @@ class ApiClient {
       headers: {
         "Content-Type": "application/json",
       },
+      // Without this, a request that never gets a response (a dropped
+      // connection, a genuinely hung upstream) sits pending forever with no
+      // way for the UI to recover — this is what made the export button
+      // look permanently "stuck" on Preparing export.
+      timeout: 30000,
     });
 
     // Add request interceptor to include auth token
@@ -68,7 +73,26 @@ class ApiClient {
     // Add response interceptor for error handling
     this.client.interceptors.response.use(
       (response) => response,
-      (error: AxiosError<ApiError>) => {
+      async (error: AxiosError<ApiError>) => {
+        // A `responseType: 'blob'` request (the data export) gets its error
+        // body back as a Blob too, not parsed JSON — `.code`/`.message`
+        // below would silently read as undefined otherwise, which both hid
+        // the real error and meant a grace-period block during export never
+        // triggered the redirect below. Parse it back into JSON so this
+        // interceptor (and getErrorMessage downstream) see the same shape
+        // as any other request.
+        if (
+          error.response?.data instanceof Blob &&
+          (error.response.data as Blob).type.includes('json')
+        ) {
+          try {
+            const text = await (error.response.data as Blob).text();
+            error.response.data = JSON.parse(text);
+          } catch {
+            // Not parseable JSON (e.g. an nginx HTML error page) — leave as-is.
+          }
+        }
+
         const code = (error.response?.data as { code?: string } | undefined)?.code;
 
         // Account is in its deactivation grace period — every non-allowlisted
@@ -190,8 +214,11 @@ class ApiClient {
   }
 
   async exportStoreData(id: string): Promise<void> {
+    // Longer than the client's default 30s timeout — a store with a lot of
+    // transaction history can legitimately take a while to zip and stream.
     const response = await this.client.get(`/stores/${id}/export`, {
       responseType: "blob",
+      timeout: 120000,
     });
 
     const disposition = response.headers["content-disposition"] as string | undefined;
