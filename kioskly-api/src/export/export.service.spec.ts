@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import { PassThrough } from 'stream';
 import { ExportService } from './export.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -19,6 +20,8 @@ const mockPrisma = {
   inventoryItem: { findMany: jest.fn() },
   submittedReport: { findMany: jest.fn() },
   submittedInventoryReport: { findMany: jest.fn() },
+  inventorySetup: { findMany: jest.fn().mockResolvedValue([]) },
+  user: { findMany: jest.fn().mockResolvedValue([]) },
   // Default so pre-existing getStoreExportData()/streamStoreExport() tests
   // that don't care about attendance don't have to mock this explicitly —
   // jest.clearAllMocks() (used in beforeEach) clears calls, not
@@ -385,6 +388,71 @@ describe('ExportService', () => {
         { id: 'active-item' },
         { id: 'legacy-item' },
       ]);
+    });
+  });
+
+  // A real download was reported "stuck" showing stale data across several
+  // exports in a row — root cause was the browser caching the response,
+  // because no Cache-Control header told it not to. These headers are the
+  // regression guard.
+  describe('response caching headers', () => {
+    // archiver needs a real writable stream to pipe into; a plain
+    // PassThrough plus a tracked setHeader is the minimal stand-in for
+    // Express's Response here — this deliberately does NOT mock the
+    // zip/stream plumbing itself, only observes what headers get set
+    // before any piping starts.
+    function fakeResponse() {
+      const stream = new PassThrough();
+      const headers: Record<string, string> = {};
+      return Object.assign(stream, {
+        headers,
+        setHeader(name: string, value: string) {
+          headers[name] = value;
+        },
+      });
+    }
+
+    it('streamStoreExport() tells the browser never to cache the export', async () => {
+      mockPrisma.tenant.findFirst.mockResolvedValue({ id: 'store-a', inventorySetupId: null, tombstone: 0 });
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.expense.findMany.mockResolvedValue([]);
+      mockPrisma.inventoryRecord.findMany.mockResolvedValue([]);
+      mockPrisma.submittedReport.findMany.mockResolvedValue([]);
+      mockPrisma.submittedInventoryReport.findMany.mockResolvedValue([]);
+
+      const res = fakeResponse();
+      // Drain the piped archive so `res.on('finish', resolve)` actually fires.
+      res.resume();
+      await service.streamStoreExport('store-a', res as any);
+
+      expect(res.headers['Cache-Control']).toBe('no-store, no-cache, must-revalidate');
+      expect(res.headers['Pragma']).toBe('no-cache');
+    });
+
+    it('streamCompanyExport() tells the browser never to cache the export', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        name: 'Acme',
+        slug: 'acme',
+        description: null,
+        logoUrl: null,
+        contactEmail: null,
+        contactPhone: null,
+        address: null,
+        isActive: true,
+        canCreateBrands: true,
+        canOnboardStores: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      mockPrisma.brand.findMany.mockResolvedValue([]);
+
+      const res = fakeResponse();
+      res.resume();
+      await service.streamCompanyExport('company-1', res as any);
+
+      expect(res.headers['Cache-Control']).toBe('no-store, no-cache, must-revalidate');
+      expect(res.headers['Pragma']).toBe('no-cache');
     });
   });
 });

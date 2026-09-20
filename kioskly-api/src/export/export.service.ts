@@ -215,6 +215,10 @@ export class ExportService {
       'Content-Disposition',
       `attachment; filename="company-${companyId}-export.zip"`,
     );
+    // The export reflects live data — never let the browser (or an
+    // intermediate proxy) serve a cached copy from an earlier export.
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
 
     const done = new Promise<void>((resolve, reject) => {
       archive.on('error', reject);
@@ -370,6 +374,10 @@ export class ExportService {
       'Content-Disposition',
       `attachment; filename="store-${tenantId}-export.zip"`,
     );
+    // The export reflects live data — never let the browser (or an
+    // intermediate proxy) serve a cached copy from an earlier export.
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
 
     const done = new Promise<void>((resolve, reject) => {
       archive.on('error', reject);
