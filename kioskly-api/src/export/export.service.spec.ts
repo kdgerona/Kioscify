@@ -19,6 +19,12 @@ const mockPrisma = {
   inventoryItem: { findMany: jest.fn() },
   submittedReport: { findMany: jest.fn() },
   submittedInventoryReport: { findMany: jest.fn() },
+  // Default so pre-existing getStoreExportData()/streamStoreExport() tests
+  // that don't care about attendance don't have to mock this explicitly —
+  // jest.clearAllMocks() (used in beforeEach) clears calls, not
+  // implementations, so this default survives across tests unless a
+  // specific test overrides it.
+  staffTimeLog: { findMany: jest.fn().mockResolvedValue([]) },
 };
 
 describe('ExportService', () => {
@@ -114,15 +120,25 @@ describe('ExportService', () => {
       ]);
 
       // Catalog is fetched by this brand's resolved menuIds, never brandId
-      // directly (Category/Product/Size/Addon/Preference are Menu-scoped).
+      // directly (Category/Product/Size/Addon/Preference are Menu-scoped),
+      // and every query excludes tombstoned (soft-deleted) records.
       expect(mockPrisma.menu.findMany).toHaveBeenCalledWith({
-        where: { brandId: 'brand-1' },
+        where: { brandId: 'brand-1', tombstone: { not: 1 } },
       });
       expect(mockPrisma.category.findMany).toHaveBeenCalledWith({
-        where: { menuId: { in: ['menu-1', 'menu-2'] }, type: 'PRODUCT' },
+        where: { menuId: { in: ['menu-1', 'menu-2'] }, type: 'PRODUCT', tombstone: { not: 1 } },
       });
       expect(mockPrisma.product.findMany).toHaveBeenCalledWith({
-        where: { menuId: { in: ['menu-1', 'menu-2'] } },
+        where: { menuId: { in: ['menu-1', 'menu-2'] }, tombstone: { not: 1 } },
+      });
+      expect(mockPrisma.size.findMany).toHaveBeenCalledWith({
+        where: { menuId: { in: ['menu-1', 'menu-2'] }, tombstone: { not: 1 } },
+      });
+      expect(mockPrisma.addon.findMany).toHaveBeenCalledWith({
+        where: { menuId: { in: ['menu-1', 'menu-2'] }, tombstone: { not: 1 } },
+      });
+      expect(mockPrisma.preference.findMany).toHaveBeenCalledWith({
+        where: { menuId: { in: ['menu-1', 'menu-2'] }, tombstone: { not: 1 } },
       });
     });
 
@@ -271,6 +287,43 @@ describe('ExportService', () => {
           (r: any) => r.tenantId === 'store-a',
         ),
       ).toBe(true);
+    });
+
+    it('fetches attendance (StaffTimeLog) scoped to the store and never selects photoUrl — this export is data only, no images', async () => {
+      mockPrisma.tenant.findFirst.mockResolvedValue({
+        id: 'store-a',
+        inventorySetupId: null,
+        tombstone: 0,
+      });
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.expense.findMany.mockResolvedValue([]);
+      mockPrisma.inventoryRecord.findMany.mockResolvedValue([]);
+      mockPrisma.submittedReport.findMany.mockResolvedValue([]);
+      mockPrisma.submittedInventoryReport.findMany.mockResolvedValue([]);
+      mockPrisma.staffTimeLog.findMany.mockResolvedValue([
+        { id: 'log-1', userId: 'user-1', eventType: 'TIME_IN', latitude: 14.6, longitude: 121.0, createdAt: new Date('2026-01-01') },
+      ]);
+
+      const result = await service.getStoreExportData('store-a');
+
+      expect(mockPrisma.staffTimeLog.findMany).toHaveBeenCalledWith({
+        where: { tenantId: 'store-a' },
+        select: {
+          id: true,
+          userId: true,
+          eventType: true,
+          latitude: true,
+          longitude: true,
+          createdAt: true,
+        },
+      });
+      // The select above already excludes photoUrl at the query level, but
+      // assert the result too — belt and suspenders for the "no pictures"
+      // requirement.
+      expect(
+        (result.staffTimeLogs as any[]).every((l) => !('photoUrl' in l)),
+      ).toBe(true);
+      expect(result.staffTimeLogs).toHaveLength(1);
     });
 
     it("does not leak a sibling store's transactions when called for a different tenantId", async () => {
