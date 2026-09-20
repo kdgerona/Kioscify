@@ -552,7 +552,7 @@ export default function MenuWorkspacePage() {
             <div className="bg-white rounded-lg border">
               <div className="px-6 py-4 border-b">
                 <h2 className="font-semibold text-gray-900">Price Tiers</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Define pricing tiers for this menu and assign stores to them on the brand's Stores tab. The default tier is used when a store has no specific tier assigned.</p>
+                <p className="text-xs text-gray-400 mt-0.5">Define pricing tiers for this menu and assign stores to them on the brand&apos;s Stores tab. The default tier is used when a store has no specific tier assigned.</p>
               </div>
               <div className="divide-y">
                 {priceTiers.length === 0 && <div className="py-8 text-center text-gray-400 text-sm">No price tiers yet</div>}
