@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 export default function AccountStatus() {
   const router = useRouter();
-  const { accountStatus, gracePeriodEndsAt, scopeName, logout } = useAuth();
+  const { gracePeriodEndsAt, scopeName, logout } = useAuth();
 
   const daysRemaining = gracePeriodEndsAt
     ? Math.max(
@@ -18,8 +18,6 @@ export default function AccountStatus() {
       )
     : null;
 
-  const isDeactivated = accountStatus === "DEACTIVATED";
-
   const handleLogout = async () => {
     await logout();
     router.replace("/");
@@ -28,23 +26,25 @@ export default function AccountStatus() {
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <View className="flex-1 items-center justify-center px-6">
-        <View className="w-20 h-20 rounded-full bg-red-50 items-center justify-center mb-6">
-          <Ionicons name="alert-circle-outline" size={44} color="#dc2626" />
+        <View className="w-14 h-14 rounded-full bg-amber-50 items-center justify-center mb-5">
+          <Ionicons name="warning-outline" size={28} color="#f59e0b" />
         </View>
 
         <Text className="text-xl font-semibold text-gray-900 text-center">
-          {scopeName ? `${scopeName} has been deactivated` : "This account has been deactivated"}
+          Your subscription has ended
         </Text>
 
-        {isDeactivated ? (
+        {daysRemaining !== null ? (
           <Text className="text-sm text-gray-500 mt-2 text-center">
-            {"The grace period has ended and this account can no longer be used."}
+            {scopeName ? `${scopeName} has` : "Your account has"} read-only access for{" "}
+            <Text className="font-semibold text-gray-900">
+              {daysRemaining} day{daysRemaining === 1 ? "" : "s"}
+            </Text>{" "}
+            remaining before it is fully deactivated.
           </Text>
         ) : (
           <Text className="text-sm text-gray-500 mt-2 text-center">
-            {daysRemaining !== null
-              ? `${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining before access is fully removed.`
-              : "This account is in its grace period."}
+            {"Your account currently has limited, read-only access."}
           </Text>
         )}
 
