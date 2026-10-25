@@ -51,7 +51,9 @@ git checkout master && git pull
 
 ```bash
 docker exec kioskly-mongo sh -c 'mongodump -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --archive=/tmp/pre-billing.gz --gzip'
+mkdir -p backups
 docker cp kioskly-mongo:/tmp/pre-billing.gz ./backups/pre-billing-$(date +%F).gz
+ls -lh backups/
 ```
 
 ### 3. Create the billing indexes (required)
@@ -81,9 +83,22 @@ would also be applied to busy collections. The script avoids that.
 
 ### 4. Rebuild and restart the changed services together
 
+Check memory first. On a small server (e.g. 2 vCPU / 4 GB), each Next.js
+build can take 1–2 GB while the live services keep running. Build one
+service at a time:
+
 ```bash
-docker compose build api store platform
+free -h
+docker compose build api
+docker compose build store
+docker compose build platform
 docker compose up -d api store platform
+```
+
+If `free -h` shows no swap, add some first as a safety net for the builds:
+
+```bash
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
 ```
 
 Deploy the API and Platform Admin together. Platform Admin's "Onboard store"
