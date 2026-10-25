@@ -11,6 +11,31 @@ in Part C.
 - Spec: `docs/superpowers/specs/2026-10-24-automated-subscription-billing-design.md`
 - Plan: `docs/superpowers/plans/2026-10-24-automated-subscription-billing.md`
 
+## Impact on live users
+
+Safe to run while stores are trading. Plan for two short blips:
+
+| Step | What users notice |
+|---|---|
+| 1–3 (pull, backup, indexes) | Nothing. The backup adds light read load. The index script only touches the new, empty billing collections. |
+| 4 build | Nothing directly, but the build uses the server's CPU and memory, so the apps can feel slower while it runs. |
+| 4 restart | **The API is unavailable for roughly 10–30 seconds**, plus a few seconds for each portal. Kiosks are offline-first: sales are saved locally, the offline banner shows briefly, and everything syncs automatically. No sales are lost. Store Portal and Platform users may see a failed request and need to refresh. Nobody is logged out. |
+| 6 restart (PayMongo keys) | One more API blip of roughly 10–30 seconds, same as above. |
+| Everything else | Settings changes in Platform Admin. No restarts. |
+
+With billing OFF, the new code behaves like the old code for stores; tests
+cover this ("billing-OFF parity"). Three global changes ship with it, all
+harmless:
+
+- Rate limiting now uses each visitor's real IP instead of nginx's, so fewer
+  false "too many attempts" errors.
+- CORS allows `PUT`, which fixes an existing Platform call.
+- The request body limit stays at 10 MB.
+
+**Recommended timing:** after stores close, or in the quietest hour. Run the
+build first and the restart separately; `docker compose build` does not stop
+the running containers.
+
 ---
 
 ## Part A: Deploy the code (billing stays OFF)
@@ -29,37 +54,30 @@ docker exec kioskly-mongo sh -c 'mongodump -u "$MONGO_INITDB_ROOT_USERNAME" -p "
 docker cp kioskly-mongo:/tmp/pre-billing.gz ./backups/pre-billing-$(date +%F).gz
 ```
 
-### 3. Create the new collections and indexes (required)
+### 3. Create the billing indexes (required)
 
 The billing collections rely on unique indexes for safety: no duplicate
 invoices, and no payment applied twice. They must exist before billing is
 used.
 
-- The API image does not include the Prisma CLI (it is a dev dependency).
-- The database network `kioskly-internal` has no internet access
-  (`internal: true`).
+`docs/deployment/billing-indexes.js` creates exactly those 16 indexes and
+nothing else:
 
-So the command below creates a throwaway container on the default network,
-where it can download Prisma. It then attaches the container to the database
-network and runs `db push`:
+- Every collection it touches is new and empty, so it finishes instantly.
+- It never touches an existing collection, so live users are unaffected.
+- Index names match what `prisma db push` would create.
+- Re-running it is a no-op.
 
 ```bash
-docker create --name prisma-push -w /prisma \
-  -v "$PWD/kioskly-api/prisma:/prisma:ro" \
-  -e DATABASE_URL="$(docker exec kioskly-api printenv DATABASE_URL)" \
-  node:20-alpine sh -c "npx -y prisma@6.19.0 db push --schema=schema.prisma --skip-generate"
-docker network connect kioscify-production_kioskly-internal prisma-push
-docker start -a prisma-push
-docker rm prisma-push
+docker exec -i kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet \
+  < docs/deployment/billing-indexes.js
 ```
 
-- Expected result: "Your database indexes are now in sync."
-- The change is additive only: new collections, optional fields and indexes.
-  No existing data is modified, and no backfill is needed, because a missing
-  field reads as OFF.
-- **If Prisma warns about data loss or asks to drop anything, stop.** Do not
-  add `--accept-data-loss`. Investigate first.
-- If the network name differs, check it with `docker network ls`.
+Expected output ends with `Done: 16 indexes in place.`
+
+Prefer this to a full `prisma db push` on a live database. `db push` syncs
+the **whole** schema, so any earlier drift between production and the schema
+would also be applied to busy collections. The script avoids that.
 
 ### 4. Rebuild and restart the changed services together
 
@@ -92,9 +110,13 @@ Add these to the server's `.env`. `docker-compose.yml` already passes them to
 the API. Keys are read server-side only, never stored in the database and
 never returned to clients.
 
+To restart the API only once, register the webhook first (step 7), then add
+all four values together.
+
 ```env
 PAYMONGO_SECRET_KEY=sk_live_...
 PAYMONGO_PUBLIC_KEY=pk_live_...
+PAYMONGO_WEBHOOK_SECRET=whsk_...
 BILLING_PAY_PAGE_BASE_URL=https://kioscify.com
 ```
 
@@ -102,19 +124,16 @@ BILLING_PAY_PAGE_BASE_URL=https://kioscify.com
 docker compose up -d api
 ```
 
-### 7. Register the webhook
+### 7. Register the webhook (before the restart in step 6)
 
 In the PayMongo dashboard (**Live** mode → Developers → Webhooks):
 
 - URL: `https://kioscify.com/api/v1/billing/webhooks/paymongo`
 - Events: `payment.paid`, `payment.failed`, `qrph.expired`
 
-Copy the webhook's `whsk_...` secret into `.env` as
-`PAYMONGO_WEBHOOK_SECRET`, then restart:
-
-```bash
-docker compose up -d api
-```
+Copy the webhook's `whsk_...` secret into `.env` as `PAYMONGO_WEBHOOK_SECRET`
+(step 6). Events are only sent once stores start paying, so registering it
+before the restart is fine.
 
 Settings → Billing should now show **Live**, with the webhook configured.
 
