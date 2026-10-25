@@ -44,9 +44,18 @@ describe('describeStoreView', () => {
 
   it('DUE cashier also sees the days left before the lock date', () => {
     const v = describeStoreView(result({}), 'cashier');
-    expect(v.title).toBe('Subscription due — 3 days left');
+    expect(v.title).toBe('Subscription due — 3 days left before access is paused');
     expect(v.body).toBe("Your store's subscription is due. Please ask your store admin to pay before Oct 23, 2026.");
-    expect(describeStoreView(result({ daysLeft: 1 }), 'cashier').title).toBe('Subscription due — 1 day left');
+    expect(describeStoreView(result({ daysLeft: 1 }), 'cashier').title).toBe('Subscription due — 1 day left before access is paused');
+  });
+
+  it('during grace the title says "before access is paused" for admins too', () => {
+    expect(describeStoreView(result({}), 'admin').title).toBe('Subscription due — 3 days left before access is paused');
+  });
+
+  it('with enforcement off nothing is locked, so the title does not mention pausing', () => {
+    expect(describeStoreView(result({ enforcement: false }), 'admin').title).toBe('Subscription due — 3 days left');
+    expect(describeStoreView(result({ enforcement: false }), 'cashier').title).toBe('Subscription due — 3 days left');
   });
 
   it('DUE cashier past grace with enforcement off sees overdue, no lock date', () => {

@@ -55,9 +55,10 @@ export function describeStoreView(result: BillingStatusResult, audience: 'admin'
   const amount = formatPesoCentavos(result.amountCentavos);
   const due = formatManilaDate(result.dueAt);
   const daysLeft = result.daysLeft ?? 0;
+  // "before access is paused" only when enforcement is on: otherwise nothing is locked.
   const dueTitle =
     daysLeft > 0
-      ? `Subscription due — ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`
+      ? `Subscription due — ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left${result.enforcement ? ' before access is paused' : ''}`
       : 'Subscription overdue';
 
   if (audience === 'cashier') {

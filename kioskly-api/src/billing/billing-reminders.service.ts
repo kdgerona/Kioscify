@@ -15,8 +15,8 @@ export function dueOffsets(dueAt: Date, offsets: number[], now: Date): number[] 
 /** Title of the one-time reminder notice; it gets stronger towards the lock. */
 export function reminderCopy(offsetDays: number, daysLeft: number, enforcement: boolean): { title: string } {
   if (offsetDays === 0) return { title: 'Your subscription is due today' };
-  if (daysLeft <= 0) return { title: enforcement ? 'Last day before your store is locked' : 'Your subscription is overdue' };
-  return { title: `Reminder: subscription due — ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left` };
+  if (daysLeft <= 0) return { title: enforcement ? 'Last day before access is paused' : 'Your subscription is overdue' };
+  return { title: `Reminder: subscription due — ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left${enforcement ? ' before access is paused' : ''}` };
 }
 
 @Injectable()

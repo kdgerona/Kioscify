@@ -496,7 +496,7 @@ model BillingPaymentClaim {
 ### Reminders
 - `ReminderChannel { name; deliver(reminder, invoice, recipients) }`. The only implementation today is `InAppReminderChannel`, which only creates the `BillingReminder` row.
 - **Recipients:** store admins (STORE_ADMIN/ADMIN with access to the tenant). `GET billing/me` returns the latest unacknowledged reminder to those roles. Clients show a one-time modal, and acknowledging it records the user.
-- The banner copy gets stronger at each offset: day 0 "Due today", day 3 "4 days left", day 7 "Last day before lock".
+- The banner copy gets stronger at each offset: day 0 "Due today", day 3 "4 days left before access is paused", day 7 "Last day before access is paused". During grace the banner title reads "Subscription due — N days left before access is paused"; with enforcement off nothing is locked, so it reads just "N days left".
 
 ### Env vars
 Added to `kioskly-api/.env.example`, root `.env.example`, `docker-compose.yml` `api.environment`, and the deployment docs:

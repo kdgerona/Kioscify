@@ -155,7 +155,7 @@ describe('BillingMeService', () => {
       expect(me.pendingReminder).toEqual({
         id: 'rem-3',
         offsetDays: 3,
-        title: 'Reminder: subscription due — 5 days left',
+        title: 'Reminder: subscription due — 5 days left before access is paused',
         body: expect.stringContaining('₱1,500.00'),
       });
     });

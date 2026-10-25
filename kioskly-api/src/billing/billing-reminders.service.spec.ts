@@ -33,8 +33,9 @@ describe('dueOffsets', () => {
 describe('reminderCopy', () => {
   it('day 0, later days and the last day', () => {
     expect(reminderCopy(0, 7, true).title).toBe('Your subscription is due today');
-    expect(reminderCopy(3, 4, true).title).toBe('Reminder: subscription due — 4 days left');
-    expect(reminderCopy(7, 0, true).title).toBe('Last day before your store is locked');
+    expect(reminderCopy(3, 4, true).title).toBe('Reminder: subscription due — 4 days left before access is paused');
+    expect(reminderCopy(3, 4, false).title).toBe('Reminder: subscription due — 4 days left');
+    expect(reminderCopy(7, 0, true).title).toBe('Last day before access is paused');
     expect(reminderCopy(7, 0, false).title).toBe('Your subscription is overdue');
   });
 });
