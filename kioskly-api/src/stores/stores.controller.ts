@@ -35,6 +35,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { AllowInGracePeriod } from '../common/decorators/allow-in-grace-period.decorator';
 import { CompanyId, TenantId } from '../common/decorators/tenant.decorator';
 import { ExportService } from '../export/export.service';
+import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
 
 @ApiTags('stores')
 @Controller('stores')
@@ -99,6 +100,7 @@ export class StoresController {
   @UseGuards(RolesGuard)
   @Roles('STORE_ADMIN', 'PLATFORM_ADMIN')
   @AllowInGracePeriod()
+  @AllowWhenBillingLocked()
   @ApiOperation({
     summary:
       "Export a store's operational history (transactions, expenses, inventory items/records, submitted reports) as a ZIP. STORE_ADMIN limited to their own store; PLATFORM_ADMIN any store.",

@@ -8,6 +8,7 @@ import KeyvRedis from '@keyv/redis';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AccountStatusGuard } from './common/guards/account-status.guard';
+import { BillingStatusGuard } from './common/guards/billing-status.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -37,12 +38,15 @@ import { AppReleasesModule } from './app-releases/app-releases.module';
 import { StorageModule } from './storage/storage.module';
 import { PriceTiersModule } from './price-tiers/price-tiers.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { BillingModule } from './billing/billing.module';
+import { ScheduleModule } from '@nestjs/schedule';
 import { SessionsModule } from './sessions/sessions.module';
 import { MenusModule } from './menus/menus.module';
 import { InventorySetupsModule } from './inventory-setups/inventory-setups.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
@@ -88,6 +92,7 @@ import { InventorySetupsModule } from './inventory-setups/inventory-setups.modul
     UsersModule,
     PlatformModule,
     SubscriptionsModule,
+    BillingModule,
     SessionsModule,
     AnalyticsModule,
 
@@ -134,6 +139,8 @@ import { InventorySetupsModule } from './inventory-setups/inventory-setups.modul
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: AccountStatusGuard },
+    // After AccountStatusGuard: deactivation takes priority over the billing lock.
+    { provide: APP_GUARD, useClass: BillingStatusGuard },
   ],
 })
 export class AppModule {}

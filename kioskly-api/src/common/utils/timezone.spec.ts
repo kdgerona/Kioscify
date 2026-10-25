@@ -6,6 +6,11 @@ import {
   getZonedMonthBounds,
   getZonedYearBounds,
   getZonedMonthKey,
+  startOfZonedDay,
+  addZonedDays,
+  zonedDayOfMonth,
+  addZonedMonthsClamped,
+  zonedDaysBetween,
 } from './timezone';
 
 describe('getZonedHour', () => {
@@ -75,5 +80,41 @@ describe('getZonedMonthKey', () => {
 
   it('pads single-digit months', () => {
     expect(getZonedMonthKey(new Date('2026-01-15T04:00:00.000Z'))).toBe('2026-01');
+  });
+});
+
+// Manila midnight for a calendar date.
+const m = (y: number, mo: number, d: number) => new Date(Date.UTC(y, mo - 1, d) - 8 * 60 * 60 * 1000);
+
+describe('billing date helpers', () => {
+  it('startOfZonedDay maps 2026-11-30T16:30Z to Manila Dec 1 00:00', () => {
+    expect(startOfZonedDay(new Date('2026-11-30T16:30:00Z')).toISOString()).toBe('2026-11-30T16:00:00.000Z');
+  });
+
+  it('addZonedDays crosses month end', () => {
+    expect(addZonedDays(m(2026, 1, 31), 1).toISOString()).toBe(m(2026, 2, 1).toISOString());
+  });
+
+  it('zonedDayOfMonth reads the Manila day', () => {
+    expect(zonedDayOfMonth(new Date('2026-11-30T16:30:00Z'))).toBe(1);
+  });
+
+  it('addZonedMonthsClamped keeps anchor 31 through Feb in a leap year', () => {
+    const feb = addZonedMonthsClamped(m(2028, 1, 31), 1, 31);
+    expect(feb.toISOString()).toBe(m(2028, 2, 29).toISOString());
+    expect(addZonedMonthsClamped(feb, 1, 31).toISOString()).toBe(m(2028, 3, 31).toISOString());
+  });
+
+  it('addZonedMonthsClamped clamps 30 in non-leap Feb', () => {
+    expect(addZonedMonthsClamped(m(2026, 1, 30), 1, 30).toISOString()).toBe(m(2026, 2, 28).toISOString());
+  });
+
+  it('addZonedMonthsClamped crosses year', () => {
+    expect(addZonedMonthsClamped(m(2026, 12, 15), 1, 15).toISOString()).toBe(m(2027, 1, 15).toISOString());
+  });
+
+  it('zonedDaysBetween counts Manila days', () => {
+    expect(zonedDaysBetween(m(2026, 11, 1), new Date('2026-11-07T15:59:00Z'))).toBe(6);
+    expect(zonedDaysBetween(m(2026, 11, 7), m(2026, 11, 1))).toBe(-6);
   });
 });

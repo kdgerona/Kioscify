@@ -27,6 +27,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { TenantId } from '../common/decorators/tenant.decorator';
+import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
 
 @ApiTags('transactions')
 @Controller('transactions')
@@ -36,6 +37,7 @@ export class TransactionsController {
   constructor(private transactionsService: TransactionsService) {}
 
   @SkipThrottle()
+  @AllowWhenBillingLocked()
   @Post()
   @ApiOperation({ summary: 'Create a new transaction' })
   @ApiResponse({ status: 201, description: 'Transaction created successfully' })

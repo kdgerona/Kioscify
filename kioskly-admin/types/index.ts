@@ -76,12 +76,15 @@ export interface User {
   storePrivileges?: StorePrivileges | null;
 }
 
-export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED";
+// SUBSCRIPTION_LOCKED: the store is ACTIVE but its subscription is overdue
+// past the grace period (enforcement on). Handled by BillingGate, not /account-status.
+export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED" | "SUBSCRIPTION_LOCKED";
 
 export interface AccountStatusResponse {
   status: AccountStatus;
   gracePeriodEndsAt: string | null;
   scopeName: string | null;
+  billing?: BillingStatusResult | null;
 }
 
 export interface AssignableUser {
@@ -480,4 +483,138 @@ export interface UserShiftInventoryReport {
   createdAt: string;
   updatedAt: string;
   user?: User;
+}
+
+// ─── Automated billing ─────────────────────────────────────────────────────
+
+export type BillingStatus = "EXEMPT" | "NOT_ACTIVATED" | "TRIAL" | "ACTIVE" | "DUE" | "LOCKED";
+export type BillingInvoiceStatus = "OPEN" | "PAID" | "VOID" | "WAIVED";
+export type BillingPaymentMethod = "QRPH" | "MANUAL" | "PREPAID";
+
+export interface BillingStatusResult {
+  status: BillingStatus;
+  enforcement: boolean;
+  amountCentavos: number | null;
+  dueAt: string | null;
+  graceEndsAt: string | null;
+  daysLeft: number | null;
+  daysOverdue: number | null;
+  trialEndsAt: string | null;
+  paidThroughAt: string | null;
+  nextBillingAt: string | null;
+  openInvoiceId: string | null;
+  verificationPending: boolean;
+  /** Inside the reminder window before the due date (null otherwise). */
+  upcomingDueAt?: string | null;
+  daysUntilDue?: number | null;
+  lastClaimRejectedReason: string | null;
+}
+
+export interface StoreView {
+  variant: "none" | "banner" | "lock";
+  title: string;
+  body: string;
+  showPayAction: boolean;
+}
+
+export interface BillingReminderNotice {
+  id: string;
+  offsetDays: number;
+  title: string;
+  body: string;
+}
+
+export interface BillingMe {
+  status: BillingStatusResult;
+  storeView: StoreView;
+  canPay: boolean;
+  pendingReminder: BillingReminderNotice | null;
+  serverTime: string;
+  pollSeconds: number;
+  plan: {
+    billingEnabled: boolean | null;
+    priceCentavos: number | null;
+    trialEndsAt: string | null;
+    paidThroughAt: string | null;
+    nextBillingAt: string | null;
+  } | null;
+  openInvoice: {
+    id: string;
+    number: string;
+    amountCentavos: number;
+    dueAt: string;
+    periodStart: string;
+    periodEnd: string;
+  } | null;
+  cache: {
+    status: BillingStatus;
+    dueAt: string | null;
+    graceEndsAt: string | null;
+    enforcement: boolean;
+    validUntil: string | null;
+  };
+}
+
+interface PayBase {
+  invoiceId: string;
+  invoiceNumber: string;
+  amountCentavos: number;
+}
+
+export type PayResult =
+  | (PayBase & { kind: "paymongo"; qrImage: string; expiresAt: string; payUrl: string })
+  | (PayBase & {
+      kind: "fallback";
+      fallbackQrImageUrl: string;
+      accountName: string | null;
+      instructions: string | null;
+      payUrl: string;
+    })
+  | (PayBase & { kind: "unavailable"; message: string });
+
+export interface StoreInvoiceRow {
+  id: string;
+  number: string;
+  periodStart: string;
+  periodEnd: string;
+  amountCentavos: number;
+  dueAt: string;
+  status: BillingInvoiceStatus;
+  paidAt: string | null;
+  paymentMethod: BillingPaymentMethod | null;
+  reference: string | null;
+  manualMethod: string | null;
+}
+
+export interface StoreInvoiceReceipt {
+  invoice: {
+    id: string;
+    number: string;
+    periodStart: string;
+    periodEnd: string;
+    amountCentavos: number;
+    dueAt: string;
+    issuedAt: string;
+    status: BillingInvoiceStatus;
+    paidAt: string | null;
+    paymentMethod: BillingPaymentMethod | null;
+  };
+  payments: {
+    id: string;
+    paidAt: string;
+    amountCentavos: number;
+    method: BillingPaymentMethod;
+    manualMethod: string | null;
+    reference: string | null;
+  }[];
+  store: { name: string; address: string | null; companyName: string | null; brandName: string | null };
+}
+
+export interface PayPageData {
+  storeName: string;
+  invoiceNumber: string;
+  amountCentavos: number;
+  dueAt: string;
+  status: BillingInvoiceStatus;
+  payment: PayResult | null;
 }

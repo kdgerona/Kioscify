@@ -7,12 +7,14 @@ const mockPrisma = {
   company: { findUnique: jest.fn() },
 };
 const mockTokenBlacklist = { isBlacklisted: jest.fn() };
+const mockBillingStatus = { forTenantCached: jest.fn() };
 
 function makeStrategy(): JwtStrategy {
   return new JwtStrategy(
     mockConfig as any,
     mockPrisma as any,
     mockTokenBlacklist as any,
+    mockBillingStatus as any,
   );
 }
 
@@ -255,3 +257,38 @@ describe('JwtStrategy.validate — accountStatus computation', () => {
     expect(result.companyId).toBe('company-1');
   });
 });
+
+describe('JwtStrategy.validate — billingStatus', () => {
+  let strategy: JwtStrategy;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockConfig.get.mockReturnValue('test-secret');
+    strategy = makeStrategy();
+    mockPrisma.tenant.findUnique.mockResolvedValue({ isActive: true, gracePeriodEndsAt: null, company: null });
+  });
+
+  it('attaches billingStatus for store roles, computed for the effective tenant', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ ...baseUser, role: 'CASHIER', tenantId: 'store-1' });
+    mockBillingStatus.forTenantCached.mockResolvedValue({ status: 'LOCKED' });
+    const result = await strategy.validate({ sub: 'user-1', username: 'john', role: 'CASHIER', tenantId: 'store-1' });
+    expect(mockBillingStatus.forTenantCached).toHaveBeenCalledWith('store-1');
+    expect(result.billingStatus).toEqual({ status: 'LOCKED' });
+  });
+
+  it('does not compute billing for platform or company admins', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ ...baseUser, role: 'COMPANY_ADMIN', companyId: 'company-1' });
+    mockPrisma.company.findUnique.mockResolvedValue({ isActive: true, gracePeriodEndsAt: null });
+    const result = await strategy.validate({ sub: 'user-1', username: 'john', role: 'COMPANY_ADMIN', companyId: 'company-1' });
+    expect(mockBillingStatus.forTenantCached).not.toHaveBeenCalled();
+    expect(result.billingStatus).toBeUndefined();
+  });
+
+  it('a billing lookup failure fails open (request is not blocked)', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ ...baseUser, tenantId: 'store-1' });
+    mockBillingStatus.forTenantCached.mockRejectedValue(new Error('db down'));
+    const result = await strategy.validate({ sub: 'user-1', username: 'john', role: 'STORE_ADMIN', tenantId: 'store-1' });
+    expect(result.billingStatus).toBeUndefined();
+  });
+});
+

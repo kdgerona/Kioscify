@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsEmail, Matches, ValidateNested, IsArray, IsEnum } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsOptional, IsEmail, Matches, ValidateNested, IsArray, IsEnum, IsInt, Min, Max, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DeliveryPlatform } from '@prisma/client';
 
@@ -9,6 +9,20 @@ class ThemeColorsDto {
   @IsString() @IsOptional() accent?: string;
   @IsString() @IsOptional() background?: string;
   @IsString() @IsOptional() text?: string;
+}
+
+export class CreateStoreBillingDto {
+  @ApiProperty({ example: 150000, description: 'Monthly subscription price in centavos (₱1,500 = 150000)' })
+  @IsInt() @Min(1) priceCentavos: number;
+
+  @ApiProperty({ example: 15 })
+  @IsInt() @Min(0) @Max(365) trialDays: number;
+
+  @ApiProperty({ example: '2026-11-08', description: 'Date the first invoice is created (Manila)' })
+  @IsDateString() firstBillingDate: string;
+
+  @ApiPropertyOptional({ description: 'Defaults to now' })
+  @IsDateString() @IsOptional() activatedAt?: string;
 }
 
 export class CreateStoreDto {
@@ -34,9 +48,14 @@ export class CreateStoreDto {
   @ApiPropertyOptional()
   @ValidateNested() @Type(() => ThemeColorsDto) @IsOptional()
   themeColors?: ThemeColorsDto;
+
+  @ApiProperty({ type: CreateStoreBillingDto, description: 'New stores are billed automatically (price, trial and first billing date are required)' })
+  @ValidateNested() @Type(() => CreateStoreBillingDto)
+  billing: CreateStoreBillingDto;
 }
 
-export class UpdateStoreDto extends PartialType(CreateStoreDto) {
+// Billing is managed through /platform/subscriptions/:tenantId/billing, never PATCH /stores/:id.
+export class UpdateStoreDto extends PartialType(OmitType(CreateStoreDto, ['billing'] as const)) {
   // isActive is intentionally NOT here — it must go through the dedicated
   // deactivate/reactivate endpoints so grace-period bookkeeping
   // (deactivatedAt/gracePeriodEndsAt/deactivationCascaded) can't be bypassed.

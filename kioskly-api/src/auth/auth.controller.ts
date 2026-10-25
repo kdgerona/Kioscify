@@ -27,6 +27,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
 import { AllowInGracePeriod } from '../common/decorators/allow-in-grace-period.decorator';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
+import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
 
 // Configurable via env — defaults to 20 attempts per 15 min
 const LOGIN_THROTTLE = {
@@ -37,6 +38,9 @@ const LOGIN_THROTTLE = {
 };
 
 @ApiTags('auth')
+// Auth (login, logout, password, account status, store switch) stays usable
+// while a store's subscription is locked.
+@AllowWhenBillingLocked()
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}

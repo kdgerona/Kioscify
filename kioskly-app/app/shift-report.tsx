@@ -7,6 +7,7 @@ import {
   Alert,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
+import BillingBanner from "../components/BillingBanner";
 import { useRouter } from "expo-router";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useFocusEffect } from "expo-router";
@@ -416,6 +417,8 @@ export default function ShiftReport() {
           </TouchableOpacity>
         )}
       </View>
+
+      <BillingBanner />
 
       <ScrollView className="flex-1 px-4 py-4">
         {/* Last Submission Banner */}

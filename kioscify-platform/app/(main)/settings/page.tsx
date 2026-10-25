@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { formatRole, getErrorMessage } from '@/lib/utils';
 import { api } from '@/lib/api';
 import type { MaintenanceStatus } from '@/types';
+import { BillingSettingsCard } from '@/components/billing/BillingSettingsCard';
 
 export default function PlatformSettingsPage() {
   const [user, setUser] = useState<{
@@ -110,6 +111,8 @@ export default function PlatformSettingsPage() {
           <div className="px-6 py-4 text-sm text-red-400">Failed to load maintenance status</div>
         )}
       </div>
+
+      <BillingSettingsCard />
     </div>
   );
 }

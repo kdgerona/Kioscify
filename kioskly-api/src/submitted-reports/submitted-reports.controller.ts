@@ -19,6 +19,7 @@ import { SubmittedReportsService } from './submitted-reports.service';
 import { CreateSubmittedReportDto } from './dto/create-submitted-report.dto';
 import { SubmittedReportFiltersDto } from './dto/submitted-report-filters.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
 
 @ApiTags('submitted-reports')
 @Controller('submitted-reports')
@@ -30,6 +31,7 @@ export class SubmittedReportsController {
   ) {}
 
   @SkipThrottle()
+  @AllowWhenBillingLocked()
   @Post()
   @ApiOperation({ summary: 'Submit a daily report' })
   @ApiResponse({ status: 201, description: 'Report submitted successfully' })

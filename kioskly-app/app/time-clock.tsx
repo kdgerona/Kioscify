@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import ViewShot from "react-native-view-shot";
 import AppSafeAreaView from "../components/AppSafeAreaView";
+import BillingBanner from "../components/BillingBanner";
 import TimeClockCamera from "../components/TimeClockCamera";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -185,6 +186,8 @@ export default function TimeClockScreen() {
           Attendance
         </Text>
       </View>
+
+      <BillingBanner />
 
       {/* Content */}
       <View className="flex-1 px-6 py-8 items-center justify-center">

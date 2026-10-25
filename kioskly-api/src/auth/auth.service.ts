@@ -19,6 +19,8 @@ import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { SessionsService } from '../sessions/sessions.service';
 import { computeAccountStatus, worstAccountStatus } from '../common/utils/account-status.util';
+import { BillingStatusService } from '../billing/billing-status.service';
+import type { BillingStatusResult } from '../common/utils/billing-status.util';
 
 export interface RequestMeta {
   ipAddress?: string | null;
@@ -39,7 +41,29 @@ export class AuthService {
     private tokenBlacklist: TokenBlacklistService,
     private sessionsService: SessionsService,
     @InjectPinoLogger(AuthService.name) private readonly logger: PinoLogger,
+    private billingStatus: BillingStatusService,
   ) {}
+
+  /**
+   * Billing for the account-status contract. A store that is ACTIVE but
+   * subscription-LOCKED (enforcement on) reports SUBSCRIPTION_LOCKED, so
+   * kiosk APKs that predate billing — which treat any non-ACTIVE status as
+   * locked — still land on their lock screen. Deactivation always wins.
+   */
+  private async withBilling<S extends string>(
+    tenantId: string,
+    status: S,
+  ): Promise<{ status: S | 'SUBSCRIPTION_LOCKED'; billing: BillingStatusResult | null }> {
+    let billing: BillingStatusResult | null = null;
+    try {
+      const result = await this.billingStatus.forTenant(tenantId);
+      billing = result && result.status !== 'EXEMPT' ? result : null;
+    } catch {
+      // fail open
+    }
+    const locked = status === 'ACTIVE' && billing?.status === 'LOCKED' && billing.enforcement;
+    return { status: locked ? 'SUBSCRIPTION_LOCKED' : status, billing };
+  }
 
   // ─── Utility ──────────────────────────────────────────────────────────────
 
@@ -233,7 +257,7 @@ export class AuthService {
       accessToken: await this.issueTokenAndRecordSession(payload, meta),
       mustChangePassword: user.isFirstLogin,
       stores: accessibleStores,
-      status: storeAccountStatus,
+      ...(await this.withBilling(activeStore.id, storeAccountStatus)),
       gracePeriodEndsAt: store.gracePeriodEndsAt,
       scopeName: store.name,
       user: {
@@ -551,13 +575,14 @@ export class AuthService {
             status: combined,
             gracePeriodEndsAt: tenant.company.gracePeriodEndsAt,
             scopeName: tenant.company.name,
+            billing: null,
           };
         }
       }
       return {
-        status: tenantStatus,
         gracePeriodEndsAt: tenant.gracePeriodEndsAt,
         scopeName: tenant.name,
+        ...(await this.withBilling(user.tenantId, tenantStatus)),
       };
     }
 

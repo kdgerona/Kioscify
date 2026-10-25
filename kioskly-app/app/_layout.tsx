@@ -13,12 +13,17 @@ import MaintenanceScreen from "../components/MaintenanceScreen";
 import { AppUpdateProvider } from "../contexts/AppUpdateContext";
 import UpdateDialog from "../components/UpdateDialog";
 import Toast from "react-native-toast-message";
+import { BillingProvider, useBilling } from "../contexts/BillingContext";
+import ReminderModal from "../components/ReminderModal";
 
 // Inner component — must live inside SyncProvider to call useSync() via OfflineBanner.
 function AppNavigator() {
-  const { accountStatus } = useAuth();
+  const { accountStatus, user } = useAuth();
+  const { effectiveStatus, checkoutInProgress } = useBilling();
   const pathname = usePathname();
   const router = useRouter();
+  // SUBSCRIPTION_LOCKED is a billing lock, handled below — not a deactivation.
+  const deactivationGated = !!accountStatus && accountStatus !== "ACTIVE" && accountStatus !== "SUBSCRIPTION_LOCKED";
 
   // Post-auth account-status gate — redirects to the blocked screen whenever
   // the logged-in user's account isn't ACTIVE, and back to /home once it is
@@ -26,23 +31,38 @@ function AppNavigator() {
   // router is mounted, mirroring the existing auth-redirect pattern in
   // app/home.tsx.
   useEffect(() => {
-    if (accountStatus && accountStatus !== "ACTIVE" && pathname !== "/account-status") {
+    if (deactivationGated && pathname !== "/account-status") {
       const timer = setTimeout(() => {
         router.replace("/account-status" as Href);
       }, 0);
       return () => clearTimeout(timer);
     }
-    if (accountStatus === "ACTIVE" && pathname === "/account-status") {
+    if (accountStatus && !deactivationGated && pathname === "/account-status") {
       const timer = setTimeout(() => {
         router.replace("/home" as Href);
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [accountStatus, pathname, router]);
+  }, [accountStatus, deactivationGated, pathname, router]);
+
+  // Subscription lock: applied on launch, foreground, navigation and after
+  // the current sale — never in the middle of a checkout. Deactivation wins.
+  const billingLocked = !!user && !deactivationGated && effectiveStatus === "LOCKED";
+  useEffect(() => {
+    if (billingLocked && !checkoutInProgress && pathname !== "/subscription-overdue") {
+      const timer = setTimeout(() => router.replace("/subscription-overdue" as Href), 0);
+      return () => clearTimeout(timer);
+    }
+    if (!billingLocked && pathname === "/subscription-overdue") {
+      const timer = setTimeout(() => router.replace((user ? "/home" : "/") as Href), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [billingLocked, checkoutInProgress, pathname, router, user]);
 
   return (
     <View style={{ flex: 1 }}>
       <OfflineBanner />
+      <ReminderModal />
       <UpdateDialog />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
@@ -52,6 +72,7 @@ function AppNavigator() {
         <Stack.Screen name="change-password" />
         <Stack.Screen name="transactions" />
         <Stack.Screen name="shift-report" />
+        <Stack.Screen name="subscription-overdue" />
       </Stack>
     </View>
   );
@@ -97,9 +118,11 @@ export default function RootLayout() {
       <TenantProvider>
         <AuthProvider>
           <SyncProvider>
-            <AppUpdateProvider>
-              <AppNavigator />
-            </AppUpdateProvider>
+            <BillingProvider>
+              <AppUpdateProvider>
+                <AppNavigator />
+              </AppUpdateProvider>
+            </BillingProvider>
           </SyncProvider>
         </AuthProvider>
       </TenantProvider>

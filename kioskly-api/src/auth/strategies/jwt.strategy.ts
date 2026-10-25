@@ -6,6 +6,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { TokenBlacklistService } from '../token-blacklist.service';
 import { auth } from '../../constants/env.constants';
 import { AccountStatus, computeAccountStatus, worstAccountStatus } from '../../common/utils/account-status.util';
+import { BillingStatusService } from '../../billing/billing-status.service';
+import type { BillingStatusResult } from '../../common/utils/billing-status.util';
 
 export interface JwtPayload {
   sub: string;
@@ -41,7 +43,14 @@ export interface AuthenticatedUser {
   // Undefined for PLATFORM_ADMIN (tied to neither) — AccountStatusGuard
   // treats a missing accountStatus the same as ACTIVE.
   accountStatus?: AccountStatus;
+  // Subscription billing status of the effective store, for STORE_ADMIN /
+  // ADMIN / CASHIER only. With billing OFF globally it is derived from the
+  // cached config alone (no extra queries) and is EXEMPT. Read by
+  // BillingStatusGuard; kept separate from accountStatus on purpose.
+  billingStatus?: BillingStatusResult;
 }
+
+const BILLED_ROLES = ['STORE_ADMIN', 'ADMIN', 'CASHIER'];
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -49,6 +58,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly tokenBlacklist: TokenBlacklistService,
+    private readonly billingStatus: BillingStatusService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -138,6 +148,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (company) accountStatus = computeAccountStatus(company);
     }
 
+    let billingStatus: BillingStatusResult | undefined;
+    if (effectiveTenantId && BILLED_ROLES.includes(user.role)) {
+      try {
+        billingStatus = await this.billingStatus.forTenantCached(effectiveTenantId);
+      } catch {
+        // Fail open — a billing lookup problem must never block a request.
+      }
+    }
+
     return {
       id: user.id,
       username: user.username,
@@ -153,6 +172,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jti: payload.jti,
       exp: payload.exp,
       accountStatus,
+      billingStatus,
     };
   }
 }

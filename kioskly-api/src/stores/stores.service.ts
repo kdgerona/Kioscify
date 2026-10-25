@@ -16,6 +16,7 @@ import { app as appConstants } from '../constants/env.constants';
 import { Tenant, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { extname } from 'path';
+import { addZonedDays, startOfZonedDay, zonedDayOfMonth } from '../common/utils/timezone';
 
 @Injectable()
 export class StoresService {
@@ -127,7 +128,31 @@ export class StoresService {
     // results, not errors). No fan-out step needed anymore: Menu/
     // InventorySetup are shared, assigned wholesale via these fields, not
     // copied per store.
-    return this.prisma.tenant.create({ data: dto });
+    // New stores are billed automatically (billing is still OFF platform-wide
+    // until a platform admin enables it). Existing stores are untouched.
+    const { billing, ...tenantData } = dto;
+    const activatedAt = startOfZonedDay(billing.activatedAt ? new Date(billing.activatedAt) : new Date());
+    const firstBillingDate = startOfZonedDay(new Date(billing.firstBillingDate));
+    // A date other than the trial end was picked on purpose — keep it as an
+    // override so later trial edits don't move it.
+    const trialEndsAt = addZonedDays(activatedAt, billing.trialDays);
+    return this.prisma.$transaction(async tx => {
+      const tenant = await tx.tenant.create({ data: tenantData });
+      await tx.storeSubscription.create({
+        data: {
+          tenantId: tenant.id,
+          billingEnabled: true,
+          priceCentavos: billing.priceCentavos,
+          activatedAt,
+          trialStartAt: activatedAt,
+          trialDays: billing.trialDays,
+          nextBillingAt: firstBillingDate,
+          anchorDay: zonedDayOfMonth(firstBillingDate),
+          nextBillingOverridden: firstBillingDate.getTime() !== trialEndsAt.getTime(),
+        },
+      });
+      return tenant;
+    });
   }
 
   async update(id: string, dto: UpdateStoreDto) {

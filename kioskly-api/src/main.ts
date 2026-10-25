@@ -10,6 +10,7 @@ import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { MulterExceptionFilter } from './common/filters/multer-exception.filter';
+import { jsonBodyParser } from './common/utils/json-body-parser.util';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -17,8 +18,14 @@ async function bootstrap() {
     bodyParser: false,
   });
 
-  // Explicit body size limit (10 MB) — disables NestJS's unlimited default
-  app.use(express.json({ limit: '10mb' }));
+  // Behind nginx (single hop, sets X-Forwarded-For): use the real client IP
+  // for rate limiting — otherwise every visitor of the public pay page (and
+  // every login) shares nginx's address and one throttle bucket.
+  app.set('trust proxy', 1);
+
+  // Explicit body size limits — disables NestJS's unlimited default. Billing
+  // webhooks get a small limit and keep their raw body for signature checks.
+  app.use(jsonBodyParser());
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.useLogger(app.get(Logger));
   app.useGlobalFilters(new AllExceptionsFilter(app.get(Logger)));
@@ -69,7 +76,7 @@ async function bootstrap() {
   app.enableCors({
     origin: originHandler,
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-company-slug'],
   });
 

@@ -29,6 +29,10 @@ import type {
   StaffTimeLog,
   TimeLogEventType,
   AccountStatusResponse,
+  BillingMe,
+  PayResult,
+  StoreInvoiceRow,
+  StoreInvoiceReceipt,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -103,6 +107,18 @@ class ApiClient {
         if (code === "ACCOUNT_GRACE_PERIOD") {
           if (typeof window !== "undefined" && window.location.pathname !== "/account-status") {
             window.location.href = "/account-status";
+          }
+          return Promise.reject(error);
+        }
+
+        // Subscription overdue past grace (enforcement on): park the store on
+        // the overdue screen. Billing pages and the screen itself stay usable.
+        if (code === "SUBSCRIPTION_LOCKED") {
+          if (typeof window !== "undefined") {
+            const path = window.location.pathname;
+            if (path !== "/subscription-overdue" && path !== "/billing" && !path.startsWith("/billing/")) {
+              window.location.href = "/subscription-overdue";
+            }
           }
           return Promise.reject(error);
         }
@@ -201,6 +217,54 @@ class ApiClient {
   async getAccountStatus(): Promise<AccountStatusResponse> {
     const { data } = await this.client.get<AccountStatusResponse>("/auth/account-status");
     return data;
+  }
+
+  // ─── Billing (this store) ──────────────────────────────────────────────
+
+  async getBillingMe(): Promise<BillingMe> {
+    const { data } = await this.client.get<BillingMe>("/billing/me");
+    return data;
+  }
+
+  async getMyInvoices(): Promise<StoreInvoiceRow[]> {
+    const { data } = await this.client.get<StoreInvoiceRow[]>("/billing/me/invoices");
+    return data;
+  }
+
+  async getMyInvoice(id: string): Promise<StoreInvoiceReceipt> {
+    const { data } = await this.client.get<StoreInvoiceReceipt>(`/billing/me/invoices/${id}`);
+    return data;
+  }
+
+  async payNow(invoiceId?: string): Promise<PayResult> {
+    const { data } = await this.client.post<PayResult>(
+      invoiceId ? `/billing/me/invoices/${invoiceId}/pay` : "/billing/me/pay",
+    );
+    return data;
+  }
+
+  async getInvoicePaymentStatus(invoiceId: string): Promise<{ status: string; paid: boolean }> {
+    const { data } = await this.client.get(`/billing/me/invoices/${invoiceId}/payment-status`);
+    return data;
+  }
+
+  async submitPaymentClaim(
+    invoiceId: string,
+    payload: { amountCentavos: number; reference: string; paidAt: string; note?: string; receipt?: File | null },
+  ): Promise<void> {
+    const form = new FormData();
+    form.append("amountCentavos", String(payload.amountCentavos));
+    form.append("reference", payload.reference);
+    form.append("paidAt", payload.paidAt);
+    if (payload.note) form.append("note", payload.note);
+    if (payload.receipt) form.append("receipt", payload.receipt);
+    await this.client.post(`/billing/me/invoices/${invoiceId}/claims`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  }
+
+  async ackBillingReminder(id: string): Promise<void> {
+    await this.client.post(`/billing/me/reminders/${id}/ack`);
   }
 
   getCurrentUser(): User | null {

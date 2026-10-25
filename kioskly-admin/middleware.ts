@@ -21,6 +21,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Public pay page (/pay/<token>) and billing receipts
+  // (/billing/receipts/<id>) are app routes, not /<company>/<brand> paths.
+  // They must not fall into the rewrite below.
+  if (pathname.startsWith('/pay/') || pathname.startsWith('/billing/')) {
+    return NextResponse.next();
+  }
+
   // Match /<companySlug>/<brandSlug> or /<companySlug>/<brandSlug>/<storeSlug> or /<companySlug>/<brandSlug>/<storeSlug>/<rest>
   const match = pathname.match(/^\/([a-z0-9-]+)\/([a-z0-9-]+)(?:\/([a-z0-9-]+))?(\/.*)?$/);
 

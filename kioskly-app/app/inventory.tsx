@@ -9,6 +9,7 @@ import {
   Modal,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
+import BillingBanner from "../components/BillingBanner";
 import { useState, useEffect, useMemo } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -435,6 +436,8 @@ export default function InventoryScreen() {
           </View>
         )}
       </View>
+
+      <BillingBanner />
 
       <View className="flex-1 px-4 py-4">
         {!loading && !error && (

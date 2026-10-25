@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BillingConfigService } from '../billing/billing-config.service';
 
 const mockPrisma = {
   tenant: { findMany: jest.fn(), findUnique: jest.fn(), count: jest.fn() },
@@ -9,13 +10,19 @@ const mockPrisma = {
   subscriptionPayment: { upsert: jest.fn() },
 };
 
+const mockBillingConfig = { get: jest.fn(async () => ({ billingEnabled: true })) };
+
 describe('SubscriptionsService', () => {
   let service: SubscriptionsService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SubscriptionsService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        SubscriptionsService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: BillingConfigService, useValue: mockBillingConfig },
+      ],
     }).compile();
     service = module.get<SubscriptionsService>(SubscriptionsService);
   });
@@ -188,6 +195,22 @@ describe('SubscriptionsService', () => {
     it('throws NotFoundException when the store has no subscription yet', async () => {
       mockPrisma.storeSubscription.findUnique.mockResolvedValue(null);
       await expect(service.upsertPayment('t-1', '2026-02', { paid: true })).rejects.toThrow(NotFoundException);
+    });
+
+    it('still allows month toggles for a billed store while billing is globally OFF', async () => {
+      mockBillingConfig.get.mockResolvedValueOnce({ billingEnabled: false });
+      mockPrisma.storeSubscription.findUnique.mockResolvedValue({ id: 'sub-1', tenantId: 't-1', billingEnabled: true });
+      mockPrisma.subscriptionPayment.upsert.mockResolvedValue({});
+      await service.upsertPayment('t-1', '2026-02', { paid: true });
+      expect(mockPrisma.subscriptionPayment.upsert).toHaveBeenCalled();
+    });
+
+    it('throws ConflictException for stores managed by automated billing', async () => {
+      mockPrisma.storeSubscription.findUnique.mockResolvedValue({ id: 'sub-1', tenantId: 't-1', billingEnabled: true });
+      await expect(service.upsertPayment('t-1', '2026-02', { paid: true })).rejects.toThrow(
+        new ConflictException('Managed by billing; use mark-paid or prepayment'),
+      );
+      expect(mockPrisma.subscriptionPayment.upsert).not.toHaveBeenCalled();
     });
 
     it('upserts a paid payment and sets paidAt', async () => {

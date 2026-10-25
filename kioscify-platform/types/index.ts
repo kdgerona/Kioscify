@@ -133,6 +133,258 @@ export interface SubscriptionStats {
   overdue: number;
 }
 
+// ─── Automated billing ─────────────────────────────────────────────────────
+
+export type BillingStatus = 'EXEMPT' | 'NOT_ACTIVATED' | 'TRIAL' | 'ACTIVE' | 'DUE' | 'LOCKED';
+export type BillingListStatus = BillingStatus | 'NOT_SET_UP';
+export type PaymongoMode = 'test' | 'live' | 'unconfigured';
+
+export interface BillingConfig {
+  billingEnabled: boolean;
+  enforcementEnabled: boolean;
+  defaultTrialDays: number;
+  defaultGraceDays: number;
+  reminderOffsets: number[];
+  invoiceLeadDays: number;
+  paymongoMonthlyLimitCentavos: number;
+  limitWarnPercent: number;
+  overduePollSeconds: number;
+  claimLockHoldDays: number;
+  minKioskVersionCode: number | null;
+  fallbackQrImageUrl: string | null;
+  fallbackQrAccountName: string | null;
+  fallbackQrInstructions: string | null;
+  updatedAt: string;
+  paymongoMode: PaymongoMode;
+  webhookConfigured: boolean;
+}
+
+export type UpdateBillingConfigPayload = Partial<
+  Omit<BillingConfig, 'updatedAt' | 'paymongoMode' | 'webhookConfigured' | 'fallbackQrImageUrl'>
+> & { confirmEnforcement?: boolean };
+
+export interface BillingStatusResult {
+  status: BillingStatus;
+  enforcement: boolean;
+  amountCentavos: number | null;
+  dueAt: string | null;
+  graceEndsAt: string | null;
+  daysLeft: number | null;
+  daysOverdue: number | null;
+  trialEndsAt: string | null;
+  paidThroughAt: string | null;
+  nextBillingAt: string | null;
+  openInvoiceId: string | null;
+  verificationPending: boolean;
+  lastClaimRejectedReason: string | null;
+}
+
+export interface StoreView {
+  variant: 'none' | 'banner' | 'lock';
+  title: string;
+  body: string;
+  showPayAction: boolean;
+}
+
+export interface StoreBillingSettings {
+  billingEnabled: boolean | null;
+  exemptReason: string | null;
+  priceCentavos: number | null;
+  activatedAt: string | null;
+  trialStartAt: string | null;
+  trialDays: number | null;
+  trialEndsAt: string | null;
+  anchorDay: number | null;
+  nextBillingAt: string | null;
+  nextBillingOverridden: boolean;
+  paidThroughAt: string | null;
+  graceDaysOverride: number | null;
+}
+
+export interface BillingAuditEntry {
+  id: string;
+  tenantId: string | null;
+  actorUserId: string | null;
+  /** Display name of the actor; null for system rows (or a user that no longer exists). */
+  actorName: string | null;
+  action: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export type BillingInvoiceStatus = 'OPEN' | 'PAID' | 'VOID' | 'WAIVED';
+export type BillingPaymentMethod = 'QRPH' | 'MANUAL' | 'PREPAID';
+export type BillingPaymentSource = 'WEBHOOK' | 'RECONCILE' | 'MANUAL' | 'PREPAYMENT';
+export type ManualPaymentMethod = 'cash' | 'bank_transfer' | 'bank_qr' | 'gcash_direct' | 'other';
+export type ClaimStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface BillingInvoice {
+  id: string;
+  number: string;
+  periodStart: string;
+  periodEnd: string;
+  revision: number;
+  issuedAt: string;
+  dueAt: string;
+  amountCentavos: number;
+  status: BillingInvoiceStatus;
+  graceExtendedUntil: string | null;
+  paidAt: string | null;
+  paymentMethod: BillingPaymentMethod | null;
+  voidReason: string | null;
+}
+
+export interface BillingPaymentRow {
+  id: string;
+  invoiceId: string | null;
+  source: BillingPaymentSource;
+  method: BillingPaymentMethod;
+  manualMethod: string | null;
+  amountCentavos: number;
+  monthsCovered: number;
+  paidAt: string;
+  reference: string | null;
+  providerIntentId: string | null;
+  note: string | null;
+  flagged: boolean;
+  /** Applied, but the amount differed from the invoice. */
+  amountMismatch: boolean;
+}
+
+export interface BillingAttemptRow {
+  id: string;
+  invoiceId: string;
+  providerIntentId: string;
+  status: string;
+  expiresAt: string;
+  livemode: boolean;
+  createdAt: string;
+}
+
+export interface BillingClaim {
+  id: string;
+  invoiceId: string;
+  tenantId: string;
+  amountCentavos: number;
+  reference: string;
+  paidAt: string;
+  receiptImageUrl: string | null;
+  note: string | null;
+  status: ClaimStatus;
+  rejectReason: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  storeName?: string | null;
+  invoiceNumber?: string | null;
+  invoiceAmountCentavos?: number | null;
+  invoiceStatus?: BillingInvoiceStatus | null;
+}
+
+export interface PaymentsLogRow {
+  id: string;
+  paidAt: string;
+  storeName: string | null;
+  companyName: string | null;
+  brandName: string | null;
+  invoiceNumber: string | null;
+  amountCentavos: number;
+  method: BillingPaymentMethod;
+  source: BillingPaymentSource;
+  manualMethod: string | null;
+  reference: string | null;
+  flagged: boolean;
+  /** Applied, but the amount differed from the invoice. */
+  amountMismatch: boolean;
+  note: string | null;
+}
+
+export interface StoreBillingDetail {
+  tenantId: string;
+  storeName: string;
+  company: { id: string; name: string } | null;
+  brand: { id: string; name: string } | null;
+  globalBillingEnabled: boolean;
+  settings: StoreBillingSettings;
+  status: BillingStatusResult;
+  previewStatus: BillingStatusResult;
+  storeView: { admin: StoreView; cashier: StoreView };
+  audit: BillingAuditEntry[];
+  invoices: BillingInvoice[];
+  payments: BillingPaymentRow[];
+  attempts: BillingAttemptRow[];
+  claims: BillingClaim[];
+}
+
+export interface UpdateStoreBillingPayload {
+  billingEnabled?: boolean;
+  exemptReason?: string | null;
+  priceCentavos?: number;
+  activatedAt?: string | null;
+  trialStartAt?: string | null;
+  trialDays?: number | null;
+  anchorDay?: number | null;
+  nextBillingAt?: string | null;
+  graceDaysOverride?: number | null;
+}
+
+export interface EnableDatesPreview {
+  trialEndsAt: string;
+  anchorDay: number;
+  paidThroughAt: string | null;
+  nextBillingAt: string;
+  honoredMonths: string[];
+  nextBillingOverridden: boolean;
+}
+
+export interface BillingStoreRow {
+  tenantId: string;
+  storeName: string;
+  company: { id: string; name: string } | null;
+  brand: { id: string; name: string } | null;
+  priceCentavos: number | null;
+  billingEnabled: boolean | null;
+  exemptReason: string | null;
+  status: BillingListStatus;
+  dueAt: string | null;
+  paidThroughAt: string | null;
+  nextBillingAt: string | null;
+  daysOverdue: number | null;
+  lastPaymentAt: string | null;
+}
+
+export interface BillingMoney {
+  expectedThisMonthCentavos: number;
+  collectedThisMonthCentavos: number;
+  outstandingCentavos: number;
+  qrphCollectedThisMonthCentavos: number;
+  limitCentavos: number;
+  limitPercent: number;
+  limitWarn: boolean;
+  fallbackQrConfigured: boolean;
+  pendingClaims: number;
+}
+
+export interface BillingOverview {
+  globalBillingEnabled: boolean;
+  counts: Record<BillingListStatus, number>;
+  upcomingNext7Days: number;
+  money: BillingMoney;
+}
+
+export interface BulkBillingResult {
+  tenantId: string;
+  ok: boolean;
+  error?: string;
+}
+
+export interface CreateStoreBillingPayload {
+  priceCentavos: number;
+  trialDays: number;
+  firstBillingDate: string;
+  activatedAt?: string;
+}
+
 export type SessionStatus = 'ACTIVE' | 'ENDED' | 'EXPIRED';
 
 export interface SessionListItem {
@@ -180,6 +432,7 @@ export interface OnboardStorePayload {
   brandId: string;
   companyId: string;
   admin: OnboardAdminPayload;
+  billing: CreateStoreBillingPayload;
 }
 
 export interface AppRelease {

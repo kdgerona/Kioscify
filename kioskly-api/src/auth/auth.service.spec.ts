@@ -7,6 +7,7 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { SessionsService } from '../sessions/sessions.service';
+import { BillingStatusService } from '../billing/billing-status.service';
 
 jest.mock('bcrypt');
 const bcryptCompare = bcrypt.compare as jest.Mock;
@@ -49,6 +50,8 @@ const mockUserWithRelations = {
   storeAccess: [],
 };
 
+const mockBillingStatus = { forTenant: jest.fn() };
+
 describe('AuthService — logging', () => {
   let service: AuthService;
 
@@ -61,6 +64,7 @@ describe('AuthService — logging', () => {
         { provide: TokenBlacklistService, useValue: mockTokenBlacklist },
         { provide: SessionsService, useValue: mockSessionsService },
         { provide: getLoggerToken(AuthService.name), useValue: mockLogger },
+        { provide: BillingStatusService, useValue: mockBillingStatus },
       ],
     }).compile();
 
@@ -405,6 +409,39 @@ describe('AuthService — logging', () => {
 
       expect(result.status).toBe('ACTIVE');
       expect(result.scopeName).toBe('Store One');
+    });
+  });
+
+  describe('getAccountStatus — subscription lock (old APKs read any non-ACTIVE status as locked)', () => {
+    const activeTenant = { name: 'Store One', isActive: true, gracePeriodEndsAt: null, company: null };
+
+    it('ACTIVE + billing LOCKED + enforcement → SUBSCRIPTION_LOCKED with billing details', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue(activeTenant);
+      const billing = { status: 'LOCKED', enforcement: true, amountCentavos: 150000 };
+      mockBillingStatus.forTenant.mockResolvedValue(billing);
+      const result = await service.getAccountStatus({ tenantId: 'store-1' });
+      expect(result).toMatchObject({ status: 'SUBSCRIPTION_LOCKED', billing, scopeName: 'Store One' });
+    });
+
+    it('DUE keeps ACTIVE and includes billing', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue(activeTenant);
+      mockBillingStatus.forTenant.mockResolvedValue({ status: 'DUE', enforcement: true });
+      const result = await service.getAccountStatus({ tenantId: 'store-1' });
+      expect(result).toMatchObject({ status: 'ACTIVE', billing: { status: 'DUE' } });
+    });
+
+    it('EXEMPT (e.g. billing OFF) → billing null, status unchanged', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue(activeTenant);
+      mockBillingStatus.forTenant.mockResolvedValue({ status: 'EXEMPT', enforcement: false });
+      const result = await service.getAccountStatus({ tenantId: 'store-1' });
+      expect(result).toEqual({ status: 'ACTIVE', gracePeriodEndsAt: null, scopeName: 'Store One', billing: null });
+    });
+
+    it('deactivation wins over the billing lock', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({ ...activeTenant, isActive: false, gracePeriodEndsAt: new Date(Date.now() + 86400000) });
+      mockBillingStatus.forTenant.mockResolvedValue({ status: 'LOCKED', enforcement: true });
+      const result = await service.getAccountStatus({ tenantId: 'store-1' });
+      expect(result.status).toBe('GRACE_PERIOD');
     });
   });
 

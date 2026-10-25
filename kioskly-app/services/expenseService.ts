@@ -155,7 +155,9 @@ export const createExpense = async (
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to create expense: ${errorText}`);
+      // Carry the HTTP status so the catch below can tell a 4xx (surface to
+      // the user) from a network/server failure (queue for sync).
+      throw Object.assign(new Error(`Failed to create expense: ${errorText}`), { status: response.status });
     }
 
     const data = await response.json();

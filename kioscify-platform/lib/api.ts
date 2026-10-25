@@ -10,6 +10,21 @@ import type {
   User,
   OnboardAdminPayload,
   OnboardStorePayload,
+  BillingConfig,
+  UpdateBillingConfigPayload,
+  BillingOverview,
+  BillingStoreRow,
+  BillingListStatus,
+  BulkBillingResult,
+  StoreBillingDetail,
+  UpdateStoreBillingPayload,
+  EnableDatesPreview,
+  CreateStoreBillingPayload,
+  BillingInvoice,
+  BillingClaim,
+  ClaimStatus,
+  ManualPaymentMethod,
+  PaymentsLogRow,
   AppRelease,
   Category,
   Product,
@@ -61,7 +76,18 @@ class ApiClient {
 
     this.client.interceptors.response.use(
       response => response,
-      (error: AxiosError) => {
+      async (error: AxiosError) => {
+        // A `responseType: 'blob'` request (the payments CSV) gets its error
+        // body back as a Blob, not parsed JSON — parse it so getErrorMessage
+        // shows the API's message instead of a generic one.
+        if (error.response?.data instanceof Blob && error.response.data.type.includes('json')) {
+          try {
+            error.response.data = JSON.parse(await error.response.data.text());
+          } catch {
+            // Not parseable JSON (e.g. an nginx HTML error page) — leave as-is.
+          }
+        }
+
         const isAuthEndpoint = error.config?.url?.includes('/auth/');
         if (error.response?.status === 401 && !isAuthEndpoint) {
           this.clearToken();
@@ -197,6 +223,153 @@ class ApiClient {
     payload: { paid: boolean; note?: string },
   ): Promise<void> {
     await this.client.put(`/platform/subscriptions/${tenantId}/payments/${month}`, payload);
+  }
+
+  // ─── Billing ──────────────────────────────────────────────────────────────
+
+  async getBillingConfig(): Promise<BillingConfig> {
+    const { data } = await this.client.get<BillingConfig>('/platform/billing/config');
+    return data;
+  }
+
+  async updateBillingConfig(payload: UpdateBillingConfigPayload): Promise<BillingConfig> {
+    const { data } = await this.client.patch<BillingConfig>('/platform/billing/config', payload);
+    return data;
+  }
+
+  async getBillingOverview(): Promise<BillingOverview> {
+    const { data } = await this.client.get<BillingOverview>('/platform/billing/overview');
+    return data;
+  }
+
+  async getBillingStores(params: {
+    companyId?: string;
+    brandId?: string;
+    status?: BillingListStatus;
+    dueFrom?: string;
+    dueTo?: string;
+    q?: string;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    data: BillingStoreRow[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const { data } = await this.client.get('/platform/billing/stores', { params });
+    return data;
+  }
+
+  async bulkUpdateStoreBilling(tenantIds: string[], patch: UpdateStoreBillingPayload): Promise<BulkBillingResult[]> {
+    const { data } = await this.client.patch<BulkBillingResult[]>('/platform/billing/stores/bulk', { tenantIds, patch });
+    return data;
+  }
+
+  async getStoreBilling(tenantId: string): Promise<StoreBillingDetail> {
+    const { data } = await this.client.get<StoreBillingDetail>(`/platform/subscriptions/${tenantId}/billing`);
+    return data;
+  }
+
+  async getEnablePreview(tenantId: string): Promise<EnableDatesPreview> {
+    const { data } = await this.client.get<EnableDatesPreview>(`/platform/subscriptions/${tenantId}/billing/enable-preview`);
+    return data;
+  }
+
+  async updateStoreBilling(tenantId: string, payload: UpdateStoreBillingPayload): Promise<StoreBillingDetail> {
+    const { data } = await this.client.patch<StoreBillingDetail>(`/platform/subscriptions/${tenantId}/billing`, payload);
+    return data;
+  }
+
+  async generateInvoiceNow(tenantId: string): Promise<BillingInvoice> {
+    const { data } = await this.client.post<BillingInvoice>(`/platform/subscriptions/${tenantId}/billing/invoices`);
+    return data;
+  }
+
+  async recordPrepayment(
+    tenantId: string,
+    payload: {
+      amountCentavos: number;
+      monthsCovered: number;
+      paidThroughAt: string;
+      nextBillingAt: string;
+      manualMethod: ManualPaymentMethod;
+      reference?: string;
+      note?: string;
+    },
+  ): Promise<void> {
+    await this.client.post(`/platform/subscriptions/${tenantId}/billing/prepayments`, payload);
+  }
+
+  async markInvoicePaid(
+    invoiceId: string,
+    payload: { manualMethod: ManualPaymentMethod; reference?: string; note?: string; paidAt?: string },
+  ): Promise<void> {
+    await this.client.post(`/platform/billing/invoices/${invoiceId}/mark-paid`, payload);
+  }
+
+  async voidInvoice(invoiceId: string, reason: string): Promise<void> {
+    await this.client.post(`/platform/billing/invoices/${invoiceId}/void`, { reason });
+  }
+
+  async waiveInvoice(invoiceId: string, reason: string): Promise<void> {
+    await this.client.post(`/platform/billing/invoices/${invoiceId}/waive`, { reason });
+  }
+
+  async extendInvoiceGrace(invoiceId: string, until: string): Promise<void> {
+    await this.client.post(`/platform/billing/invoices/${invoiceId}/extend-grace`, { until });
+  }
+
+  async resendInvoiceReminder(invoiceId: string): Promise<void> {
+    await this.client.post(`/platform/billing/invoices/${invoiceId}/reminders/resend`);
+  }
+
+  async recheckInvoice(invoiceId: string): Promise<{ paid: boolean }> {
+    const { data } = await this.client.post<{ paid: boolean }>(`/platform/billing/invoices/${invoiceId}/recheck`);
+    return data;
+  }
+
+  async getPaymentsLog(params: { page?: number; limit?: number; tenantId?: string } = {}): Promise<{
+    data: PaymentsLogRow[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const { data } = await this.client.get('/platform/billing/payments', { params });
+    return data;
+  }
+
+  async downloadPaymentsCsv(): Promise<Blob> {
+    const { data } = await this.client.get('/platform/billing/payments', {
+      params: { format: 'csv' },
+      responseType: 'blob',
+      // Don't leave the Export button spinning forever on a stalled request.
+      timeout: 60000,
+    });
+    return data;
+  }
+
+  async getBillingClaims(status?: ClaimStatus): Promise<BillingClaim[]> {
+    const { data } = await this.client.get<BillingClaim[]>('/platform/billing/claims', { params: { status } });
+    return data;
+  }
+
+  async approveBillingClaim(id: string): Promise<void> {
+    await this.client.post(`/platform/billing/claims/${id}/approve`);
+  }
+
+  async rejectBillingClaim(id: string, reason: string): Promise<void> {
+    await this.client.post(`/platform/billing/claims/${id}/reject`, { reason });
+  }
+
+  async uploadFallbackQr(file: File): Promise<BillingConfig> {
+    const form = new FormData();
+    form.append('image', file);
+    const { data } = await this.client.post<BillingConfig>('/platform/billing/config/fallback-qr', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  }
+
+  async removeFallbackQr(): Promise<BillingConfig> {
+    const { data } = await this.client.delete<BillingConfig>('/platform/billing/config/fallback-qr');
+    return data;
   }
 
   // ─── Sessions ─────────────────────────────────────────────────────────────
@@ -630,6 +803,7 @@ class ApiClient {
     slug: string;
     brandId: string;
     companyId: string;
+    billing: CreateStoreBillingPayload;
   }): Promise<Store> {
     const { data } = await this.client.post<Store>('/stores', payload);
     return data;
@@ -656,6 +830,7 @@ class ApiClient {
       slug: payload.storeSlug,
       brandId: payload.brandId,
       companyId: payload.companyId,
+      billing: payload.billing,
     });
     const adminResult = await this.onboardStoreAdmin(newStore.id, payload.admin);
     return { store: newStore, ...adminResult };
@@ -667,12 +842,14 @@ class ApiClient {
     brandId: string;
     companyId: string;
     username: string;
+    billing: CreateStoreBillingPayload;
   }): Promise<{ store: Store }> {
     const newStore = await this.createStore({
       name: payload.storeName,
       slug: payload.storeSlug,
       brandId: payload.brandId,
       companyId: payload.companyId,
+      billing: payload.billing,
     });
     await this.assignUserToStore(newStore.id, { username: payload.username, role: 'STORE_ADMIN' });
     return { store: newStore };

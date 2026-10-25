@@ -5,6 +5,7 @@ import { UserShiftReportsService } from './user-shift-reports.service';
 import { CreateSubmittedReportDto } from '../submitted-reports/dto/create-submitted-report.dto';
 import { UserShiftReportFiltersDto } from './dto/user-shift-report-filters.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
 
 @ApiTags('user-shift-reports')
 @Controller('user-shift-reports')
@@ -14,6 +15,7 @@ export class UserShiftReportsController {
   constructor(private readonly userShiftReportsService: UserShiftReportsService) {}
 
   @SkipThrottle()
+  @AllowWhenBillingLocked()
   @Post()
   @ApiOperation({ summary: 'Submit a user shift report' })
   @ApiResponse({ status: 201, description: 'Shift report submitted successfully' })

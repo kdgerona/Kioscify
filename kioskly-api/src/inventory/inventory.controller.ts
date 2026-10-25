@@ -32,6 +32,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { TenantId } from '../common/decorators/tenant.decorator';
+import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
 
 @ApiTags('inventory')
 @Controller('inventory')
@@ -160,6 +161,7 @@ export class InventoryController {
 
   // Inventory Records Endpoints
   @SkipThrottle()
+  @AllowWhenBillingLocked()
   @Post('records')
   @ApiOperation({ summary: 'Record a single inventory count' })
   @ApiResponse({
@@ -180,6 +182,7 @@ export class InventoryController {
   }
 
   @SkipThrottle()
+  @AllowWhenBillingLocked()
   @Post('records/bulk')
   @ApiOperation({ summary: 'Record multiple inventory counts at once' })
   @ApiResponse({

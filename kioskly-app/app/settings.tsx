@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
+import BillingBanner from "../components/BillingBanner";
 import { useRouter, Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
@@ -73,6 +74,8 @@ export default function SettingsScreen() {
         </TouchableOpacity>
         <Text className="text-2xl font-bold" style={{ color: textColor }}>Settings</Text>
       </View>
+
+      <BillingBanner />
 
       <ScrollView showsVerticalScrollIndicator={false}>
 

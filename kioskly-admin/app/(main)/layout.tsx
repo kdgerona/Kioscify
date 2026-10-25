@@ -6,6 +6,10 @@ import Sidebar from '@/components/Sidebar';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
 import type { AccountStatus } from '@/types';
+import { BillingProvider } from '@/contexts/BillingContext';
+import { BillingBanner } from '@/components/billing/BillingBanner';
+import { ReminderModal } from '@/components/billing/ReminderModal';
+import { BillingGate } from '@/components/billing/BillingGate';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -69,15 +73,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // client-side route changes — a sibling route becoming the active
   // `children` re-renders this component via `usePathname()` changing, which
   // is what re-triggers this check.
+  // SUBSCRIPTION_LOCKED is a billing lock, not a deactivation: the shell
+  // still renders and BillingGate (below) parks the store on
+  // /subscription-overdue using the live billing status.
+  const deactivationGated = !!accountStatus && accountStatus !== 'ACTIVE' && accountStatus !== 'SUBSCRIPTION_LOCKED';
+
   useEffect(() => {
-    if (accountStatus && accountStatus !== 'ACTIVE' && !isAccountStatusRoute) {
+    if (deactivationGated && !isAccountStatusRoute) {
       router.replace('/account-status');
-    } else if (accountStatus === 'ACTIVE' && isAccountStatusRoute) {
+    } else if (!deactivationGated && accountStatus && isAccountStatusRoute) {
       // Account was reactivated (or this was reached directly) — no reason
       // to keep the user parked on the status page.
       router.replace('/dashboard');
     }
-  }, [accountStatus, isAccountStatusRoute, pathname, router]);
+  }, [accountStatus, deactivationGated, isAccountStatusRoute, pathname, router]);
 
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? '#ea580c';
 
@@ -107,7 +116,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // (with the now-known accountStatus, pre-redirect) would paint the actual
   // protected page for a frame. Keep showing the spinner until the redirect
   // takes effect and `pathname`/`isAccountStatusRoute` catches up.
-  if (accountStatus && accountStatus !== 'ACTIVE') {
+  if (deactivationGated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -119,14 +128,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div
-      className="flex h-screen bg-gray-100"
-      style={{ '--brand-primary': primaryColor } as React.CSSProperties}
-    >
-      <Sidebar />
-      <main className="flex-1 overflow-auto w-full">
-        <div className="pt-16 lg:pt-0">{children}</div>
-      </main>
-    </div>
+    <BillingProvider>
+      <BillingGate initiallyLocked={accountStatus === 'SUBSCRIPTION_LOCKED'} primaryColor={primaryColor}>
+        <div
+          className="flex h-screen bg-gray-100"
+          style={{ '--brand-primary': primaryColor } as React.CSSProperties}
+        >
+          <Sidebar />
+          <main className="flex-1 overflow-auto w-full">
+            <div className="pt-16 lg:pt-0">
+              <BillingBanner />
+              <ReminderModal />
+              {children}
+            </div>
+          </main>
+        </div>
+      </BillingGate>
+    </BillingProvider>
   );
 }
