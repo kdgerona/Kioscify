@@ -1,5 +1,5 @@
 import { AllExceptionsFilter } from './all-exceptions.filter';
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { ForbiddenException, HttpException, HttpStatus } from '@nestjs/common';
 
 describe('AllExceptionsFilter', () => {
   let filter: AllExceptionsFilter;
@@ -74,5 +74,20 @@ describe('AllExceptionsFilter', () => {
       { statusCode: 401, path: '/api/v1/test' },
       'Unauthorized',
     );
+  });
+
+  it('passes code and billing through from the exception body', () => {
+    filter.catch(
+      new ForbiddenException({ code: 'SUBSCRIPTION_LOCKED', message: 'Overdue', billing: { amountCentavos: 150000 } }),
+      mockHost,
+    );
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 403, code: 'SUBSCRIPTION_LOCKED', billing: { amountCentavos: 150000 } }),
+    );
+  });
+
+  it('omits billing when the exception has none', () => {
+    filter.catch(new HttpException('Not Found', HttpStatus.NOT_FOUND), mockHost);
+    expect(mockResponse.json.mock.calls[0][0]).not.toHaveProperty('billing');
   });
 });

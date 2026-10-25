@@ -10,10 +10,12 @@ import {
   Alert,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
+import BillingBanner from "../components/BillingBanner";
 import { useRouter, Href } from "expo-router";
 import { useState, useEffect, useRef } from "react";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useBilling } from "../contexts/BillingContext";
 import { apiGet, apiPost, apiDelete } from "../utils/api";
 import CheckoutModal, { type PaymentSplitLine } from "../components/CheckoutModal";
 import TransactionSummary from "../components/TransactionSummary";
@@ -164,6 +166,7 @@ export default function Home() {
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([]);
   const [selectedPreference, setSelectedPreference] = useState<Preference | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
+  const { setCheckoutInProgress } = useBilling();
   const [transactionError, setTransactionError] = useState<string | null>(null);
   const [showQueuedConfirm, setShowQueuedConfirm] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>('regular');
@@ -181,6 +184,13 @@ export default function Home() {
   const [heldOrdersError, setHeldOrdersError] = useState<string | null>(null);
 
   // Fetch categories and products from API, fall back to local cache when offline
+  // Never interrupt a sale: the subscription lock waits until checkout ends.
+  useEffect(() => {
+    setCheckoutInProgress(showCheckoutModal || isCreatingTransaction || showTransactionSummary);
+  }, [showCheckoutModal, isCreatingTransaction, showTransactionSummary, setCheckoutInProgress]);
+
+  useEffect(() => () => setCheckoutInProgress(false), [setCheckoutInProgress]);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!tenant) return;
@@ -1156,6 +1166,8 @@ export default function Home() {
           </View>
         )}
       </View>
+
+      <BillingBanner />
 
       {/* Header Menu (phone only) — slide-in side panel */}
       <Modal

@@ -37,6 +37,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? (rawResponse as { code?: string }).code
         : undefined;
 
+    // Billing lock details (amount, due date, invoice) for clients that render
+    // the overdue screen straight from the 403.
+    const billing =
+      isHttp && rawResponse !== null && typeof rawResponse === 'object'
+        ? (rawResponse as { billing?: unknown }).billing
+        : undefined;
+
     const logMeta = { statusCode, path: request.url };
     const logMessage = typeof message === 'string' ? message : JSON.stringify(message);
 
@@ -53,6 +60,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode,
       message,
       ...(code ? { code } : {}),
+      ...(billing !== undefined ? { billing } : {}),
       timestamp: new Date().toISOString(),
       path: request.url,
     });

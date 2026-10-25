@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { notifyUnauthorized } from "./authEvents";
+import { notifyBillingLocked } from "./billingEvents";
 
 const TOKEN_KEY = "@kioscify:auth_token";
 
@@ -61,6 +62,17 @@ export const apiRequest = async (
 
   if (requiresAuth && response.status === 401) {
     notifyUnauthorized();
+  }
+
+  if (requiresAuth && response.status === 403) {
+    // Read a copy so callers can still consume the body.
+    response
+      .clone()
+      .json()
+      .then((body: { code?: string }) => {
+        if (body?.code === "SUBSCRIPTION_LOCKED") notifyBillingLocked();
+      })
+      .catch(() => {});
   }
 
   return response;

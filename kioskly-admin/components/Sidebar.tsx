@@ -26,10 +26,12 @@ import {
   ChevronsUpDown,
   Check,
   Clock,
+  CreditCard,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
+import { useBilling } from "@/contexts/BillingContext";
 import { cn, getContrastColor, resolveLogoUrl } from "@/lib/utils";
 import { hasPrivilege } from "@/lib/privileges";
 import type { StorePrivilegeSection } from "@/types";
@@ -68,6 +70,7 @@ const ALL_NAVIGATION: NavigationItem[] = [
   { name: "Attendance", href: "/attendance", icon: Clock, section: "users" },
   { name: "Users", href: "/users", icon: Users, section: "users" },
   { name: "Sessions", href: "/sessions", icon: Clock, section: "users" },
+  { name: "Billing", href: "/billing", icon: CreditCard, section: null },
   { name: "Settings", href: "/settings", icon: Settings, section: null },
 ];
 
@@ -86,8 +89,14 @@ export default function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const { me: billing } = useBilling();
+  // Billing is only listed for stores that are billed (hidden while global
+  // billing is OFF and for exempt stores).
+  const showBilling = !!billing && !(billing.status.status === "EXEMPT" && billing.plan?.billingEnabled !== true);
   const navigation = ALL_NAVIGATION.filter(
-    (item) => item.section === null || item.section === undefined || hasPrivilege(item.section, 'read')
+    (item) =>
+      (item.href !== "/billing" || showBilling) &&
+      (item.section === null || item.section === undefined || hasPrivilege(item.section, 'read'))
   );
   const [accessibleStores, setAccessibleStores] = useState<AccessibleStore[]>(
     [],

@@ -5,6 +5,7 @@ import { UserShiftInventoryReportsService } from './user-shift-inventory-reports
 import { CreateSubmittedInventoryReportDto } from '../submitted-inventory-reports/dto/create-submitted-inventory-report.dto';
 import { UserShiftInventoryReportFiltersDto } from './dto/user-shift-inventory-report-filters.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
 
 @ApiTags('user-shift-inventory-reports')
 @Controller('user-shift-inventory-reports')
@@ -14,6 +15,7 @@ export class UserShiftInventoryReportsController {
   constructor(private readonly service: UserShiftInventoryReportsService) {}
 
   @SkipThrottle()
+  @AllowWhenBillingLocked()
   @Post()
   @ApiOperation({ summary: 'Submit a user shift inventory report' })
   @ApiResponse({ status: 201, description: 'Shift inventory report submitted successfully' })

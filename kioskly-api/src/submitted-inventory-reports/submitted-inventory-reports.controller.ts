@@ -15,6 +15,7 @@ import { CreateSubmittedInventoryReportDto } from './dto/create-submitted-invent
 import { SubmittedInventoryReportFiltersDto } from './dto/submitted-inventory-report-filters.dto';
 import { InventoryProgressionQueryDto } from './dto/inventory-progression-query.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
 
 @ApiTags('submitted-inventory-reports')
 @Controller('submitted-inventory-reports')
@@ -26,6 +27,7 @@ export class SubmittedInventoryReportsController {
   ) {}
 
   @SkipThrottle()
+  @AllowWhenBillingLocked()
   @Post()
   @ApiOperation({ summary: 'Submit inventory report' })
   create(

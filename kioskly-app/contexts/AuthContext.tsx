@@ -21,7 +21,9 @@ export interface User {
   mustChangePassword?: boolean;
 }
 
-export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED";
+// SUBSCRIPTION_LOCKED = store ACTIVE but its subscription is overdue past grace;
+// handled by the billing gate (/subscription-overdue), not /account-status.
+export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED" | "SUBSCRIPTION_LOCKED";
 
 interface AuthContextType {
   user: User | null;

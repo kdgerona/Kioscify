@@ -301,6 +301,20 @@ export async function syncAll(
             row.client_id,
           );
           rateLimited = true;
+        } else if (
+          response.status === 403 &&
+          (await response.clone().json().catch(() => ({})))?.code === "SUBSCRIPTION_LOCKED"
+        ) {
+          // Sync uploads are allowlisted while locked, so this shouldn't
+          // happen — but if it does, never burn retries on queued sales:
+          // keep the item pending and stop this run (like 429).
+          await db.runAsync(
+            `UPDATE sync_queue
+             SET status = 'pending', error_message = 'SUBSCRIPTION_LOCKED'
+             WHERE client_id = ?`,
+            row.client_id,
+          );
+          rateLimited = true;
         } else if (response.status >= 500) {
           // Transient server error — reset to pending, increment retries.
           await db.runAsync(

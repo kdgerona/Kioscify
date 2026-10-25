@@ -155,8 +155,23 @@ model StoreSubscription {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // Automated billing (2026-10-24) — all optional; a missing field means OFF.
+  // Queries only ever match positive values (billingEnabled: true), so no
+  // backfill is needed for existing documents.
+  billingEnabled        Boolean? // null = not set up, false = exempt, true = billed
+  exemptReason          String? // required when billingEnabled === false
+  priceCentavos         Int? // required before billingEnabled can be true
+  trialStartAt          DateTime?
+  trialDays             Int?
+  anchorDay             Int? // 1–31, clamped to month end
+  nextBillingAt         DateTime? // start of next not-yet-invoiced period
+  nextBillingOverridden Boolean? // true when a platform admin set nextBillingAt explicitly
+  paidThroughAt         DateTime? // last covered Manila day
+  graceDaysOverride     Int?
+
   tenant   Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   payments SubscriptionPayment[]
+  invoices BillingInvoice[]
 
   @@map("store_subscriptions")
 }
@@ -1112,6 +1127,191 @@ model PlatformConfig {
   storePortalMaintenance   Boolean @default(false)
   companyPortalMaintenance Boolean @default(false)
   mobileAppMaintenance     Boolean @default(false)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTOMATED BILLING — invoices, PayMongo QRPH payments, reminders, audit
+// See docs/superpowers/specs/2026-10-24-automated-subscription-billing-design.md
+// Never put a unique index on a nullable field: MongoDB indexes null values.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum BillingInvoiceStatus {
+  OPEN
+  PAID
+  VOID
+  WAIVED
+}
+
+enum BillingPaymentMethod {
+  QRPH
+  MANUAL
+  PREPAID
+}
+
+enum BillingPaymentSource {
+  WEBHOOK
+  RECONCILE
+  MANUAL
+  PREPAYMENT
+}
+
+model BillingConfig {
+  id                           String   @id @default(auto()) @map("_id") @db.ObjectId
+  key                          String   @unique @default("global")
+  billingEnabled               Boolean  @default(false)
+  enforcementEnabled           Boolean  @default(false)
+  defaultTrialDays             Int      @default(15)
+  defaultGraceDays             Int      @default(7)
+  reminderOffsets              Int[]    @default([0, 3, 7])
+  invoiceLeadDays              Int      @default(7) // invoice + reminder banner this many days before due
+  paymongoMonthlyLimitCentavos Int      @default(1000000) // ₱10,000
+  limitWarnPercent             Int      @default(80)
+  overduePollSeconds           Int      @default(30)
+  claimLockHoldDays            Int      @default(3)
+  minKioskVersionCode          Int? // required before enforcement can be enabled
+  fallbackQrImageUrl           String?
+  fallbackQrAccountName        String?
+  fallbackQrInstructions       String?
+  updatedAt                    DateTime @updatedAt
+
+  @@map("billing_config")
+}
+
+model BillingInvoice {
+  id                 String                @id @default(auto()) @map("_id") @db.ObjectId
+  number             String                @unique
+  subscriptionId     String                @db.ObjectId
+  tenantId           String                @db.ObjectId
+  periodStart        DateTime
+  revision           Int                   @default(0) // bumps when a VOIDed invoice for the same period is reissued
+  periodEnd          DateTime // exclusive
+  issuedAt           DateTime
+  dueAt              DateTime
+  amountCentavos     Int // snapshot; price changes don't affect issued invoices
+  status             BillingInvoiceStatus  @default(OPEN)
+  graceExtendedUntil DateTime?
+  paidAt             DateTime?
+  lastReconciledAt   DateTime? // last on-demand PayMongo re-check (shared throttle; missing = never)
+  paymentMethod      BillingPaymentMethod?
+  payToken           String                @unique
+  voidReason         String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  subscription StoreSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, periodStart, revision])
+  @@index([status, dueAt])
+  @@index([tenantId])
+  @@map("billing_invoices")
+}
+
+model BillingPayment {
+  id               String               @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId         String               @db.ObjectId
+  subscriptionId   String               @db.ObjectId
+  invoiceId        String?              @db.ObjectId // null for prepayments
+  source           BillingPaymentSource
+  method           BillingPaymentMethod
+  manualMethod     String? // cash | bank_transfer | bank_qr | gcash_direct | other
+  amountCentavos   Int
+  monthsCovered    Int                  @default(1)
+  paidAt           DateTime
+  reference        String?
+  providerIntentId String?
+  note             String?
+  flagged          Boolean              @default(false) // NOT applied (invoice no longer OPEN) — review for a refund
+  amountMismatch   Boolean? // applied, but the amount differed from the invoice (missing = false)
+  recordedById     String?              @db.ObjectId
+  createdAt        DateTime             @default(now())
+
+  @@index([paidAt])
+  @@index([tenantId])
+  @@map("billing_payments")
+}
+
+model BillingPaymentAttempt {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceId        String   @db.ObjectId
+  provider         String // "paymongo"
+  providerIntentId String   @unique
+  qrImage          String // data:image/png;base64,...
+  expiresAt        DateTime
+  status           String // awaiting_payment | succeeded | expired | failed
+  livemode         Boolean
+  createdAt        DateTime @default(now())
+
+  @@index([invoiceId, createdAt])
+  @@map("billing_payment_attempts")
+}
+
+model PaymentWebhookEvent {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  provider        String
+  providerEventId String    @unique
+  type            String
+  payload         Json
+  processedAt     DateTime?
+  error           String?
+  createdAt       DateTime  @default(now())
+
+  @@map("payment_webhook_events")
+}
+
+model BillingReminder {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceId             String   @db.ObjectId
+  tenantId              String   @db.ObjectId
+  offsetDays            Int
+  channel               String // "in_app"
+  sentAt                DateTime @default(now())
+  acknowledgedByUserIds String[] @default([]) @db.ObjectId
+
+  @@unique([invoiceId, offsetDays, channel])
+  @@map("billing_reminders")
+}
+
+model BillingPaymentClaim {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  invoiceId       String    @db.ObjectId
+  tenantId        String    @db.ObjectId
+  submittedById   String    @db.ObjectId
+  amountCentavos  Int
+  reference       String
+  paidAt          DateTime
+  receiptImageUrl String?
+  note            String?
+  status          String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewedById    String?   @db.ObjectId
+  reviewedAt      DateTime?
+  rejectReason    String?
+  createdAt       DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([invoiceId])
+  @@map("billing_payment_claims")
+}
+
+model BillingAuditLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  tenantId    String?  @db.ObjectId // null for global config changes
+  actorUserId String?  @db.ObjectId // null = system (scheduler/webhook)
+  action      String
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@map("billing_audit_logs")
+}
+
+model JobLock {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  lockedUntil DateTime
+  owner       String
+
+  @@map("job_locks")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { SessionsModule } from '../sessions/sessions.module';
 import { auth } from '../constants/env.constants';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { auth } from '../constants/env.constants';
       signOptions: { expiresIn: (process.env[auth.jwt_expires_in] || '7d') as any },
     }),
     SessionsModule,
+    BillingModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, TokenBlacklistService],

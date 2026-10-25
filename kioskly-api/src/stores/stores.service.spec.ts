@@ -6,9 +6,17 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { AuthService } from '../auth/auth.service';
 import { GRACE_PERIOD_DAYS } from '../common/utils/account-status.util';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
+
+const tx = {
+  tenant: { create: jest.fn() },
+  storeSubscription: { create: jest.fn() },
+};
 
 const mockPrisma = {
   tenant: { findFirst: jest.fn(), update: jest.fn() },
+  company: { findUnique: jest.fn() },
+  $transaction: jest.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
 };
 
 const mockStorage = {};
@@ -111,6 +119,79 @@ describe('StoresService', () => {
           deactivationCascaded: false,
         },
       });
+    });
+  });
+
+  describe('create()', () => {
+    // Manila midnight for a calendar date.
+    const m = (y: number, mo: number, d: number) => new Date(Date.UTC(y, mo - 1, d) - 8 * 60 * 60 * 1000);
+    const dto = {
+      name: 'Branch 1',
+      slug: 'branch-1',
+      brandId: 'b-1',
+      companyId: 'c-1',
+      billing: { priceCentavos: 150000, trialDays: 15, firstBillingDate: '2026-07-16' },
+    };
+
+    beforeEach(() => {
+      mockPrisma.tenant.findFirst.mockResolvedValue(null);
+      tx.tenant.create.mockResolvedValue({ id: 't-new', name: 'Branch 1' });
+    });
+
+    it('writes tenant and StoreSubscription in one $transaction', async () => {
+      const result = await service.create(dto as any, 'PLATFORM_ADMIN');
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(tx.storeSubscription.create).toHaveBeenCalledWith({
+        data: {
+          tenantId: 't-new',
+          billingEnabled: true,
+          priceCentavos: 150000,
+          // Stored as Manila midnight, like the Platform detail form does.
+          activatedAt: m(2026, 7, 1),
+          trialStartAt: m(2026, 7, 1),
+          trialDays: 15,
+          nextBillingAt: m(2026, 7, 16),
+          anchorDay: 16,
+          nextBillingOverridden: false,
+        },
+      });
+      expect(result).toEqual({ id: 't-new', name: 'Branch 1' });
+    });
+
+    it('uses the given activatedAt, normalised to its Manila day', async () => {
+      await service.create({ ...dto, billing: { ...dto.billing, activatedAt: '2026-06-20T05:00:00.000Z' } } as any, 'PLATFORM_ADMIN');
+      expect(tx.storeSubscription.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          activatedAt: m(2026, 6, 20),
+          trialStartAt: m(2026, 6, 20),
+        }),
+      });
+    });
+
+    it('a first billing date other than the trial end is kept as an override', async () => {
+      await service.create({ ...dto, billing: { ...dto.billing, firstBillingDate: '2026-07-20' } } as any, 'PLATFORM_ADMIN');
+      expect(tx.storeSubscription.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ nextBillingAt: m(2026, 7, 20), anchorDay: 20, nextBillingOverridden: true }),
+      });
+    });
+
+    it('does not pass billing into tenant.create data', async () => {
+      await service.create(dto as any, 'PLATFORM_ADMIN');
+      expect(tx.tenant.create).toHaveBeenCalledWith({
+        data: { name: 'Branch 1', slug: 'branch-1', brandId: 'b-1', companyId: 'c-1' },
+      });
+    });
+
+    it('still enforces canOnboardStores before creating anything', async () => {
+      mockPrisma.company.findUnique.mockResolvedValue({ canOnboardStores: false });
+      await expect(service.create(dto as any, 'COMPANY_ADMIN', 'c-1')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('still rejects a slug conflict before creating anything', async () => {
+      mockPrisma.tenant.findFirst.mockResolvedValue({ id: 'other' });
+      await expect(service.create(dto as any, 'PLATFORM_ADMIN')).rejects.toBeInstanceOf(ConflictException);
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
   });
 });

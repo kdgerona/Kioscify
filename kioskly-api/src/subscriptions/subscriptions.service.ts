@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getZonedMonthBounds } from '../common/utils/timezone';
 import { buildSubscriptionMonths } from './subscription-months.util';
 import { UpsertPaymentDto } from './dto/upsert-payment.dto';
+import { BillingConfigService } from '../billing/billing-config.service';
 
 export interface SubscriptionListFilters {
   companyId?: string;
@@ -30,7 +31,10 @@ export interface SubscriptionListRow {
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private billingConfig: BillingConfigService,
+  ) {}
 
   async getStats() {
     const currentMonthStart = getZonedMonthBounds(new Date()).start;
@@ -163,6 +167,13 @@ export class SubscriptionsService {
     const subscription = await this.prisma.storeSubscription.findUnique({ where: { tenantId } });
     if (!subscription) {
       throw new NotFoundException(`Store ${tenantId} has no subscription yet — set an activation date first`);
+    }
+    // Billed stores' ledger is written by invoice payments/prepayments only —
+    // one source of truth for what a store has paid. While billing is
+    // globally OFF there is no other way to record payments, so the manual
+    // checklist stays editable for every store (behaviour identical to today).
+    if (subscription.billingEnabled === true && (await this.billingConfig.get()).billingEnabled) {
+      throw new ConflictException('Managed by billing; use mark-paid or prepayment');
     }
 
     const [year, monthNum] = month.split('-').map(Number);

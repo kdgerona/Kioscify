@@ -13,6 +13,7 @@ import {
   Alert,
 } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
+import BillingBanner from "../components/BillingBanner";
 import { useRouter, Href, useFocusEffect } from "expo-router";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -360,6 +361,8 @@ export default function Transactions() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <BillingBanner />
 
       {/* Content */}
       <View className="flex-1 px-4 py-4">

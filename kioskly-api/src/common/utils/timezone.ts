@@ -93,3 +93,39 @@ export function getZonedYearBounds(date: Date): { start: Date; end: Date } {
   const endMs = Date.UTC(y, 11, 31, 23, 59, 59, 999);
   return { start: toUtcInstant(startMs), end: toUtcInstant(endMs) };
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** UTC instant of 00:00 store-local on the day `date` falls in. */
+export function startOfZonedDay(date: Date): Date {
+  return getZonedDayBounds(date).start;
+}
+
+/** Store-local 00:00, `days` calendar days after the store-local day of `date`. */
+export function addZonedDays(date: Date, days: number): Date {
+  return new Date(startOfZonedDay(date).getTime() + days * DAY_MS);
+}
+
+/** Day of month (1-31) of `date` in the store's local timezone. */
+export function zonedDayOfMonth(date: Date): number {
+  return toZoned(date).getUTCDate();
+}
+
+/**
+ * Store-local 00:00 on day `anchorDay` of the month `months` after `date`'s
+ * store-local month, clamped to that month's last day (anchor 31 → Feb 28/29).
+ * The anchor is passed separately so a clamped month never drags later
+ * months earlier (Jan 31 → Feb 29 → Mar 31).
+ */
+export function addZonedMonthsClamped(date: Date, months: number, anchorDay: number): Date {
+  const zoned = toZoned(date);
+  const y = zoned.getUTCFullYear();
+  const m = zoned.getUTCMonth() + months;
+  const daysInTarget = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return toUtcInstant(Date.UTC(y, m, Math.min(anchorDay, daysInTarget)));
+}
+
+/** Whole store-local days from `from`'s day to `to`'s day (negative if `to` is earlier). */
+export function zonedDaysBetween(from: Date, to: Date): number {
+  return Math.round((startOfZonedDay(to).getTime() - startOfZonedDay(from).getTime()) / DAY_MS);
+}

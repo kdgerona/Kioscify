@@ -32,6 +32,14 @@ import { toast } from 'sonner';
 import StoreQRModal from '@/components/StoreQRModal';
 import { PrivilegesGrid } from '@/components/PrivilegesGrid';
 import { EditPrivilegesModal } from '@/components/EditPrivilegesModal';
+import {
+  OnboardBillingFields,
+  type OnboardBillingContext,
+  defaultOnboardBilling,
+  isPristineOnboardBilling,
+  toCreateStoreBilling,
+  type OnboardBillingValue,
+} from '@/components/billing/OnboardBillingFields';
 
 type Tab = 'settings' | 'brands' | 'stores' | 'users';
 
@@ -312,6 +320,9 @@ export default function CompanyDetailPage() {
   const [storeNameField, setStoreNameField] = useState('');
   const [storeSlugField, setStoreSlugField] = useState('');
   const [storeSlugTouched, setStoreSlugTouched] = useState(false);
+  const [defaultTrialDays, setDefaultTrialDays] = useState(15);
+  const [storeBilling, setStoreBilling] = useState<OnboardBillingValue>(() => defaultOnboardBilling(15));
+  const [billingContext, setBillingContext] = useState<OnboardBillingContext>({ graceDays: 7, enforcement: false, globalBillingEnabled: false, reminderLeadDays: 7 });
   const [storeAdminMode, setStoreAdminMode] = useState<'new' | 'existing'>('new');
   const [storeAdminFirst, setStoreAdminFirst] = useState('');
   const [storeAdminLast, setStoreAdminLast] = useState('');
@@ -551,7 +562,20 @@ export default function CompanyDetailPage() {
     setAllAssignableUsers([]);
   };
 
+  // Trial default comes from Platform Settings → Billing (falls back to 15).
+  useEffect(() => {
+    api.getBillingConfig()
+      .then(cfg => {
+        setDefaultTrialDays(cfg.defaultTrialDays);
+        setBillingContext({ graceDays: cfg.defaultGraceDays, enforcement: cfg.enforcementEnabled, globalBillingEnabled: cfg.billingEnabled, reminderLeadDays: cfg.invoiceLeadDays });
+        // Don't wipe what the admin already typed if the modal opened first.
+        setStoreBilling(prev => (isPristineOnboardBilling(prev, 15) ? defaultOnboardBilling(cfg.defaultTrialDays) : prev));
+      })
+      .catch(() => {});
+  }, []);
+
   const resetStoreForm = () => {
+    setStoreBilling(defaultOnboardBilling(defaultTrialDays));
     setStoreNameField('');
     setStoreSlugField('');
     setStoreSlugTouched(false);
@@ -570,6 +594,8 @@ export default function CompanyDetailPage() {
     e.preventDefault();
     if (!showOnboardStore || showOnboardStore === 'pick') return;
     setStoreError(null);
+    const billing = toCreateStoreBilling(storeBilling);
+    if (typeof billing === 'string') { setStoreError(billing); return; }
     setStoreLoading(true);
     try {
       if (storeAdminMode === 'existing') {
@@ -580,6 +606,7 @@ export default function CompanyDetailPage() {
           brandId: showOnboardStore.brandId,
           companyId,
           username: selectedExistingUser.username,
+          billing,
         });
         setStores(prev => [...prev, result.store]);
         setNewStoreQR({
@@ -600,6 +627,7 @@ export default function CompanyDetailPage() {
             email: storeAdminEmail,
             username: storeAdminUsername,
           },
+          billing,
         });
         setStorePassword({ storeName: result.store.name, password: result.temporaryPassword });
         setStores(prev => [...prev, result.store]);
@@ -1526,6 +1554,8 @@ export default function CompanyDetailPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
             </div>
+
+            <OnboardBillingFields value={storeBilling} onChange={setStoreBilling} context={billingContext} />
 
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-2">Store Admin</p>
 

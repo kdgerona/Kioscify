@@ -111,6 +111,12 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET:-kioscify}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://kioscify.com/storage}
+      # Automated billing (PayMongo QRPH). Leave empty until billing is rolled out;
+      # billing stays OFF in the DB regardless until a platform admin enables it.
+      PAYMONGO_SECRET_KEY: ${PAYMONGO_SECRET_KEY:-}
+      PAYMONGO_PUBLIC_KEY: ${PAYMONGO_PUBLIC_KEY:-}
+      PAYMONGO_WEBHOOK_SECRET: ${PAYMONGO_WEBHOOK_SECRET:-}
+      BILLING_PAY_PAGE_BASE_URL: ${BILLING_PAY_PAGE_BASE_URL:-https://kioscify.com}
     volumes:
       - api-uploads:/app/uploads:rw
     networks:
