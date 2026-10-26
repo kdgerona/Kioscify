@@ -3,7 +3,7 @@
 # ================================
 
 # Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM node:22.23.4-alpine AS deps
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ COPY package.json yarn.lock* ./
 RUN yarn install --frozen-lockfile || yarn install
 
 # Stage 2: Build
-FROM node:20-alpine AS builder
+FROM node:22.23.4-alpine AS builder
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN yarn build
 
 # Stage 3: Production
-FROM node:20-alpine AS production
+FROM node:22.23.4-alpine AS production
 
 WORKDIR /app
 
@@ -41,6 +41,7 @@ RUN addgroup -g 1001 -S nodejs && \
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
@@ -53,7 +54,7 @@ USER nextjs
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3001 || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3001 || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "server.js"]

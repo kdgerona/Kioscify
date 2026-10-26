@@ -3,7 +3,7 @@
 # ================================
 
 # Stage 1: Build
-FROM node:20-alpine AS builder
+FROM node:22.23.4-alpine AS builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ COPY . .
 RUN yarn build
 
 # Stage 2: Production
-FROM node:20-alpine AS production
+FROM node:22.23.4-alpine AS production
 
 WORKDIR /app
 
