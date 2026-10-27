@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsDateString } from 'class-validator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 export enum VoidStatusFilter {
   PENDING = 'PENDING',
@@ -8,7 +9,7 @@ export enum VoidStatusFilter {
   ALL = 'ALL',
 }
 
-export class VoidFiltersDto {
+export class VoidFiltersDto extends PaginationQueryDto {
   @ApiProperty({
     enum: VoidStatusFilter,
     required: false,

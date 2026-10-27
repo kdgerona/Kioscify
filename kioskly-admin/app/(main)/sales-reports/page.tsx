@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { hasPrivilege } from "@/lib/privileges";
@@ -14,9 +14,27 @@ import {
 } from "lucide-react";
 import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/lib/use-pagination";
 import type { SubmittedReport, UserShiftReport } from "@/types";
 
 type Tab = "daily" | "shift";
+
+// Whole days in local time: start of the start date through end of the end date
+function toDateRangeParams(startDate?: Date, endDate?: Date) {
+  const params: { startDate?: string; endDate?: string } = {};
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    params.startDate = start.toISOString();
+  }
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    params.endDate = end.toISOString();
+  }
+  return params;
+}
 
 export default function SubmittedReportsPage() {
   const router = useRouter();
@@ -56,35 +74,33 @@ export default function SubmittedReportsPage() {
     }
   };
 
+  const dateParams = useMemo(() => toDateRangeParams(startDate, endDate), [startDate, endDate]);
+  const pager = usePagination(JSON.stringify(dateParams));
+  const { page, pageSize, applyResult, beginRequest } = pager;
+
   const loadReports = useCallback(
     async (isInitial = false) => {
+      const isLatest = beginRequest();
       try {
         if (isInitial) {
           setInitialLoading(true);
         } else {
           setIsFiltering(true);
         }
-        const params: { startDate?: string; endDate?: string } = {};
-        if (startDate) {
-          const start = new Date(startDate);
-          start.setHours(0, 0, 0, 0);
-          params.startDate = start.toISOString();
-        }
-        if (endDate) {
-          const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999);
-          params.endDate = end.toISOString();
-        }
-        const data = await api.getSubmittedReports(params);
-        setReports(data);
+        const result = await api.getSubmittedReports({ ...dateParams, page, limit: pageSize });
+        if (!isLatest()) return;
+        setReports(result.data);
+        applyResult(result.pagination);
       } catch (error) {
         console.error("Failed to load submitted reports:", error);
       } finally {
-        setInitialLoading(false);
-        setIsFiltering(false);
+        if (isLatest()) {
+          setInitialLoading(false);
+          setIsFiltering(false);
+        }
       }
     },
-    [startDate, endDate],
+    [dateParams, page, pageSize, applyResult, beginRequest],
   );
 
   useEffect(() => {
@@ -120,35 +136,45 @@ export default function SubmittedReportsPage() {
     }
   };
 
+  const shiftDateParams = useMemo(
+    () => toDateRangeParams(shiftStartDate, shiftEndDate),
+    [shiftStartDate, shiftEndDate],
+  );
+  const shiftPager = usePagination(JSON.stringify(shiftDateParams));
+  const {
+    page: shiftPage,
+    pageSize: shiftPageSize,
+    applyResult: applyShiftResult,
+    beginRequest: beginShiftRequest,
+  } = shiftPager;
+
   const loadShiftReports = useCallback(
     async (isInitial = false) => {
+      const isLatest = beginShiftRequest();
       try {
         if (isInitial) {
           setShiftLoading(true);
         } else {
           setShiftFiltering(true);
         }
-        const params: { startDate?: string; endDate?: string } = {};
-        if (shiftStartDate) {
-          const start = new Date(shiftStartDate);
-          start.setHours(0, 0, 0, 0);
-          params.startDate = start.toISOString();
-        }
-        if (shiftEndDate) {
-          const end = new Date(shiftEndDate);
-          end.setHours(23, 59, 59, 999);
-          params.endDate = end.toISOString();
-        }
-        const data = await api.getUserShiftReports(params);
-        setShiftReports(data);
+        const result = await api.getUserShiftReports({
+          ...shiftDateParams,
+          page: shiftPage,
+          limit: shiftPageSize,
+        });
+        if (!isLatest()) return;
+        setShiftReports(result.data);
+        applyShiftResult(result.pagination);
       } catch (error) {
         console.error("Failed to load shift reports:", error);
       } finally {
-        setShiftLoading(false);
-        setShiftFiltering(false);
+        if (isLatest()) {
+          setShiftLoading(false);
+          setShiftFiltering(false);
+        }
       }
     },
-    [shiftStartDate, shiftEndDate],
+    [shiftDateParams, shiftPage, shiftPageSize, applyShiftResult, beginShiftRequest],
   );
 
   // Load shift reports the first time the tab is opened
@@ -159,7 +185,7 @@ export default function SubmittedReportsPage() {
     }
   }, [activeTab, loadShiftReports]);
 
-  // Re-fetch when shift filters change (but only after first load)
+  // Re-fetch when shift filters or page change (but only after first load)
   const shiftFilterMountRef = useRef(false);
   useEffect(() => {
     if (!shiftFilterMountRef.current) {
@@ -310,6 +336,17 @@ export default function SubmittedReportsPage() {
               </div>
             )}
           </div>
+
+          <Pagination
+            page={pager.page}
+            totalPages={pager.totalPages}
+            total={pager.total}
+            pageSize={pager.pageSize}
+            onPageChange={pager.setPage}
+            onPageSizeChange={pager.setPageSize}
+            disabled={isFiltering}
+            primaryColor={primaryColor}
+          />
         </>
       )}
 
@@ -408,6 +445,17 @@ export default function SubmittedReportsPage() {
               </div>
             ) : null}
           </div>
+
+          <Pagination
+            page={shiftPager.page}
+            totalPages={shiftPager.totalPages}
+            total={shiftPager.total}
+            pageSize={shiftPager.pageSize}
+            onPageChange={shiftPager.setPage}
+            onPageSizeChange={shiftPager.setPageSize}
+            disabled={shiftLoading || shiftFiltering}
+            primaryColor={primaryColor}
+          />
         </>
       )}
 

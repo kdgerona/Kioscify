@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -18,6 +18,8 @@ import {
 import type { Expense } from "@/types";
 import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/lib/use-pagination";
 import {
   Select,
   SelectContent,
@@ -111,8 +113,40 @@ export default function ExpensesPage() {
     setEndDate(undefined);
   };
 
+  const filterParams = useMemo(() => {
+    const params: {
+      search?: string;
+      category?: string;
+      startDate?: string;
+      endDate?: string;
+    } = {};
+
+    if (debouncedSearchTerm) {
+      params.search = debouncedSearchTerm;
+    }
+    if (filterCategory !== "ALL") {
+      params.category = filterCategory;
+    }
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      params.startDate = start.toISOString();
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      params.endDate = end.toISOString();
+    }
+    return params;
+  }, [debouncedSearchTerm, filterCategory, startDate, endDate]);
+
+  const pager = usePagination(JSON.stringify(filterParams));
+  const { page, pageSize, applyResult, beginRequest } = pager;
+  const isFirstExpenseLoad = useRef(true);
+
   const loadExpenses = useCallback(
     async (isInitial = false) => {
+      const isLatest = beginRequest();
       try {
         if (isInitial) {
           setInitialLoading(true);
@@ -120,85 +154,61 @@ export default function ExpensesPage() {
           setIsFiltering(true);
         }
 
-        const params: {
-          category?: string;
-          startDate?: string;
-          endDate?: string;
-        } = {};
-
-        if (filterCategory !== "ALL") {
-          params.category = filterCategory;
-        }
-        if (startDate) {
-          const start = new Date(startDate);
-          start.setHours(0, 0, 0, 0);
-          params.startDate = start.toISOString();
-        }
-        if (endDate) {
-          const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999);
-          params.endDate = end.toISOString();
-        }
-
-        const data = await api.getExpenses(params);
-
-        // Filter by search term on the client side
-        let filteredData = data;
-        if (debouncedSearchTerm) {
-          const searchLower = debouncedSearchTerm.toLowerCase();
-          filteredData = data.filter(
-            (expense) =>
-              expense.description.toLowerCase().includes(searchLower) ||
-              expense.user?.email?.toLowerCase().includes(searchLower) ||
-              expense.user?.username?.toLowerCase().includes(searchLower)
-          );
-        }
-
-        setExpenses(filteredData);
+        const result = await api.getExpensesPage({
+          ...filterParams,
+          page,
+          limit: pageSize,
+        });
+        if (!isLatest()) return;
+        setExpenses(result.data);
+        applyResult(result.pagination);
       } catch (error) {
         console.error("Failed to load expenses:", error);
       } finally {
-        setInitialLoading(false);
-        setIsFiltering(false);
+        if (isLatest()) {
+          setInitialLoading(false);
+          setIsFiltering(false);
+        }
       }
     },
-    [debouncedSearchTerm, filterCategory, startDate, endDate]
+    [filterParams, page, pageSize, applyResult, beginRequest]
   );
 
-  // Initial load
+  // First call shows full skeleton; subsequent filter/search changes use the subtle indicator
   useEffect(() => {
-    loadExpenses(true);
+    const isInitial = isFirstExpenseLoad.current;
+    isFirstExpenseLoad.current = false;
+    loadExpenses(isInitial);
   }, [loadExpenses]);
 
-  // Filter changes - don't show full skeleton
-  useEffect(() => {
-    if (!initialLoading) {
-      loadExpenses(false);
-    }
-  }, [
-    debouncedSearchTerm,
-    filterCategory,
-    startDate,
-    endDate,
-    initialLoading,
-    loadExpenses,
-  ]);
-
   // Load void requests
+  const voidPager = usePagination(voidStatusFilter);
+  const {
+    page: voidPage,
+    pageSize: voidPageSize,
+    applyResult: applyVoidResult,
+    beginRequest: beginVoidRequest,
+  } = voidPager;
+
   const loadVoidRequests = useCallback(async () => {
+    const isLatest = beginVoidRequest();
     try {
       setLoadingVoidRequests(true);
-      const requests = await api.getExpenseVoidRequests({
+      const result = await api.getExpenseVoidRequests({
         status: voidStatusFilter,
+        page: voidPage,
+        limit: voidPageSize,
       });
-      setVoidRequests(requests);
+      if (!isLatest()) return;
+      setVoidRequests(result.data);
+      applyVoidResult(result.pagination);
     } catch (error) {
       console.error("Failed to load void requests:", error);
       toast.error(getErrorMessage(error, "Failed to load void requests"));
     } finally {
-      setLoadingVoidRequests(false);
+      if (isLatest()) setLoadingVoidRequests(false);
     }
-  }, [voidStatusFilter]);
+  }, [voidStatusFilter, voidPage, voidPageSize, applyVoidResult, beginVoidRequest]);
 
   // Reset void request form when selected expense changes
   useEffect(() => {
@@ -360,6 +370,7 @@ export default function ExpensesPage() {
           .slice(0, 30)}`
       );
     }
+    if (pager.totalPages > 1) filterParts.push(`page-${page}-of-${pager.totalPages}`);
     const filterSuffix = filterParts.length ? `-${filterParts.join("-")}` : "";
 
     a.download = `expenses-${new Date().toISOString().split("T")[0]}${filterSuffix}.csv`;
@@ -413,10 +424,10 @@ export default function ExpensesPage() {
             style={showVoidRequests ? { color: activeTabColor, borderColor: primaryColor } : undefined}
           >
             Void Requests
-            {voidRequests.filter((r) => r.voidStatus === "PENDING").length >
-              0 && (
+            {/* Only one page is loaded, so the count comes from the server total of the Pending filter */}
+            {voidStatusFilter === "PENDING" && voidPager.total > 0 && (
               <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
-                {voidRequests.filter((r) => r.voidStatus === "PENDING").length}
+                {voidPager.total}
               </span>
             )}
           </button>
@@ -613,6 +624,19 @@ export default function ExpensesPage() {
         </div>
       )}
 
+      {!showVoidRequests && (
+        <Pagination
+          page={pager.page}
+          totalPages={pager.totalPages}
+          total={pager.total}
+          pageSize={pager.pageSize}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setPageSize}
+          disabled={isFiltering}
+          primaryColor={primaryColor}
+        />
+      )}
+
       {/* Void Requests Section - Only show for void requests tab */}
       {showVoidRequests && (
         <div className="space-y-6">
@@ -767,6 +791,17 @@ export default function ExpensesPage() {
               </div>
             )}
           </div>
+
+          <Pagination
+            page={voidPager.page}
+            totalPages={voidPager.totalPages}
+            total={voidPager.total}
+            pageSize={voidPager.pageSize}
+            onPageChange={voidPager.setPage}
+            onPageSizeChange={voidPager.setPageSize}
+            disabled={loadingVoidRequests}
+            primaryColor={primaryColor}
+          />
         </div>
       )}
 

@@ -12,6 +12,7 @@ import {
   ViewMode,
 } from './dto/inventory-progression-query.dto';
 import { getZonedMonthBounds } from '../common/utils/timezone';
+import { pageArgs, toPaginated, toPagination } from '../common/utils/pagination';
 
 @Injectable()
 export class SubmittedInventoryReportsService {
@@ -169,24 +170,31 @@ export class SubmittedInventoryReportsService {
       where.userId = filters.userId;
     }
 
-    return this.prisma.submittedInventoryReport.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
+    const pagination = toPagination(filters.page, filters.limit);
+    const [reports, total] = await Promise.all([
+      this.prisma.submittedInventoryReport.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
           },
         },
-      },
-      orderBy: {
-        submittedAt: 'desc',
-      },
-    });
+        orderBy: {
+          submittedAt: 'desc',
+        },
+        ...pageArgs(pagination),
+      }),
+      pagination ? this.prisma.submittedInventoryReport.count({ where }) : 0,
+    ]);
+
+    return pagination ? toPaginated(reports, total, pagination) : reports;
   }
 
   async findOne(id: string, tenantId: string) {

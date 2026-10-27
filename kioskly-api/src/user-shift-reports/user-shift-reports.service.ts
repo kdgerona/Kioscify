@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubmittedReportDto } from '../submitted-reports/dto/create-submitted-report.dto';
 import { UserShiftReportFiltersDto } from './dto/user-shift-report-filters.dto';
 import { getZonedDateString, getZonedMonthBounds } from '../common/utils/timezone';
+import { pageArgs, toPaginated, toPagination } from '../common/utils/pagination';
 
 @Injectable()
 export class UserShiftReportsService {
@@ -71,15 +72,22 @@ export class UserShiftReportsService {
       if (filters.endDate) where.submittedAt.lte = new Date(filters.endDate);
     }
 
-    return this.prisma.userShiftReport.findMany({
-      where,
-      include: {
-        user: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+    const pagination = toPagination(filters.page, filters.limit);
+    const [reports, total] = await Promise.all([
+      this.prisma.userShiftReport.findMany({
+        where,
+        include: {
+          user: {
+            select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          },
         },
-      },
-      orderBy: { submittedAt: 'desc' },
-    });
+        orderBy: { submittedAt: 'desc' },
+        ...pageArgs(pagination),
+      }),
+      pagination ? this.prisma.userShiftReport.count({ where }) : 0,
+    ]);
+
+    return pagination ? toPaginated(reports, total, pagination) : reports;
   }
 
   async findOne(id: string, tenantId: string, requestingUserId: string, requestingUserRole: string) {

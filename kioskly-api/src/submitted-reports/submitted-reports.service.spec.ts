@@ -6,6 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 const mockPrisma = {
   submittedReport: {
     findFirst: jest.fn(),
+    findMany: jest.fn(),
+    count: jest.fn(),
     create: jest.fn(),
   },
 };
@@ -62,6 +64,37 @@ describe('SubmittedReportsService', () => {
 
       expect(mockPrisma.submittedReport.findFirst).not.toHaveBeenCalled();
       expect(mockPrisma.submittedReport.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('findAll', () => {
+    it('returns a plain array when no page is requested (mobile app still reads the full list)', async () => {
+      mockPrisma.submittedReport.findMany.mockResolvedValue([{ id: 'report-1' }]);
+
+      const result = await service.findAll('tenant-1', {});
+
+      expect(result).toEqual([{ id: 'report-1' }]);
+      const args = mockPrisma.submittedReport.findMany.mock.calls[0][0];
+      expect(args.skip).toBeUndefined();
+      expect(args.take).toBeUndefined();
+      expect(mockPrisma.submittedReport.count).not.toHaveBeenCalled();
+    });
+
+    it('pages with the same filters for the rows and the count', async () => {
+      mockPrisma.submittedReport.findMany.mockResolvedValue([{ id: 'report-1' }]);
+      mockPrisma.submittedReport.count.mockResolvedValue(25);
+
+      const result: any = await service.findAll('tenant-1', {
+        userId: 'user-1',
+        page: 2,
+        limit: 10,
+      });
+
+      const args = mockPrisma.submittedReport.findMany.mock.calls[0][0];
+      expect(args.skip).toBe(10);
+      expect(args.take).toBe(10);
+      expect(mockPrisma.submittedReport.count).toHaveBeenCalledWith({ where: args.where });
+      expect(result.pagination).toEqual({ page: 2, limit: 10, total: 25, totalPages: 3 });
     });
   });
 });

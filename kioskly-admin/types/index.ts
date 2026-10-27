@@ -618,3 +618,14 @@ export interface PayPageData {
   status: BillingInvoiceStatus;
   payment: PayResult | null;
 }
+
+// Envelope returned by list endpoints when called with `page`/`limit`
+export interface Paginated<T> {
+  data: T[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export interface PageParams {
+  page: number;
+  limit: number;
+}

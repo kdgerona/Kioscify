@@ -7,6 +7,7 @@ const mockPrisma = {
   transaction: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
+    count: jest.fn(),
     create: jest.fn(),
   },
 };
@@ -98,6 +99,48 @@ describe('TransactionsService', () => {
       ).rejects.toThrow(ConflictException);
 
       expect(mockPrisma.transaction.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findAll', () => {
+    it('returns a plain array with no skip/take or count when no pagination is given', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([{ id: 'txn-1', items: [] }]);
+
+      const result = await service.findAll('tenant-1');
+
+      expect(Array.isArray(result)).toBe(true);
+      const args = mockPrisma.transaction.findMany.mock.calls[0][0];
+      expect(args.skip).toBeUndefined();
+      expect(args.take).toBeUndefined();
+      expect(mockPrisma.transaction.count).not.toHaveBeenCalled();
+    });
+
+    it('applies skip/take and returns a paged envelope when pagination is given', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([{ id: 'txn-1', items: [] }]);
+      mockPrisma.transaction.count.mockResolvedValue(120);
+
+      const result: any = await service.findAll(
+        'tenant-1',
+        { paymentMethod: 'CASH' },
+        { page: 3, limit: 50 },
+      );
+
+      const args = mockPrisma.transaction.findMany.mock.calls[0][0];
+      expect(args.skip).toBe(100);
+      expect(args.take).toBe(50);
+      // count must use the same filters as the page query, or totals drift
+      expect(mockPrisma.transaction.count).toHaveBeenCalledWith({ where: args.where });
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination).toEqual({ page: 3, limit: 50, total: 120, totalPages: 3 });
+    });
+
+    it('reports at least one page when there are no matches', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      const result: any = await service.findAll('tenant-1', {}, { page: 1, limit: 50 });
+
+      expect(result.pagination.totalPages).toBe(1);
     });
   });
 });

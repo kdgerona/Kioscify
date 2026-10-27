@@ -10,6 +10,8 @@ import { Clock, X, RefreshCw, LogIn, LogOut, ImageOff, MapPin } from "lucide-rea
 import type { StaffTimeLog, TimeLogEventType, User } from "@/types";
 import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/lib/use-pagination";
 import {
   Select,
   SelectContent,
@@ -56,8 +58,9 @@ export default function AttendancePage() {
   const [filterEventType, setFilterEventType] = useState<string>("ALL");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  // The filter handlers below reset to page 1 themselves, so no reset key here
+  const pager = usePagination("");
+  const { page, setPage, pageSize, applyResult, beginRequest } = pager;
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const isFirstLoad = useRef(true);
@@ -80,6 +83,7 @@ export default function AttendancePage() {
   const loadLogs = useCallback(
     async (isInitial = false) => {
       if (!tenant?.id) return;
+      const isLatest = beginRequest();
       try {
         if (isInitial) {
           setInitialLoading(true);
@@ -94,7 +98,7 @@ export default function AttendancePage() {
           endDate?: string;
           page?: number;
           limit?: number;
-        } = { page, limit: 50 };
+        } = { page, limit: pageSize };
 
         if (filterUserId !== "ALL") {
           params.userId = filterUserId;
@@ -114,16 +118,19 @@ export default function AttendancePage() {
         }
 
         const result = await api.getStaffTimeLogs(params);
+        if (!isLatest()) return;
         setLogs(result.data);
-        setTotalPages(result.pagination.totalPages);
+        applyResult(result.pagination);
       } catch (error) {
         console.error("Failed to load staff time logs:", error);
       } finally {
-        setInitialLoading(false);
-        setIsFiltering(false);
+        if (isLatest()) {
+          setInitialLoading(false);
+          setIsFiltering(false);
+        }
       }
     },
-    [tenant?.id, filterUserId, filterEventType, startDate, endDate, page]
+    [tenant?.id, filterUserId, filterEventType, startDate, endDate, page, pageSize, applyResult, beginRequest]
   );
 
   useEffect(() => {
@@ -362,28 +369,16 @@ export default function AttendancePage() {
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-4">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span className="px-3 py-1.5 text-sm text-gray-500">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination
+        page={pager.page}
+        totalPages={pager.totalPages}
+        total={pager.total}
+        pageSize={pager.pageSize}
+        onPageChange={pager.setPage}
+        onPageSizeChange={pager.setPageSize}
+        disabled={isFiltering}
+        primaryColor={primaryColor}
+      />
 
       {/* Photo Lightbox — portaled to document.body; an in-place fixed
           overlay nested this deep in the layout tree renders short at the

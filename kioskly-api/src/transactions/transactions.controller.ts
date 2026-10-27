@@ -28,6 +28,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { TenantId } from '../common/decorators/tenant.decorator';
 import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
+import { toPagination } from '../common/utils/pagination';
 
 @ApiTags('transactions')
 @Controller('transactions')
@@ -79,6 +80,19 @@ export class TransactionsController {
     required: false,
     description: 'Search by transaction ID or cashier name (partial match)',
   })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description:
+      'Page number (1-based). When set, the response is { data, pagination } instead of a plain array',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Page size when paginating (default 50, max 200)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Transactions retrieved successfully',
@@ -90,6 +104,8 @@ export class TransactionsController {
     paymentMethod?: 'CASH' | 'GCASH' | 'PAYMAYA' | 'ONLINE' | 'FOODPANDA' | 'GRAB' | 'SPLIT',
     @Query('paymentStatus') paymentStatus?: 'COMPLETED' | 'PENDING' | 'FAILED',
     @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Request() req?,
   ) {
     const filters: any = {};
@@ -99,7 +115,11 @@ export class TransactionsController {
     if (paymentStatus) filters.paymentStatus = paymentStatus;
     if (search) filters.search = search;
 
-    return this.transactionsService.findAll(req.user.tenantId, filters);
+    return this.transactionsService.findAll(
+      req.user.tenantId,
+      filters,
+      toPagination(page, limit),
+    );
   }
 
   @Get('stats')
@@ -126,6 +146,8 @@ export class TransactionsController {
   @ApiQuery({ name: 'status', enum: VoidStatusFilter, required: false })
   @ApiQuery({ name: 'startDate', required: false })
   @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Void requests retrieved successfully' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'STORE_ADMIN')

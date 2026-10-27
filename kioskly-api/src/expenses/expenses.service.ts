@@ -10,6 +10,11 @@ import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpenseVoidStatusFilter } from './dto/expense-void-filters.dto';
 import { Prisma, VoidStatus } from '@prisma/client';
 import { getZonedDayBounds, getZonedMonthBounds } from '../common/utils/timezone';
+import {
+  PaginationParams,
+  pageArgs,
+  toPaginated,
+} from '../common/utils/pagination';
 
 type ExpenseWithUser = Prisma.ExpenseGetPayload<{
   include: {
@@ -95,8 +100,10 @@ export class ExpensesService {
       category?: string;
       minAmount?: number;
       maxAmount?: number;
+      search?: string;
       includeVoided?: boolean;
     },
+    pagination?: PaginationParams,
   ) {
     const where: Prisma.ExpenseWhereInput = { tenantId };
 
@@ -121,7 +128,40 @@ export class ExpensesService {
       if (filters.maxAmount !== undefined) where.amount.lte = filters.maxAmount;
     }
 
-    const expenses = await this.prisma.expense.findMany({
+    if (filters?.search) {
+      // Staff assigned from another store record expenses here too, so match
+      // users with access to this store, not only its primary users
+      const matchingUsers = await this.prisma.user.findMany({
+        where: {
+          AND: [
+            {
+              OR: [
+                { tenantId },
+                { storeAccess: { some: { tenantId, isActive: true } } },
+              ],
+            },
+            {
+              OR: [
+                { username: { contains: filters.search, mode: 'insensitive' } },
+                { email: { contains: filters.search, mode: 'insensitive' } },
+                { firstName: { contains: filters.search, mode: 'insensitive' } },
+                { lastName: { contains: filters.search, mode: 'insensitive' } },
+              ],
+            },
+          ],
+        },
+        select: { id: true },
+      });
+      const userIds = matchingUsers.map((u) => u.id);
+
+      where.OR = [
+        { description: { contains: filters.search, mode: 'insensitive' } },
+        ...(userIds.length ? [{ userId: { in: userIds } }] : []),
+      ];
+    }
+
+    const [expenses, total] = await Promise.all([
+      this.prisma.expense.findMany({
       where,
       include: {
         user: {
@@ -156,9 +196,13 @@ export class ExpensesService {
         },
       },
       orderBy: { date: 'desc' },
-    });
+      ...pageArgs(pagination),
+    }),
+      pagination ? this.prisma.expense.count({ where }) : 0,
+    ]);
 
-    return expenses.map((e) => this.formatExpenseWithVoid(e));
+    const formatted = expenses.map((e) => this.formatExpenseWithVoid(e));
+    return pagination ? toPaginated(formatted, total, pagination) : formatted;
   }
 
   async findOne(id: string, tenantId: string) {
@@ -418,6 +462,7 @@ export class ExpensesService {
       startDate?: string;
       endDate?: string;
     },
+    pagination?: PaginationParams,
   ) {
     const where: Prisma.ExpenseWhereInput = { tenantId };
 
@@ -439,7 +484,8 @@ export class ExpensesService {
       }
     }
 
-    const expenses = await this.prisma.expense.findMany({
+    const [expenses, total] = await Promise.all([
+      this.prisma.expense.findMany({
       where,
       include: {
         user: {
@@ -474,9 +520,13 @@ export class ExpensesService {
         },
       },
       orderBy: { voidRequestedAt: 'desc' },
-    });
+      ...pageArgs(pagination),
+    }),
+      pagination ? this.prisma.expense.count({ where }) : 0,
+    ]);
 
-    return expenses.map((e) => this.formatExpenseWithVoid(e));
+    const formatted = expenses.map((e) => this.formatExpenseWithVoid(e));
+    return pagination ? toPaginated(formatted, total, pagination) : formatted;
   }
 
   async approveVoid(expenseId: string, tenantId: string, reviewerId: string) {

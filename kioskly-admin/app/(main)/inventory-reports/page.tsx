@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { hasPrivilege } from '@/lib/privileges';
@@ -9,6 +9,8 @@ import { formatUserName } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
 import { FileText, Calendar, User, TrendingUp, AlertTriangle, RefreshCw, Eye, X } from 'lucide-react';
 import Link from 'next/link';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/lib/use-pagination';
 import type { UserShiftInventoryReport } from '@/types';
 
 type Tab = 'daily' | 'shift';
@@ -32,25 +34,43 @@ export default function InventoryReportsPage() {
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
-  useEffect(() => {
-    loadData();
+  // No filters on this tab, so the page only resets when rows-per-page changes
+  const pager = usePagination('');
+  const { page, pageSize, applyResult, beginRequest } = pager;
+
+  const loadStats = useCallback(async () => {
+    try {
+      setStats(await api.getInventoryReportStats());
+    } catch (error) {
+      console.error('Failed to load inventory report stats:', error);
+    }
   }, []);
 
-  const loadData = async () => {
+  const loadReports = useCallback(async () => {
+    const isLatest = beginRequest();
+    setRefreshing(true);
     try {
-      const [reportsData, statsData] = await Promise.all([
-        api.getSubmittedInventoryReports(),
-        api.getInventoryReportStats(),
-      ]);
-      setReports(reportsData);
-      setStats(statsData);
+      const result = await api.getSubmittedInventoryReports({ page, limit: pageSize });
+      if (!isLatest()) return;
+      setReports(result.data);
+      applyResult(result.pagination);
     } catch (error) {
       console.error('Failed to load inventory reports:', error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isLatest()) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  };
+  }, [page, pageSize, applyResult, beginRequest]);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
 
   const loadReportDetails = async (id: string) => {
     setLoadingDetails(true);
@@ -65,8 +85,8 @@ export default function InventoryReportsPage() {
   };
 
   const handleRefresh = () => {
-    setRefreshing(true);
-    loadData();
+    loadStats();
+    loadReports();
   };
 
   // ─── Shift tab state ────────────────────────────────────────────────────────
@@ -77,18 +97,31 @@ export default function InventoryReportsPage() {
   const [loadingShiftDetails, setLoadingShiftDetails] = useState(false);
   const shiftFirstLoad = useRef(false);
 
-  const loadShiftData = async () => {
+  const shiftPager = usePagination('');
+  const {
+    page: shiftPage,
+    pageSize: shiftPageSize,
+    applyResult: applyShiftResult,
+    beginRequest: beginShiftRequest,
+  } = shiftPager;
+
+  const loadShiftData = useCallback(async () => {
+    const isLatest = beginShiftRequest();
     setShiftRefreshing(true);
     try {
-      const data = await api.getUserShiftInventoryReports();
-      setShiftReports(data);
+      const result = await api.getUserShiftInventoryReports({ page: shiftPage, limit: shiftPageSize });
+      if (!isLatest()) return;
+      setShiftReports(result.data);
+      applyShiftResult(result.pagination);
     } catch (error) {
       console.error('Failed to load shift inventory reports:', error);
     } finally {
-      setShiftLoading(false);
-      setShiftRefreshing(false);
+      if (isLatest()) {
+        setShiftLoading(false);
+        setShiftRefreshing(false);
+      }
     }
-  };
+  }, [shiftPage, shiftPageSize, applyShiftResult, beginShiftRequest]);
 
   const loadShiftReportDetails = async (id: string) => {
     setLoadingShiftDetails(true);
@@ -102,13 +135,18 @@ export default function InventoryReportsPage() {
     }
   };
 
+  // Load the shift tab the first time it is opened, then again on page changes
+  // (switching back to the tab alone doesn't refetch)
+  const lastShiftLoader = useRef<typeof loadShiftData | null>(null);
   useEffect(() => {
-    if (activeTab === 'shift' && !shiftFirstLoad.current) {
+    if (activeTab !== 'shift' || lastShiftLoader.current === loadShiftData) return;
+    if (!shiftFirstLoad.current) {
       shiftFirstLoad.current = true;
       setShiftLoading(true);
-      loadShiftData();
     }
-  }, [activeTab]);
+    lastShiftLoader.current = loadShiftData;
+    loadShiftData();
+  }, [activeTab, loadShiftData]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -277,6 +315,18 @@ export default function InventoryReportsPage() {
           </div>
         </div>
       )}
+      {activeTab === 'daily' && (
+        <Pagination
+          page={pager.page}
+          totalPages={pager.totalPages}
+          total={pager.total}
+          pageSize={pager.pageSize}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setPageSize}
+          disabled={refreshing}
+          primaryColor={primaryColor}
+        />
+      )}
 
       {/* ─── Shift Tab ──────────────────────────────────────────────────────── */}
       {activeTab === 'shift' && (
@@ -336,6 +386,18 @@ export default function InventoryReportsPage() {
             )}
           </div>
         </div>
+      )}
+      {activeTab === 'shift' && (
+        <Pagination
+          page={shiftPager.page}
+          totalPages={shiftPager.totalPages}
+          total={shiftPager.total}
+          pageSize={shiftPager.pageSize}
+          onPageChange={shiftPager.setPage}
+          onPageSizeChange={shiftPager.setPageSize}
+          disabled={shiftRefreshing}
+          primaryColor={primaryColor}
+        />
       )}
 
       {/* ─── Daily Inventory Report Detail Modal — portaled to document.body;

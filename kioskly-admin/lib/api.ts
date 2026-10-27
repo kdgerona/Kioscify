@@ -33,6 +33,8 @@ import type {
   PayResult,
   StoreInvoiceRow,
   StoreInvoiceReceipt,
+  Paginated,
+  PageParams,
 } from "@/types";
 
 // API base URL - includes the /api/v1 prefix
@@ -314,6 +316,17 @@ class ApiClient {
     return data;
   }
 
+  async getTransactionsPage(params: {
+    startDate?: string;
+    endDate?: string;
+    paymentMethod?: string;
+    paymentStatus?: string;
+    search?: string;
+  } & PageParams): Promise<Paginated<Transaction>> {
+    const { data } = await this.client.get("/transactions", { params });
+    return data;
+  }
+
   async getTransactionById(id: string): Promise<Transaction> {
     const { data } = await this.client.get<Transaction>(`/transactions/${id}`);
     return data;
@@ -334,12 +347,12 @@ class ApiClient {
   }
 
   // Void request endpoints
-  async getVoidRequests(params?: {
+  async getVoidRequests(params: {
     status?: "PENDING" | "APPROVED" | "REJECTED" | "ALL";
     startDate?: string;
     endDate?: string;
-  }): Promise<Transaction[]> {
-    const { data } = await this.client.get<Transaction[]>(
+  } & PageParams): Promise<Paginated<Transaction>> {
+    const { data } = await this.client.get<Paginated<Transaction>>(
       "/transactions/void-requests",
       { params }
     );
@@ -382,18 +395,28 @@ class ApiClient {
     return data;
   }
 
+  async getExpensesPage(params: {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    category?: string;
+  } & PageParams): Promise<Paginated<Expense>> {
+    const { data } = await this.client.get<Paginated<Expense>>("/expenses", { params });
+    return data;
+  }
+
   async getExpenseById(id: string): Promise<Expense> {
     const { data } = await this.client.get<Expense>(`/expenses/${id}`);
     return data;
   }
 
   // Expense Void request endpoints
-  async getExpenseVoidRequests(params?: {
+  async getExpenseVoidRequests(params: {
     status?: "PENDING" | "APPROVED" | "REJECTED" | "ALL";
     startDate?: string;
     endDate?: string;
-  }): Promise<Expense[]> {
-    const { data } = await this.client.get<Expense[]>(
+  } & PageParams): Promise<Paginated<Expense>> {
+    const { data } = await this.client.get<Paginated<Expense>>(
       "/expenses/void-requests",
       { params }
     );
@@ -693,13 +716,13 @@ class ApiClient {
   }
 
   // Submitted Reports endpoints
-  async getSubmittedReports(params?: {
+  async getSubmittedReports(params: {
     reportDate?: string;
     startDate?: string;
     endDate?: string;
     userId?: string;
-  }): Promise<SubmittedReport[]> {
-    const { data } = await this.client.get<SubmittedReport[]>(
+  } & PageParams): Promise<Paginated<SubmittedReport>> {
+    const { data } = await this.client.get<Paginated<SubmittedReport>>(
       "/submitted-reports",
       { params }
     );
@@ -722,12 +745,12 @@ class ApiClient {
   }
 
   // Submitted Inventory Reports endpoints
-  async getSubmittedInventoryReports(params?: {
+  async getSubmittedInventoryReports(params: {
     reportDate?: string;
     startDate?: string;
     endDate?: string;
     userId?: string;
-  }): Promise<any[]> {
+  } & PageParams): Promise<Paginated<any>> {
     const { data } = await this.client.get("/submitted-inventory-reports", {
       params,
     });
@@ -775,13 +798,13 @@ class ApiClient {
     return data;
   }
   // User Shift Reports endpoints
-  async getUserShiftReports(params?: {
+  async getUserShiftReports(params: {
     reportDate?: string;
     userId?: string;
     startDate?: string;
     endDate?: string;
-  }): Promise<UserShiftReport[]> {
-    const { data } = await this.client.get<UserShiftReport[]>("/user-shift-reports", { params });
+  } & PageParams): Promise<Paginated<UserShiftReport>> {
+    const { data } = await this.client.get<Paginated<UserShiftReport>>("/user-shift-reports", { params });
     return data;
   }
 
@@ -800,13 +823,13 @@ class ApiClient {
   }
 
   // User Shift Inventory Reports endpoints
-  async getUserShiftInventoryReports(params?: {
+  async getUserShiftInventoryReports(params: {
     reportDate?: string;
     userId?: string;
     startDate?: string;
     endDate?: string;
-  }): Promise<UserShiftInventoryReport[]> {
-    const { data } = await this.client.get<UserShiftInventoryReport[]>("/user-shift-inventory-reports", { params });
+  } & PageParams): Promise<Paginated<UserShiftInventoryReport>> {
+    const { data } = await this.client.get<Paginated<UserShiftInventoryReport>>("/user-shift-inventory-reports", { params });
     return data;
   }
 

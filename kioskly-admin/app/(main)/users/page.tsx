@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/select';
 import AssignUserModal from './AssignUserModal';
 import { EditPrivilegesModal } from '@/components/EditPrivilegesModal';
+import { Pagination } from '@/components/ui/pagination';
+import { useLocalPagination } from '@/lib/use-pagination';
 
 export default function UsersPage() {
   const router = useRouter();
@@ -32,6 +34,8 @@ export default function UsersPage() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  // A store has few users and the list merges two sources, so it pages in the browser
+  const pager = useLocalPagination(users);
 
   const currentUser = typeof window !== 'undefined'
     ? (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })()
@@ -363,7 +367,7 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
+              {pager.pageItems.map((user) => (
                 <tr key={user.id} className={!user.isActive ? 'opacity-50' : ''}>
                   <td className="px-6 py-4 text-sm text-gray-900">
                     <div className="flex items-center gap-2">
@@ -528,6 +532,18 @@ export default function UsersPage() {
           </table>
           </div>
         </div>
+      )}
+
+      {!loading && (
+        <Pagination
+          page={pager.page}
+          totalPages={pager.totalPages}
+          total={pager.total}
+          pageSize={pager.pageSize}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setPageSize}
+          primaryColor={primaryColor}
+        />
       )}
 
       <AssignUserModal

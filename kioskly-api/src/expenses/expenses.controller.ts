@@ -29,6 +29,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { TenantId } from '../common/decorators/tenant.decorator';
 import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
+import { toPagination } from '../common/utils/pagination';
 
 @ApiTags('expenses')
 @Controller('expenses')
@@ -79,6 +80,24 @@ export class ExpensesController {
     required: false,
     description: 'Maximum expense amount',
   })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search by description or staff name/username/email (partial match)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description:
+      'Page number (1-based). When set, the response is { data, pagination } instead of a plain array',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Page size when paginating (default 50, max 200)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Expenses retrieved successfully',
@@ -89,6 +108,9 @@ export class ExpensesController {
     @Query('category') category?: ExpenseCategory,
     @Query('minAmount') minAmount?: string,
     @Query('maxAmount') maxAmount?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Request() req?,
   ) {
     const filters: any = {};
@@ -97,8 +119,13 @@ export class ExpensesController {
     if (category) filters.category = category;
     if (minAmount) filters.minAmount = parseFloat(minAmount);
     if (maxAmount) filters.maxAmount = parseFloat(maxAmount);
+    if (search) filters.search = search;
 
-    return this.expensesService.findAll(req.user.tenantId, filters);
+    return this.expensesService.findAll(
+      req.user.tenantId,
+      filters,
+      toPagination(page, limit),
+    );
   }
 
   @Get('stats')
@@ -140,6 +167,19 @@ export class ExpensesController {
     required: false,
     description: 'Filter to date (ISO 8601)',
   })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description:
+      'Page number (1-based). When set, the response is { data, pagination } instead of a plain array',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Page size when paginating (default 50, max 200)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Void requests retrieved successfully',
@@ -149,12 +189,14 @@ export class ExpensesController {
     @Query('status') status?: ExpenseVoidStatusFilter,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.expensesService.getVoidRequests(tenantId, {
-      status,
-      startDate,
-      endDate,
-    });
+    return this.expensesService.getVoidRequests(
+      tenantId,
+      { status, startDate, endDate },
+      toPagination(page, limit),
+    );
   }
 
   @Get(':id')

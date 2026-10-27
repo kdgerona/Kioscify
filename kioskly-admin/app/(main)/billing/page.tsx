@@ -7,6 +7,8 @@ import { api } from "@/lib/api";
 import { useBilling } from "@/contexts/BillingContext";
 import { formatManilaDate, formatPeriod, formatPeso, PAYMENT_METHOD_LABELS } from "@/lib/billing-format";
 import { PayNowModal } from "@/components/billing/PayNowModal";
+import { Pagination } from "@/components/ui/pagination";
+import { useLocalPagination } from "@/lib/use-pagination";
 import type { BillingStatus, StoreInvoiceRow } from "@/types";
 
 const STATUS_LABEL: Record<BillingStatus, string> = {
@@ -25,10 +27,14 @@ const INVOICE_STATUS: Record<StoreInvoiceRow["status"], { label: string; classNa
   VOID: { label: "Void", className: "bg-gray-100 text-gray-500" },
 };
 
+const NO_INVOICES: StoreInvoiceRow[] = [];
+
 export default function BillingPage() {
   const { me, refresh } = useBilling();
   const [invoices, setInvoices] = useState<StoreInvoiceRow[] | null>(null);
   const [payOpen, setPayOpen] = useState(false);
+  // The API returns at most the latest 100 invoices (one a month), so it pages in the browser
+  const pager = useLocalPagination(invoices ?? NO_INVOICES);
 
   const billed = !!me && !(me.status.status === "EXEMPT" && me.plan?.billingEnabled !== true);
 
@@ -120,7 +126,7 @@ export default function BillingPage() {
                 </tr>
               </thead>
               <tbody className="divide-y text-gray-900">
-                {invoices.map(inv => (
+                {pager.pageItems.map(inv => (
                   <tr key={inv.id}>
                     <td className="px-4 py-3 whitespace-nowrap">{formatPeriod(inv.periodStart, inv.periodEnd)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatPeso(inv.amountCentavos)}</td>
@@ -144,6 +150,18 @@ export default function BillingPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {!!invoices?.length && (
+          <div className="px-4 pb-4 border-t">
+            <Pagination
+              page={pager.page}
+              totalPages={pager.totalPages}
+              total={pager.total}
+              pageSize={pager.pageSize}
+              onPageChange={pager.setPage}
+              onPageSizeChange={pager.setPageSize}
+            />
           </div>
         )}
       </div>

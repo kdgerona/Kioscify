@@ -6,6 +6,8 @@ import { api } from "@/lib/api";
 import { useTenant } from "@/contexts/TenantContext";
 import { hasPrivilege } from "@/lib/privileges";
 import { formatRole } from "@/lib/utils";
+import { usePagination } from "@/lib/use-pagination";
+import { Pagination } from "@/components/ui/pagination";
 import type { UserSession, SessionStatus } from "@/types";
 import { Clock, Search } from "lucide-react";
 import {
@@ -81,9 +83,9 @@ export default function SessionsPage() {
   const [isFiltering, setIsFiltering] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [status, setStatus] = useState<SessionStatus | "">("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const pager = usePagination(JSON.stringify([debouncedSearchTerm, status]));
+  const { page, pageSize, applyResult, beginRequest } = pager;
 
   useEffect(() => {
     if (!hasPrivilege("users", "read")) {
@@ -93,23 +95,27 @@ export default function SessionsPage() {
 
   const fetchSessions = useCallback(async () => {
     if (!tenant?.id) return;
+    const isLatest = beginRequest();
     setIsFiltering(true);
     try {
       const result = await api.getStoreSessions(tenant.id, {
         search: debouncedSearchTerm || undefined,
         status: status || undefined,
         page,
-        limit: 20,
+        limit: pageSize,
       });
+      if (!isLatest()) return;
       setSessions(result.data);
-      setTotalPages(result.pagination.totalPages);
+      applyResult(result.pagination);
     } catch (err) {
       console.error("Failed to load sessions:", err);
     } finally {
-      setIsFiltering(false);
-      setInitialLoading(false);
+      if (isLatest()) {
+        setIsFiltering(false);
+        setInitialLoading(false);
+      }
     }
-  }, [tenant?.id, debouncedSearchTerm, status, page]);
+  }, [tenant?.id, debouncedSearchTerm, status, page, pageSize, applyResult, beginRequest]);
 
   useEffect(() => {
     fetchSessions();
@@ -129,13 +135,13 @@ export default function SessionsPage() {
             type="text"
             placeholder="Search name, username, or email"
             value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
         <Select
           value={status || "all"}
-          onValueChange={(v) => { setStatus(v === "all" ? "" : (v as SessionStatus)); setPage(1); }}
+          onValueChange={(v) => setStatus(v === "all" ? "" : (v as SessionStatus))}
         >
           <SelectTrigger className="w-[160px]" style={{ color: textColor }}>
             <SelectValue />
@@ -206,25 +212,16 @@ export default function SessionsPage() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-4">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span className="px-3 py-1.5 text-sm text-gray-500">Page {page} of {totalPages}</span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination
+        page={pager.page}
+        totalPages={pager.totalPages}
+        total={pager.total}
+        pageSize={pager.pageSize}
+        onPageChange={pager.setPage}
+        onPageSizeChange={pager.setPageSize}
+        disabled={isFiltering}
+        primaryColor={primaryColor}
+      />
     </div>
   );
 }

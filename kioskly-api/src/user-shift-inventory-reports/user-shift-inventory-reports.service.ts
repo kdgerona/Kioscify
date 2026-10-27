@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UserShiftInventoryReportFiltersDto } from './dto/user-shift-inventory-report-filters.dto';
 import { CreateSubmittedInventoryReportDto } from '../submitted-inventory-reports/dto/create-submitted-inventory-report.dto';
 import { getZonedMonthBounds } from '../common/utils/timezone';
+import { pageArgs, toPaginated, toPagination } from '../common/utils/pagination';
 
 @Injectable()
 export class UserShiftInventoryReportsService {
@@ -94,15 +95,22 @@ export class UserShiftInventoryReportsService {
       if (filters.endDate) where.submittedAt.lte = new Date(filters.endDate);
     }
 
-    return this.prisma.userShiftInventoryReport.findMany({
-      where,
-      include: {
-        user: {
-          select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+    const pagination = toPagination(filters.page, filters.limit);
+    const [reports, total] = await Promise.all([
+      this.prisma.userShiftInventoryReport.findMany({
+        where,
+        include: {
+          user: {
+            select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true },
+          },
         },
-      },
-      orderBy: { submittedAt: 'desc' },
-    });
+        orderBy: { submittedAt: 'desc' },
+        ...pageArgs(pagination),
+      }),
+      pagination ? this.prisma.userShiftInventoryReport.count({ where }) : 0,
+    ]);
+
+    return pagination ? toPaginated(reports, total, pagination) : reports;
   }
 
   async findOne(id: string, tenantId: string, requestingUserId: string, requestingUserRole: string) {

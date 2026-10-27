@@ -624,6 +624,7 @@ model Transaction {
   @@unique([tenantId, transactionId])
   @@unique([tenantId, clientId]) // offline deduplication
   @@index([tenantId, createdAt])
+  @@index([tenantId, timestamp]) // store portal list sorts by timestamp desc
   @@map("transactions")
 }
 
@@ -737,6 +738,7 @@ model Expense {
 
   @@unique([tenantId, clientId]) // offline deduplication
   @@index([tenantId, createdAt])
+  @@index([tenantId, date]) // store portal list sorts by date desc
   @@map("expenses")
 }
 

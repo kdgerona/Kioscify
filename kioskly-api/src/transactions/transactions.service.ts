@@ -9,6 +9,12 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { VoidFiltersDto, VoidStatusFilter } from './dto/void-filters.dto';
 import { Prisma } from '@prisma/client';
 import { getZonedDayBounds, getZonedMonthBounds } from '../common/utils/timezone';
+import {
+  PaginationParams,
+  pageArgs,
+  toPaginated,
+  toPagination,
+} from '../common/utils/pagination';
 
 // Type for transaction with all includes
 type TransactionWithIncludes = Prisma.TransactionGetPayload<{
@@ -136,6 +142,7 @@ export class TransactionsService {
       search?: string;
       includeVoided?: boolean;
     },
+    pagination?: PaginationParams,
   ) {
     const where: Prisma.TransactionWhereInput = { tenantId };
 
@@ -187,36 +194,50 @@ export class TransactionsService {
       };
     }
 
-    const transactions = await this.prisma.transaction.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
+    const [transactions, total] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
           },
-        },
-        items: {
-          include: {
-            product: true,
-            size: true,
-            preference: true,
-            addons: {
-              include: {
-                addon: true,
+          items: {
+            include: {
+              product: true,
+              size: true,
+              preference: true,
+              addons: {
+                include: {
+                  addon: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { timestamp: 'desc' },
-    });
+        orderBy: { timestamp: 'desc' },
+        ...pageArgs(pagination),
+      }),
+      pagination ? this.prisma.transaction.count({ where }) : 0,
+    ]);
 
-    return transactions.map((t) => this.formatTransaction(t));
+    // Unpaginated callers (dashboard, analytics, mobile reports) still get a
+    // plain array; only callers that pass a page get the paged envelope.
+    if (!pagination) {
+      return transactions.map((t) => this.formatTransaction(t));
+    }
+
+    return toPaginated(
+      transactions.map((t) => this.formatTransaction(t)),
+      total,
+      pagination,
+    );
   }
 
   async findOne(id: string, tenantId: string) {
@@ -527,7 +548,9 @@ export class TransactionsService {
       }
     }
 
-    const transactions = await this.prisma.transaction.findMany({
+    const pagination = toPagination(filters.page, filters.limit);
+    const [transactions, total] = await Promise.all([
+      this.prisma.transaction.findMany({
       where,
       include: {
         user: {
@@ -574,9 +597,13 @@ export class TransactionsService {
         },
       },
       orderBy: { voidRequestedAt: 'desc' } as any,
-    });
+      ...pageArgs(pagination),
+    }),
+      pagination ? this.prisma.transaction.count({ where }) : 0,
+    ]);
 
-    return transactions.map((t) => this.formatTransaction(t as any));
+    const formatted = transactions.map((t) => this.formatTransaction(t as any));
+    return pagination ? toPaginated(formatted, total, pagination) : formatted;
   }
 
   /**

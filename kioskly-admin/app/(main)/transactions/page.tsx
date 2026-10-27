@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -28,6 +28,8 @@ import {
 import type { Transaction } from "@/types";
 import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/lib/use-pagination";
 import {
   Select,
   SelectContent,
@@ -103,8 +105,45 @@ export default function TransactionsPage() {
     setEndDate(undefined);
   };
 
+  const filterParams = useMemo(() => {
+    const params: {
+      search?: string;
+      paymentStatus?: string;
+      paymentMethod?: string;
+      startDate?: string;
+      endDate?: string;
+    } = {};
+
+    if (debouncedSearchTerm) {
+      params.search = debouncedSearchTerm;
+    }
+    if (filterStatus !== "ALL") {
+      params.paymentStatus = filterStatus;
+    }
+    if (filterMethod !== "ALL") {
+      params.paymentMethod = filterMethod;
+    }
+    if (startDate) {
+      // Set to start of day
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      params.startDate = start.toISOString();
+    }
+    if (endDate) {
+      // Set to end of day to include all transactions on the end date
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      params.endDate = end.toISOString();
+    }
+    return params;
+  }, [debouncedSearchTerm, filterStatus, filterMethod, startDate, endDate]);
+
+  const pager = usePagination(JSON.stringify(filterParams));
+  const { page, pageSize, applyResult, beginRequest } = pager;
+
   const loadTransactions = useCallback(
     async (isInitial = false) => {
+      const isLatest = beginRequest();
       try {
         if (isInitial) {
           setInitialLoading(true);
@@ -112,46 +151,24 @@ export default function TransactionsPage() {
           setIsFiltering(true);
         }
 
-        const params: {
-          search?: string;
-          paymentStatus?: string;
-          paymentMethod?: string;
-          startDate?: string;
-          endDate?: string;
-        } = {};
-
-        if (debouncedSearchTerm) {
-          params.search = debouncedSearchTerm;
-        }
-        if (filterStatus !== "ALL") {
-          params.paymentStatus = filterStatus;
-        }
-        if (filterMethod !== "ALL") {
-          params.paymentMethod = filterMethod;
-        }
-        if (startDate) {
-          // Set to start of day
-          const start = new Date(startDate);
-          start.setHours(0, 0, 0, 0);
-          params.startDate = start.toISOString();
-        }
-        if (endDate) {
-          // Set to end of day to include all transactions on the end date
-          const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999);
-          params.endDate = end.toISOString();
-        }
-
-        const data = await api.getTransactions(params);
-        setTransactions(data);
+        const result = await api.getTransactionsPage({
+          ...filterParams,
+          page,
+          limit: pageSize,
+        });
+        if (!isLatest()) return;
+        setTransactions(result.data);
+        applyResult(result.pagination);
       } catch (error) {
         console.error("Failed to load transactions:", error);
       } finally {
-        setInitialLoading(false);
-        setIsFiltering(false);
+        if (isLatest()) {
+          setInitialLoading(false);
+          setIsFiltering(false);
+        }
       }
     },
-    [debouncedSearchTerm, filterStatus, filterMethod, startDate, endDate]
+    [filterParams, page, pageSize, applyResult, beginRequest]
   );
 
   // First call shows full skeleton; subsequent filter/search changes use the subtle indicator
@@ -162,20 +179,33 @@ export default function TransactionsPage() {
   }, [loadTransactions]);
 
   // Load void requests
+  const voidPager = usePagination(voidStatusFilter);
+  const {
+    page: voidPage,
+    pageSize: voidPageSize,
+    applyResult: applyVoidResult,
+    beginRequest: beginVoidRequest,
+  } = voidPager;
+
   const loadVoidRequests = useCallback(async () => {
+    const isLatest = beginVoidRequest();
     try {
       setLoadingVoidRequests(true);
-      const requests = await api.getVoidRequests({
+      const result = await api.getVoidRequests({
         status: voidStatusFilter,
+        page: voidPage,
+        limit: voidPageSize,
       });
-      setVoidRequests(requests);
+      if (!isLatest()) return;
+      setVoidRequests(result.data);
+      applyVoidResult(result.pagination);
     } catch (error) {
       console.error("Failed to load void requests:", error);
       toast.error(getErrorMessage(error, "Failed to load void requests"));
     } finally {
-      setLoadingVoidRequests(false);
+      if (isLatest()) setLoadingVoidRequests(false);
     }
-  }, [voidStatusFilter]);
+  }, [voidStatusFilter, voidPage, voidPageSize, applyVoidResult, beginVoidRequest]);
 
   // Reset void request form when selected transaction changes
   useEffect(() => {
@@ -291,6 +321,7 @@ export default function TransactionsPage() {
       .join(" | ");
   };
 
+  // Exports exactly the rows on screen: the current filters and the current page
   const exportToCSV = () => {
     const escapeCSV = (value: unknown): string => {
       if (value === null || value === undefined) return "";
@@ -351,6 +382,7 @@ export default function TransactionsPage() {
           .slice(0, 30)}`
       );
     }
+    if (pager.totalPages > 1) filterParts.push(`page-${page}-of-${pager.totalPages}`);
     const filterSuffix = filterParts.length ? `-${filterParts.join("-")}` : "";
 
     a.download = `transactions-${new Date().toISOString().split("T")[0]}${filterSuffix}.csv`;
@@ -404,10 +436,10 @@ export default function TransactionsPage() {
             style={showVoidRequests ? { color: activeTabColor, borderColor: primaryColor } : undefined}
           >
             Void Requests
-            {voidRequests.filter((r) => r.voidStatus === "PENDING").length >
-              0 && (
+            {/* Only one page is loaded, so the count comes from the server total of the Pending filter */}
+            {voidStatusFilter === "PENDING" && voidPager.total > 0 && (
               <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
-                {voidRequests.filter((r) => r.voidStatus === "PENDING").length}
+                {voidPager.total}
               </span>
             )}
           </button>
@@ -506,8 +538,9 @@ export default function TransactionsPage() {
               </button>
               <button
                 onClick={exportToCSV}
+                disabled={transactions.length === 0}
                 style={{ backgroundColor: primaryColor }}
-                className="flex items-center justify-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90"
+                className="flex items-center justify-center space-x-2 text-black px-4 py-2 rounded-lg transition hover:opacity-90 disabled:opacity-60"
               >
                 <Download className="w-5 h-5" />
                 <span className="text-sm sm:text-base">Export CSV</span>
@@ -622,6 +655,19 @@ export default function TransactionsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {!showVoidRequests && (
+        <Pagination
+          page={pager.page}
+          totalPages={pager.totalPages}
+          total={pager.total}
+          pageSize={pager.pageSize}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setPageSize}
+          disabled={isFiltering}
+          primaryColor={primaryColor}
+        />
       )}
 
       {/* Void Requests Section - Only show for void requests tab */}
@@ -778,6 +824,17 @@ export default function TransactionsPage() {
               </div>
             )}
           </div>
+
+          <Pagination
+            page={voidPager.page}
+            totalPages={voidPager.totalPages}
+            total={voidPager.total}
+            pageSize={voidPager.pageSize}
+            onPageChange={voidPager.setPage}
+            onPageSizeChange={voidPager.setPageSize}
+            disabled={loadingVoidRequests}
+            primaryColor={primaryColor}
+          />
         </div>
       )}
 
