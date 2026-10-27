@@ -26,9 +26,11 @@ const baseSub = {
   graceDaysOverride: null,
 };
 
-const tenantRow = (id: string, name: string, subscription: any) => ({
+const tenantRow = (id: string, name: string, subscription: any, isActive = true) => ({
   id,
   name,
+  isActive,
+  deactivatedAt: isActive ? null : m(2026, 10, 5),
   slug: name.toLowerCase(),
   company: { id: 'c-1', name: 'Acme Co' },
   brand: { id: 'b-1', name: 'Mango Cafe' },
@@ -289,7 +291,46 @@ describe('BillingSettingsService', () => {
       expect(mockStatus.forTenants).toHaveBeenCalledWith(['t-1', 't-2', 't-3'], { previewEnabled: true });
       expect(r.globalBillingEnabled).toBe(false);
       expect(r.counts).toMatchObject({ ACTIVE: 1, EXEMPT: 1, NOT_SET_UP: 1 });
+      expect(r.inactive).toBe(0);
       expect(r.upcomingNext7Days).toBe(1);
+    });
+
+    describe('inactive stores (store toggle off)', () => {
+      beforeEach(() => {
+        mockPrisma.tenant.findMany.mockResolvedValue([
+          tenantRow('t-1', 'Downtown', { ...baseSub, billingEnabled: true, priceCentavos: 150000, nextBillingAt: m(2026, 10, 28), payments: [] }),
+          tenantRow('t-4', 'Closed', { ...baseSub, id: 'sub-4', tenantId: 't-4', billingEnabled: true, priceCentavos: 150000, nextBillingAt: m(2026, 10, 30), payments: [] }, false),
+        ]);
+        mockStatus.forTenants.mockResolvedValue(
+          new Map([
+            ['t-1', { status: 'ACTIVE', daysOverdue: null, paidThroughAt: null, nextBillingAt: m(2026, 10, 28) }],
+            ['t-4', { status: 'LOCKED', daysOverdue: 9, paidThroughAt: null, nextBillingAt: m(2026, 10, 30) }],
+          ]),
+        );
+      });
+
+      it('are left out of the default list and listed on their own with inactive', async () => {
+        const active = await service.listStores({});
+        expect(active.data.map(r => r.tenantId)).toEqual(['t-1']);
+        expect(active.pagination.total).toBe(1);
+
+        const inactive = await service.listStores({ inactive: true });
+        expect(inactive.data.map(r => r.tenantId)).toEqual(['t-4']);
+        expect(inactive.data[0]).toMatchObject({ isActive: false, deactivatedAt: m(2026, 10, 5), status: 'LOCKED' });
+      });
+
+      it('still honour the other filters inside the inactive list', async () => {
+        expect((await service.listStores({ inactive: true, status: 'ACTIVE' })).data).toEqual([]);
+        expect((await service.listStores({ inactive: true, q: 'closed' })).data.map(r => r.tenantId)).toEqual(['t-4']);
+      });
+
+      it('are counted apart from the status cards but still in upcoming invoices', async () => {
+        const r = await service.overview();
+        expect(r.counts).toMatchObject({ ACTIVE: 1, LOCKED: 0 });
+        expect(r.inactive).toBe(1);
+        // They are still invoiced, so their next bill stays in the upcoming count
+        expect(r.upcomingNext7Days).toBe(2);
+      });
     });
   });
 

@@ -152,6 +152,7 @@ export class PlatformBillingController {
   @ApiQuery({ name: 'dueFrom', required: false })
   @ApiQuery({ name: 'dueTo', required: false })
   @ApiQuery({ name: 'q', required: false })
+  @ApiQuery({ name: 'inactive', required: false, type: Boolean, description: 'true lists only inactive stores; otherwise only active ones' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   getStores(
@@ -161,10 +162,13 @@ export class PlatformBillingController {
     @Query('dueFrom') dueFrom?: string,
     @Query('dueTo') dueTo?: string,
     @Query('q') q?: string,
+    @Query('inactive') inactive?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.billingSettings.listStores({ companyId, brandId, status, dueFrom, dueTo, q, page, limit });
+    return this.billingSettings.listStores({
+      companyId, brandId, status, dueFrom, dueTo, q, inactive: inactive === 'true', page, limit,
+    });
   }
 
   @Post('invoices/:id/mark-paid')

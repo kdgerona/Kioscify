@@ -249,6 +249,8 @@ class ApiClient {
     dueFrom?: string;
     dueTo?: string;
     q?: string;
+    /** true lists only inactive stores; otherwise only active ones */
+    inactive?: boolean;
     page?: number;
     limit?: number;
   } = {}): Promise<{

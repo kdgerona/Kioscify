@@ -26,7 +26,8 @@ import {
 const STATUS_OPTIONS: BillingListStatus[] = ['TRIAL', 'ACTIVE', 'DUE', 'LOCKED', 'EXEMPT', 'NOT_ACTIVATED', 'NOT_SET_UP'];
 
 type BulkAction = { kind: 'price' } | { kind: 'enable' } | { kind: 'exempt' };
-type View = 'stores' | 'payments' | 'claims';
+// 'inactive' is the same store table, limited to stores toggled off under Company → Stores
+type View = 'stores' | 'inactive' | 'payments' | 'claims';
 
 export default function SubscriptionsPage() {
   const [overview, setOverview] = useState<BillingOverview | null>(null);
@@ -46,8 +47,11 @@ export default function SubscriptionsPage() {
   const [bulk, setBulk] = useState<BulkAction | null>(null);
   const [view, setView] = useState<View>('stores');
   const [claims, setClaims] = useState<BillingClaim[]>([]);
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null);
+  const showingInactive = view === 'inactive';
 
   const loadList = useCallback(async () => {
+    if (view !== 'stores' && view !== 'inactive') return;
     setLoading(true);
     try {
       const result = await api.getBillingStores({
@@ -57,6 +61,7 @@ export default function SubscriptionsPage() {
         dueFrom: dueFrom || undefined,
         dueTo: dueTo || undefined,
         q: q.trim() || undefined,
+        inactive: view === 'inactive' || undefined,
         page,
         limit: 20,
       });
@@ -67,7 +72,28 @@ export default function SubscriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, brandId, status, dueFrom, dueTo, q, page]);
+  }, [companyId, brandId, status, dueFrom, dueTo, q, page, view]);
+
+  // Switching between active and inactive stores starts again from page 1
+  const changeView = (next: View) => {
+    if (next !== view) setPage(1);
+    setView(next);
+  };
+
+  async function reactivate(row: BillingStoreRow) {
+    if (!confirm(`Reactivate ${row.storeName}? Its staff can log in and use the store again right away.`)) return;
+    setReactivatingId(row.tenantId);
+    try {
+      await api.reactivateStore(row.tenantId);
+      toast.success(`${row.storeName} reactivated`);
+      loadOverview();
+      loadList();
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not reactivate store'));
+    } finally {
+      setReactivatingId(null);
+    }
+  }
 
   const loadOverview = useCallback(() => {
     api.getBillingOverview().then(setOverview).catch(() => {});
@@ -99,7 +125,7 @@ export default function SubscriptionsPage() {
   // touch stores hidden by a new filter or page.
   useEffect(() => {
     setSelected(new Set());
-  }, [companyId, brandId, status, dueFrom, dueTo, q, page]);
+  }, [companyId, brandId, status, dueFrom, dueTo, q, page, view]);
 
   useEffect(() => {
     const t = setTimeout(loadList, q ? 250 : 0);
@@ -196,7 +222,7 @@ export default function SubscriptionsPage() {
         <MoneyCard label="Outstanding" value={overview?.money?.outstandingCentavos} />
         <button
           type="button"
-          onClick={() => setView('claims')}
+          onClick={() => changeView('claims')}
           className="bg-white rounded-lg border p-4 text-left hover:border-indigo-300"
         >
           <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-2 text-amber-600 bg-amber-50">
@@ -210,12 +236,13 @@ export default function SubscriptionsPage() {
       <div className="flex border-b text-sm">
         {([
           ['stores', 'Stores'],
+          ['inactive', `Inactive stores${overview ? ` (${overview.inactive})` : ''}`],
           ['payments', 'Payments'],
           ['claims', 'Payment claims'],
         ] as const).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setView(key)}
+            onClick={() => changeView(key)}
             className={`px-4 py-2 font-medium border-b-2 -mb-px ${
               view === key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
@@ -232,7 +259,14 @@ export default function SubscriptionsPage() {
         </div>
       )}
 
-      {view === 'stores' && (<>
+      {showingInactive && (
+        <p className="text-sm text-gray-500">
+          Stores set to Inactive under Company → Stores. They are still invoiced and can still fall Due or Locked.
+          Reactivate a store here once it has resubscribed.
+        </p>
+      )}
+
+      {(view === 'stores' || showingInactive) && (<>
 
       <div className="flex flex-wrap gap-3 items-end">
         <input
@@ -293,7 +327,9 @@ export default function SubscriptionsPage() {
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600" />
           </div>
         ) : rows.length === 0 ? (
-          <div className="py-16 text-center text-gray-400 text-sm">No stores match these filters</div>
+          <div className="py-16 text-center text-gray-400 text-sm">
+            {showingInactive ? 'No inactive stores match these filters' : 'No stores match these filters'}
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
@@ -308,6 +344,8 @@ export default function SubscriptionsPage() {
                 <th className="px-4 py-3 text-left">Next billing</th>
                 <th className="px-4 py-3 text-right">Days overdue</th>
                 <th className="px-4 py-3 text-left">Last payment</th>
+                {showingInactive && <th className="px-4 py-3 text-left">Deactivated on</th>}
+                {showingInactive && <th className="px-4 py-3" />}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -328,6 +366,18 @@ export default function SubscriptionsPage() {
                   <td className="px-4 py-3 text-gray-600">{formatManilaDate(row.nextBillingAt)}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-gray-600">{row.daysOverdue ? row.daysOverdue : '—'}</td>
                   <td className="px-4 py-3 text-gray-600">{formatManilaDate(row.lastPaymentAt)}</td>
+                  {showingInactive && <td className="px-4 py-3 text-gray-600">{formatManilaDate(row.deactivatedAt)}</td>}
+                  {showingInactive && (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => reactivate(row)}
+                        disabled={reactivatingId === row.tenantId}
+                        className="px-3 py-1 rounded-md border border-indigo-200 text-indigo-700 text-xs font-medium hover:bg-indigo-50 disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {reactivatingId === row.tenantId ? 'Reactivating…' : 'Reactivate'}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

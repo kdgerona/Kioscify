@@ -340,6 +340,8 @@ export interface EnableDatesPreview {
 export interface BillingStoreRow {
   tenantId: string;
   storeName: string;
+  isActive: boolean;
+  deactivatedAt: string | null;
   company: { id: string; name: string } | null;
   brand: { id: string; name: string } | null;
   priceCentavos: number | null;
@@ -367,7 +369,9 @@ export interface BillingMoney {
 
 export interface BillingOverview {
   globalBillingEnabled: boolean;
+  /** Status counts cover active stores only; inactive ones are counted here */
   counts: Record<BillingListStatus, number>;
+  inactive: number;
   upcomingNext7Days: number;
   money: BillingMoney;
 }

@@ -22,6 +22,8 @@ export interface BillingStoreFilters {
   dueFrom?: string;
   dueTo?: string;
   q?: string;
+  /** true lists only inactive stores (store toggle off); otherwise only active ones */
+  inactive?: boolean;
   page?: number;
   limit?: number;
 }
@@ -302,6 +304,8 @@ export class BillingSettingsService {
       select: {
         id: true,
         name: true,
+        isActive: true,
+        deactivatedAt: true,
         company: { select: { id: true, name: true } },
         brand: { select: { id: true, name: true } },
         subscription: {
@@ -322,6 +326,8 @@ export class BillingSettingsService {
       return {
         tenantId: t.id,
         storeName: t.name,
+        isActive: t.isActive,
+        deactivatedAt: t.deactivatedAt ?? null,
         company: t.company,
         brand: t.brand,
         priceCentavos: sub?.priceCentavos ?? null,
@@ -347,6 +353,8 @@ export class BillingSettingsService {
     const dueTo = filters.dueTo ? addZonedDays(new Date(filters.dueTo), 1) : null;
 
     const filtered = rows.filter(r => {
+      // Inactive stores (toggled off under Company → Stores) are listed apart
+      if (filters.inactive ? r.isActive : !r.isActive) return false;
       if (filters.status && r.status !== filters.status) return false;
       if (q && ![r.storeName, r.company?.name, r.brand?.name].some(n => n?.toLowerCase().includes(q))) return false;
       const due = r.dueAt ?? r.nextBillingAt;
@@ -374,13 +382,17 @@ export class BillingSettingsService {
     const now = new Date();
     const weekAhead = addZonedDays(now, 8);
     let upcomingNext7Days = 0;
+    let inactive = 0;
     for (const r of rows) {
-      counts[r.status] += 1;
+      // Status counts describe active stores only, matching the main Stores list
+      if (r.isActive) counts[r.status] += 1;
+      else inactive += 1;
+      // Inactive stores are still invoiced, so they stay in the upcoming count
       if (r.billingEnabled === true && r.nextBillingAt && r.nextBillingAt >= startOfZonedDay(now) && r.nextBillingAt < weekAhead) {
         upcomingNext7Days += 1;
       }
     }
-    return { globalBillingEnabled, counts, upcomingNext7Days, money: await this.money(now) };
+    return { globalBillingEnabled, counts, inactive, upcomingNext7Days, money: await this.money(now) };
   }
 
   private async money(now: Date) {
