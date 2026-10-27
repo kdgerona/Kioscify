@@ -13,6 +13,7 @@ Production: `docker-compose.yml`, project `kioscify-production`.
 |---|---|---|---|---|---|
 | 1 | Store Portal list pagination + rows-per-page (Transactions, Expenses, Sales/Inventory Reports, Attendance, Sessions, Store Users, Billing History); server-side expense search | `6cf3199` | api, store | Indexes: `store-list-indexes.js` | No |
 | 2 | `/reports/time-of-day` returns 400 instead of 500 for missing/invalid dates | `173d996` | api | None | No |
+| 3 | Store Portal Analytics stuck on "No data available" on some devices (saved Custom Range without dates hid the date selector); selector now always shows, with Retry on load errors | `cb72903` | store | None | No |
 
 **Services to rebuild:** `api`, `store`.
 **Not affected:** `company`, `platform`, nginx, MongoDB, Redis, MinIO. No kiosk app release is needed; the kiosk app still gets full lists because it never sends `page`.
@@ -87,6 +88,9 @@ docker compose up -d api store
 - CSV export on Transactions/Expenses downloads the current page with the current filters.
 - **Dashboard** and **Analytics** totals match before the deploy (they still use full lists).
 - Kiosk app: transactions list, expenses list, daily/shift report submission work as before.
+- **Analytics** (change 3): opens with data on a phone that was previously stuck. No storage
+  clearing is needed; the page now falls back to Today. The Date Range selector is always visible.
+  Custom Range with no dates prompts for dates. A saved custom range survives a reload.
 
 ---
 
@@ -100,3 +104,4 @@ harmless to the old code and can stay. No data changes to undo.
 ## Change log
 
 - **2026-10-27**: Created with changes 1 and 2.
+- **2026-10-27**: Added change 3 (Analytics stuck state). Store Portal only; no new steps.
