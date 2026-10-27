@@ -72,6 +72,31 @@ interface AnalyticsData {
   }>;
 }
 
+const PERIOD_KEY = "analytics_period";
+const CUSTOM_RANGE_KEY = "analytics_custom_range";
+const PERIODS: TimePeriod[] = ["daily", "yesterday", "weekly", "monthly", "yearly", "overall", "custom"];
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+// Restores the last-used range. "custom" only comes back together with both of
+// its dates: a saved "custom" without them used to leave the page with nothing
+// to load, stuck on "No data available" on that device.
+function loadSavedRange(): { period: TimePeriod; startDate: string; endDate: string } {
+  const fallback = { period: "daily" as TimePeriod, startDate: "", endDate: "" };
+  if (typeof window === "undefined") return fallback;
+  try {
+    const period = localStorage.getItem(PERIOD_KEY) as TimePeriod | null;
+    if (!period || !PERIODS.includes(period)) return fallback;
+    if (period !== "custom") return { ...fallback, period };
+    const saved = JSON.parse(localStorage.getItem(CUSTOM_RANGE_KEY) ?? "{}");
+    if (DATE_ONLY.test(saved.startDate) && DATE_ONLY.test(saved.endDate)) {
+      return { period, startDate: saved.startDate, endDate: saved.endDate };
+    }
+  } catch {
+    // Storage blocked (e.g. Safari privacy settings) or corrupt: use the default
+  }
+  return fallback;
+}
+
 export default function ReportsPage() {
   const { tenant, brand } = useTenant();
   const primaryColor =
@@ -79,12 +104,11 @@ export default function ReportsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const isInitialLoad = useRef(true);
-  const [period, setPeriod] = useState<TimePeriod>(() => {
-    if (typeof window === "undefined") return "daily";
-    return (localStorage.getItem("analytics_period") as TimePeriod) ?? "daily";
-  });
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [loadError, setLoadError] = useState(false);
+  const [savedRange] = useState(loadSavedRange);
+  const [period, setPeriod] = useState<TimePeriod>(savedRange.period);
+  const [startDate, setStartDate] = useState<string>(savedRange.startDate);
+  const [endDate, setEndDate] = useState<string>(savedRange.endDate);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -104,8 +128,15 @@ export default function ReportsPage() {
   }, [period, startDate, endDate]);
 
   useEffect(() => {
-    localStorage.setItem("analytics_period", period);
-  }, [period]);
+    try {
+      localStorage.setItem(PERIOD_KEY, period);
+      if (period === "custom" && startDate && endDate) {
+        localStorage.setItem(CUSTOM_RANGE_KEY, JSON.stringify({ startDate, endDate }));
+      }
+    } catch {
+      // Storage blocked: the range just won't be remembered
+    }
+  }, [period, startDate, endDate]);
 
   const dayStart = (d: Date) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
@@ -171,8 +202,11 @@ export default function ReportsPage() {
   const loadReportData = async () => {
     try {
       setLoading(true);
+      setLoadError(false);
 
       if (period === "custom" && (!startDate || !endDate)) {
+        // Nothing to load until both dates are picked; the page prompts for them
+        setAnalytics(null);
         setLoading(false);
         return;
       }
@@ -209,6 +243,9 @@ export default function ReportsPage() {
       }
     } catch (error) {
       console.error("Failed to load report data:", error);
+      // Don't leave the previous range's numbers under the newly selected range
+      setAnalytics(null);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -604,10 +641,81 @@ export default function ReportsPage() {
     );
   }
 
+  // Rendered in every state (including empty and error) so the date range can
+  // always be changed and the load retried
+  const pageHeader = (
+    <>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            Analytics
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-2">
+            Sales performance and business insights
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={loadReportData}
+            disabled={loading}
+            className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition disabled:opacity-50"
+            title="Refresh report data"
+          >
+            <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            onClick={exportReport}
+            disabled={!analytics}
+            style={{ backgroundColor: primaryColor }}
+            className="flex items-center justify-center gap-2 text-black px-3 sm:px-4 py-2 rounded-lg transition hover:opacity-90 whitespace-nowrap disabled:opacity-50"
+          >
+            <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-sm sm:text-base">Export Report</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Date Range Selector */}
+      <DateRangeSelector
+        period={period}
+        onPeriodChange={setPeriod}
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+        primaryColor={primaryColor}
+      />
+    </>
+  );
+
   if (!analytics) {
+    const needsCustomDates = period === "custom" && (!startDate || !endDate);
     return (
       <div className="p-4 sm:p-6 lg:p-8">
-        <div className="text-center text-gray-600">No data available</div>
+        {pageHeader}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+          {loading ? (
+            <div
+              className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto"
+              style={{ borderBottomColor: primaryColor }}
+            />
+          ) : needsCustomDates ? (
+            <p className="text-gray-600">Pick a start and end date to see analytics.</p>
+          ) : loadError ? (
+            <>
+              <p className="text-gray-600 mb-4">Couldn&apos;t load analytics. Check your connection and try again.</p>
+              <button
+                onClick={loadReportData}
+                style={{ backgroundColor: primaryColor }}
+                className="px-4 py-2 rounded-lg text-black font-medium hover:opacity-90 transition"
+              >
+                Retry
+              </button>
+            </>
+          ) : (
+            <p className="text-gray-600">No data available</p>
+          )}
+        </div>
       </div>
     );
   }
@@ -656,45 +764,7 @@ export default function ReportsPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            Analytics
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-2">
-            Sales performance and business insights
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={loadReportData}
-            disabled={loading}
-            className="p-2 rounded-lg border border-gray-300 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-400 transition disabled:opacity-50"
-            title="Refresh report data"
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
-          </button>
-          <button
-            onClick={exportReport}
-            style={{ backgroundColor: primaryColor }}
-            className="flex items-center justify-center gap-2 text-black px-3 sm:px-4 py-2 rounded-lg transition hover:opacity-90 whitespace-nowrap"
-          >
-            <Download className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="text-sm sm:text-base">Export Report</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Date Range Selector */}
-      <DateRangeSelector
-        period={period}
-        onPeriodChange={setPeriod}
-        startDate={startDate}
-        endDate={endDate}
-        onStartDateChange={setStartDate}
-        onEndDateChange={setEndDate}
-        primaryColor={primaryColor}
-      />
+      {pageHeader}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6 sm:mb-8">
