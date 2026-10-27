@@ -3,6 +3,7 @@ import { BillingPaymentMethod, BillingPaymentSource, Prisma } from '@prisma/clie
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingConfigService } from './billing-config.service';
 import { BillingAuditService } from './billing-audit.service';
+import { BillingResubscribeService } from './billing-resubscribe.service';
 import { markLedgerMonthPaid } from './billing-ledger.util';
 import { toCsv } from '../export/export-csv.util';
 import { MarkPaidDto, PrepaymentDto } from './dto/billing-actions.dto';
@@ -60,6 +61,7 @@ export class BillingPaymentsService {
     private prisma: PrismaService,
     private billingConfig: BillingConfigService,
     private audit: BillingAuditService,
+    private resubscribe: BillingResubscribeService,
   ) {}
 
   /**
@@ -181,6 +183,16 @@ export class BillingPaymentsService {
         reference: input.reference ?? null,
       },
     });
+
+    // Resubscribe: paying is what brings an inactive store back. Runs after
+    // the payment is committed, so a failure here can never undo a payment.
+    if (result.applied) {
+      try {
+        await this.resubscribe.reactivateAfterPayment(result.invoice.tenantId, input.actorUserId ?? null);
+      } catch {
+        // A platform admin can still reactivate it from Subscriptions → Inactive stores
+      }
+    }
     return { applied: result.applied, paymentId: result.paymentId };
   }
 

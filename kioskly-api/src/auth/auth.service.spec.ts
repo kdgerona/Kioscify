@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { TokenBlacklistService } from './token-blacklist.service';
 import { SessionsService } from '../sessions/sessions.service';
 import { BillingStatusService } from '../billing/billing-status.service';
+import { BillingResubscribeService } from '../billing/billing-resubscribe.service';
 
 jest.mock('bcrypt');
 const bcryptCompare = bcrypt.compare as jest.Mock;
@@ -51,6 +52,7 @@ const mockUserWithRelations = {
 };
 
 const mockBillingStatus = { forTenant: jest.fn() };
+const mockResubscribe = { canResubscribe: jest.fn() };
 
 describe('AuthService — logging', () => {
   let service: AuthService;
@@ -65,6 +67,7 @@ describe('AuthService — logging', () => {
         { provide: SessionsService, useValue: mockSessionsService },
         { provide: getLoggerToken(AuthService.name), useValue: mockLogger },
         { provide: BillingStatusService, useValue: mockBillingStatus },
+        { provide: BillingResubscribeService, useValue: mockResubscribe },
       ],
     }).compile();
 
@@ -284,13 +287,62 @@ describe('AuthService — logging', () => {
 
     it('rejects with the same "Invalid credentials" message once the grace period has expired (DEACTIVATED)', async () => {
       mockPrisma.tenant.findMany.mockResolvedValue([deactivatedStore]);
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+      bcryptCompare.mockResolvedValue(true);
+      mockResubscribe.canResubscribe.mockResolvedValue(false);
 
       await expect(
-        service.loginStore({ storeSlug: 'store-1', username: 'john', password: 'x' }),
+        service.loginStore({ storeSlug: 'store-1', username: 'john', password: 'correct' }),
       ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+    });
 
-      // Password/user lookup must not even be attempted once DEACTIVATED is known.
-      expect(mockPrisma.user.findFirst).not.toHaveBeenCalled();
+    it('still rejects a wrong password for a DEACTIVATED store without checking resubscribe', async () => {
+      mockPrisma.tenant.findMany.mockResolvedValue([deactivatedStore]);
+      mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+      bcryptCompare.mockResolvedValue(false);
+
+      await expect(
+        service.loginStore({ storeSlug: 'store-1', username: 'john', password: 'wrong' }),
+      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
+      expect(mockResubscribe.canResubscribe).not.toHaveBeenCalled();
+    });
+
+    describe('resubscribe (Store Admin of a switched-off store)', () => {
+      beforeEach(() => {
+        mockPrisma.user.findFirst.mockResolvedValue(mockUser);
+        bcryptCompare.mockResolvedValue(true);
+        mockPrisma.userStoreAccess.findFirst.mockResolvedValue(null);
+        mockPrisma.user.findUnique.mockResolvedValue(mockUserWithRelations);
+        mockResubscribe.canResubscribe.mockResolvedValue(true);
+      });
+
+      it('lets an eligible Store Admin log in to a DEACTIVATED store with SUBSCRIPTION_ENDED', async () => {
+        mockPrisma.tenant.findMany.mockResolvedValue([deactivatedStore]);
+
+        const result = await service.loginStore({ storeSlug: 'store-1', username: 'john', password: 'correct' });
+
+        expect(result.accessToken).toBe('mock-token');
+        expect(result.status).toBe('SUBSCRIPTION_ENDED');
+        // ADMIN is checked as STORE_ADMIN, matching the role in the token
+        expect(mockResubscribe.canResubscribe).toHaveBeenCalledWith('store-1', 'STORE_ADMIN');
+      });
+
+      it('shows SUBSCRIPTION_ENDED instead of GRACE_PERIOD during the grace period', async () => {
+        mockPrisma.tenant.findMany.mockResolvedValue([graceStore]);
+
+        const result = await service.loginStore({ storeSlug: 'store-1', username: 'john', password: 'correct' });
+
+        expect(result.status).toBe('SUBSCRIPTION_ENDED');
+      });
+
+      it('never checks resubscribe for an active store', async () => {
+        mockPrisma.tenant.findMany.mockResolvedValue([mockStore]);
+
+        const result = await service.loginStore({ storeSlug: 'store-1', username: 'john', password: 'correct' });
+
+        expect(result.status).toBe('ACTIVE');
+        expect(mockResubscribe.canResubscribe).not.toHaveBeenCalled();
+      });
     });
   });
 

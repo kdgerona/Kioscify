@@ -56,13 +56,18 @@ export class BillingPayService {
 
   /** The store's current OPEN invoice — turning a passed billing date into a real invoice if the scheduler hasn't yet. */
   private async currentInvoice(tenantId: string, now: Date): Promise<BillingInvoice | null> {
-    const sub = await this.prisma.storeSubscription.findUnique({ where: { tenantId } });
+    const [sub, tenant] = await Promise.all([
+      this.prisma.storeSubscription.findUnique({ where: { tenantId } }),
+      this.prisma.tenant.findUnique({ where: { id: tenantId }, select: { isActive: true } }),
+    ]);
     if (!sub) return null;
     const open = await this.prisma.billingInvoice.findFirst({
       where: { subscriptionId: sub.id, status: 'OPEN' },
       orderBy: { dueAt: 'asc' },
     });
-    return open ?? this.invoices.ensureInvoice(sub.id, now);
+    // An inactive store resubscribing pays its next period now, even before
+    // its billing date: there is nothing else for it to pay to come back.
+    return open ?? this.invoices.ensureInvoice(sub.id, now, { ignoreDate: tenant?.isActive === false });
   }
 
   async payInvoice(tenantId: string, invoiceId: string | null, now: Date = new Date()): Promise<PayResult> {

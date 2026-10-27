@@ -36,6 +36,8 @@ export interface BillingMe {
   pendingReminder: { id: string; offsetDays: number; title: string; body: string } | null;
   pollSeconds: number;
   openInvoice: { id: string; number: string; amountCentavos: number; dueAt: string } | null;
+  /** The store's monthly price; used for Resubscribe when nothing is open yet */
+  plan?: { priceCentavos: number | null } | null;
   cache: {
     status: BillingStatus;
     dueAt: string | null;

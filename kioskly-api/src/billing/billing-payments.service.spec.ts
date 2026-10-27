@@ -3,6 +3,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { BillingPaymentsService } from './billing-payments.service';
 import { BillingConfigService } from './billing-config.service';
 import { BillingAuditService } from './billing-audit.service';
+import { BillingResubscribeService } from './billing-resubscribe.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
@@ -34,6 +35,7 @@ const mockPrisma: any = {
 mockPrisma.$transaction = jest.fn(async (fn: (tx: any) => unknown) => fn(mockPrisma));
 const mockConfig = { get: jest.fn(async () => ({ defaultGraceDays: 7 })) };
 const mockAudit = { log: jest.fn() };
+const mockResubscribe = { reactivateAfterPayment: jest.fn() };
 
 const webhookInput = (over: Record<string, unknown> = {}) => ({
   invoiceId: 'inv-1',
@@ -66,6 +68,7 @@ describe('BillingPaymentsService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BillingConfigService, useValue: mockConfig },
         { provide: BillingAuditService, useValue: mockAudit },
+        { provide: BillingResubscribeService, useValue: mockResubscribe },
       ],
     }).compile();
     service = module.get(BillingPaymentsService);
@@ -103,6 +106,23 @@ describe('BillingPaymentsService', () => {
       expect(mockPrisma.storeSubscription.update).not.toHaveBeenCalled();
       expect(mockPrisma.subscriptionPayment.upsert).not.toHaveBeenCalled();
       expect(mockAudit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'payment.flagged' }));
+    });
+
+    it('asks to reactivate the store once a payment is applied (resubscribe)', async () => {
+      await service.recordPayment(webhookInput({ actorUserId: 'admin-1' }));
+      expect(mockResubscribe.reactivateAfterPayment).toHaveBeenCalledWith('t-1', 'admin-1');
+    });
+
+    it('never reactivates on a flagged (not applied) payment', async () => {
+      mockPrisma.billingInvoice.updateMany.mockResolvedValue({ count: 0 });
+      await service.recordPayment(webhookInput());
+      expect(mockResubscribe.reactivateAfterPayment).not.toHaveBeenCalled();
+    });
+
+    it('keeps the payment when reactivating fails', async () => {
+      mockResubscribe.reactivateAfterPayment.mockRejectedValueOnce(new Error('db down'));
+      const res = await service.recordPayment(webhookInput());
+      expect(res).toEqual({ applied: true, paymentId: 'pay-row' });
     });
 
     it('concurrent recordPayment for one invoice applies once', async () => {

@@ -5,6 +5,8 @@ import { AlertTriangle, Download, Mail, LogOut } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
 import type { AccountStatusResponse } from '@/types';
+import { BillingProvider } from '@/contexts/BillingContext';
+import { ResubscribePanel } from '@/components/billing/ResubscribePanel';
 
 function daysRemaining(gracePeriodEndsAt: string | null): number | null {
   if (!gracePeriodEndsAt) return null;
@@ -49,6 +51,45 @@ export default function AccountStatusPage() {
   };
 
   const days = daysRemaining(status?.gracePeriodEndsAt ?? null);
+  // A Store Admin who can switch the store back on by paying (see the API's resubscribe.util)
+  const canResubscribe = status?.status === 'SUBSCRIPTION_ENDED';
+
+  if (canResubscribe) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-5">
+            <AlertTriangle className="w-7 h-7 text-amber-500" />
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-4">Your subscription has ended.</h1>
+          <BillingProvider>
+            <ResubscribePanel storeName={status?.scopeName ?? null} />
+          </BillingProvider>
+          {/* Export stays available for the rest of the grace period, as before */}
+          {days !== null && days > 0 && (
+            <div className="mt-4">
+              <button
+                onClick={handleExport}
+                disabled={exporting || !tenantId}
+                className="w-full inline-flex items-center justify-center gap-2 font-semibold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed text-sm border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                <Download className="w-4 h-4" />
+                {exporting ? 'Preparing export...' : `Export your data (${days} day${days === 1 ? '' : 's'} left)`}
+              </button>
+              {exportError && <p className="mt-2 text-xs text-red-600">{exportError}</p>}
+            </div>
+          )}
+          <button
+            onClick={() => api.logout()}
+            className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">

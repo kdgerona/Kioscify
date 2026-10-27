@@ -28,6 +28,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { AllowInGracePeriod } from '../common/decorators/allow-in-grace-period.decorator';
 import { AuthenticatedUser } from './strategies/jwt.strategy';
 import { AllowWhenBillingLocked } from '../common/decorators/allow-when-billing-locked.decorator';
+import { AllowWhenSubscriptionEnded } from '../common/decorators/allow-when-subscription-ended.decorator';
 
 // Configurable via env — defaults to 20 attempts per 15 min
 const LOGIN_THROTTLE = {
@@ -108,6 +109,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @AllowInGracePeriod()
+  @AllowWhenSubscriptionEnded()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Change password (required on first login)' })
   @ApiResponse({ status: 200, description: 'Password changed successfully' })
@@ -129,6 +131,7 @@ export class AuthController {
   @Get('account-status')
   @UseGuards(JwtAuthGuard)
   @AllowInGracePeriod()
+  @AllowWhenSubscriptionEnded()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get the account status (ACTIVE/GRACE_PERIOD/DEACTIVATED) of the caller\'s Company/Tenant' })
   @ApiResponse({ status: 200, description: 'Account status retrieved' })
@@ -137,12 +140,14 @@ export class AuthController {
     return this.authService.getAccountStatus({
       tenantId: user.tenantId,
       companyId: user.companyId,
+      canResubscribe: user.canResubscribe,
     });
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @AllowInGracePeriod()
+  @AllowWhenSubscriptionEnded()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout and revoke current token' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })

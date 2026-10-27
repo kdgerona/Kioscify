@@ -23,7 +23,14 @@ interface SyncContextType {
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
 export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token } = useAuth();
+  const { token, accountStatus } = useAuth();
+  // While the store is switched off (account-status screen, incl. Resubscribe)
+  // the server refuses sales and expenses, and every refusal would use up a
+  // queued item's retries. Hold the queue instead; it syncs as soon as the
+  // store is active again. A ref so the long-lived listeners below see it.
+  const syncBlocked = !!accountStatus && accountStatus !== "ACTIVE" && accountStatus !== "SUBSCRIPTION_LOCKED";
+  const syncBlockedRef = useRef(syncBlocked);
+  syncBlockedRef.current = syncBlocked;
   const [pendingCount, setPendingCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
@@ -50,7 +57,7 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const syncPromiseRef = useRef<Promise<void> | null>(null);
 
   const triggerSync = useCallback(async (): Promise<void> => {
-    if (!token) return;
+    if (!token || syncBlockedRef.current) return;
     if (syncPromiseRef.current) return syncPromiseRef.current;
     const promise = (async () => {
       setIsSyncing(true);
@@ -96,10 +103,11 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => sub.remove();
   }, [triggerSync]);
 
-  // Initial sync on mount when token is available
+  // Initial sync on mount when token is available, and again once a switched-off
+  // store is active again (e.g. right after resubscribing)
   useEffect(() => {
-    if (token) triggerSync();
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (token && !syncBlocked) triggerSync();
+  }, [token, syncBlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <SyncContext.Provider value={{ pendingCount, failedCount, isOnline, isSyncing, triggerSync, retryFailed }}>

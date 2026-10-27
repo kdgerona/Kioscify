@@ -78,7 +78,9 @@ export interface User {
 
 // SUBSCRIPTION_LOCKED: the store is ACTIVE but its subscription is overdue
 // past the grace period (enforcement on). Handled by BillingGate, not /account-status.
-export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED" | "SUBSCRIPTION_LOCKED";
+// SUBSCRIPTION_ENDED: the store is switched off, and this Store Admin can switch
+// it back on by paying. /account-status shows Resubscribe with the payment QR.
+export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED" | "SUBSCRIPTION_LOCKED" | "SUBSCRIPTION_ENDED";
 
 export interface AccountStatusResponse {
   status: AccountStatus;

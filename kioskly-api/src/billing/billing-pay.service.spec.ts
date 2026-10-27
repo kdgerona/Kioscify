@@ -136,7 +136,15 @@ describe('BillingPayService', () => {
       mockPrisma.billingInvoice.findFirst.mockResolvedValue(null);
       mockInvoices.ensureInvoice.mockResolvedValue({ ...invoice });
       await service.payInvoice('t-1', null, now);
-      expect(mockInvoices.ensureInvoice).toHaveBeenCalledWith('sub-1', now);
+      expect(mockInvoices.ensureInvoice).toHaveBeenCalledWith('sub-1', now, { ignoreDate: false });
+    });
+
+    it('an inactive store resubscribing can pay its next period before the billing date', async () => {
+      mockPrisma.billingInvoice.findFirst.mockResolvedValue(null);
+      mockPrisma.tenant.findUnique.mockResolvedValue({ isActive: false });
+      mockInvoices.ensureInvoice.mockResolvedValue({ ...invoice });
+      await service.payInvoice('t-1', null, now);
+      expect(mockInvoices.ensureInvoice).toHaveBeenCalledWith('sub-1', now, { ignoreDate: true });
     });
 
     it('nothing to pay → 400', async () => {

@@ -25,6 +25,7 @@ import { BillingClaimsService } from '../billing-claims.service';
 import { SubmitClaimDto } from '../dto/claim.dto';
 import { BillingRemindersService } from '../billing-reminders.service';
 import { AllowWhenBillingLocked } from '../../common/decorators/allow-when-billing-locked.decorator';
+import { AllowWhenSubscriptionEnded } from '../../common/decorators/allow-when-subscription-ended.decorator';
 
 const ALL_STORE_ROLES = ['STORE_ADMIN', 'ADMIN', 'CASHIER'];
 const STORE_ADMINS = ['STORE_ADMIN', 'ADMIN'];
@@ -32,6 +33,8 @@ const STORE_ADMINS = ['STORE_ADMIN', 'ADMIN'];
 /** The caller's own store only — every route is scoped by the JWT's tenantId. */
 @ApiTags('billing')
 @AllowWhenBillingLocked()
+// An inactive store's Store Admin pays here to resubscribe
+@AllowWhenSubscriptionEnded()
 @Controller('billing/me')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()

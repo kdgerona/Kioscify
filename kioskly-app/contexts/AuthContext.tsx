@@ -23,7 +23,9 @@ export interface User {
 
 // SUBSCRIPTION_LOCKED = store ACTIVE but its subscription is overdue past grace;
 // handled by the billing gate (/subscription-overdue), not /account-status.
-export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED" | "SUBSCRIPTION_LOCKED";
+// SUBSCRIPTION_ENDED = store switched off, and this Store Admin can switch it
+// back on by paying; /account-status shows Resubscribe with the payment QR.
+export type AccountStatus = "ACTIVE" | "GRACE_PERIOD" | "DEACTIVATED" | "SUBSCRIPTION_LOCKED" | "SUBSCRIPTION_ENDED";
 
 interface AuthContextType {
   user: User | null;

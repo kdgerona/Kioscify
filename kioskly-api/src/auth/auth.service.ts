@@ -20,6 +20,7 @@ import { TokenBlacklistService } from './token-blacklist.service';
 import { SessionsService } from '../sessions/sessions.service';
 import { computeAccountStatus, worstAccountStatus } from '../common/utils/account-status.util';
 import { BillingStatusService } from '../billing/billing-status.service';
+import { BillingResubscribeService } from '../billing/billing-resubscribe.service';
 import type { BillingStatusResult } from '../common/utils/billing-status.util';
 
 export interface RequestMeta {
@@ -42,6 +43,7 @@ export class AuthService {
     private sessionsService: SessionsService,
     @InjectPinoLogger(AuthService.name) private readonly logger: PinoLogger,
     private billingStatus: BillingStatusService,
+    private resubscribe: BillingResubscribeService,
   ) {}
 
   /**
@@ -63,6 +65,17 @@ export class AuthService {
     }
     const locked = status === 'ACTIVE' && billing?.status === 'LOCKED' && billing.enforcement;
     return { status: locked ? 'SUBSCRIPTION_LOCKED' : status, billing };
+  }
+
+  /**
+   * withBilling, plus SUBSCRIPTION_ENDED for a Store Admin who can bring an
+   * inactive store back by paying — clients show "Your subscription has
+   * ended" with Resubscribe instead of the deactivation page. Older clients
+   * treat any non-ACTIVE status as locked, which is still the right outcome.
+   */
+  private async storeStatusFor<S extends string>(tenantId: string, status: S, canResubscribe: boolean) {
+    const result = await this.withBilling(tenantId, status);
+    return canResubscribe ? { ...result, status: 'SUBSCRIPTION_ENDED' as const } : result;
   }
 
   // ─── Utility ──────────────────────────────────────────────────────────────
@@ -153,14 +166,10 @@ export class AuthService {
     }
     const store = matches[0];
 
+    // A DEACTIVATED store is only rejected after the password check below:
+    // its Store Admin may still log in to resubscribe. Everyone else gets the
+    // same "Invalid credentials" as before, so nothing new is revealed.
     const storeAccountStatus = computeAccountStatus(store);
-    if (storeAccountStatus === 'DEACTIVATED') {
-      this.logger.warn(
-        { storeSlug: dto.storeSlug, reason: 'store_deactivated' },
-        'Store login failed',
-      );
-      throw new UnauthorizedException('Invalid credentials');
-    }
 
     // Simple lookup — no complex nested includes (Prisma MongoDB can silently return
     // null when include chains are too deep). Tenant data is fetched separately.
@@ -191,6 +200,17 @@ export class AuthService {
     if (!passwordMatch) {
       this.logger.warn(
         { tenantId: store.id, username: dto.username, reason: 'invalid_password' },
+        'Store login failed',
+      );
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const loginRole = user.role === 'ADMIN' ? 'STORE_ADMIN' : user.role;
+    const canResubscribe =
+      storeAccountStatus !== 'ACTIVE' && (await this.resubscribe.canResubscribe(store.id, loginRole));
+    if (storeAccountStatus === 'DEACTIVATED' && !canResubscribe) {
+      this.logger.warn(
+        { storeSlug: dto.storeSlug, reason: 'store_deactivated' },
         'Store login failed',
       );
       throw new UnauthorizedException('Invalid credentials');
@@ -257,7 +277,7 @@ export class AuthService {
       accessToken: await this.issueTokenAndRecordSession(payload, meta),
       mustChangePassword: user.isFirstLogin,
       stores: accessibleStores,
-      ...(await this.withBilling(activeStore.id, storeAccountStatus)),
+      ...(await this.storeStatusFor(activeStore.id, storeAccountStatus, canResubscribe)),
       gracePeriodEndsAt: store.gracePeriodEndsAt,
       scopeName: store.name,
       user: {
@@ -547,7 +567,12 @@ export class AuthService {
   // Tenant takes priority over companyId, mirroring JwtStrategy.validate() —
   // STORE_ADMIN/CASHIER carry both, but the Tenant's own status (which
   // already reflects any company-level cascade) is what's relevant to them.
-  async getAccountStatus(user: { tenantId?: string | null; companyId?: string | null }) {
+  async getAccountStatus(user: {
+    tenantId?: string | null;
+    companyId?: string | null;
+    /** Set by JwtStrategy; see storeStatusFor */
+    canResubscribe?: boolean;
+  }) {
     if (user.tenantId) {
       // A Store can be individually reactivated (POST /stores/:id/reactivate)
       // or created after its parent Company was already deactivated, so the
@@ -582,7 +607,7 @@ export class AuthService {
       return {
         gracePeriodEndsAt: tenant.gracePeriodEndsAt,
         scopeName: tenant.name,
-        ...(await this.withBilling(user.tenantId, tenantStatus)),
+        ...(await this.storeStatusFor(user.tenantId, tenantStatus, !!user.canResubscribe)),
       };
     }
 

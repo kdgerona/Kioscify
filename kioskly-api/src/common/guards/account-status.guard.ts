@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ALLOW_IN_GRACE_PERIOD_KEY } from '../decorators/allow-in-grace-period.decorator';
+import { ALLOW_WHEN_SUBSCRIPTION_ENDED_KEY } from '../decorators/allow-when-subscription-ended.decorator';
 
 // Runs after JwtAuthGuard/RolesGuard on every authenticated request.
 // `request.user.accountStatus` is computed fresh on every request by
@@ -33,6 +34,23 @@ export class AccountStatusGuard implements CanActivate {
     // whose JWT carries neither tenantId nor companyId) — pass through.
     if (!status || status === 'ACTIVE') return true;
 
+    const allowedInGrace = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_IN_GRACE_PERIOD_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    // A Store Admin who can bring the store back by paying (set by
+    // JwtStrategy) also reaches @AllowWhenSubscriptionEnded routes: billing,
+    // account status, logout, change password. Only those — past the grace
+    // period everything else (e.g. data export) stays closed, as before.
+    if (user.canResubscribe) {
+      const allowedWhenEnded = this.reflector.getAllAndOverride<boolean>(
+        ALLOW_WHEN_SUBSCRIPTION_ENDED_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (allowedWhenEnded) return true;
+    }
+
     if (status === 'DEACTIVATED') {
       // Reuses the same 401 handling the portals/mobile already have for
       // forced logout — no new status code.
@@ -40,11 +58,7 @@ export class AccountStatusGuard implements CanActivate {
     }
 
     // GRACE_PERIOD
-    const allowed = this.reflector.getAllAndOverride<boolean>(
-      ALLOW_IN_GRACE_PERIOD_KEY,
-      [context.getHandler(), context.getClass()],
-    );
-    if (allowed) return true;
+    if (allowedInGrace) return true;
 
     throw new ForbiddenException({
       code: 'ACCOUNT_GRACE_PERIOD',

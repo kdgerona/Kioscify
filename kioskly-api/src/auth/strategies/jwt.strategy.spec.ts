@@ -8,6 +8,7 @@ const mockPrisma = {
 };
 const mockTokenBlacklist = { isBlacklisted: jest.fn() };
 const mockBillingStatus = { forTenantCached: jest.fn() };
+const mockResubscribe = { canResubscribe: jest.fn() };
 
 function makeStrategy(): JwtStrategy {
   return new JwtStrategy(
@@ -15,6 +16,7 @@ function makeStrategy(): JwtStrategy {
     mockPrisma as any,
     mockTokenBlacklist as any,
     mockBillingStatus as any,
+    mockResubscribe as any,
   );
 }
 
@@ -289,6 +291,47 @@ describe('JwtStrategy.validate — billingStatus', () => {
     mockBillingStatus.forTenantCached.mockRejectedValue(new Error('db down'));
     const result = await strategy.validate({ sub: 'user-1', username: 'john', role: 'STORE_ADMIN', tenantId: 'store-1' });
     expect(result.billingStatus).toBeUndefined();
+  });
+});
+
+describe('JwtStrategy.validate — canResubscribe', () => {
+  let strategy: JwtStrategy;
+  const switchedOff = { isActive: false, gracePeriodEndsAt: null, company: { isActive: true, gracePeriodEndsAt: null } };
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockConfig.get.mockReturnValue('test-secret');
+    strategy = makeStrategy();
+  });
+
+  it('is set for a Store Admin of a switched-off store that can resubscribe', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ ...baseUser, tenantId: 'store-1' });
+    mockPrisma.tenant.findUnique.mockResolvedValue(switchedOff);
+    mockResubscribe.canResubscribe.mockResolvedValue(true);
+    const result = await strategy.validate({ sub: 'user-1', username: 'john', role: 'STORE_ADMIN', tenantId: 'store-1' });
+    expect(mockResubscribe.canResubscribe).toHaveBeenCalledWith('store-1', 'STORE_ADMIN');
+    expect(result.canResubscribe).toBe(true);
+    expect(result.accountStatus).toBe('DEACTIVATED');
+  });
+
+  it('is never looked up for cashiers or active stores', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ ...baseUser, role: 'CASHIER', tenantId: 'store-1' });
+    mockPrisma.tenant.findUnique.mockResolvedValue(switchedOff);
+    expect((await strategy.validate({ sub: 'user-1', username: 'john', role: 'CASHIER', tenantId: 'store-1' })).canResubscribe).toBe(false);
+
+    mockPrisma.user.findUnique.mockResolvedValue({ ...baseUser, tenantId: 'store-1' });
+    mockPrisma.tenant.findUnique.mockResolvedValue({ ...switchedOff, isActive: true });
+    expect((await strategy.validate({ sub: 'user-1', username: 'john', role: 'STORE_ADMIN', tenantId: 'store-1' })).canResubscribe).toBe(false);
+
+    expect(mockResubscribe.canResubscribe).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the lookup errors', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ ...baseUser, tenantId: 'store-1' });
+    mockPrisma.tenant.findUnique.mockResolvedValue(switchedOff);
+    mockResubscribe.canResubscribe.mockRejectedValue(new Error('db down'));
+    const result = await strategy.validate({ sub: 'user-1', username: 'john', role: 'STORE_ADMIN', tenantId: 'store-1' });
+    expect(result.canResubscribe).toBe(false);
   });
 });
 

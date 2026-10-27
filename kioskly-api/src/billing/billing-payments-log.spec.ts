@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BillingPaymentsService } from './billing-payments.service';
 import { BillingConfigService } from './billing-config.service';
 import { BillingAuditService } from './billing-audit.service';
+import { BillingResubscribeService } from './billing-resubscribe.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const payments = [
@@ -54,6 +55,7 @@ describe('BillingPaymentsService payments log', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BillingConfigService, useValue: {} },
         { provide: BillingAuditService, useValue: {} },
+        { provide: BillingResubscribeService, useValue: {} },
       ],
     }).compile();
     service = module.get(BillingPaymentsService);

@@ -95,4 +95,49 @@ describe('AccountStatusGuard', () => {
     );
     expect(guard.canActivate(ctx)).toBe(true);
   });
+
+  describe('resubscribe (canResubscribe set by JwtStrategy)', () => {
+    // Answers per metadata key, so the two allowlists can be told apart
+    function routeAllows(keys: string[]) {
+      jest
+        .spyOn(reflector, 'getAllAndOverride')
+        .mockImplementation((key: unknown) => (keys.includes(key as string) ? true : undefined));
+    }
+
+    it('lets a DEACTIVATED store\'s eligible Store Admin reach @AllowWhenSubscriptionEnded routes', () => {
+      routeAllows(['allowWhenSubscriptionEnded']);
+      const ctx = makeContext({ role: 'STORE_ADMIN', accountStatus: 'DEACTIVATED', canResubscribe: true });
+      expect(guard.canActivate(ctx)).toBe(true);
+    });
+
+    it('past the grace period, keeps grace-only routes (e.g. data export) closed', () => {
+      routeAllows(['allowInGracePeriod']);
+      const ctx = makeContext({ role: 'STORE_ADMIN', accountStatus: 'DEACTIVATED', canResubscribe: true });
+      expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+    });
+
+    it('during the grace period, grace-only routes (e.g. data export) stay open as before', () => {
+      routeAllows(['allowInGracePeriod']);
+      const ctx = makeContext({ role: 'STORE_ADMIN', accountStatus: 'GRACE_PERIOD', canResubscribe: true });
+      expect(guard.canActivate(ctx)).toBe(true);
+    });
+
+    it('still blocks every other route', () => {
+      routeAllows([]);
+      const ctx = makeContext({ role: 'STORE_ADMIN', accountStatus: 'DEACTIVATED', canResubscribe: true });
+      expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+    });
+
+    it('opens billing during the grace period too', () => {
+      routeAllows(['allowWhenSubscriptionEnded']);
+      const ctx = makeContext({ role: 'STORE_ADMIN', accountStatus: 'GRACE_PERIOD', canResubscribe: true });
+      expect(guard.canActivate(ctx)).toBe(true);
+    });
+
+    it('does not open billing routes for anyone else', () => {
+      routeAllows(['allowWhenSubscriptionEnded']);
+      const ctx = makeContext({ role: 'STORE_ADMIN', accountStatus: 'DEACTIVATED' });
+      expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+    });
+  });
 });

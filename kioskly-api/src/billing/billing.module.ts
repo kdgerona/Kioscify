@@ -20,6 +20,7 @@ import { BillingRemindersService } from './billing-reminders.service';
 import { InAppReminderChannel } from './reminders/in-app.channel';
 import { REMINDER_CHANNELS } from './reminders/reminder-channel.interface';
 import { PlatformBillingController, PlatformStoreBillingController } from './controllers/platform-billing.controller';
+import { BillingResubscribeService } from './billing-resubscribe.service';
 
 @Module({
   controllers: [
@@ -44,9 +45,10 @@ import { PlatformBillingController, PlatformStoreBillingController } from './con
     BillingPayService,
     BillingMeService,
     BillingRemindersService,
+    BillingResubscribeService,
     InAppReminderChannel,
     { provide: REMINDER_CHANNELS, useFactory: (inApp: InAppReminderChannel) => [inApp], inject: [InAppReminderChannel] },
   ],
-  exports: [BillingConfigService, BillingAuditService, BillingStatusService],
+  exports: [BillingConfigService, BillingAuditService, BillingStatusService, BillingResubscribeService],
 })
 export class BillingModule {}

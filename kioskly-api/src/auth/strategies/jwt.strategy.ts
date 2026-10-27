@@ -7,6 +7,7 @@ import { TokenBlacklistService } from '../token-blacklist.service';
 import { auth } from '../../constants/env.constants';
 import { AccountStatus, computeAccountStatus, worstAccountStatus } from '../../common/utils/account-status.util';
 import { BillingStatusService } from '../../billing/billing-status.service';
+import { BillingResubscribeService } from '../../billing/billing-resubscribe.service';
 import type { BillingStatusResult } from '../../common/utils/billing-status.util';
 
 export interface JwtPayload {
@@ -48,9 +49,14 @@ export interface AuthenticatedUser {
   // cached config alone (no extra queries) and is EXEMPT. Read by
   // BillingStatusGuard; kept separate from accountStatus on purpose.
   billingStatus?: BillingStatusResult;
+  // True for a Store Admin whose store was switched off but can be brought
+  // back by paying (see common/utils/resubscribe.util.ts). Lets
+  // AccountStatusGuard admit them to billing routes only.
+  canResubscribe?: boolean;
 }
 
 const BILLED_ROLES = ['STORE_ADMIN', 'ADMIN', 'CASHIER'];
+const STORE_ADMIN_ROLES = ['STORE_ADMIN', 'ADMIN'];
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -59,6 +65,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly prisma: PrismaService,
     private readonly tokenBlacklist: TokenBlacklistService,
     private readonly billingStatus: BillingStatusService,
+    private readonly resubscribe: BillingResubscribeService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -125,6 +132,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // agrees with brands.service.ts's validateSubdomain. PLATFORM_ADMIN has
     // neither, so accountStatus is left undefined (treated as exempt).
     let accountStatus: AccountStatus | undefined;
+    let canResubscribe = false;
     if (effectiveTenantId) {
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: effectiveTenantId },
@@ -138,6 +146,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         accountStatus = computeAccountStatus(tenant);
         if (tenant.company) {
           accountStatus = worstAccountStatus(accountStatus, computeAccountStatus(tenant.company));
+        }
+        // Extra lookup only for a Store Admin of a switched-off store
+        if (!tenant.isActive && STORE_ADMIN_ROLES.includes(user.role)) {
+          try {
+            canResubscribe = await this.resubscribe.canResubscribe(effectiveTenantId, user.role);
+          } catch {
+            // Fail closed: the existing deactivation rules apply
+          }
         }
       }
     } else if (effectiveCompanyId) {
@@ -173,6 +189,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       exp: payload.exp,
       accountStatus,
       billingStatus,
+      canResubscribe,
     };
   }
 }
