@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TimePeriod } from './dto/analytics-query.dto';
 import {
@@ -567,10 +567,18 @@ export class ReportsService {
   // ─── Time of Day Trends ────────────────────────────────────────────────────
 
   async getTimeOfDayTrends(tenantId: string, startDate: Date, endDate: Date) {
+    // A missing or malformed query param arrives as an Invalid Date, which
+    // Prisma rejects with a 500 — report it as the caller's error instead
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new BadRequestException('startDate and endDate are required and must be valid dates');
+    }
+    if (startDate > endDate) {
+      throw new BadRequestException('startDate must be on or before endDate');
+    }
+
     // Enforce 2-year max range
     const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
     if (endDate.getTime() - startDate.getTime() > TWO_YEARS_MS) {
-      const { BadRequestException } = await import('@nestjs/common');
       throw new BadRequestException('Date range cannot exceed 2 years');
     }
 
