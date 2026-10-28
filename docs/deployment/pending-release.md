@@ -16,6 +16,7 @@ Production: `docker-compose.yml`, project `kioscify-production`.
 | 3 | Store Portal Analytics stuck on "No data available" on some devices (saved Custom Range without dates hid the date selector); selector now always shows, with Retry on load errors | `cb72903` | store | None | No |
 | 4 | Platform → Subscriptions: inactive stores (toggle off under Company → Stores) moved to their own **Inactive stores (N)** tab with a Reactivate button; status cards count active stores only | `c4ea1bc` | api, platform | None | No |
 | 5 | **Resubscribe**: a Store Admin of a switched-off store can log in to a "Your subscription has ended." screen (Store Portal and kiosk app), pay by QR, and the store switches itself back on. Any applied payment (QR, Mark paid, approved claim) reactivates an eligible switched-off store | `299c3d5` | api, store | None | **Yes** (step 6) |
+| 6 | "Pay now" needed several taps on phones: the due banner's Pay now (and its collapse arrow), the reminder popup and the Billing page button are now thumb-sized (44 px / hit area extended on the kiosk) | `aef62b1` | store | None | **Yes** (same APK, step 6) |
 
 **Services to rebuild:** `api`, `store`, `platform`. Deploy `api` and `platform` together (change 4): the new Platform tab reads the API's new `inactive` count.
 **Not affected:** `company`, nginx, MongoDB, Redis, MinIO.
@@ -114,8 +115,10 @@ docker compose up -d api store platform
   - Resubscribe shows the payment QR. Pay it (or use Platform → Mark paid on the invoice): the store
     switches back on and the admin lands on the dashboard within ~15 seconds.
   - Platform → Subscriptions → Inactive stores no longer lists it.
+- **Pay now on a phone** (change 6): on a store that is Due, open the Store Portal on a phone;
+  one tap on the banner's **Pay now** opens the payment window. Same on a phone kiosk (after step 6).
 
-### 6. Release the kiosk APK (change 5)
+### 6. Release the kiosk APK (changes 5 and 6)
 
 Only after the API from step 4 is live. An older APK still works with the new API: its
 Store Admin sees the old "Email support to resubscribe" screen instead of being refused at login.
@@ -129,6 +132,8 @@ Store Admin sees the old "Email support to resubscribe" screen instead of being 
 4. Check on a kiosk logged in as a Store Admin of a switched-off test store: "Your subscription has
    ended." → Resubscribe → QR → after paying, the kiosk returns to the POS and any sales made
    offline before the switch-off sync.
+5. On a **phone** kiosk of a Due store, as a Store Admin: one tap on the banner's **Pay now**
+   opens the payment sheet (change 6).
 
 ---
 
@@ -148,3 +153,4 @@ screen simply never appears, because the old API refuses switched-off stores at 
 - **2026-10-27**: Added change 4 (Inactive stores tab). Adds `platform` to the rebuild.
 - **2026-10-27**: Added change 5 (Resubscribe). No new services or scripts; adds the **kiosk APK
   release** (step 6).
+- **2026-10-27**: Added change 6 (Pay now tap targets). Store Portal + the same kiosk APK; no new steps.
