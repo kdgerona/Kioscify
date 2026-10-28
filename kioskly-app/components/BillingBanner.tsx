@@ -26,12 +26,23 @@ export default function BillingBanner() {
           {!collapsed && <Text className="text-xs text-gray-700">{view.body}</Text>}
         </View>
         {view.showPayAction && (
-          <TouchableOpacity onPress={() => setPayOpen(true)} className="bg-red-600 rounded-md px-3 py-1.5">
-            <Text className="text-white text-xs font-semibold">Pay now</Text>
+          // Sized for a thumb: a small target on phones needed several taps.
+          // hitSlop extends the touch area past the visible button.
+          <TouchableOpacity
+            onPress={() => setPayOpen(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 4 }}
+            className="bg-red-600 rounded-md px-4 py-2.5"
+          >
+            <Text className="text-white text-sm font-semibold">Pay now</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity onPress={() => setCollapsed(c => !c)} accessibilityLabel={collapsed ? "Expand notice" : "Collapse notice"}>
-          <Ionicons name={collapsed ? "chevron-down" : "chevron-up"} size={16} color="#6b7280" />
+        <TouchableOpacity
+          onPress={() => setCollapsed(c => !c)}
+          hitSlop={{ top: 10, bottom: 10, left: 4, right: 10 }}
+          className="p-1"
+          accessibilityLabel={collapsed ? "Expand notice" : "Collapse notice"}
+        >
+          <Ionicons name={collapsed ? "chevron-down" : "chevron-up"} size={18} color="#6b7280" />
         </TouchableOpacity>
       </View>
       <PayNowSheet visible={payOpen} onClose={() => setPayOpen(false)} />

@@ -43,14 +43,20 @@ export function BillingBanner() {
             {!collapsed && <span className="text-gray-700"> — {view.body}</span>}
           </div>
           {view.showPayAction && (
+            // Thumb-sized on phones (a small target needed several taps);
+            // touch-manipulation skips the browser's double-tap-zoom wait
             <button
               onClick={() => setPayOpen(true)}
-              className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm font-semibold shadow-sm hover:bg-red-700"
+              className="min-h-[44px] px-4 py-2 rounded-md bg-red-600 text-white text-sm font-semibold shadow-sm hover:bg-red-700 touch-manipulation"
             >
               Pay now
             </button>
           )}
-          <button onClick={toggle} className="text-gray-500 hover:text-gray-700" aria-label={collapsed ? "Expand notice" : "Collapse notice"}>
+          <button
+            onClick={toggle}
+            className="p-2 -m-1 text-gray-500 hover:text-gray-700 touch-manipulation"
+            aria-label={collapsed ? "Expand notice" : "Collapse notice"}
+          >
             {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
           </button>
         </div>

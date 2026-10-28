@@ -95,7 +95,7 @@ export default function BillingPage() {
         {canPayNow && (
           <button
             onClick={() => setPayOpen(true)}
-            className="mt-4 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold shadow-sm hover:bg-red-700"
+            className="mt-4 min-h-[44px] px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold shadow-sm hover:bg-red-700 touch-manipulation"
           >
             Pay now{me.openInvoice ? ` · ${formatPeso(me.openInvoice.amountCentavos)}` : ""}
           </button>

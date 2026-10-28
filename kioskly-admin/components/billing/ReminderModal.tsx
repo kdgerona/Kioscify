@@ -36,12 +36,15 @@ export function ReminderModal() {
         <h2 className="text-lg font-semibold text-gray-900">{reminder.title}</h2>
         <p className="text-sm text-gray-600">{reminder.body}</p>
         <div className="flex gap-2">
-          <button onClick={() => acknowledge(false)} className="flex-1 py-2 border border-gray-300 rounded-lg text-sm">
+          <button
+            onClick={() => acknowledge(false)}
+            className="flex-1 min-h-[44px] py-2 border border-gray-300 rounded-lg text-sm touch-manipulation"
+          >
             Later
           </button>
           <button
             onClick={() => acknowledge(true)}
-            className="flex-1 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700"
+            className="flex-1 min-h-[44px] py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 touch-manipulation"
           >
             Pay now
           </button>
