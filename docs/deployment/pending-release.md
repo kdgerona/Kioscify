@@ -18,10 +18,11 @@ Production: `docker-compose.yml`, project `kioscify-production`.
 | 5 | **Resubscribe**: a Store Admin of a switched-off store can log in to a "Your subscription has ended." screen (Store Portal and kiosk app), pay by QR, and the store switches itself back on. Any applied payment (QR, Mark paid, approved claim) reactivates an eligible switched-off store | `299c3d5` | api, store | None | **Yes** (step 6) |
 | 6 | "Pay now" needed several taps on phones: the due banner's Pay now (and its collapse arrow), the reminder popup and the Billing page button are now thumb-sized (44 px / hit area extended on the kiosk) | `aef62b1` | store | None | **Yes** (same APK, step 6) |
 | 7 | Kiosk app **Settings → Billing** (Store Admins only): subscription status and price, plus a **Billing & Payments** screen with plan details, Pay now and billing history. Cashiers don't see it. Uses the existing `/billing/me` endpoints; no API change | `8c3f7fa` | None | None | **Yes** (same APK, step 6) |
+| 8 | **Payment successful** confirmation: after a QR payment goes through, Store Portal and kiosk show "Payment successful" with **View receipt**, **Go to Billing** and **Done**. Before, the success message flickered away (the due banner, the overdue screen and Resubscribe all close the moment the payment lands). Adds a receipt screen on the kiosk; paid rows in kiosk billing history open it. **Also fixes** a paid store still seeing "Subscription due" (and being invoiced again) when its next billing date sat inside a month it had already paid; paying an older invoice no longer pulls paid-through back | `e82342e`, `8532087` | api, store | Check (read-only): `billing-dates-check.js` | **Yes** (same APK, step 6) |
 
 **Services to rebuild:** `api`, `store`, `platform`. Deploy `api` and `platform` together (change 4): the new Platform tab reads the API's new `inactive` count.
 **Not affected:** `company`, nginx, MongoDB, Redis, MinIO.
-**Kiosk APK:** needed for changes 5–7 (Resubscribe screen, Pay now, Settings → Billing). Release it **after** the API is deployed; see step 6.
+**Kiosk APK:** needed for changes 5–8 (Resubscribe screen, Pay now, Settings → Billing, payment confirmation). Release it **after** the API is deployed; see step 6.
 
 **Resubscribe rules (change 5)**, so support can answer "why can't this store resubscribe?":
 - Only a **Store Admin**, never a cashier. Cashiers of a switched-off store still can't log in.
@@ -79,6 +80,24 @@ Expected output ends with `Done: 2 indexes in place.`
 Run it on **staging first**, then production. Prefer this script to a full
 `prisma db push` on a live database (see `billing-release.md`, step 3).
 
+### 3b. Check billing dates (from change 8, read-only)
+
+`docs/deployment/billing-dates-check.js` changes nothing. It lists billed stores whose
+next billing date falls inside a month they already paid. Before this release those
+stores were told "Subscription due" for a paid month and would be invoiced for it again;
+after it, their next billing moves to the day after paid-through on its own.
+
+```bash
+docker exec -i kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet \
+  < docs/deployment/billing-dates-check.js
+```
+
+Expected on a healthy database: `0 stores affected.` Run it **before** step 4 and keep the
+output. For any store it lists, check Platform → Subscriptions after step 4: it should no
+longer show as Due for that month. If one of those stores has an **open invoice for a month
+it already paid** (listed under "open invoices"), void it in Platform; the fix stops new
+duplicates but doesn't remove an existing one.
+
 ### 4. Rebuild and restart the changed services
 
 Build one service at a time on a small server:
@@ -116,10 +135,14 @@ docker compose up -d api store platform
   - Resubscribe shows the payment QR. Pay it (or use Platform → Mark paid on the invoice): the store
     switches back on and the admin lands on the dashboard within ~15 seconds.
   - Platform → Subscriptions → Inactive stores no longer lists it.
+- **Payment successful** (change 8), on staging with a Due test store: Pay now from the banner, pay the QR
+  (or Platform → Mark paid on the invoice). Within ~30 seconds "Payment successful" appears and stays;
+  the due banner behind it is gone. **View receipt** (green) opens that invoice's receipt.
+- **Billing dates** (change 8): any store listed by step 3b no longer shows Due for a month it paid.
 - **Pay now on a phone** (change 6): on a store that is Due, open the Store Portal on a phone;
   one tap on the banner's **Pay now** opens the payment window. Same on a phone kiosk (after step 6).
 
-### 6. Release the kiosk APK (changes 5, 6 and 7)
+### 6. Release the kiosk APK (changes 5–8)
 
 Only after the API from step 4 is live. An older APK still works with the new API: its
 Store Admin sees the old "Email support to resubscribe" screen instead of being refused at login.
@@ -138,6 +161,8 @@ Store Admin sees the old "Email support to resubscribe" screen instead of being 
 6. **Settings → Billing** (change 7): as a Store Admin, Settings shows a **Billing** section
    (status · price) and **Billing & Payments** opens the plan, Pay now (when something is owed) and
    billing history matching Store Portal → Billing. As a cashier, Settings has no Billing section.
+7. **Payment successful** (change 8): pay from the kiosk banner's Pay now; "Payment successful" appears
+   and stays, **View receipt** opens the kiosk receipt, and paid rows in Billing & Payments open it too.
 
 ---
 
@@ -147,6 +172,8 @@ Check out the previous master commit and repeat step 4. The new indexes are
 harmless to the old code and can stay. No data changes to undo. Stores that resubscribed stay
 switched on (they paid). A new kiosk APK keeps working against the old API: its Resubscribe
 screen simply never appears, because the old API refuses switched-off stores at login.
+Dates written by payments after the deploy (paid-through never moved back) are valid for the old
+code too; only the old code's "due for a paid month" behaviour returns.
 
 ---
 
@@ -159,3 +186,6 @@ screen simply never appears, because the old API refuses switched-off stores at 
   release** (step 6).
 - **2026-10-27**: Added change 6 (Pay now tap targets). Store Portal + the same kiosk APK; no new steps.
 - **2026-10-29**: Added change 7 (kiosk Settings → Billing). Kiosk APK only; no server changes.
+- **2026-10-29**: Added change 8 (Payment successful confirmation). Store Portal + the same kiosk APK; no new steps.
+- **2026-10-29**: Change 8 also fixes billing dates for a store whose next billing sat inside a paid month
+  (API). Adds the read-only check, step 3b.
