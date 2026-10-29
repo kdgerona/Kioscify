@@ -18,8 +18,11 @@ export class CreateStoreBillingDto {
   @ApiProperty({ example: 15 })
   @IsInt() @Min(0) @Max(365) trialDays: number;
 
-  @ApiProperty({ example: '2026-11-08', description: 'Date the first invoice is created (Manila)' })
-  @IsDateString() firstBillingDate: string;
+  @ApiPropertyOptional({
+    example: '2026-12-08',
+    description: 'First payment date (Manila). Defaults to one month after the trial ends: each month is paid at its end',
+  })
+  @IsDateString() @IsOptional() firstBillingDate?: string;
 
   @ApiPropertyOptional({ description: 'Defaults to now' })
   @IsDateString() @IsOptional() activatedAt?: string;

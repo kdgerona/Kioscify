@@ -185,7 +185,9 @@ export function StoreBillingForm({
         <Field
           label="Trial length (days)"
           hint={`Blank = default (${defaultTrialDays}). Trial ends ${formatManilaDate(s.trialEndsAt)}.`}
-          help={`Free days before the first bill. Blank uses the platform default (${defaultTrialDays}). Before the first invoice is issued, changing it moves the first billing date to the new trial end, unless a Next billing date override is set. "+7 days" extends it by a week.`}
+          help={`Free days before billing starts. Blank uses the platform default (${defaultTrialDays}). Before the first invoice is issued, changing it moves the first billing date to ${
+            s.billedInArrears ? 'a month after the new trial end (this store pays for each month at its end)' : 'the new trial end'
+          }, unless a Next billing date override is set. "+7 days" extends it by a week.`}
         >
           <div className="flex gap-2">
             <input type="number" min={0} value={draft.trialDays} onChange={set('trialDays')} placeholder={String(defaultTrialDays)} className={inputClass} />
@@ -228,6 +230,14 @@ export function StoreBillingForm({
           help="The last day already covered by payments. Updated automatically when an invoice is paid or a prepayment is recorded; read-only here."
         >
           <p className="px-3 py-2 text-sm text-gray-700 bg-gray-50 rounded-md">{formatManilaDate(s.paidThroughAt)}</p>
+        </Field>
+        <Field
+          label="Payment timing"
+          help="Stores set up from Oct 29, 2026 pay for each month at its end (a Dec 10 bill covers Nov 10 – Dec 9). Stores set up before that pay in advance (a Dec 10 bill covers Dec 10 – Jan 9) and keep doing so. Set automatically; read-only."
+        >
+          <p className="px-3 py-2 text-sm text-gray-700 bg-gray-50 rounded-md">
+            {s.billedInArrears ? 'At the end of each month' : 'In advance, at the start of each month'}
+          </p>
         </Field>
         <Field
           label="Grace days (override)"

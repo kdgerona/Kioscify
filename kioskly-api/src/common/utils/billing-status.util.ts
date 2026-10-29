@@ -22,6 +22,9 @@ export interface SubscriptionInput {
   nextBillingAt: Date | null;
   paidThroughAt: Date | null;
   graceDaysOverride: number | null;
+  /** Paid at the end of each month instead of the start (see BillingTiming). */
+  billedInArrears?: boolean | null;
+  anchorDay?: number | null;
 }
 
 export interface OpenInvoiceInput {
@@ -113,7 +116,10 @@ export function computeBillingStatus(
 
   if (!cfg.billingEnabled || !sub || sub.billingEnabled !== true) return result;
   // A next billing date inside an already-paid period is not due (or upcoming) yet
-  const nextBillingAt = effectiveNextBillingAt(sub.nextBillingAt, sub.paidThroughAt);
+  const nextBillingAt = effectiveNextBillingAt(sub.nextBillingAt, sub.paidThroughAt, {
+    arrears: sub.billedInArrears,
+    anchorDay: sub.anchorDay,
+  });
   result.nextBillingAt = nextBillingAt;
   if (!sub.activatedAt) return { ...result, status: 'NOT_ACTIVATED' };
 

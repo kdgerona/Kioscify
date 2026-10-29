@@ -1,6 +1,8 @@
 // Billing schedule maths on Manila calendar days ("YYYY-MM-DD"), mirroring
-// the API's rules: paid in advance (due on the billing date), monthly on an
-// anchor day clamped to the end of shorter months, locked after grace.
+// the API's rules: monthly on an anchor day clamped to the end of shorter
+// months, locked after grace. Stores set up before 2026-10-29 pay in advance
+// (a bill covers the month starting on its due date); later ones pay in
+// arrears (a bill covers the month that ended the day before).
 
 function parts(day: string): [number, number, number] {
   const [y, m, d] = day.split('-').map(Number);
@@ -47,15 +49,20 @@ export function ordinal(n: number): string {
 
 export interface BillingSchedule {
   firstInvoice: string;
+  /** The month the first invoice pays for, inclusive. */
+  covers: { from: string; to: string };
   /** First day the store is locked if the first invoice is still unpaid. */
   lockFrom: string;
   /** The billing dates after the first one. */
   following: string[];
 }
 
-export function billingSchedule(firstInvoice: string, anchorDay: number, graceDays: number, count = 3): BillingSchedule {
+export function billingSchedule(firstInvoice: string, anchorDay: number, graceDays: number, arrears = false, count = 3): BillingSchedule {
+  const from = arrears ? addMonthsClamped(firstInvoice, -1, anchorDay) : firstInvoice;
+  const end = arrears ? firstInvoice : addMonthsClamped(firstInvoice, 1, anchorDay);
   return {
     firstInvoice,
+    covers: { from, to: addDays(end, -1) },
     lockFrom: addDays(firstInvoice, graceDays),
     following: Array.from({ length: count }, (_, i) => addMonthsClamped(firstInvoice, i + 1, anchorDay)),
   };

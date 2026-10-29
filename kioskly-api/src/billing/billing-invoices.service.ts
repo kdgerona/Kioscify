@@ -7,7 +7,7 @@ import { addZonedDays, addZonedMonthsClamped, startOfZonedDay, zonedDayOfMonth }
 import { isUniqueViolation } from '../common/utils/job-lock.util';
 import { generateInvoiceNumber, generatePayToken } from './invoice-number.util';
 import { markLedgerMonthPaid } from './billing-ledger.util';
-import { effectiveNextBillingAt, laterOf } from '../common/utils/billing-dates.util';
+import { dueForPeriodStart, effectiveNextBillingAt, laterOf, periodForDue } from '../common/utils/billing-dates.util';
 
 const NUMBER_RETRIES = 3;
 
@@ -51,20 +51,23 @@ export class BillingInvoicesService {
 
     const config = await this.billingConfig.get();
     // Never invoice a period that is already paid
-    const nextBillingAt = effectiveNextBillingAt(sub.nextBillingAt, sub.paidThroughAt)!;
+    const nextBillingAt = effectiveNextBillingAt(sub.nextBillingAt, sub.paidThroughAt, {
+      arrears: sub.billedInArrears,
+      anchorDay: sub.anchorDay,
+    })!;
     if (!opts.ignoreDate && now < addZonedDays(nextBillingAt, -config.invoiceLeadDays)) return null;
 
-    const periodStart = nextBillingAt;
-    const anchor = sub.anchorDay ?? zonedDayOfMonth(periodStart);
-    const periodEnd = addZonedMonthsClamped(periodStart, 1, anchor);
+    const timing = { arrears: sub.billedInArrears, anchorDay: sub.anchorDay ?? zonedDayOfMonth(nextBillingAt) };
+
+    const { periodStart, periodEnd } = periodForDue(nextBillingAt, timing);
     const revision = await this.prisma.billingInvoice.count({
       where: { subscriptionId, periodStart, status: 'VOID' },
     });
     // A reissue after a void gets a fresh grace window; a normal (even late)
-    // invoice stays due on its period start, matching the "virtual" due date
+    // invoice stays due on its billing date, matching the "virtual" due date
     // stores already saw before the scheduler created the row.
     const today = startOfZonedDay(now);
-    const dueAt = revision === 0 || today <= periodStart ? periodStart : today;
+    const dueAt = revision === 0 || today <= nextBillingAt ? nextBillingAt : today;
 
     for (let attempt = 0; attempt < NUMBER_RETRIES; attempt++) {
       try {
@@ -83,7 +86,10 @@ export class BillingInvoicesService {
               payToken: generatePayToken(),
             },
           });
-          await tx.storeSubscription.update({ where: { id: subscriptionId }, data: { nextBillingAt: periodEnd } });
+          await tx.storeSubscription.update({
+            where: { id: subscriptionId },
+            data: { nextBillingAt: addZonedMonthsClamped(nextBillingAt, 1, timing.anchorDay) },
+          });
           return invoice;
         });
       } catch (e) {
@@ -141,9 +147,10 @@ export class BillingInvoicesService {
     const invoice = await this.requireOpen(id);
     await this.prisma.$transaction(async tx => {
       await tx.billingInvoice.update({ where: { id }, data: { status: 'VOID', voidReason: reason } });
+      const sub = await tx.storeSubscription.findUnique({ where: { id: invoice.subscriptionId } });
       await tx.storeSubscription.update({
         where: { id: invoice.subscriptionId },
-        data: { nextBillingAt: invoice.periodStart },
+        data: { nextBillingAt: dueForPeriodStart(invoice.periodStart, { arrears: sub?.billedInArrears, anchorDay: sub?.anchorDay }) },
       });
     });
     await this.audit.log({

@@ -15,6 +15,7 @@ export function BillingScheduleSummary({
   reminderLeadDays,
   heading = 'What will happen',
   isFirst = true,
+  arrears = false,
 }: {
   priceCentavos: number | null;
   /** "YYYY-MM-DD" (Manila). */
@@ -28,9 +29,11 @@ export function BillingScheduleSummary({
   heading?: string;
   /** False once the store has had invoices — then this is just the next one. */
   isFirst?: boolean;
+  /** Each month is paid at its end instead of the start. */
+  arrears?: boolean;
 }) {
   if (!firstInvoice) return null;
-  const s = billingSchedule(firstInvoice, anchorDay, graceDays);
+  const s = billingSchedule(firstInvoice, anchorDay, graceDays, arrears);
   const price = priceCentavos ? formatPeso(priceCentavos) : 'The monthly price';
 
   return (
@@ -39,10 +42,12 @@ export function BillingScheduleSummary({
       <ul className="space-y-1 list-disc pl-4">
         <li>
           <span className="font-medium text-gray-900">{price}</span> every month, billed on the {ordinal(anchorDay)}
-          {anchorDay > 28 ? ' (or the last day of shorter months)' : ''}.
+          {anchorDay > 28 ? ' (or the last day of shorter months)' : ''}
+          {arrears ? ', for the month just ended' : ', for the month ahead'}.
         </li>
         <li>
-          {isFirst ? 'First' : 'Next'} invoice due on <span className="font-medium text-gray-900">{formatDay(s.firstInvoice)}</span>.
+          {isFirst ? 'First' : 'Next'} invoice due on <span className="font-medium text-gray-900">{formatDay(s.firstInvoice)}</span>, for{' '}
+          {formatDay(s.covers.from)} – {formatDay(s.covers.to)}.
         </li>
         <li>
           {reminderLeadDays > 0 ? (

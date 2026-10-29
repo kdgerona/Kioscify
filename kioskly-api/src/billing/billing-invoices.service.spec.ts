@@ -105,6 +105,39 @@ describe('BillingInvoicesService', () => {
       expect(inv).toMatchObject({ periodStart: m(2026, 12, 16), periodEnd: m(2027, 1, 16), dueAt: m(2026, 12, 16) });
     });
 
+    describe('paid at the end of the month (billedInArrears)', () => {
+      const arrearsSub = (over: Record<string, unknown> = {}) =>
+        sub({ billedInArrears: true, nextBillingAt: m(2026, 12, 10), anchorDay: 10, ...over });
+
+      it('invoices the month that just ended, due on the billing date, and moves on a month', async () => {
+        mockPrisma.storeSubscription.findUnique.mockResolvedValue(arrearsSub());
+        await expect(service.ensureInvoice('sub-1', m(2026, 12, 9))).resolves.toBeNull();
+        const inv = await service.ensureInvoice('sub-1', m(2026, 12, 10));
+        expect(inv).toMatchObject({ periodStart: m(2026, 11, 10), periodEnd: m(2026, 12, 10), dueAt: m(2026, 12, 10) });
+        expect(inv?.number).toMatch(/^KSF-202611-/);
+        expect(mockPrisma.storeSubscription.update).toHaveBeenCalledWith({ where: { id: 'sub-1' }, data: { nextBillingAt: m(2027, 1, 10) } });
+      });
+
+      it('never invoices a month that is already paid', async () => {
+        // Stored Dec 10 bill covers Nov 10 – Dec 9, already paid through Dec 9
+        mockPrisma.storeSubscription.findUnique.mockResolvedValue(arrearsSub({ paidThroughAt: m(2026, 12, 9) }));
+        await expect(service.ensureInvoice('sub-1', m(2026, 12, 10))).resolves.toBeNull();
+        const inv = await service.ensureInvoice('sub-1', m(2027, 1, 10));
+        expect(inv).toMatchObject({ periodStart: m(2026, 12, 10), periodEnd: m(2027, 1, 10), dueAt: m(2027, 1, 10) });
+      });
+
+      it('void resets nextBillingAt to that bill\'s due date so it can be reissued', async () => {
+        mockPrisma.storeSubscription.findUnique.mockResolvedValue(arrearsSub({ nextBillingAt: m(2027, 1, 10) }));
+        mockPrisma.billingInvoice.findUnique.mockResolvedValue({
+          id: 'inv-a', subscriptionId: 'sub-1', tenantId: 't-1', status: 'OPEN', number: 'KSF-202611-AAAAA',
+          periodStart: m(2026, 11, 10), periodEnd: m(2026, 12, 10), dueAt: m(2026, 12, 10),
+        });
+        mockConfig.get.mockResolvedValueOnce({ invoiceLeadDays: 0 }).mockResolvedValueOnce({ billingEnabled: false } as any);
+        await service.voidInvoice('inv-a', 'Wrong price', 'admin-1');
+        expect(mockPrisma.storeSubscription.update).toHaveBeenCalledWith({ where: { id: 'sub-1' }, data: { nextBillingAt: m(2026, 12, 10) } });
+      });
+    });
+
     it('anchor 31 period ends Feb 28', async () => {
       mockPrisma.storeSubscription.findUnique.mockResolvedValue(sub({ nextBillingAt: m(2027, 1, 31), anchorDay: 31 }));
       await service.ensureInvoice('sub-1', m(2027, 1, 31));

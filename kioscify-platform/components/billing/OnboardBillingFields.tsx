@@ -2,7 +2,7 @@
 
 import { manilaDateInputFromToday, pesoToCentavos } from '@/lib/money';
 import type { CreateStoreBillingPayload } from '@/types';
-import { dayOfMonth } from '@/lib/billing-schedule';
+import { addMonthsClamped, dayOfMonth } from '@/lib/billing-schedule';
 import { BillingScheduleSummary } from './BillingScheduleSummary';
 import { FieldLabel } from './FieldLabel';
 
@@ -21,11 +21,20 @@ export interface OnboardBillingValue {
   firstBillingTouched: boolean;
 }
 
+/**
+ * New stores pay for each month at its end: the first month starts when the
+ * trial ends and is paid a month later (trial ends Nov 10 → first payment Dec 10).
+ */
+export function defaultFirstPayment(trialDays: number): string {
+  const trialEnds = manilaDateInputFromToday(trialDays);
+  return addMonthsClamped(trialEnds, 1, dayOfMonth(trialEnds));
+}
+
 export function defaultOnboardBilling(defaultTrialDays: number): OnboardBillingValue {
   return {
     price: '',
     trialDays: String(defaultTrialDays),
-    firstBillingDate: manilaDateInputFromToday(defaultTrialDays),
+    firstBillingDate: defaultFirstPayment(defaultTrialDays),
     firstBillingTouched: false,
   };
 }
@@ -42,8 +51,8 @@ export function firstBillingWarning(v: OnboardBillingValue): string | null {
   const today = manilaDateInputFromToday(0);
   if (v.firstBillingDate < today) return 'This date is in the past. The store will be billed as soon as billing is on.';
   const days = Number(v.trialDays);
-  if (Number.isInteger(days) && days > 0 && v.firstBillingDate < manilaDateInputFromToday(days)) {
-    return 'This date is before the trial ends. The first bill will come during the trial.';
+  if (Number.isInteger(days) && days > 0 && v.firstBillingDate < defaultFirstPayment(days)) {
+    return 'This is less than a month after the trial ends, so the first bill also covers part of the trial.';
   }
   return null;
 }
@@ -54,8 +63,8 @@ export function toCreateStoreBilling(v: OnboardBillingValue): CreateStoreBilling
   if (!priceCentavos) return 'Enter the monthly subscription price.';
   const trialDays = Number(v.trialDays);
   if (!Number.isInteger(trialDays) || trialDays < 0 || trialDays > 365) return 'Trial days must be between 0 and 365.';
-  if (!v.firstBillingDate) return 'Choose the first billing date.';
-  return { priceCentavos, trialDays, firstBillingDate: v.firstBillingDate };
+  // Left empty, the API uses one month after the trial ends
+  return { priceCentavos, trialDays, ...(v.firstBillingDate ? { firstBillingDate: v.firstBillingDate } : {}) };
 }
 
 const inputClass =
@@ -71,6 +80,9 @@ export function OnboardBillingFields({
   context?: OnboardBillingContext;
 }) {
   const warning = firstBillingWarning(value);
+  const trialDays = Number(value.trialDays);
+  const firstPayment =
+    value.firstBillingDate || (Number.isInteger(trialDays) && trialDays >= 0 ? defaultFirstPayment(trialDays) : '');
   return (
     <>
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mt-2">Subscription</p>
@@ -88,7 +100,7 @@ export function OnboardBillingFields({
           />
         </div>
         <div>
-          <FieldLabel label="Trial (days)" required help="Free days from today before the store is billed. Changing it moves the first billing date to match, unless you picked that date yourself." />
+          <FieldLabel label="Trial (days)" required help="Free days from today. Billing starts when the trial ends, and that first month is paid at its end. Changing it moves the first payment date to match, unless you picked that date yourself." />
           <input
             type="number"
             min={0}
@@ -103,7 +115,7 @@ export function OnboardBillingFields({
                 firstBillingDate:
                   value.firstBillingTouched || !Number.isFinite(days)
                     ? value.firstBillingDate
-                    : manilaDateInputFromToday(days),
+                    : defaultFirstPayment(days),
               });
             }}
             required
@@ -111,22 +123,22 @@ export function OnboardBillingFields({
           />
         </div>
         <div>
-          <FieldLabel label="First billing date" required help="The day of the first invoice. It also sets the billing day for every month after (days 29–31 fall on the last day of shorter months)." />
+          <FieldLabel label="First payment date" help="When the store pays for its first month. Each month is paid at its end, so this defaults to one month after the trial ends; leave it empty to use that. It also sets the billing day for every month after (days 29–31 fall on the last day of shorter months)." />
           <input
             type="date"
             value={value.firstBillingDate}
             onChange={e => onChange({ ...value, firstBillingDate: e.target.value, firstBillingTouched: true })}
-            required
             className={inputClass}
           />
         </div>
       </div>
       {warning && <p className="text-xs text-amber-700">{warning}</p>}
-      {/^\d{4}-\d{2}-\d{2}$/.test(value.firstBillingDate) && (
+      {/^\d{4}-\d{2}-\d{2}$/.test(firstPayment) && (
         <BillingScheduleSummary
+          arrears
           priceCentavos={pesoToCentavos(value.price)}
-          firstInvoice={value.firstBillingDate}
-          anchorDay={dayOfMonth(value.firstBillingDate)}
+          firstInvoice={firstPayment}
+          anchorDay={dayOfMonth(firstPayment)}
           graceDays={context.graceDays}
           enforcement={context.enforcement}
           globalBillingEnabled={context.globalBillingEnabled}

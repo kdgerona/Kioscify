@@ -46,6 +46,7 @@ const SETTINGS_FIELDS = [
   'nextBillingOverridden',
   'paidThroughAt',
   'graceDaysOverride',
+  'billedInArrears',
 ] as const;
 type SettingsField = (typeof SETTINGS_FIELDS)[number];
 type SettingsData = Partial<Pick<StoreSubscription, SettingsField>>;
@@ -132,6 +133,7 @@ export class BillingSettingsService {
         nextBillingOverridden: sub?.nextBillingOverridden ?? false,
         paidThroughAt: sub?.paidThroughAt ?? null,
         graceDaysOverride: sub?.graceDaysOverride ?? null,
+        billedInArrears: !!sub?.billedInArrears,
       },
       status,
       previewStatus,
@@ -166,6 +168,7 @@ export class BillingSettingsService {
       : [];
     return deriveEnableDates({
       activatedAt: merged.activatedAt!,
+      arrears: !!merged.billedInArrears,
       trialStartAt: merged.trialStartAt ?? null,
       trialDays: merged.trialDays ?? config.defaultTrialDays,
       anchorDay,
@@ -198,11 +201,31 @@ export class BillingSettingsService {
     };
   }
 
-  async enablePreview(tenantId: string): Promise<EnableDatesResult & { nextBillingOverridden: boolean }> {
+  async enablePreview(
+    tenantId: string,
+  ): Promise<EnableDatesResult & { nextBillingOverridden: boolean; billedInArrears: boolean }> {
     await this.requireTenant(tenantId);
     const sub = await this.prisma.storeSubscription.findUnique({ where: { tenantId } });
     if (!sub?.activatedAt) throw new BadRequestException(BILLING_MESSAGES.activationRequired);
-    return this.planSchedule(sub.id, sub, sub.anchorDay ?? null, false);
+    const billedInArrears = sub.billedInArrears || (await this.isFirstSetUp(sub));
+    const plan = await this.planSchedule(sub.id, { ...sub, billedInArrears }, sub.anchorDay ?? null, false);
+    return { ...plan, billedInArrears };
+  }
+
+  /**
+   * Stores set up from 2026-10-29 on pay for each month at its end. Only a
+   * store that is still "Not set up" and has never paid anything (no invoice,
+   * no prepayment, no month ticked paid in the manual ledger) switches to it,
+   * so every store already billed or paid keeps its in-advance dates.
+   */
+  private async isFirstSetUp(existing: StoreSubscription | null): Promise<boolean> {
+    if (!existing) return true;
+    if (existing.billingEnabled != null || existing.paidThroughAt) return false;
+    const [invoices, paidMonths] = await Promise.all([
+      this.prisma.billingInvoice.count({ where: { subscriptionId: existing.id } }),
+      this.prisma.subscriptionPayment.findMany({ where: { subscriptionId: existing.id, paid: true }, select: { month: true }, take: 1 }),
+    ]);
+    return invoices === 0 && paidMonths.length === 0;
   }
 
   async updateStoreBilling(tenantId: string, dto: UpdateStoreBillingDto, actorUserId: string) {
@@ -226,6 +249,10 @@ export class BillingSettingsService {
     // so exempting the store again asks for a fresh reason.
     if (data.billingEnabled === true && existing?.billingEnabled === false && dto.exemptReason === undefined) {
       data.exemptReason = null;
+    }
+
+    if (data.billingEnabled != null && !existing?.billedInArrears && (await this.isFirstSetUp(existing))) {
+      data.billedInArrears = true;
     }
 
     const merged: SettingsData = { ...(existing ?? {}), ...data };

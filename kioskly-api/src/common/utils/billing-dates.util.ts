@@ -9,6 +9,8 @@ import {
 
 export interface EnableDatesInput {
   activatedAt: Date;
+  /** Each month is paid at its end, so the first payment is a month after the first period starts. */
+  arrears?: boolean;
   trialStartAt: Date | null;
   trialDays: number;
   anchorDay: number | null;
@@ -27,15 +29,46 @@ export interface EnableDatesResult {
 }
 
 /**
- * The next billing date, never inside a period that is already paid.
- * `paidThroughAt` is the start of the last covered Manila day, so billing
- * resumes the day after it. A stored `nextBillingAt` can fall behind it when
- * invoices are paid out of order or the schedule is edited after a period was
- * paid; without this the store would be told (and invoiced) for a paid month.
+ * When a store pays for a month. In advance (every store set up before
+ * 2026-10-29) the bill is due on the first day of the month it covers; in
+ * arrears (`billedInArrears`) it is due the day after that month ends. Either
+ * way `nextBillingAt` is the next due date and moves on a month at a time.
  */
-export function effectiveNextBillingAt(nextBillingAt: Date | null, paidThroughAt: Date | null): Date | null {
-  if (!nextBillingAt || !paidThroughAt || nextBillingAt > paidThroughAt) return nextBillingAt;
-  return addZonedDays(paidThroughAt, 1);
+export interface BillingTiming {
+  arrears?: boolean | null;
+  anchorDay?: number | null;
+}
+
+/** The month a bill due on `dueAt` covers: [periodStart, periodEnd). */
+export function periodForDue(dueAt: Date, timing: BillingTiming = {}): { periodStart: Date; periodEnd: Date } {
+  const anchor = timing.anchorDay ?? zonedDayOfMonth(dueAt);
+  return timing.arrears
+    ? { periodStart: addZonedMonthsClamped(dueAt, -1, anchor), periodEnd: dueAt }
+    : { periodStart: dueAt, periodEnd: addZonedMonthsClamped(dueAt, 1, anchor) };
+}
+
+/** The due date of the bill for the month starting on `periodStart`. */
+export function dueForPeriodStart(periodStart: Date, timing: BillingTiming = {}): Date {
+  const anchor = timing.anchorDay ?? zonedDayOfMonth(periodStart);
+  return timing.arrears ? addZonedMonthsClamped(periodStart, 1, anchor) : periodStart;
+}
+
+/**
+ * The next billing date, never for a period that is already paid.
+ * `paidThroughAt` is the start of the last covered Manila day, so the first
+ * unpaid month starts the day after it. A stored `nextBillingAt` can fall
+ * behind it when invoices are paid out of order or the schedule is edited
+ * after a period was paid; without this the store would be told (and
+ * invoiced) for a paid month.
+ */
+export function effectiveNextBillingAt(
+  nextBillingAt: Date | null,
+  paidThroughAt: Date | null,
+  timing: BillingTiming = {},
+): Date | null {
+  if (!nextBillingAt || !paidThroughAt) return nextBillingAt;
+  if (periodForDue(nextBillingAt, timing).periodStart > paidThroughAt) return nextBillingAt;
+  return dueForPeriodStart(addZonedDays(paidThroughAt, 1), timing);
 }
 
 /** The later of two dates; paid-through only ever moves forward. */
@@ -90,11 +123,12 @@ export function deriveEnableDates(input: EnableDatesInput): EnableDatesResult {
     if (input.anchorDay == null) anchorDay = zonedDayOfMonth(trialEndsAt);
   }
 
+  // `candidate` is where the first billed month starts; in arrears it is paid a month later
   return {
     trialEndsAt,
     anchorDay,
     paidThroughAt,
-    nextBillingAt: candidate,
+    nextBillingAt: dueForPeriodStart(candidate, { arrears: input.arrears, anchorDay }),
     honoredMonths: honorRun ? run : [],
   };
 }

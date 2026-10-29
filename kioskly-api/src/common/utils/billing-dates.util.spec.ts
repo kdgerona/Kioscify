@@ -1,4 +1,4 @@
-import { deriveEnableDates, effectiveNextBillingAt, laterOf } from './billing-dates.util';
+import { deriveEnableDates, dueForPeriodStart, effectiveNextBillingAt, laterOf, periodForDue } from './billing-dates.util';
 
 const m = (y: number, mo: number, d: number) => new Date(Date.UTC(y, mo - 1, d) - 8 * 60 * 60 * 1000);
 
@@ -78,6 +78,43 @@ describe('effectiveNextBillingAt', () => {
   it('passes through when either date is missing', () => {
     expect(effectiveNextBillingAt(m(2026, 11, 1), null)).toEqual(m(2026, 11, 1));
     expect(effectiveNextBillingAt(null, m(2026, 11, 30))).toBeNull();
+  });
+});
+
+describe('billing timing (in advance vs at the end of the month)', () => {
+  const arrears = { arrears: true };
+
+  it('in advance a bill covers the month starting on its due date', () => {
+    expect(periodForDue(m(2026, 11, 10))).toEqual({ periodStart: m(2026, 11, 10), periodEnd: m(2026, 12, 10) });
+    expect(dueForPeriodStart(m(2026, 11, 10))).toEqual(m(2026, 11, 10));
+  });
+
+  it('in arrears a bill covers the month that ended the day before its due date', () => {
+    expect(periodForDue(m(2026, 12, 10), arrears)).toEqual({ periodStart: m(2026, 11, 10), periodEnd: m(2026, 12, 10) });
+    expect(dueForPeriodStart(m(2026, 11, 10), arrears)).toEqual(m(2026, 12, 10));
+  });
+
+  it('in arrears the anchor day clamps to shorter months both ways', () => {
+    expect(periodForDue(m(2027, 2, 28), { arrears: true, anchorDay: 31 }).periodStart).toEqual(m(2027, 1, 31));
+    expect(dueForPeriodStart(m(2027, 1, 31), { arrears: true, anchorDay: 31 })).toEqual(m(2027, 2, 28));
+  });
+
+  it('in arrears a due date whose month is already paid moves to a month after paid-through', () => {
+    // Paid through Dec 9 (the month Nov 10 – Dec 9): the next month starts Dec 10, due Jan 10
+    expect(effectiveNextBillingAt(m(2026, 12, 10), m(2026, 12, 9), arrears)).toEqual(m(2027, 1, 10));
+    expect(effectiveNextBillingAt(m(2027, 1, 10), m(2026, 12, 9), arrears)).toEqual(m(2027, 1, 10));
+  });
+
+  it('deriveEnableDates in arrears: the first month starts when the trial ends and is due a month later', () => {
+    const r = deriveEnableDates({ activatedAt: m(2026, 10, 26), arrears: true, trialStartAt: null, trialDays: 15, anchorDay: null, paidMonthStarts: [], now: m(2026, 10, 29) });
+    expect(r.trialEndsAt).toEqual(m(2026, 11, 10));
+    expect(r.nextBillingAt).toEqual(m(2026, 12, 10));
+    expect(r.anchorDay).toBe(10);
+  });
+
+  it('deriveEnableDates in arrears with an old activation: the first month starts on the next billing day', () => {
+    const r = deriveEnableDates({ activatedAt: m(2025, 1, 10), arrears: true, trialStartAt: null, trialDays: 15, anchorDay: null, paidMonthStarts: [], now: m(2026, 10, 24) });
+    expect(r.nextBillingAt).toEqual(m(2026, 11, 25));
   });
 });
 

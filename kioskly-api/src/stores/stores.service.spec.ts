@@ -130,7 +130,8 @@ describe('StoresService', () => {
       slug: 'branch-1',
       brandId: 'b-1',
       companyId: 'c-1',
-      billing: { priceCentavos: 150000, trialDays: 15, firstBillingDate: '2026-07-16' },
+      // Trial Jul 1–15, first month Jul 16 – Aug 15, paid at its end on Aug 16
+      billing: { priceCentavos: 150000, trialDays: 15, firstBillingDate: '2026-08-16' },
     };
 
     beforeEach(() => {
@@ -150,9 +151,10 @@ describe('StoresService', () => {
           activatedAt: m(2026, 7, 1),
           trialStartAt: m(2026, 7, 1),
           trialDays: 15,
-          nextBillingAt: m(2026, 7, 16),
+          nextBillingAt: m(2026, 8, 16),
           anchorDay: 16,
           nextBillingOverridden: false,
+          billedInArrears: true,
         },
       });
       expect(result).toEqual({ id: 't-new', name: 'Branch 1' });
@@ -168,7 +170,15 @@ describe('StoresService', () => {
       });
     });
 
-    it('a first billing date other than the trial end is kept as an override', async () => {
+    it('without a first billing date, the first payment is a month after the trial ends', async () => {
+      const { firstBillingDate: _omit, ...billing } = dto.billing;
+      await service.create({ ...dto, billing } as any, 'PLATFORM_ADMIN');
+      expect(tx.storeSubscription.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ nextBillingAt: m(2026, 8, 16), anchorDay: 16, nextBillingOverridden: false, billedInArrears: true }),
+      });
+    });
+
+    it('a first billing date other than a month after the trial is kept as an override', async () => {
       await service.create({ ...dto, billing: { ...dto.billing, firstBillingDate: '2026-07-20' } } as any, 'PLATFORM_ADMIN');
       expect(tx.storeSubscription.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ nextBillingAt: m(2026, 7, 20), anchorDay: 20, nextBillingOverridden: true }),

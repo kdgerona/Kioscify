@@ -154,6 +154,41 @@ describe('BillingPaymentsService', () => {
       });
     });
 
+    describe('paid at the end of the month (billedInArrears)', () => {
+      // The Dec 10 bill covers Nov 10 – Dec 9; the scheduler already moved next billing to Jan 10
+      const arrearsInvoice = { ...invoice, periodStart: m(2026, 11, 10), periodEnd: m(2026, 12, 10), dueAt: m(2026, 12, 10) };
+      beforeEach(() => {
+        mockPrisma.billingInvoice.findUnique.mockResolvedValue({ ...arrearsInvoice });
+        mockPrisma.storeSubscription.findUnique.mockResolvedValue({ ...sub, billedInArrears: true, nextBillingAt: m(2027, 1, 10), anchorDay: 10 });
+      });
+
+      it('paying on time covers the month used and keeps the next bill a month later', async () => {
+        await service.recordPayment(webhookInput({ paidAt: at(2026, 12, 11) }));
+        expect(mockPrisma.billingInvoice.update).not.toHaveBeenCalled();
+        expect(mockPrisma.storeSubscription.update).toHaveBeenCalledWith({
+          where: { id: 'sub-1' },
+          data: { nextBillingAt: m(2027, 1, 10), paidThroughAt: m(2026, 12, 9) },
+        });
+      });
+
+      it('paying early (reminder window) gives the same dates', async () => {
+        await service.recordPayment(webhookInput({ paidAt: at(2026, 12, 5) }));
+        expect(mockPrisma.storeSubscription.update).toHaveBeenCalledWith({
+          where: { id: 'sub-1' },
+          data: { nextBillingAt: m(2027, 1, 10), paidThroughAt: m(2026, 12, 9) },
+        });
+      });
+
+      it('paying after grace keeps the month used and starts the next month on the payment day', async () => {
+        await service.recordPayment(webhookInput({ paidAt: at(2026, 12, 20) }));
+        expect(mockPrisma.billingInvoice.update).not.toHaveBeenCalled();
+        expect(mockPrisma.storeSubscription.update).toHaveBeenCalledWith({
+          where: { id: 'sub-1' },
+          data: { nextBillingAt: m(2027, 1, 20), anchorDay: 20, paidThroughAt: m(2026, 12, 9) },
+        });
+      });
+    });
+
     it('paid during grace keeps the original period', async () => {
       await service.recordPayment(webhookInput({ paidAt: at(2026, 10, 22) }));
       expect(mockPrisma.billingInvoice.update).not.toHaveBeenCalled();

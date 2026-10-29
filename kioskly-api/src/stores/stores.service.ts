@@ -17,6 +17,7 @@ import { Tenant, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { extname } from 'path';
 import { addZonedDays, startOfZonedDay, zonedDayOfMonth } from '../common/utils/timezone';
+import { dueForPeriodStart } from '../common/utils/billing-dates.util';
 
 @Injectable()
 export class StoresService {
@@ -132,10 +133,13 @@ export class StoresService {
     // until a platform admin enables it). Existing stores are untouched.
     const { billing, ...tenantData } = dto;
     const activatedAt = startOfZonedDay(billing.activatedAt ? new Date(billing.activatedAt) : new Date());
-    const firstBillingDate = startOfZonedDay(new Date(billing.firstBillingDate));
-    // A date other than the trial end was picked on purpose — keep it as an
-    // override so later trial edits don't move it.
+    // New stores pay for each month at its end: the first month starts when
+    // the trial ends and is due a month later, unless a date was picked.
     const trialEndsAt = addZonedDays(activatedAt, billing.trialDays);
+    const derivedFirstBilling = dueForPeriodStart(trialEndsAt, { arrears: true });
+    const firstBillingDate = billing.firstBillingDate
+      ? startOfZonedDay(new Date(billing.firstBillingDate))
+      : derivedFirstBilling;
     return this.prisma.$transaction(async tx => {
       const tenant = await tx.tenant.create({ data: tenantData });
       await tx.storeSubscription.create({
@@ -148,7 +152,10 @@ export class StoresService {
           trialDays: billing.trialDays,
           nextBillingAt: firstBillingDate,
           anchorDay: zonedDayOfMonth(firstBillingDate),
-          nextBillingOverridden: firstBillingDate.getTime() !== trialEndsAt.getTime(),
+          // A date other than the derived one was picked on purpose — keep it
+          // as an override so later trial edits don't move it.
+          nextBillingOverridden: firstBillingDate.getTime() !== derivedFirstBilling.getTime(),
+          billedInArrears: true,
         },
       });
       return tenant;

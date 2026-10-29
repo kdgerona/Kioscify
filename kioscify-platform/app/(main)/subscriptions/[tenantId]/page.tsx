@@ -82,8 +82,10 @@ export default function SubscriptionDetailPage() {
   // Nothing shows today (trial / paid up): preview the next billing date instead.
   const nothingShown = detail.storeView.admin.variant === 'none' && detail.storeView.cashier.variant === 'none';
   const nextBillingDay = toManilaDateInput(shown.nextBillingAt);
+  // The trial notice is informational, so the coming schedule still shows under it
+  const quietOrTrial = nothingShown || detail.storeView.admin.variant === 'trial';
   const showUpcoming =
-    nothingShown && detail.settings.billingEnabled === true && (shown.status === 'TRIAL' || shown.status === 'ACTIVE') && !!nextBillingDay;
+    quietOrTrial && detail.settings.billingEnabled === true && (shown.status === 'TRIAL' || shown.status === 'ACTIVE') && !!nextBillingDay;
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-5xl">
@@ -137,6 +139,7 @@ export default function SubscriptionDetailPage() {
         {showUpcoming && (
           <BillingScheduleSummary
             heading="Coming up"
+            arrears={detail.settings.billedInArrears}
             isFirst={detail.invoices.length === 0}
             priceCentavos={detail.settings.priceCentavos}
             firstInvoice={nextBillingDay}

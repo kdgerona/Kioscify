@@ -27,6 +27,8 @@ type SubscriptionRow = Pick<
   | 'nextBillingAt'
   | 'paidThroughAt'
   | 'graceDaysOverride'
+  | 'billedInArrears'
+  | 'anchorDay'
 >;
 
 interface InvoiceRow {
@@ -46,6 +48,8 @@ export function toSubscriptionInput(sub: SubscriptionRow): SubscriptionInput {
     nextBillingAt: sub.nextBillingAt ?? null,
     paidThroughAt: sub.paidThroughAt ?? null,
     graceDaysOverride: sub.graceDaysOverride ?? null,
+    billedInArrears: sub.billedInArrears ?? null,
+    anchorDay: sub.anchorDay ?? null,
   };
 }
 

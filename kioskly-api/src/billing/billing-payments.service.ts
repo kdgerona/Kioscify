@@ -5,7 +5,7 @@ import { BillingConfigService } from './billing-config.service';
 import { BillingAuditService } from './billing-audit.service';
 import { BillingResubscribeService } from './billing-resubscribe.service';
 import { markLedgerMonthPaid } from './billing-ledger.util';
-import { effectiveNextBillingAt, laterOf } from '../common/utils/billing-dates.util';
+import { dueForPeriodStart, effectiveNextBillingAt, laterOf } from '../common/utils/billing-dates.util';
 import { toCsv } from '../export/export-csv.util';
 import { MarkPaidDto, PrepaymentDto } from './dto/billing-actions.dto';
 import {
@@ -140,23 +140,34 @@ export class BillingPaymentsService {
 
       let periodStart = invoice.periodStart;
       let periodEnd = invoice.periodEnd;
+      const arrears = !!sub?.billedInArrears;
       const subData: { nextBillingAt?: Date; anchorDay?: number; paidThroughAt?: Date } = {};
       if (input.paidAt >= graceEndsAt) {
-        // Paid after grace (locked or not): the month starts when they pay,
-        // so months spent unpaid past grace are never billed.
-        periodStart = startOfZonedDay(input.paidAt);
+        // Paid after grace (locked or not): the next month starts when they
+        // pay, so months spent unpaid past grace are never billed. In arrears
+        // the invoice already covers a month they used, so it keeps its period.
+        const restart = startOfZonedDay(input.paidAt);
         const anchorDay = zonedDayOfMonth(input.paidAt);
-        periodEnd = addZonedMonthsClamped(periodStart, 1, anchorDay);
-        await tx.billingInvoice.update({ where: { id: invoice.id }, data: { periodStart, periodEnd } });
-        subData.nextBillingAt = periodEnd;
+        if (arrears) {
+          subData.nextBillingAt = dueForPeriodStart(restart, { arrears, anchorDay });
+        } else {
+          periodStart = restart;
+          periodEnd = addZonedMonthsClamped(periodStart, 1, anchorDay);
+          await tx.billingInvoice.update({ where: { id: invoice.id }, data: { periodStart, periodEnd } });
+          subData.nextBillingAt = periodEnd;
+        }
         subData.anchorDay = anchorDay;
       } else {
-        subData.nextBillingAt = !sub?.nextBillingAt || sub.nextBillingAt < periodEnd ? periodEnd : sub.nextBillingAt;
+        const nextDue = dueForPeriodStart(periodEnd, { arrears, anchorDay: sub?.anchorDay });
+        subData.nextBillingAt = !sub?.nextBillingAt || sub.nextBillingAt < nextDue ? nextDue : sub.nextBillingAt;
       }
       // Paying an older invoice after a later period was already paid must not
       // pull paid-through back (or leave the next billing date inside it)
       subData.paidThroughAt = laterOf(sub?.paidThroughAt, addZonedDays(periodEnd, -1));
-      subData.nextBillingAt = effectiveNextBillingAt(subData.nextBillingAt, subData.paidThroughAt)!;
+      subData.nextBillingAt = effectiveNextBillingAt(subData.nextBillingAt, subData.paidThroughAt, {
+        arrears,
+        anchorDay: subData.anchorDay ?? sub?.anchorDay,
+      })!;
       await tx.storeSubscription.update({ where: { id: invoice.subscriptionId }, data: subData });
 
       await markLedgerMonthPaid(

@@ -74,9 +74,13 @@ export function EnableBillingDialog({
             )}
             <div>
               <FieldLabel
-                label="First invoice on"
+                label={preview.billedInArrears ? 'First payment on' : 'First invoice on'}
                 required
-                help="The day of this store's first invoice, worked out from its trial and any months already marked paid. Change it to bill on a different day; the new day becomes the monthly billing day."
+                help={
+                  preview.billedInArrears
+                    ? "This store is being set up for the first time, so it pays for each month at its end: the first month starts when the trial ends (or on the next billing day if the trial is over) and is paid a month later. Change it to bill on a different day; the new day becomes the monthly billing day."
+                    : "The day of this store's first invoice, worked out from its trial and any months already marked paid. Change it to bill on a different day; the new day becomes the monthly billing day."
+                }
               />
               <input type="date" value={nextBilling} onChange={e => setNextBilling(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" />
               <p className="text-xs text-gray-400 mt-0.5">
@@ -85,6 +89,7 @@ export function EnableBillingDialog({
               </p>
             </div>
             <BillingScheduleSummary
+              arrears={preview.billedInArrears}
               priceCentavos={priceCentavos}
               firstInvoice={nextBilling}
               // An edited first date becomes the billing day, as the API does.

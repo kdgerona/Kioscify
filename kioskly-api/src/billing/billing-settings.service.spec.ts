@@ -157,6 +157,46 @@ describe('BillingSettingsService', () => {
         paidThroughAt: m(2026, 11, 30),
         anchorDay: 1,
       });
+      // It has paid before, so it keeps paying in advance
+      expect(subs.get('t-1').billedInArrears).toBeUndefined();
+    });
+
+    describe('billing timing', () => {
+      it('a store set up for the first time pays each month at its end', async () => {
+        subs.set('t-1', { ...baseSub, priceCentavos: 150000 });
+        await service.updateStoreBilling('t-1', { billingEnabled: true }, 'admin-1');
+        // The trial is long over: the first month starts on the next billing day (Oct 25) and is due a month later
+        expect(subs.get('t-1')).toMatchObject({ billedInArrears: true, nextBillingAt: m(2026, 11, 25), anchorDay: 25 });
+      });
+
+      it('marking a not-set-up store exempt also records the new timing for a later enable', async () => {
+        subs.set('t-1', { ...baseSub });
+        await service.updateStoreBilling('t-1', { billingEnabled: false, exemptReason: 'Owner store' }, 'admin-1');
+        expect(subs.get('t-1').billedInArrears).toBe(true);
+      });
+
+      it.each([
+        ['exempt', { billingEnabled: false, exemptReason: 'Owner store' }],
+        ['already billed', { billingEnabled: true }],
+      ])('an %s store keeps paying in advance', async (_label, state) => {
+        subs.set('t-1', { ...baseSub, priceCentavos: 150000, ...state });
+        await service.updateStoreBilling('t-1', { billingEnabled: true, trialDays: 15 }, 'admin-1');
+        expect(subs.get('t-1').billedInArrears).toBeUndefined();
+        expect(subs.get('t-1').nextBillingAt).toEqual(m(2026, 10, 25));
+      });
+
+      it('a not-set-up store with a prepayment keeps paying in advance', async () => {
+        subs.set('t-1', { ...baseSub, priceCentavos: 150000, paidThroughAt: m(2026, 12, 31) });
+        await service.updateStoreBilling('t-1', { billingEnabled: true }, 'admin-1');
+        expect(subs.get('t-1').billedInArrears).toBeUndefined();
+      });
+
+      it('a not-set-up store that was invoiced before keeps paying in advance', async () => {
+        subs.set('t-1', { ...baseSub, priceCentavos: 150000 });
+        mockPrisma.billingInvoice.count.mockResolvedValue(1);
+        await service.updateStoreBilling('t-1', { billingEnabled: true }, 'admin-1');
+        expect(subs.get('t-1').billedInArrears).toBeUndefined();
+      });
     });
 
     it('does not re-derive once invoices exist', async () => {
@@ -252,8 +292,15 @@ describe('BillingSettingsService', () => {
     it('returns derived dates without saving', async () => {
       subs.set('t-1', { ...baseSub });
       const r = await service.enablePreview('t-1');
-      expect(r.nextBillingAt).toEqual(m(2026, 10, 25));
+      // Not set up yet: the first month starts Oct 25 and is paid at its end
+      expect(r).toMatchObject({ nextBillingAt: m(2026, 11, 25), billedInArrears: true });
       expect(mockPrisma.storeSubscription.upsert).not.toHaveBeenCalled();
+    });
+
+    it('an exempt store being enabled keeps the in-advance preview', async () => {
+      subs.set('t-1', { ...baseSub, billingEnabled: false, exemptReason: 'Owner store' });
+      const r = await service.enablePreview('t-1');
+      expect(r).toMatchObject({ nextBillingAt: m(2026, 10, 25), billedInArrears: false });
     });
   });
 

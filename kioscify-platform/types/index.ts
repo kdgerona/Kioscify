@@ -199,6 +199,8 @@ export interface StoreBillingSettings {
   nextBillingOverridden: boolean;
   paidThroughAt: string | null;
   graceDaysOverride: number | null;
+  /** Each month is paid at its end (stores set up from 2026-10-29 on). */
+  billedInArrears: boolean;
 }
 
 export interface BillingAuditEntry {
@@ -335,6 +337,7 @@ export interface EnableDatesPreview {
   nextBillingAt: string;
   honoredMonths: string[];
   nextBillingOverridden: boolean;
+  billedInArrears: boolean;
 }
 
 export interface BillingStoreRow {
@@ -385,7 +388,8 @@ export interface BulkBillingResult {
 export interface CreateStoreBillingPayload {
   priceCentavos: number;
   trialDays: number;
-  firstBillingDate: string;
+  /** Omitted: one month after the trial ends. */
+  firstBillingDate?: string;
   activatedAt?: string;
 }
 

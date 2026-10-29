@@ -164,10 +164,14 @@ model StoreSubscription {
   trialStartAt          DateTime?
   trialDays             Int?
   anchorDay             Int? // 1–31, clamped to month end
-  nextBillingAt         DateTime? // start of next not-yet-invoiced period
+  nextBillingAt         DateTime? // next due date: start of the next period (in advance) or its end (in arrears)
   nextBillingOverridden Boolean? // true when a platform admin set nextBillingAt explicitly
   paidThroughAt         DateTime? // last covered Manila day
   graceDaysOverride     Int?
+  // true = each month is paid at its end (stores set up from 2026-10-29 on);
+  // null/false = paid in advance on the billing date (every earlier store).
+  // Never filtered on, so existing documents need no backfill.
+  billedInArrears       Boolean?
 
   tenant   Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   payments SubscriptionPayment[]
