@@ -7,6 +7,19 @@ import Constants from "expo-constants";
 import * as Application from "expo-application";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useBilling } from "../contexts/BillingContext";
+import { formatPeso } from "../utils/billingFormat";
+
+const STORE_ADMIN_ROLES = ["STORE_ADMIN", "ADMIN"];
+
+const BILLING_STATUS_LABEL: Record<string, string> = {
+  EXEMPT: "No billing",
+  NOT_ACTIVATED: "Not activated",
+  TRIAL: "Trial",
+  ACTIVE: "Active",
+  DUE: "Due",
+  LOCKED: "Locked",
+};
 
 function Section({ title }: { title: string }) {
   return (
@@ -48,6 +61,13 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { tenant, brand, company } = useTenant();
   const { user } = useAuth();
+  const { me } = useBilling();
+  const isStoreAdmin = !!user && STORE_ADMIN_ROLES.includes(user.role);
+  const billingSummary = me
+    ? [BILLING_STATUS_LABEL[me.status.status] ?? me.status.status, me.plan?.priceCentavos ? `${formatPeso(me.plan.priceCentavos)} / month` : null]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
 
   const primaryColor = brand?.themeColors?.primary ?? tenant?.themeColors?.primary ?? "#ea580c";
   const textColor = brand?.themeColors?.text ?? tenant?.themeColors?.text ?? "#1f2937";
@@ -95,6 +115,15 @@ export default function SettingsScreen() {
         <InfoRow icon="location-outline" label="Address" value={tenant?.address} />
         <InfoRow icon="call-outline" label="Contact" value={tenant?.contactPhone} />
         <InfoRow icon="mail-outline" label="Store Email" value={tenant?.contactEmail} />
+
+        {/* Billing: store admins only */}
+        {isStoreAdmin && (
+          <>
+            <Section title="Billing" />
+            <InfoRow icon="card-outline" label="Subscription" value={billingSummary} />
+            <NavRow icon="receipt-outline" label="Billing & Payments" route="/billing" color="#9ca3af" router={router} />
+          </>
+        )}
 
         {/* App */}
         <Section title="App" />
