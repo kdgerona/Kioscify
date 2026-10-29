@@ -20,6 +20,7 @@ Production: `docker-compose.yml`, project `kioscify-production`.
 | 7 | Kiosk app **Settings → Billing** (Store Admins only): subscription status and price, plus a **Billing & Payments** screen with plan details, Pay now and billing history. Cashiers don't see it. Uses the existing `/billing/me` endpoints; no API change | `8c3f7fa` | None | None | **Yes** (same APK, step 6) |
 | 8 | **Payment successful** confirmation: after a QR payment goes through, Store Portal and kiosk show "Payment successful" with **View receipt**, **Go to Billing** and **Done**. Before, the success message flickered away (the due banner, the overdue screen and Resubscribe all close the moment the payment lands). Adds a receipt screen on the kiosk; paid rows in kiosk billing history open it. **Also fixes** a paid store still seeing "Subscription due" (and being invoiced again) when its next billing date sat inside a month it had already paid; paying an older invoice no longer pulls paid-through back | `e82342e`, `8532087` | api, store | Check (read-only): `billing-dates-check.js` | **Yes** (same APK, step 6) |
 | 9 | **Free trial banner**: stores on their free trial see a blue "Free trial — N days left" banner (Store Portal and kiosk, admins and cashiers) with an **X** to close it. Closed, it comes back the next day with the updated count. In the last 7 days before the first billing date the existing due reminder takes its place, unchanged (collapse only). Platform's "what the store sees" preview shows it too | `5ca602e` | api, store, platform | None | **Yes** (same APK, step 6) |
+| 10 | **Pay at the end of each month, for new stores only.** A store set up from now on gets its free trial, then its first month starts when the trial ends and is **paid a month later** (trial ends Nov 13 → first payment Dec 13 for Nov 13 – Dec 12, then Jan 13 for Dec 13 – Jan 12). Applies to stores onboarded from Platform and to existing **Not set up** stores when they're first set up. Onboarding's first payment date is now optional and defaults to a month after the trial ends. **Existing stores don't change:** every store already billed, exempt, prepaid, invoiced or with a month ticked paid in the manual ledger keeps paying in advance. Platform shows each store's **Payment timing**; the schedule preview says which month each bill covers. Also brings back Platform's "Coming up" schedule during a store's trial (hidden by change 9) | `95a8b76` | api, platform | Check (read-only): `billing-timing-check.js`. New optional field `StoreSubscription.billedInArrears`, no backfill | No |
 
 **Services to rebuild:** `api`, `store`, `platform`. Deploy `api` and `platform` together (change 4): the new Platform tab reads the API's new `inactive` count.
 **Not affected:** `company`, nginx, MongoDB, Redis, MinIO.
@@ -99,6 +100,23 @@ longer show as Due for that month. If one of those stores has an **open invoice 
 it already paid** (listed under "open invoices"), void it in Platform; the fix stops new
 duplicates but doesn't remove an existing one.
 
+### 3c. Check payment timing (from change 10, read-only)
+
+`docs/deployment/billing-timing-check.js` changes nothing. It lists how each store pays and
+which "Not set up" stores will pay at the end of the month once they're set up.
+
+```bash
+docker exec -i kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet \
+  < docs/deployment/billing-timing-check.js
+```
+
+Run it **before** step 4 and again **after** it, and compare. Both runs should show
+`End of month: 0` and the same stores under **In advance (unchanged)**: the deploy itself
+switches nobody. Only setting up a store afterwards does.
+
+No data script is needed for the new `billedInArrears` field: it is optional, empty means
+"in advance", and nothing filters on it.
+
 ### 4. Rebuild and restart the changed services
 
 Build one service at a time on a small server:
@@ -142,6 +160,11 @@ docker compose up -d api store platform
 - **Trial banner** (change 9), with a store on its free trial: the Store Portal shows the blue
   "Free trial — N days left" banner; **X** closes it, and it stays closed after a refresh that day.
   Platform → Subscriptions → that store's "what the store sees" shows the same banner, marked (closable).
+- **Payment timing** (change 10): Platform → a company → **Onboard Store**: the first payment
+  date is prefilled with a month after the trial ends (trial 15 days → today + 15 days + 1 month)
+  and "What will happen" says "for the month just ended" and which month the first bill covers.
+  On an existing **billed** store, Platform → Subscriptions → Settings shows **Payment timing: In
+  advance** and its Next billing date is unchanged. Delete any test store you onboard.
 - **Billing dates** (change 8): any store listed by step 3b no longer shows Due for a month it paid.
 - **Pay now on a phone** (change 6): on a store that is Due, open the Store Portal on a phone;
   one tap on the banner's **Pay now** opens the payment window. Same on a phone kiosk (after step 6).
@@ -182,6 +205,10 @@ screen simply never appears, because the old API refuses switched-off stores at 
 Dates written by payments after the deploy (paid-through never moved back) are valid for the old
 code too; only the old code's "due for a paid month" behaviour returns. Rolling back change 9 just
 removes the trial banner; the "closed today" marker it leaves in browsers and kiosks is unused.
+Rolling back change 10: the old code ignores `billedInArrears`, so a store set up after the deploy
+is billed in advance from its stored next billing date (a Dec 13 bill would then cover Dec 13 –
+Jan 12). Nobody is charged twice; such a store just never pays for its first month. Check the
+stores listed under "End of month" by step 3c if you roll back.
 
 ---
 
@@ -199,3 +226,5 @@ removes the trial banner; the "closed today" marker it leaves in browsers and ki
   (API). Adds the read-only check, step 3b.
 - **2026-10-29**: Added change 9 (closable free trial banner). API + Store Portal + Platform preview +
   the same kiosk APK; no new steps or scripts.
+- **2026-10-29**: Added change 10 (new stores pay for each month at its end). API + Platform; adds
+  the read-only check, step 3c. No kiosk APK, no data script.
