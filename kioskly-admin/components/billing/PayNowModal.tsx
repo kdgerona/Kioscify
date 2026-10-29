@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 import { useBilling } from "@/contexts/BillingContext";
+import { announcePayment } from "@/lib/payment-success";
 import type { PayResult } from "@/types";
 import { PaymentView } from "./PaymentView";
 
@@ -30,9 +31,11 @@ export function PayNowPanel({ invoiceId, onPaid }: { invoiceId?: string; onPaid?
     [result],
   );
   const handlePaid = useCallback(() => {
+    // Shown by the app shell: this panel often unmounts right after (banner hides, store unlocks)
+    if (result) announcePayment({ invoiceId: result.invoiceId, invoiceNumber: result.invoiceNumber, amountCentavos: result.amountCentavos });
     refresh();
     onPaid?.();
-  }, [refresh, onPaid]);
+  }, [result, refresh, onPaid]);
 
   if (error) {
     return (
@@ -66,7 +69,8 @@ export function PayNowModal({ open, onClose, invoiceId }: { open: boolean; onClo
           <X className="w-5 h-5" />
         </button>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Pay subscription</h2>
-        <PayNowPanel invoiceId={invoiceId} />
+        {/* Paid: close, so the app-level "Payment successful" notice takes over */}
+        <PayNowPanel invoiceId={invoiceId} onPaid={onClose} />
       </div>
     </div>
   );

@@ -53,6 +53,13 @@ export interface BillingMe {
   };
 }
 
+/** A payment that just went through, for the app-level "Payment successful" notice. */
+export interface PaymentSuccess {
+  invoiceId: string;
+  invoiceNumber: string;
+  amountCentavos: number;
+}
+
 interface CachedBilling {
   me: BillingMe;
   fetchedAt: string;
@@ -68,6 +75,10 @@ interface BillingContextType {
   refresh: () => Promise<BillingMe | null>;
   checkoutInProgress: boolean;
   setCheckoutInProgress: (value: boolean) => void;
+  paymentSuccess: PaymentSuccess | null;
+  /** Raises the notice. The pay screen often goes away right after (banner hides, store unlocks). */
+  announcePayment: (payment: PaymentSuccess) => void;
+  dismissPaymentSuccess: () => void;
 }
 
 const BillingContext = createContext<BillingContextType>({
@@ -77,6 +88,9 @@ const BillingContext = createContext<BillingContextType>({
   refresh: async () => null,
   checkoutInProgress: false,
   setCheckoutInProgress: () => {},
+  paymentSuccess: null,
+  announcePayment: () => {},
+  dismissPaymentSuccess: () => {},
 });
 
 /**
@@ -90,6 +104,8 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [me, setMe] = useState<BillingMe | null>(null);
   const [fromCache, setFromCache] = useState(false);
   const [checkoutInProgress, setCheckoutInProgress] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState<PaymentSuccess | null>(null);
+  const dismissPaymentSuccess = useCallback(() => setPaymentSuccess(null), []);
   const [now, setNow] = useState(() => new Date());
   const tenantId = user?.tenantId ?? null;
   const tenantRef = useRef(tenantId);
@@ -145,6 +161,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!token) {
       setMe(null);
       setFromCache(false);
+      setPaymentSuccess(null);
       if (!initializing) AsyncStorage.removeItem(BILLING_CACHE_KEY).catch(() => {});
       return;
     }
@@ -158,6 +175,7 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     prevTenant.current = tenantId;
     setMe(null);
     setFromCache(false);
+    setPaymentSuccess(null);
   }, [tenantId]);
 
   // Login / account-status said the subscription is locked: fetch the details.
@@ -200,6 +218,9 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         refresh,
         checkoutInProgress,
         setCheckoutInProgress,
+        paymentSuccess,
+        announcePayment: setPaymentSuccess,
+        dismissPaymentSuccess,
       }}
     >
       {children}

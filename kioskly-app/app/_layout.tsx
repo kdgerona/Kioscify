@@ -15,6 +15,7 @@ import UpdateDialog from "../components/UpdateDialog";
 import Toast from "react-native-toast-message";
 import { BillingProvider, useBilling } from "../contexts/BillingContext";
 import ReminderModal from "../components/ReminderModal";
+import PaymentSuccessModal from "../components/PaymentSuccessModal";
 
 // Inner component — must live inside SyncProvider to call useSync() via OfflineBanner.
 function AppNavigator() {
@@ -63,6 +64,7 @@ function AppNavigator() {
     <View style={{ flex: 1 }}>
       <OfflineBanner />
       <ReminderModal />
+      <PaymentSuccessModal />
       <UpdateDialog />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />

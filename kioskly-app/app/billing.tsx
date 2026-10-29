@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from "react-native";
 import AppSafeAreaView from "../components/AppSafeAreaView";
 import PayNowSheet from "../components/PayNowSheet";
-import { useRouter } from "expo-router";
+import { useRouter, Href } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -243,8 +243,14 @@ export default function BillingScreen() {
             <>
               {list.slice(0, shown).map(inv => {
                 const st = INVOICE_STATUS[inv.status] ?? INVOICE_STATUS.VOID;
+                const isPaid = inv.status === "PAID";
                 return (
-                  <View key={inv.id} style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6", gap: 4 }}>
+                  <TouchableOpacity
+                    key={inv.id}
+                    disabled={!isPaid}
+                    onPress={() => router.push(`/billing-receipt?id=${inv.id}` as Href)}
+                    style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6", gap: 4 }}
+                  >
                     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                       <Text style={{ fontSize: 14, color: "#111827", fontWeight: "500", flex: 1 }}>{formatPeriod(inv.periodStart, inv.periodEnd)}</Text>
                       <Text style={{ fontSize: 14, color: "#111827", fontWeight: "600" }}>{formatPeso(inv.amountCentavos)}</Text>
@@ -258,7 +264,8 @@ export default function BillingScreen() {
                       <Pill label={st.label} bg={st.bg} fg={st.fg} />
                     </View>
                     {inv.reference ? <Text style={{ fontSize: 12, color: "#9ca3af" }}>Ref: {inv.reference}</Text> : null}
-                  </View>
+                    {isPaid && <Text style={{ fontSize: 13, color: "#2563eb", fontWeight: "600" }}>View receipt ›</Text>}
+                  </TouchableOpacity>
                 );
               })}
               {list.length > shown && (

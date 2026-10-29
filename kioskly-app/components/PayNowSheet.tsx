@@ -35,7 +35,7 @@ async function readError(res: Response, fallback: string): Promise<string> {
 
 /** QR Ph (or the fallback bank QR + "I've paid") for the store's open invoice. Store admins only. */
 export function PayNowContent({ onPaid }: { onPaid?: () => void }) {
-  const { me, refresh } = useBilling();
+  const { me, refresh, announcePayment } = useBilling();
   const [result, setResult] = useState<PayResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paid, setPaid] = useState(false);
@@ -72,6 +72,7 @@ export function PayNowContent({ onPaid }: { onPaid?: () => void }) {
         const res = await apiRequest(`/billing/me/invoices/${result.invoiceId}/payment-status`);
         if (res.ok && (await res.json()).paid) {
           setPaid(true);
+          announcePayment({ invoiceId: result.invoiceId, invoiceNumber: result.invoiceNumber, amountCentavos: result.amountCentavos });
           refresh();
           onPaid?.();
         }
@@ -80,7 +81,7 @@ export function PayNowContent({ onPaid }: { onPaid?: () => void }) {
       }
     }, Math.max(5, me?.pollSeconds ?? 30) * 1000);
     return () => clearInterval(poll);
-  }, [result, paid, me?.pollSeconds, refresh, onPaid]);
+  }, [result, paid, me?.pollSeconds, refresh, onPaid, announcePayment]);
 
   if (paid) {
     return (
@@ -244,7 +245,8 @@ export default function PayNowSheet({ visible, onClose }: { visible: boolean; on
               <Ionicons name="close" size={22} color="#6b7280" />
             </TouchableOpacity>
           </View>
-          <ScrollView>{visible && <PayNowContent />}</ScrollView>
+          {/* Paid: close, so the app-level "Payment successful" notice takes over */}
+          <ScrollView>{visible && <PayNowContent onPaid={onClose} />}</ScrollView>
         </View>
       </View>
     </Modal>

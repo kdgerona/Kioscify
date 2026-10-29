@@ -10,6 +10,7 @@ import { BillingProvider } from '@/contexts/BillingContext';
 import { BillingBanner } from '@/components/billing/BillingBanner';
 import { ReminderModal } from '@/components/billing/ReminderModal';
 import { BillingGate } from '@/components/billing/BillingGate';
+import { PaymentSuccessModal } from '@/components/billing/PaymentSuccessModal';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -144,6 +145,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </main>
         </div>
       </BillingGate>
+      {/* Outside the gate so it survives the overdue screen unlocking */}
+      <PaymentSuccessModal />
     </BillingProvider>
   );
 }
