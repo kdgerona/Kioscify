@@ -202,7 +202,8 @@ export default function BillingScreen() {
             <Detail label="Amount due" value={owing ? formatPeso(s.amountCentavos) : "—"} />
           </View>
 
-          {me.storeView.variant !== "none" && (
+          {/* The trial notice points here, and this page already shows when the trial ends */}
+          {me.storeView.variant !== "none" && me.storeView.variant !== "trial" && (
             <Text style={{ marginTop: 8, fontSize: 13, color: "#374151", backgroundColor: "#fffbeb", borderWidth: 1, borderColor: "#fef3c7", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 }}>
               {me.storeView.body}
             </Text>

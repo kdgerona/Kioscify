@@ -5,14 +5,17 @@ import { useAuth } from "./AuthContext";
 import { apiRequest } from "../utils/api";
 import { setBillingLockedHandler } from "../utils/billingEvents";
 import { effectiveBillingStatus } from "../utils/billingStatus";
+import { manilaToday } from "../utils/billingFormat";
 
 export const BILLING_CACHE_KEY = "@kioscify:billing_status";
+const TRIAL_CLOSED_KEY = "@kioscify:trial_banner_closed:";
 const REFRESH_MS = 5 * 60_000;
 
 export type BillingStatus = "EXEMPT" | "NOT_ACTIVATED" | "TRIAL" | "ACTIVE" | "DUE" | "LOCKED";
 
 export interface StoreView {
-  variant: "none" | "banner" | "lock";
+  /** "trial" can be closed (it returns the next day); "banner" and "lock" cannot. */
+  variant: "none" | "trial" | "banner" | "lock";
   title: string;
   body: string;
   showPayAction: boolean;
@@ -79,6 +82,9 @@ interface BillingContextType {
   /** Raises the notice. The pay screen often goes away right after (banner hides, store unlocks). */
   announcePayment: (payment: PaymentSuccess) => void;
   dismissPaymentSuccess: () => void;
+  /** The free-trial banner was closed today (it shows again the next Manila day). */
+  trialBannerClosed: boolean;
+  closeTrialBanner: () => void;
 }
 
 const BillingContext = createContext<BillingContextType>({
@@ -91,6 +97,8 @@ const BillingContext = createContext<BillingContextType>({
   paymentSuccess: null,
   announcePayment: () => {},
   dismissPaymentSuccess: () => {},
+  trialBannerClosed: false,
+  closeTrialBanner: () => {},
 });
 
 /**
@@ -168,6 +176,26 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refresh();
   }, [token, tenantId, initializing, refresh]);
 
+  // Day the trial banner was last closed, per store; undefined while loading (kept hidden, no flash)
+  const [trialClosedOn, setTrialClosedOn] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    setTrialClosedOn(undefined);
+    if (!tenantId) return;
+    let current = true;
+    AsyncStorage.getItem(TRIAL_CLOSED_KEY + tenantId)
+      .then(day => current && setTrialClosedOn(day))
+      .catch(() => current && setTrialClosedOn(null));
+    return () => {
+      current = false;
+    };
+  }, [tenantId]);
+
+  const closeTrialBanner = useCallback(() => {
+    const today = manilaToday();
+    setTrialClosedOn(today);
+    if (tenantId) AsyncStorage.setItem(TRIAL_CLOSED_KEY + tenantId, today).catch(() => {});
+  }, [tenantId]);
+
   // A store switch: never show the previous store's status, even briefly.
   const prevTenant = useRef(tenantId);
   useEffect(() => {
@@ -221,6 +249,8 @@ export const BillingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         paymentSuccess,
         announcePayment: setPaymentSuccess,
         dismissPaymentSuccess,
+        trialBannerClosed: trialClosedOn === undefined || trialClosedOn === manilaToday(),
+        closeTrialBanner,
       }}
     >
       {children}

@@ -12,6 +12,7 @@ const result = (over: Partial<BillingStatusResult>): BillingStatusResult => ({
   daysLeft: 3,
   daysOverdue: 4,
   trialEndsAt: m(2026, 10, 16),
+  trialDaysLeft: null,
   paidThroughAt: null,
   nextBillingAt: m(2026, 11, 16),
   openInvoiceId: 'inv-1',
@@ -24,8 +25,34 @@ const result = (over: Partial<BillingStatusResult>): BillingStatusResult => ({
 });
 
 describe('describeStoreView', () => {
-  it.each(['EXEMPT', 'NOT_ACTIVATED', 'TRIAL', 'ACTIVE'] as const)('%s shows nothing', (status) => {
+  it.each(['EXEMPT', 'NOT_ACTIVATED', 'ACTIVE'] as const)('%s shows nothing', (status) => {
     expect(describeStoreView(result({ status }), 'admin').variant).toBe('none');
+  });
+
+  describe('during the trial', () => {
+    const trial = (over: Partial<BillingStatusResult> = {}) =>
+      result({ status: 'TRIAL', amountCentavos: null, dueAt: null, graceEndsAt: null, daysLeft: null, daysOverdue: null, openInvoiceId: null, trialDaysLeft: 5, ...over });
+
+    it('admin gets a closable trial notice with the end date and no pay action', () => {
+      expect(describeStoreView(trial(), 'admin')).toEqual({
+        variant: 'trial',
+        title: 'Free trial — 5 days left',
+        body: 'Your free trial ends on Oct 16, 2026. See your plan and first billing date in Billing.',
+        showPayAction: false,
+      });
+    });
+
+    it('cashier gets the same notice without the Billing pointer', () => {
+      const v = describeStoreView(trial({ trialDaysLeft: 1 }), 'cashier');
+      expect(v).toMatchObject({ variant: 'trial', title: 'Free trial — 1 day left', showPayAction: false });
+      expect(v.body).toBe("Your store's free trial ends on Oct 16, 2026.");
+    });
+
+    it('the due reminder replaces it inside the reminder window', () => {
+      const v = describeStoreView(trial({ upcomingDueAt: m(2026, 10, 16), daysUntilDue: 5, amountCentavos: 150000 }), 'admin');
+      expect(v.variant).toBe('banner');
+      expect(v.title).toContain('Subscription due on');
+    });
   });
 
   it('DUE admin gets a banner with a pay action, amount and days left', () => {

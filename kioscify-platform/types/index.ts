@@ -180,7 +180,7 @@ export interface BillingStatusResult {
 }
 
 export interface StoreView {
-  variant: 'none' | 'banner' | 'lock';
+  variant: 'none' | 'trial' | 'banner' | 'lock';
   title: string;
   body: string;
   showPayAction: boolean;

@@ -88,7 +88,8 @@ export default function BillingPage() {
           <Item label="Amount due" value={s.status === "DUE" || s.status === "LOCKED" || upcoming ? formatPeso(s.amountCentavos) : "—"} />
         </dl>
 
-        {me.storeView.variant !== "none" && (
+        {/* The trial notice points here, and this page already shows when the trial ends */}
+        {me.storeView.variant !== "none" && me.storeView.variant !== "trial" && (
           <p className="mt-4 text-sm text-gray-700 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">{me.storeView.body}</p>
         )}
 

@@ -57,6 +57,13 @@ describe('computeBillingStatus', () => {
     const r = computeBillingStatus(on, baseSub, null, m(2026, 10, 10));
     expect(r.status).toBe('TRIAL');
     expect(r.trialEndsAt).toEqual(m(2026, 10, 16));
+    expect(r.trialDaysLeft).toBe(6);
+  });
+
+  it('trialDaysLeft is only set during the trial', () => {
+    expect(computeBillingStatus(on, baseSub, null, m(2026, 10, 15)).trialDaysLeft).toBe(1);
+    expect(computeBillingStatus(on, { ...baseSub, paidThroughAt: m(2026, 11, 15) }, null, m(2026, 10, 10)).trialDaysLeft).toBeNull();
+    expect(computeBillingStatus(on, baseSub, null, m(2026, 10, 20)).trialDaysLeft).toBeNull();
   });
 
   it('virtual due day 0 when the billing date passed and no invoice exists yet', () => {

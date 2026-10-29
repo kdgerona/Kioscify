@@ -1,7 +1,8 @@
 import { BillingStatusResult } from './billing-status.util';
 
 export interface StoreView {
-  variant: 'none' | 'banner' | 'lock';
+  /** 'trial' is an informational notice the store can close; 'banner' and 'lock' cannot be. */
+  variant: 'none' | 'trial' | 'banner' | 'lock';
   title: string;
   body: string;
   showPayAction: boolean;
@@ -25,6 +26,20 @@ function formatManilaDate(date: Date | null): string {
  */
 export function describeStoreView(result: BillingStatusResult, audience: 'admin' | 'cashier'): StoreView {
   const upcoming = (result.status === 'TRIAL' || result.status === 'ACTIVE') && !!result.upcomingDueAt;
+  // During the trial, until the due reminder takes over
+  if (result.status === 'TRIAL' && !upcoming && result.trialEndsAt) {
+    const n = result.trialDaysLeft ?? 0;
+    const ends = formatManilaDate(result.trialEndsAt);
+    return {
+      variant: 'trial',
+      title: `Free trial — ${n} ${n === 1 ? 'day' : 'days'} left`,
+      body:
+        audience === 'cashier'
+          ? `Your store's free trial ends on ${ends}.`
+          : `Your free trial ends on ${ends}. See your plan and first billing date in Billing.`,
+      showPayAction: false,
+    };
+  }
   if (result.status !== 'DUE' && result.status !== 'LOCKED' && !upcoming) return NONE;
 
   const variant = result.status === 'LOCKED' ? 'lock' : 'banner';

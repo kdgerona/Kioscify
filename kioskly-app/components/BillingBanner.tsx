@@ -5,14 +5,36 @@ import { useBilling } from "../contexts/BillingContext";
 import PayNowSheet from "./PayNowSheet";
 
 /**
- * Due banner shown just below each screen's header. Store admins
- * get "Pay now"; cashiers get the contact-your-admin copy. It can be
- * collapsed for the session, never dismissed.
+ * Billing banner shown just below each screen's header. The due banner gives
+ * store admins "Pay now" and cashiers the contact-your-admin copy; it can be
+ * collapsed for the session, never dismissed. The free-trial notice can be
+ * closed until the next day.
  */
 export default function BillingBanner() {
-  const { me } = useBilling();
+  const { me, trialBannerClosed, closeTrialBanner } = useBilling();
   const [collapsed, setCollapsed] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+
+  if (me?.storeView.variant === "trial") {
+    if (trialBannerClosed) return null;
+    return (
+      <View className="bg-blue-50 border-b border-blue-200 px-4 py-2 flex-row items-center gap-2">
+        <Ionicons name="sparkles" size={16} color="#2563eb" />
+        <View className="flex-1">
+          <Text className="text-xs font-semibold text-gray-900">{me.storeView.title}</Text>
+          <Text className="text-xs text-gray-700">{me.storeView.body}</Text>
+        </View>
+        <TouchableOpacity
+          onPress={closeTrialBanner}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className="p-1"
+          accessibilityLabel="Close notice"
+        >
+          <Ionicons name="close" size={18} color="#6b7280" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (!me || me.storeView.variant !== "banner") return null;
   const view = me.storeView;

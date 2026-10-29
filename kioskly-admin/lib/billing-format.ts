@@ -17,6 +17,11 @@ export function formatManilaDate(iso: string | null | undefined): string {
   return new Date(iso).toLocaleDateString("en-US", { timeZone: "Asia/Manila", month: "short", day: "numeric", year: "numeric" });
 }
 
+/** Today's Manila calendar day as "2026-11-16". */
+export function manilaToday(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+}
+
 /** Billing periods are stored with an exclusive end; show the last covered day. */
 export function formatPeriod(start: string, endExclusive: string): string {
   return `${formatManilaDate(start)} – ${formatManilaDate(new Date(new Date(endExclusive).getTime() - 1).toISOString())}`;

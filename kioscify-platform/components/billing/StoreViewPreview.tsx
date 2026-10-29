@@ -1,5 +1,5 @@
 import type { StoreView } from '@/types';
-import { AlertTriangle, Lock } from 'lucide-react';
+import { AlertTriangle, Lock, Sparkles } from 'lucide-react';
 
 function ViewCard({ heading, view }: { heading: string; view: StoreView }) {
   return (
@@ -12,13 +12,18 @@ function ViewCard({ heading, view }: { heading: string; view: StoreView }) {
       ) : (
         <div
           className={`rounded-md px-4 py-3 text-sm ${
-            view.variant === 'lock' ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-amber-50 border border-amber-200 text-amber-900'
+            view.variant === 'lock'
+              ? 'bg-red-50 border border-red-200 text-red-800'
+              : view.variant === 'trial'
+                ? 'bg-blue-50 border border-blue-200 text-blue-900'
+                : 'bg-amber-50 border border-amber-200 text-amber-900'
           }`}
         >
           <div className="flex items-center gap-2 font-semibold">
-            {view.variant === 'lock' ? <Lock className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+            {view.variant === 'lock' ? <Lock className="w-4 h-4" /> : view.variant === 'trial' ? <Sparkles className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
             {view.title}
             {view.variant === 'lock' && <span className="text-xs font-normal">(full-screen lock)</span>}
+            {view.variant === 'trial' && <span className="text-xs font-normal">(closable)</span>}
           </div>
           <p className="mt-1">{view.body}</p>
           {view.showPayAction && (

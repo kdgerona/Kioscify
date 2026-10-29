@@ -502,6 +502,7 @@ export interface BillingStatusResult {
   daysLeft: number | null;
   daysOverdue: number | null;
   trialEndsAt: string | null;
+  trialDaysLeft?: number | null;
   paidThroughAt: string | null;
   nextBillingAt: string | null;
   openInvoiceId: string | null;
@@ -513,7 +514,8 @@ export interface BillingStatusResult {
 }
 
 export interface StoreView {
-  variant: "none" | "banner" | "lock";
+  /** "trial" can be closed (it returns the next day); "banner" and "lock" cannot. */
+  variant: "none" | "trial" | "banner" | "lock";
   title: string;
   body: string;
   showPayAction: boolean;

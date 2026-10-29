@@ -43,6 +43,8 @@ export interface BillingStatusResult {
   daysLeft: number | null;
   daysOverdue: number | null;
   trialEndsAt: Date | null;
+  /** TRIAL only: Manila days until `trialEndsAt` (null otherwise). */
+  trialDaysLeft: number | null;
   paidThroughAt: Date | null;
   nextBillingAt: Date | null;
   openInvoiceId: string | null;
@@ -96,6 +98,7 @@ export function computeBillingStatus(
     daysLeft: null,
     daysOverdue: null,
     trialEndsAt: null,
+    trialDaysLeft: null,
     paidThroughAt: sub?.paidThroughAt ?? null,
     nextBillingAt: sub?.nextBillingAt ?? null,
     openInvoiceId: openInvoice?.id ?? null,
@@ -139,6 +142,7 @@ export function computeBillingStatus(
       result.daysUntilDue = zonedDaysBetween(now, upcoming);
       result.amountCentavos = openInvoice?.amountCentavos ?? sub.priceCentavos;
     }
+    if (inTrial) result.trialDaysLeft = zonedDaysBetween(now, trialEndsAt);
     return { ...result, status: inTrial ? 'TRIAL' : 'ACTIVE' };
   }
 
