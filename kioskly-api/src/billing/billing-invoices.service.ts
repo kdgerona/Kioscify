@@ -7,6 +7,7 @@ import { addZonedDays, addZonedMonthsClamped, startOfZonedDay, zonedDayOfMonth }
 import { isUniqueViolation } from '../common/utils/job-lock.util';
 import { generateInvoiceNumber, generatePayToken } from './invoice-number.util';
 import { markLedgerMonthPaid } from './billing-ledger.util';
+import { effectiveNextBillingAt, laterOf } from '../common/utils/billing-dates.util';
 
 const NUMBER_RETRIES = 3;
 
@@ -49,9 +50,11 @@ export class BillingInvoicesService {
     if (open) return open;
 
     const config = await this.billingConfig.get();
-    if (!opts.ignoreDate && now < addZonedDays(sub.nextBillingAt, -config.invoiceLeadDays)) return null;
+    // Never invoice a period that is already paid
+    const nextBillingAt = effectiveNextBillingAt(sub.nextBillingAt, sub.paidThroughAt)!;
+    if (!opts.ignoreDate && now < addZonedDays(nextBillingAt, -config.invoiceLeadDays)) return null;
 
-    const periodStart = sub.nextBillingAt;
+    const periodStart = nextBillingAt;
     const anchor = sub.anchorDay ?? zonedDayOfMonth(periodStart);
     const periodEnd = addZonedMonthsClamped(periodStart, 1, anchor);
     const revision = await this.prisma.billingInvoice.count({
@@ -161,9 +164,10 @@ export class BillingInvoicesService {
     const invoice = await this.requireOpen(id);
     await this.prisma.$transaction(async tx => {
       await tx.billingInvoice.update({ where: { id }, data: { status: 'WAIVED', voidReason: reason } });
+      const sub = await tx.storeSubscription.findUnique({ where: { id: invoice.subscriptionId } });
       await tx.storeSubscription.update({
         where: { id: invoice.subscriptionId },
-        data: { paidThroughAt: addZonedDays(invoice.periodEnd, -1) },
+        data: { paidThroughAt: laterOf(sub?.paidThroughAt, addZonedDays(invoice.periodEnd, -1)) },
       });
       await markLedgerMonthPaid(tx, invoice.subscriptionId, invoice.periodStart, new Date(), `Waived: ${reason}`);
     });

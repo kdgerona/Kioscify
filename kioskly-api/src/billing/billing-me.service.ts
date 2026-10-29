@@ -76,7 +76,8 @@ export class BillingMeService {
             priceCentavos: sub.priceCentavos ?? null,
             trialEndsAt: getTrialEndsAt(toSubscriptionInput(sub), statusConfig),
             paidThroughAt: sub.paidThroughAt ?? null,
-            nextBillingAt: sub.nextBillingAt ?? null,
+            // Same date the status uses: never inside an already-paid period
+            nextBillingAt: status.nextBillingAt,
           }
         : null,
       openInvoice: invoice

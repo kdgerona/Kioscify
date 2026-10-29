@@ -1,4 +1,4 @@
-import { deriveEnableDates } from './billing-dates.util';
+import { deriveEnableDates, effectiveNextBillingAt, laterOf } from './billing-dates.util';
 
 const m = (y: number, mo: number, d: number) => new Date(Date.UTC(y, mo - 1, d) - 8 * 60 * 60 * 1000);
 
@@ -58,5 +58,33 @@ describe('deriveEnableDates', () => {
   it('trialStartAt overrides activatedAt for the trial end', () => {
     const r = deriveEnableDates({ activatedAt: m(2026, 10, 1), trialStartAt: m(2026, 10, 10), trialDays: 15, anchorDay: null, paidMonthStarts: [], now: m(2026, 10, 5) });
     expect(r.trialEndsAt).toEqual(m(2026, 10, 25));
+  });
+});
+
+describe('effectiveNextBillingAt', () => {
+  it('keeps a next billing date after the paid period', () => {
+    expect(effectiveNextBillingAt(m(2026, 11, 1), m(2026, 10, 31))).toEqual(m(2026, 11, 1));
+  });
+
+  it('keeps a later gap set by a prepayment', () => {
+    expect(effectiveNextBillingAt(m(2027, 1, 15), m(2026, 12, 31))).toEqual(m(2027, 1, 15));
+  });
+
+  it('moves a date inside the paid period to the day after it', () => {
+    expect(effectiveNextBillingAt(m(2026, 11, 1), m(2026, 11, 30))).toEqual(m(2026, 12, 1));
+    expect(effectiveNextBillingAt(m(2026, 11, 30), m(2026, 11, 30))).toEqual(m(2026, 12, 1));
+  });
+
+  it('passes through when either date is missing', () => {
+    expect(effectiveNextBillingAt(m(2026, 11, 1), null)).toEqual(m(2026, 11, 1));
+    expect(effectiveNextBillingAt(null, m(2026, 11, 30))).toBeNull();
+  });
+});
+
+describe('laterOf', () => {
+  it('never moves a date backwards', () => {
+    expect(laterOf(m(2026, 11, 30), m(2026, 10, 30))).toEqual(m(2026, 11, 30));
+    expect(laterOf(m(2026, 10, 30), m(2026, 11, 30))).toEqual(m(2026, 11, 30));
+    expect(laterOf(null, m(2026, 10, 30))).toEqual(m(2026, 10, 30));
   });
 });

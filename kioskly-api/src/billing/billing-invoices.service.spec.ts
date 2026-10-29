@@ -97,6 +97,14 @@ describe('BillingInvoicesService', () => {
       expect(inv?.id).toBe('inv-new');
     });
 
+    it('never invoices a period that is already paid: starts the day after paid-through', async () => {
+      // Stored next billing (Nov 16) fell behind a period already paid through Dec 15
+      mockPrisma.storeSubscription.findUnique.mockResolvedValue(sub({ paidThroughAt: m(2026, 12, 15) }));
+      await expect(service.ensureInvoice('sub-1', m(2026, 11, 20))).resolves.toBeNull();
+      const inv = await service.ensureInvoice('sub-1', m(2026, 12, 16));
+      expect(inv).toMatchObject({ periodStart: m(2026, 12, 16), periodEnd: m(2027, 1, 16), dueAt: m(2026, 12, 16) });
+    });
+
     it('anchor 31 period ends Feb 28', async () => {
       mockPrisma.storeSubscription.findUnique.mockResolvedValue(sub({ nextBillingAt: m(2027, 1, 31), anchorDay: 31 }));
       await service.ensureInvoice('sub-1', m(2027, 1, 31));
@@ -192,6 +200,13 @@ describe('BillingInvoicesService', () => {
           create: expect.objectContaining({ paid: true, note: 'Waived: Goodwill' }),
         }),
       );
+    });
+
+    it('waive never pulls paid-through back behind a later paid period', async () => {
+      mockPrisma.billingInvoice.findUnique.mockResolvedValue(open);
+      mockPrisma.storeSubscription.findUnique.mockResolvedValue(sub({ paidThroughAt: m(2027, 1, 15) }));
+      await service.waiveInvoice('inv-1', 'Goodwill', 'admin-1');
+      expect(mockPrisma.storeSubscription.update).toHaveBeenCalledWith({ where: { id: 'sub-1' }, data: { paidThroughAt: m(2027, 1, 15) } });
     });
 
     it('extendGrace keeps the store unlocked through the chosen day (ends at the next Manila midnight)', async () => {

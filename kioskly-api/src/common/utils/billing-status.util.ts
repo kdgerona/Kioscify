@@ -1,4 +1,5 @@
 import { addZonedDays, zonedDaysBetween } from './timezone';
+import { effectiveNextBillingAt } from './billing-dates.util';
 
 export type BillingStatus = 'EXEMPT' | 'NOT_ACTIVATED' | 'TRIAL' | 'ACTIVE' | 'DUE' | 'LOCKED';
 
@@ -108,6 +109,9 @@ export function computeBillingStatus(
   };
 
   if (!cfg.billingEnabled || !sub || sub.billingEnabled !== true) return result;
+  // A next billing date inside an already-paid period is not due (or upcoming) yet
+  const nextBillingAt = effectiveNextBillingAt(sub.nextBillingAt, sub.paidThroughAt);
+  result.nextBillingAt = nextBillingAt;
   if (!sub.activatedAt) return { ...result, status: 'NOT_ACTIVATED' };
 
   const trialEndsAt = getTrialEndsAt(sub, cfg);
@@ -118,8 +122,8 @@ export function computeBillingStatus(
   if (openInvoice) {
     dueAt = openInvoice.dueAt;
     amountCentavos = openInvoice.amountCentavos;
-  } else if (sub.nextBillingAt && now >= sub.nextBillingAt) {
-    dueAt = sub.nextBillingAt;
+  } else if (nextBillingAt && now >= nextBillingAt) {
+    dueAt = nextBillingAt;
     amountCentavos = sub.priceCentavos;
   }
   result.dueAt = dueAt;
@@ -129,7 +133,7 @@ export function computeBillingStatus(
     const inTrial = !!trialEndsAt && now < trialEndsAt && sub.paidThroughAt == null;
     // Reminder window: an invoice issued early, or the next billing date,
     // within `reminderLeadDays`. Nothing counts towards grace or the lock yet.
-    const upcoming = dueAt ?? sub.nextBillingAt;
+    const upcoming = dueAt ?? nextBillingAt;
     if (upcoming && cfg.reminderLeadDays > 0 && now >= addZonedDays(upcoming, -cfg.reminderLeadDays)) {
       result.upcomingDueAt = upcoming;
       result.daysUntilDue = zonedDaysBetween(now, upcoming);

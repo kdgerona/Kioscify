@@ -26,6 +26,23 @@ export interface EnableDatesResult {
   honoredMonths: string[];
 }
 
+/**
+ * The next billing date, never inside a period that is already paid.
+ * `paidThroughAt` is the start of the last covered Manila day, so billing
+ * resumes the day after it. A stored `nextBillingAt` can fall behind it when
+ * invoices are paid out of order or the schedule is edited after a period was
+ * paid; without this the store would be told (and invoiced) for a paid month.
+ */
+export function effectiveNextBillingAt(nextBillingAt: Date | null, paidThroughAt: Date | null): Date | null {
+  if (!nextBillingAt || !paidThroughAt || nextBillingAt > paidThroughAt) return nextBillingAt;
+  return addZonedDays(paidThroughAt, 1);
+}
+
+/** The later of two dates; paid-through only ever moves forward. */
+export function laterOf(a: Date | null | undefined, b: Date): Date {
+  return a && a > b ? a : b;
+}
+
 function nextMonthKey(key: string): string {
   const [y, mo] = key.split('-').map(Number);
   return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}`;

@@ -98,6 +98,16 @@ describe('BillingPaymentsService', () => {
       expect(mockAudit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'payment.record', tenantId: 't-1' }));
     });
 
+    it('paying an older invoice after a later period was paid keeps paid-through and next billing ahead', async () => {
+      // Nov 16 – Dec 15 was already paid; this is the Oct 16 – Nov 15 invoice paid late (within grace)
+      mockPrisma.storeSubscription.findUnique.mockResolvedValue({ ...sub, nextBillingAt: m(2026, 11, 16), paidThroughAt: m(2026, 12, 15) });
+      await service.recordPayment(webhookInput());
+      expect(mockPrisma.storeSubscription.update).toHaveBeenCalledWith({
+        where: { id: 'sub-1' },
+        data: { nextBillingAt: m(2026, 12, 16), paidThroughAt: m(2026, 12, 15) },
+      });
+    });
+
     it('a second recordPayment for the same invoice is flagged and changes nothing else', async () => {
       mockPrisma.billingInvoice.updateMany.mockResolvedValue({ count: 0 });
       const res = await service.recordPayment(webhookInput());

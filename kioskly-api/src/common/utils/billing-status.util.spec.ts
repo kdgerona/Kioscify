@@ -189,3 +189,26 @@ describe('computeBillingStatus — reminder before the due date', () => {
     expect(r.upcomingDueAt).toBeNull();
   });
 });
+
+describe('computeBillingStatus — next billing date inside an already-paid period', () => {
+  // November was paid (paid through Nov 30) but the stored next billing date still says Nov 1
+  const behind: SubscriptionInput = { ...baseSub, paidThroughAt: m(2026, 11, 30), nextBillingAt: m(2026, 11, 1) };
+
+  it('no reminder for the paid month', () => {
+    const r = computeBillingStatus(enforced, behind, null, m(2026, 10, 29));
+    expect(r.status).toBe('ACTIVE');
+    expect(r.upcomingDueAt).toBeNull();
+    expect(r.nextBillingAt).toEqual(m(2026, 12, 1));
+  });
+
+  it('not due once the stale date passes', () => {
+    const r = computeBillingStatus(enforced, behind, null, m(2026, 11, 10));
+    expect(r.status).toBe('ACTIVE');
+    expect(r.dueAt).toBeNull();
+  });
+
+  it('the reminder and due date move to the day after the paid period', () => {
+    expect(computeBillingStatus(enforced, behind, null, m(2026, 11, 26)).upcomingDueAt).toEqual(m(2026, 12, 1));
+    expect(computeBillingStatus(enforced, behind, null, m(2026, 12, 2)).status).toBe('DUE');
+  });
+});

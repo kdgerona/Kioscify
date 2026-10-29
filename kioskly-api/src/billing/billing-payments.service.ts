@@ -5,6 +5,7 @@ import { BillingConfigService } from './billing-config.service';
 import { BillingAuditService } from './billing-audit.service';
 import { BillingResubscribeService } from './billing-resubscribe.service';
 import { markLedgerMonthPaid } from './billing-ledger.util';
+import { effectiveNextBillingAt, laterOf } from '../common/utils/billing-dates.util';
 import { toCsv } from '../export/export-csv.util';
 import { MarkPaidDto, PrepaymentDto } from './dto/billing-actions.dto';
 import {
@@ -152,7 +153,10 @@ export class BillingPaymentsService {
       } else {
         subData.nextBillingAt = !sub?.nextBillingAt || sub.nextBillingAt < periodEnd ? periodEnd : sub.nextBillingAt;
       }
-      subData.paidThroughAt = addZonedDays(periodEnd, -1);
+      // Paying an older invoice after a later period was already paid must not
+      // pull paid-through back (or leave the next billing date inside it)
+      subData.paidThroughAt = laterOf(sub?.paidThroughAt, addZonedDays(periodEnd, -1));
+      subData.nextBillingAt = effectiveNextBillingAt(subData.nextBillingAt, subData.paidThroughAt)!;
       await tx.storeSubscription.update({ where: { id: invoice.subscriptionId }, data: subData });
 
       await markLedgerMonthPaid(
