@@ -19,10 +19,11 @@ Production: `docker-compose.yml`, project `kioscify-production`.
 | 6 | "Pay now" needed several taps on phones: the due banner's Pay now (and its collapse arrow), the reminder popup and the Billing page button are now thumb-sized (44 px / hit area extended on the kiosk) | `aef62b1` | store | None | **Yes** (same APK, step 6) |
 | 7 | Kiosk app **Settings → Billing** (Store Admins only): subscription status and price, plus a **Billing & Payments** screen with plan details, Pay now and billing history. Cashiers don't see it. Uses the existing `/billing/me` endpoints; no API change | `8c3f7fa` | None | None | **Yes** (same APK, step 6) |
 | 8 | **Payment successful** confirmation: after a QR payment goes through, Store Portal and kiosk show "Payment successful" with **View receipt**, **Go to Billing** and **Done**. Before, the success message flickered away (the due banner, the overdue screen and Resubscribe all close the moment the payment lands). Adds a receipt screen on the kiosk; paid rows in kiosk billing history open it. **Also fixes** a paid store still seeing "Subscription due" (and being invoiced again) when its next billing date sat inside a month it had already paid; paying an older invoice no longer pulls paid-through back | `e82342e`, `8532087` | api, store | Check (read-only): `billing-dates-check.js` | **Yes** (same APK, step 6) |
+| 9 | **Free trial banner**: stores on their free trial see a blue "Free trial — N days left" banner (Store Portal and kiosk, admins and cashiers) with an **X** to close it. Closed, it comes back the next day with the updated count. In the last 7 days before the first billing date the existing due reminder takes its place, unchanged (collapse only). Platform's "what the store sees" preview shows it too | `5ca602e` | api, store, platform | None | **Yes** (same APK, step 6) |
 
 **Services to rebuild:** `api`, `store`, `platform`. Deploy `api` and `platform` together (change 4): the new Platform tab reads the API's new `inactive` count.
 **Not affected:** `company`, nginx, MongoDB, Redis, MinIO.
-**Kiosk APK:** needed for changes 5–8 (Resubscribe screen, Pay now, Settings → Billing, payment confirmation). Release it **after** the API is deployed; see step 6.
+**Kiosk APK:** needed for changes 5–9 (Resubscribe screen, Pay now, Settings → Billing, payment confirmation, trial banner). Release it **after** the API is deployed; see step 6.
 
 **Resubscribe rules (change 5)**, so support can answer "why can't this store resubscribe?":
 - Only a **Store Admin**, never a cashier. Cashiers of a switched-off store still can't log in.
@@ -138,11 +139,14 @@ docker compose up -d api store platform
 - **Payment successful** (change 8), on staging with a Due test store: Pay now from the banner, pay the QR
   (or Platform → Mark paid on the invoice). Within ~30 seconds "Payment successful" appears and stays;
   the due banner behind it is gone. **View receipt** (green) opens that invoice's receipt.
+- **Trial banner** (change 9), with a store on its free trial: the Store Portal shows the blue
+  "Free trial — N days left" banner; **X** closes it, and it stays closed after a refresh that day.
+  Platform → Subscriptions → that store's "what the store sees" shows the same banner, marked (closable).
 - **Billing dates** (change 8): any store listed by step 3b no longer shows Due for a month it paid.
 - **Pay now on a phone** (change 6): on a store that is Due, open the Store Portal on a phone;
   one tap on the banner's **Pay now** opens the payment window. Same on a phone kiosk (after step 6).
 
-### 6. Release the kiosk APK (changes 5–8)
+### 6. Release the kiosk APK (changes 5–9)
 
 Only after the API from step 4 is live. An older APK still works with the new API: its
 Store Admin sees the old "Email support to resubscribe" screen instead of being refused at login.
@@ -163,6 +167,9 @@ Store Admin sees the old "Email support to resubscribe" screen instead of being 
    billing history matching Store Portal → Billing. As a cashier, Settings has no Billing section.
 7. **Payment successful** (change 8): pay from the kiosk banner's Pay now; "Payment successful" appears
    and stays, **View receipt** opens the kiosk receipt, and paid rows in Billing & Payments open it too.
+8. **Trial banner** (change 9): on a kiosk of a store on its free trial, the blue trial banner shows
+   under the header for admins and cashiers; **X** hides it on every screen and it stays hidden after
+   an app restart that day. An older APK simply shows no trial banner.
 
 ---
 
@@ -173,7 +180,8 @@ harmless to the old code and can stay. No data changes to undo. Stores that resu
 switched on (they paid). A new kiosk APK keeps working against the old API: its Resubscribe
 screen simply never appears, because the old API refuses switched-off stores at login.
 Dates written by payments after the deploy (paid-through never moved back) are valid for the old
-code too; only the old code's "due for a paid month" behaviour returns.
+code too; only the old code's "due for a paid month" behaviour returns. Rolling back change 9 just
+removes the trial banner; the "closed today" marker it leaves in browsers and kiosks is unused.
 
 ---
 
@@ -189,3 +197,5 @@ code too; only the old code's "due for a paid month" behaviour returns.
 - **2026-10-29**: Added change 8 (Payment successful confirmation). Store Portal + the same kiosk APK; no new steps.
 - **2026-10-29**: Change 8 also fixes billing dates for a store whose next billing sat inside a paid month
   (API). Adds the read-only check, step 3b.
+- **2026-10-29**: Added change 9 (closable free trial banner). API + Store Portal + Platform preview +
+  the same kiosk APK; no new steps or scripts.
