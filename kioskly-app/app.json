@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kioscify",
     "slug": "kioscify-app",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "default",
     "icon": "./assets/app-icons/appstore.png",
     "scheme": "kioscifyapp",

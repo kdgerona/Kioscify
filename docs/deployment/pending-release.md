@@ -1,5 +1,8 @@
 # Release runbook: pending store fixes
 
+> **Deployed to production on 2026-10-30** (master `769fcfb`, server `/root/apps/Kioscify`). Server
+> steps 1–5 are done, and kiosk APK 1.2.0 (versionCode 8) is released as a force update. See the change log.
+
 Running checklist for everything on `feature/store-transactions-pagination`
 that has **not been merged to master or deployed yet**. Each fix added to the
 branch adds its deploy steps here, so the release is one pass through this
@@ -73,8 +76,8 @@ Pagination works without them, but large stores only get faster once they
 exist. Index names match `prisma db push`; re-running is a no-op.
 
 ```bash
-docker exec -i kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet \
-  < docs/deployment/store-list-indexes.js
+docker cp docs/deployment/store-list-indexes.js kioskly-mongo:/tmp/store-list-indexes.js
+docker exec kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet --file /tmp/store-list-indexes.js
 ```
 
 Expected output ends with `Done: 2 indexes in place.`
@@ -90,8 +93,8 @@ stores were told "Subscription due" for a paid month and would be invoiced for i
 after it, their next billing moves to the day after paid-through on its own.
 
 ```bash
-docker exec -i kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet \
-  < docs/deployment/billing-dates-check.js
+docker cp docs/deployment/billing-dates-check.js kioskly-mongo:/tmp/billing-dates-check.js
+docker exec kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet --file /tmp/billing-dates-check.js
 ```
 
 Expected on a healthy database: `0 stores affected.` Run it **before** step 4 and keep the
@@ -106,8 +109,8 @@ duplicates but doesn't remove an existing one.
 which "Not set up" stores will pay at the end of the month once they're set up.
 
 ```bash
-docker exec -i kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet \
-  < docs/deployment/billing-timing-check.js
+docker cp docs/deployment/billing-timing-check.js kioskly-mongo:/tmp/billing-timing-check.js
+docker exec kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet --file /tmp/billing-timing-check.js
 ```
 
 Run it **before** step 4 and again **after** it, and compare. Both runs should show
@@ -127,6 +130,16 @@ docker compose build api
 docker compose build store
 docker compose build platform
 docker compose up -d api store platform
+```
+
+Then **reload nginx**. It resolves `store`/`platform` to container IPs once, so after the
+containers are recreated it keeps sending to the old IPs and the sites return **502**
+(happened on the 2026-10-30 deploy until the reload):
+
+```bash
+docker exec kioskly-nginx nginx -t && docker exec kioskly-nginx nginx -s reload
+curl -s -o /dev/null -w "%{http_code}\n" https://kioscify.com          # 200
+curl -s -o /dev/null -w "%{http_code}\n" https://platform.kioscify.com/login  # 200
 ```
 
 ### 5. Smoke test
@@ -228,3 +241,13 @@ stores listed under "End of month" by step 3c if you roll back.
   the same kiosk APK; no new steps or scripts.
 - **2026-10-29**: Added change 10 (new stores pay for each month at its end). API + Platform; adds
   the read-only check, step 3c. No kiosk APK, no data script.
+- **2026-10-30**: **Deployed to production** (changes 1–10; master fast-forwarded to `769fcfb`).
+  Backup `backups/pre-store-fixes-2026-10-30.gz` (2.3 MB). Indexes: 2 in place. Step 3b: 0 stores
+  affected. Step 3c before and after: End of month 0, the same 9 stores In advance, 7 Not set up.
+  Every `store_subscriptions` document identical before and after. After the restart nginx kept
+  the old container IPs: Store Portal and Platform returned 502 for ~3 minutes (3 failed requests;
+  the API, and so the kiosks, were unaffected) until `nginx -s reload`, now part of step 4. The
+  mongosh commands now run the scripts with `--file`: piping them on stdin broke
+  `billing-dates-check.js` (read as REPL input).
+- **2026-10-30**: Kiosk APK **1.2.0** (versionCode 8) uploaded in Platform → Kiosk App as a
+  **force update** (step 6, changes 5–9).
