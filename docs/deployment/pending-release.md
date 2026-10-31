@@ -97,3 +97,8 @@ history again. Nothing to undo; the backfilled fields can stay.
 - **2026-10-31**: Created after the store fixes release was archived. Added change 1 (prepayments
   in billing history with a receipt; API + backfill). Tested locally end to end in the Platform
   portal and Store Portal via nginx.
+- **2026-10-31**: Fixed the backfill skipping real prepayments: Prisma stores the payment's amount and
+  months as 64-bit numbers and the audit log as plain numbers, so they never compared equal. Production
+  has a prepayment to backfill. Verified with `mongosh` (as in production) against a prepayment
+  recorded through the API: the dry run lists it, apply writes the same period the API saves, and a
+  re-run changes nothing.

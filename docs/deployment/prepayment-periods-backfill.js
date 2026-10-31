@@ -21,6 +21,9 @@
 const apply = typeof APPLY !== 'undefined' && APPLY === true;
 const OFFSET = 8 * 3600 * 1000;
 const DAY = 24 * 3600 * 1000;
+// Prisma stores Int fields as 64-bit (NumberLong / Long) while audit-log JSON holds plain
+// numbers, so compare as plain numbers or nothing ever matches.
+const num = v => (v == null ? NaN : typeof v === 'number' ? v : typeof v.toNumber === 'function' ? v.toNumber() : Number(v));
 const day = d => new Date(d.getTime() + OFFSET).toISOString().slice(0, 10);
 const startOfDay = d => {
   const z = new Date(d.getTime() + OFFSET);
@@ -49,11 +52,12 @@ const skipped = [];
 missing.forEach(p => {
   const t = db.tenants.findOne({ _id: p.tenantId }, { name: 1 });
   const store = t ? t.name : String(p.tenantId);
-  const months = p.monthsCovered || 1;
+  const months = num(p.monthsCovered) || 1;
+  const amount = num(p.amountCentavos);
   const match = db.billing_audit_logs
     .find({ tenantId: p.tenantId, action: 'payment.prepayment' })
     .toArray()
-    .filter(l => l.after && l.after.amountCentavos === p.amountCentavos && l.after.monthsCovered === months && typeof l.after.paidThroughAt === 'string')
+    .filter(l => l.after && num(l.after.amountCentavos) === amount && num(l.after.monthsCovered) === months && typeof l.after.paidThroughAt === 'string')
     .sort((a, b) => Math.abs(a.createdAt - p.createdAt) - Math.abs(b.createdAt - p.createdAt))[0];
 
   if (!match) {
