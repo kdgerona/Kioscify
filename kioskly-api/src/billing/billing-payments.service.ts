@@ -5,6 +5,7 @@ import { BillingConfigService } from './billing-config.service';
 import { BillingAuditService } from './billing-audit.service';
 import { BillingResubscribeService } from './billing-resubscribe.service';
 import { markLedgerMonthPaid } from './billing-ledger.util';
+import { prepaymentPeriodFromPaidThrough } from './prepayment-receipt.util';
 import { dueForPeriodStart, effectiveNextBillingAt, laterOf } from '../common/utils/billing-dates.util';
 import { toCsv } from '../export/export-csv.util';
 import { MarkPaidDto, PrepaymentDto } from './dto/billing-actions.dto';
@@ -255,6 +256,8 @@ export class BillingPaymentsService {
           manualMethod: dto.manualMethod,
           amountCentavos: dto.amountCentavos,
           monthsCovered: dto.monthsCovered,
+          // Shown as the period on the store's billing history and receipt
+          ...prepaymentPeriodFromPaidThrough(paidThroughAt, dto.monthsCovered),
           paidAt: now,
           reference: dto.reference ?? null,
           note: dto.note ?? null,

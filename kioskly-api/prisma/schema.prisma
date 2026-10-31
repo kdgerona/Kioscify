@@ -1222,6 +1222,8 @@ model BillingPayment {
   manualMethod     String? // cash | bank_transfer | bank_qr | gcash_direct | other
   amountCentavos   Int
   monthsCovered    Int                  @default(1)
+  periodStart      DateTime? // prepayments: first day covered (missing on old rows until backfilled)
+  periodEnd        DateTime? // prepayments: exclusive end, like invoices
   paidAt           DateTime
   reference        String?
   providerIntentId String?

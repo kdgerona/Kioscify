@@ -292,7 +292,15 @@ describe('BillingPaymentsService', () => {
         'admin-1',
       );
       expect(mockPrisma.billingPayment.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ invoiceId: null, source: 'PREPAYMENT', method: 'PREPAID', monthsCovered: 3, amountCentavos: 450000 }),
+        data: expect.objectContaining({
+          invoiceId: null,
+          source: 'PREPAYMENT',
+          method: 'PREPAID',
+          monthsCovered: 3,
+          amountCentavos: 450000,
+          periodStart: m(2026, 10, 1),
+          periodEnd: m(2027, 1, 1),
+        }),
       });
       expect(mockPrisma.storeSubscription.update).toHaveBeenCalledWith({
         where: { id: 'sub-1' },

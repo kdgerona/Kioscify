@@ -7,8 +7,39 @@ import { describeStoreView } from '../common/utils/billing-copy.util';
 import { addZonedDays } from '../common/utils/timezone';
 import { toSubscriptionInput } from './billing-status.service';
 import { BillingRemindersService, reminderCopy } from './billing-reminders.service';
+import { prepaymentPeriod, prepaymentReceiptNumber } from './prepayment-receipt.util';
 
 export const STORE_ADMIN_ROLES = ['STORE_ADMIN', 'ADMIN'];
+
+const HISTORY_LIMIT = 100;
+
+interface PrepaymentRow {
+  id: string;
+  paidAt: Date;
+  amountCentavos: number;
+  monthsCovered: number;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+  reference: string | null;
+  manualMethod: string | null;
+}
+
+/** A prepayment as an already-paid invoice row, so history and receipt screens render it unchanged. */
+function prepaymentAsInvoice(p: PrepaymentRow) {
+  const { periodStart, periodEnd } = prepaymentPeriod(p);
+  return {
+    id: p.id,
+    number: prepaymentReceiptNumber(p),
+    periodStart,
+    periodEnd,
+    amountCentavos: p.amountCentavos,
+    // Nothing was ever due; the payment date is the only meaningful date
+    dueAt: p.paidAt,
+    status: 'PAID' as const,
+    paidAt: p.paidAt,
+    paymentMethod: 'PREPAID' as const,
+  };
+}
 
 export interface BillingMeUser {
   id: string;
@@ -124,18 +155,26 @@ export class BillingMeService {
     };
   }
 
+  /** Billing history: invoices plus prepayments (which have no invoice), newest period first. */
   async listInvoices(tenantId: string) {
-    const invoices = await this.prisma.billingInvoice.findMany({
-      where: { tenantId },
-      orderBy: [{ periodStart: 'desc' }, { revision: 'desc' }],
-      take: 100,
-    });
+    const [invoices, prepayments] = await Promise.all([
+      this.prisma.billingInvoice.findMany({
+        where: { tenantId },
+        orderBy: [{ periodStart: 'desc' }, { revision: 'desc' }],
+        take: HISTORY_LIMIT,
+      }),
+      this.prisma.billingPayment.findMany({
+        where: { tenantId, source: 'PREPAYMENT', flagged: false },
+        orderBy: { paidAt: 'desc' },
+        take: HISTORY_LIMIT,
+      }),
+    ]);
     const payments = await this.prisma.billingPayment.findMany({
       where: { invoiceId: { in: invoices.map(i => i.id) }, flagged: false },
       select: { invoiceId: true, reference: true, manualMethod: true, flagged: true },
     });
     const byInvoice = new Map(payments.map(p => [p.invoiceId, p]));
-    return invoices.map(i => ({
+    const invoiceRows = invoices.map(i => ({
       id: i.id,
       number: i.number,
       periodStart: i.periodStart,
@@ -148,18 +187,25 @@ export class BillingMeService {
       reference: byInvoice.get(i.id)?.reference ?? null,
       manualMethod: byInvoice.get(i.id)?.manualMethod ?? null,
     }));
+    const prepaymentRows = prepayments.map(p => ({
+      ...prepaymentAsInvoice(p),
+      reference: p.reference,
+      manualMethod: p.manualMethod,
+    }));
+    // Stable sort keeps the invoices' revision order within a period
+    return [...invoiceRows, ...prepaymentRows]
+      .sort((a, b) => b.periodStart.getTime() - a.periodStart.getTime())
+      .slice(0, HISTORY_LIMIT);
   }
 
-  /** Receipt data for one of the caller's own invoices. */
+  /** Receipt data for one of the caller's own invoices — or prepayments, which share the receipt screen. */
   async getInvoice(tenantId: string, id: string) {
     const invoice = await this.prisma.billingInvoice.findUnique({ where: { id } });
-    if (!invoice || invoice.tenantId !== tenantId) throw new NotFoundException(`Invoice ${id} not found`);
-    const [payments, tenant] = await Promise.all([
+    if (!invoice) return this.getPrepaymentReceipt(tenantId, id);
+    if (invoice.tenantId !== tenantId) throw new NotFoundException(`Invoice ${id} not found`);
+    const [payments, store] = await Promise.all([
       this.prisma.billingPayment.findMany({ where: { invoiceId: id, flagged: false }, orderBy: { paidAt: 'asc' } }),
-      this.prisma.tenant.findUnique({
-        where: { id: tenantId },
-        select: { name: true, address: true, company: { select: { name: true } }, brand: { select: { name: true } } },
-      }),
+      this.receiptStore(tenantId),
     ]);
     return {
       invoice: {
@@ -174,20 +220,51 @@ export class BillingMeService {
         paidAt: invoice.paidAt,
         paymentMethod: invoice.paymentMethod,
       },
-      payments: payments.map(p => ({
-        id: p.id,
-        paidAt: p.paidAt,
-        amountCentavos: p.amountCentavos,
-        method: p.method,
-        manualMethod: p.manualMethod,
-        reference: p.reference,
-      })),
-      store: {
-        name: tenant?.name ?? '',
-        address: tenant?.address ?? null,
-        companyName: tenant?.company?.name ?? null,
-        brandName: tenant?.brand?.name ?? null,
-      },
+      payments: payments.map(p => this.receiptPayment(p)),
+      store,
+    };
+  }
+
+  private async getPrepaymentReceipt(tenantId: string, id: string) {
+    const payment = await this.prisma.billingPayment.findFirst({
+      where: { id, tenantId, source: 'PREPAYMENT', flagged: false },
+    });
+    if (!payment) throw new NotFoundException(`Invoice ${id} not found`);
+    return {
+      invoice: { ...prepaymentAsInvoice(payment), issuedAt: payment.paidAt },
+      payments: [this.receiptPayment(payment)],
+      store: await this.receiptStore(tenantId),
+    };
+  }
+
+  private receiptPayment(p: {
+    id: string;
+    paidAt: Date;
+    amountCentavos: number;
+    method: string;
+    manualMethod: string | null;
+    reference: string | null;
+  }) {
+    return {
+      id: p.id,
+      paidAt: p.paidAt,
+      amountCentavos: p.amountCentavos,
+      method: p.method,
+      manualMethod: p.manualMethod,
+      reference: p.reference,
+    };
+  }
+
+  private async receiptStore(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true, address: true, company: { select: { name: true } }, brand: { select: { name: true } } },
+    });
+    return {
+      name: tenant?.name ?? '',
+      address: tenant?.address ?? null,
+      companyName: tenant?.company?.name ?? null,
+      brandName: tenant?.brand?.name ?? null,
     };
   }
 }

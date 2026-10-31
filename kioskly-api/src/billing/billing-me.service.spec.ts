@@ -34,7 +34,7 @@ const openInvoice = {
 const mockPrisma = {
   storeSubscription: { findUnique: jest.fn() },
   billingInvoice: { findFirst: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
-  billingPayment: { findMany: jest.fn() },
+  billingPayment: { findMany: jest.fn(), findFirst: jest.fn() },
   tenant: { findUnique: jest.fn() },
 };
 let rawConfig: any;
@@ -137,7 +137,9 @@ describe('BillingMeService', () => {
 
   it('listInvoices joins the applied payment method and reference', async () => {
     mockPrisma.billingInvoice.findMany.mockResolvedValue([{ ...openInvoice, status: 'PAID', paidAt: m(2026, 10, 17), paymentMethod: 'QRPH' }]);
-    mockPrisma.billingPayment.findMany.mockResolvedValue([{ invoiceId: 'inv-1', reference: 'pay_1', manualMethod: null, flagged: false }]);
+    mockPrisma.billingPayment.findMany
+      .mockResolvedValueOnce([]) // prepayments
+      .mockResolvedValueOnce([{ invoiceId: 'inv-1', reference: 'pay_1', manualMethod: null, flagged: false }]);
     const rows = await service.listInvoices('t-1');
     expect(mockPrisma.billingInvoice.findMany).toHaveBeenCalledWith({
       where: { tenantId: 't-1' },
@@ -145,6 +147,69 @@ describe('BillingMeService', () => {
       take: 100,
     });
     expect(rows[0]).toMatchObject({ id: 'inv-1', status: 'PAID', paymentMethod: 'QRPH', reference: 'pay_1' });
+  });
+
+  describe('prepayments', () => {
+    const prepayment = {
+      id: '6720aa00bb11cc22dd33ef9a',
+      tenantId: 't-1',
+      source: 'PREPAYMENT',
+      method: 'PREPAID',
+      manualMethod: 'bank_transfer',
+      amountCentavos: 300000,
+      monthsCovered: 2,
+      periodStart: m(2026, 11, 1),
+      periodEnd: m(2027, 1, 1),
+      paidAt: m(2026, 10, 20),
+      reference: 'BT-9',
+      flagged: false,
+    };
+
+    it('listInvoices shows non-flagged prepayments as paid rows, newest period first', async () => {
+      mockPrisma.billingInvoice.findMany.mockResolvedValue([{ ...openInvoice, status: 'PAID', paidAt: m(2026, 10, 17), paymentMethod: 'QRPH' }]);
+      mockPrisma.billingPayment.findMany.mockResolvedValueOnce([prepayment]).mockResolvedValueOnce([]);
+      const rows = await service.listInvoices('t-1');
+      expect(mockPrisma.billingPayment.findMany).toHaveBeenNthCalledWith(1, {
+        where: { tenantId: 't-1', source: 'PREPAYMENT', flagged: false },
+        orderBy: { paidAt: 'desc' },
+        take: 100,
+      });
+      expect(rows.map(r => r.id)).toEqual([prepayment.id, 'inv-1']);
+      expect(rows[0]).toEqual({
+        id: prepayment.id,
+        number: 'KSF-PRE-202611-33EF9A',
+        periodStart: m(2026, 11, 1),
+        periodEnd: m(2027, 1, 1),
+        amountCentavos: 300000,
+        dueAt: m(2026, 10, 20),
+        status: 'PAID',
+        paidAt: m(2026, 10, 20),
+        paymentMethod: 'PREPAID',
+        reference: 'BT-9',
+        manualMethod: 'bank_transfer',
+      });
+    });
+
+    it('getInvoice returns a receipt for one of the store\'s prepayments', async () => {
+      mockPrisma.billingInvoice.findUnique.mockResolvedValue(null);
+      mockPrisma.billingPayment.findFirst.mockResolvedValue(prepayment);
+      mockPrisma.tenant.findUnique.mockResolvedValue({ name: 'Store A', address: null, company: { name: 'Co' }, brand: null });
+      const receipt = await service.getInvoice('t-1', prepayment.id);
+      expect(mockPrisma.billingPayment.findFirst).toHaveBeenCalledWith({
+        where: { id: prepayment.id, tenantId: 't-1', source: 'PREPAYMENT', flagged: false },
+      });
+      expect(receipt.invoice).toMatchObject({ number: 'KSF-PRE-202611-33EF9A', status: 'PAID', paymentMethod: 'PREPAID', issuedAt: m(2026, 10, 20) });
+      expect(receipt.payments).toEqual([
+        { id: prepayment.id, paidAt: m(2026, 10, 20), amountCentavos: 300000, method: 'PREPAID', manualMethod: 'bank_transfer', reference: 'BT-9' },
+      ]);
+      expect(receipt.store).toEqual({ name: 'Store A', address: null, companyName: 'Co', brandName: null });
+    });
+
+    it('getInvoice 404s for a prepayment of another store (tenant-scoped lookup finds nothing)', async () => {
+      mockPrisma.billingInvoice.findUnique.mockResolvedValue(null);
+      mockPrisma.billingPayment.findFirst.mockResolvedValue(null);
+      await expect(service.getInvoice('t-1', prepayment.id)).rejects.toBeInstanceOf(NotFoundException);
+    });
   });
 
   describe('pendingReminder', () => {
