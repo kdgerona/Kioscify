@@ -2,6 +2,8 @@
 
 > **Deployed to production on 2026-10-30** (master `769fcfb`, server `/root/apps/Kioscify`). Server
 > steps 1–5 are done, and kiosk APK 1.2.0 (versionCode 8) is released as a force update. See the change log.
+>
+> **Not deployed yet:** change 11. For it, run steps 1, 2, 4 (api only), 4b and the change 11 smoke test.
 
 Running checklist for everything on `feature/store-transactions-pagination`
 that has **not been merged to master or deployed yet**. Each fix added to the
@@ -24,6 +26,7 @@ Production: `docker-compose.yml`, project `kioscify-production`.
 | 8 | **Payment successful** confirmation: after a QR payment goes through, Store Portal and kiosk show "Payment successful" with **View receipt**, **Go to Billing** and **Done**. Before, the success message flickered away (the due banner, the overdue screen and Resubscribe all close the moment the payment lands). Adds a receipt screen on the kiosk; paid rows in kiosk billing history open it. **Also fixes** a paid store still seeing "Subscription due" (and being invoiced again) when its next billing date sat inside a month it had already paid; paying an older invoice no longer pulls paid-through back | `e82342e`, `8532087` | api, store | Check (read-only): `billing-dates-check.js` | **Yes** (same APK, step 6) |
 | 9 | **Free trial banner**: stores on their free trial see a blue "Free trial — N days left" banner (Store Portal and kiosk, admins and cashiers) with an **X** to close it. Closed, it comes back the next day with the updated count. In the last 7 days before the first billing date the existing due reminder takes its place, unchanged (collapse only). Platform's "what the store sees" preview shows it too | `5ca602e` | api, store, platform | None | **Yes** (same APK, step 6) |
 | 10 | **Pay at the end of each month, for new stores only.** A store set up from now on gets its free trial, then its first month starts when the trial ends and is **paid a month later** (trial ends Nov 13 → first payment Dec 13 for Nov 13 – Dec 12, then Jan 13 for Dec 13 – Jan 12). Applies to stores onboarded from Platform and to existing **Not set up** stores when they're first set up. Onboarding's first payment date is now optional and defaults to a month after the trial ends. **Existing stores don't change:** every store already billed, exempt, prepaid, invoiced or with a month ticked paid in the manual ledger keeps paying in advance. Platform shows each store's **Payment timing**; the schedule preview says which month each bill covers. Also brings back Platform's "Coming up" schedule during a store's trial (hidden by change 9) | `95a8b76` | api, platform | Check (read-only): `billing-timing-check.js`. New optional field `StoreSubscription.billedInArrears`, no backfill | No |
+| 11 | **Prepayments in billing history, with a receipt.** A prepayment recorded in Platform (Subscriptions → store → Prepayment) didn't appear in the store's billing history: Store Portal and kiosk showed "No invoices yet." and there was no receipt. Each prepayment now shows as a **Paid** row (method **Prepaid**, the months it covers as the period, number `KSF-PRE-YYYYMM-XXXXXX`) and opens a receipt like any paid invoice. API only: the already-released kiosk APK 1.2.0 and the Store Portal show it without a rebuild | `19c1852` | api | Backfill: `prepayment-periods-backfill.js` (step 4b). New optional fields `BillingPayment.periodStart` / `periodEnd`, not filtered on | No |
 
 **Services to rebuild:** `api`, `store`, `platform`. Deploy `api` and `platform` together (change 4): the new Platform tab reads the API's new `inactive` count.
 **Not affected:** `company`, nginx, MongoDB, Redis, MinIO.
@@ -142,6 +145,26 @@ curl -s -o /dev/null -w "%{http_code}\n" https://kioscify.com          # 200
 curl -s -o /dev/null -w "%{http_code}\n" https://platform.kioscify.com/login  # 200
 ```
 
+### 4b. Backfill prepayment periods (from change 11)
+
+`docs/deployment/prepayment-periods-backfill.js` copies the period each older prepayment covers
+from its `payment.prepayment` audit entry onto the payment, so the history row and the receipt show
+the right months. New prepayments save it themselves. It's a **dry run unless `APPLY=true`**, and only
+touches prepayments with no period yet, so re-running it is safe. Run it after step 4: until it runs,
+older prepayments still show, but with a period estimated from the payment date.
+
+```bash
+docker cp docs/deployment/prepayment-periods-backfill.js kioskly-mongo:/tmp/prepayment-periods-backfill.js
+# Dry run: check each listed period against Platform → Subscriptions → the store's paid-through date
+docker exec kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet --file /tmp/prepayment-periods-backfill.js
+# Write
+docker exec kioskly-mongo mongosh "$(docker exec kioskly-api printenv DATABASE_URL)" --quiet --eval 'var APPLY=true' --file /tmp/prepayment-periods-backfill.js
+```
+
+Expected: one line per prepayment ending the day it's paid through, then `Backfilled N prepayment(s).`
+Any `SKIP` line (no matching audit entry) leaves that prepayment showing the estimated period;
+note it and tell the developer.
+
 ### 5. Smoke test
 
 - `docker compose ps`: `api`, `store` and `platform` are healthy.
@@ -179,6 +202,11 @@ curl -s -o /dev/null -w "%{http_code}\n" https://platform.kioscify.com/login  # 
   On an existing **billed** store, Platform → Subscriptions → Settings shows **Payment timing: In
   advance** and its Next billing date is unchanged. Delete any test store you onboard.
 - **Billing dates** (change 8): any store listed by step 3b no longer shows Due for a month it paid.
+- **Prepayments** (change 11): for a store with a prepayment (e.g. the store from the report: paid
+  through Nov 1 2026, next billing Jan 1 2027), Store Portal → **Billing** → Billing history shows a
+  **Paid** row with method **Prepaid** and the months it covers. **Receipt** opens a receipt numbered
+  `KSF-PRE-…` with the period, total and "Prepaid · Ref …". On the kiosk (APK 1.2.0, no update), Settings →
+  Billing & Payments shows the same row, and **View receipt ›** opens it.
 - **Pay now on a phone** (change 6): on a store that is Due, open the Store Portal on a phone;
   one tap on the banner's **Pay now** opens the payment window. Same on a phone kiosk (after step 6).
 
@@ -222,6 +250,8 @@ Rolling back change 10: the old code ignores `billedInArrears`, so a store set u
 is billed in advance from its stored next billing date (a Dec 13 bill would then cover Dec 13 –
 Jan 12). Nobody is charged twice; such a store just never pays for its first month. Check the
 stores listed under "End of month" by step 3c if you roll back.
+Rolling back change 11: the old code ignores the new prepayment period fields, so prepayments
+just disappear from store billing history again. Nothing to undo.
 
 ---
 
@@ -251,3 +281,5 @@ stores listed under "End of month" by step 3c if you roll back.
   `billing-dates-check.js` (read as REPL input).
 - **2026-10-30**: Kiosk APK **1.2.0** (versionCode 8) uploaded in Platform → Kiosk App as a
   **force update** (step 6, changes 5–9).
+- **2026-10-31**: Added change 11 (prepayments in billing history with a receipt). API only; adds
+  the backfill, step 4b. No kiosk APK, no portal rebuild.
