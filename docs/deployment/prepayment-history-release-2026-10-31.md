@@ -115,3 +115,9 @@ history again. Nothing to undo; the backfilled fields can stay.
   it paid for **Nov 1 – Dec 31 2026**, so that period was set directly on that one payment instead
   of running `APPLY=true`. Its paid-through date (Nov 1) was left unchanged. A re-run of the dry
   run reports 0 missing.
+- **2026-10-31**: **Paid-through corrected for Sudtunggan LLC** (one-off, owner approved). Paid-through
+  isn't editable in Platform (only invoice payments and prepayments set it), so it was changed in the
+  database: paid-through Nov 1 → **Dec 31 2026**, and the monthly checklist row moved from October to
+  **December** (now November + December prepaid, matching the receipt period). Next billing stays Jan 1
+  2027 (an override). Audit entry `payment.prepayment.correct` added under the platform admin. Backup
+  `backups/pre-sudtunggan-paid-through-2026-10-31.gz`.
