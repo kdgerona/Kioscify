@@ -12,6 +12,7 @@ const DEFAULT_FULL: StorePrivileges = {
   inventory: 'all',
   users: 'all',
   settings: 'all',
+  rewards: 'all',
 };
 
 interface Props {

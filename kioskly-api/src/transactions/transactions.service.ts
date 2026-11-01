@@ -7,7 +7,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { VoidFiltersDto, VoidStatusFilter } from './dto/void-filters.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, RewardEvent } from '@prisma/client';
+import { RewardsService } from '../rewards/rewards.service';
 import { getZonedDayBounds, getZonedMonthBounds } from '../common/utils/timezone';
 import {
   PaginationParams,
@@ -29,6 +30,7 @@ type TransactionWithIncludes = Prisma.TransactionGetPayload<{
         role: true;
       };
     };
+    rewardEvents: true,
     items: {
       include: {
         product: true;
@@ -53,14 +55,19 @@ type TransactionWithItems = Prisma.TransactionGetPayload<{
 
 @Injectable()
 export class TransactionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private rewardsService: RewardsService,
+  ) {}
 
   async create(
     createTransactionDto: CreateTransactionDto,
     userId: string,
     tenantId: string,
   ) {
-    const { items, clientId, timestamp, ...transactionData } =
+    // `rewards` is not a Transaction column; it becomes RewardEvent rows below.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { items, clientId, timestamp, rewards, ...transactionData } =
       createTransactionDto;
 
     // Offline deduplication: if clientId already exists, return 409
@@ -76,7 +83,14 @@ export class TransactionsService {
       }
     }
 
-    const transaction = await this.prisma.transaction.create({
+    // Validate reward applications before writing anything (400 on malformed).
+    const rewardDrafts = await this.rewardsService.prepareTransactionRewards(
+      tenantId,
+      userId,
+      createTransactionDto,
+    );
+
+    const createArgs = {
       data: {
         ...transactionData,
         // Preserve the on-device creation time so offline transactions are
@@ -114,6 +128,7 @@ export class TransactionsService {
             role: true,
           },
         },
+        rewardEvents: true,
         items: {
           include: {
             product: true,
@@ -127,7 +142,46 @@ export class TransactionsService {
           },
         },
       },
-    });
+    } satisfies Prisma.TransactionCreateArgs;
+
+    let transaction: TransactionWithIncludes;
+    try {
+      if (rewardDrafts.length === 0) {
+        transaction = await this.prisma.transaction.create(createArgs);
+      } else {
+        // Transaction + its reward events commit together or not at all.
+        transaction = await this.prisma.$transaction(async (tx) => {
+          const created = await tx.transaction.create(createArgs);
+          await tx.rewardEvent.createMany({
+            data: rewardDrafts.map((d) => ({ ...d, transactionId: created.id })),
+          });
+          const rewardEvents = await tx.rewardEvent.findMany({
+            where: { transactionId: created.id },
+            orderBy: { createdAt: 'asc' },
+          });
+          return { ...created, rewardEvents };
+        });
+      }
+    } catch (err) {
+      // Concurrent sync of the same offline sale: the unique (tenantId, clientId)
+      // index rejects the loser; report it like the pre-check does.
+      if (
+        clientId &&
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        const existing = await this.prisma.transaction.findFirst({
+          where: { tenantId, clientId },
+        });
+        if (existing) {
+          throw new ConflictException({
+            message: 'Transaction already synced',
+            id: existing.id,
+          });
+        }
+      }
+      throw err;
+    }
 
     return this.formatTransaction(transaction);
   }
@@ -208,6 +262,7 @@ export class TransactionsService {
               role: true,
             },
           },
+          rewardEvents: true,
           items: {
             include: {
               product: true,
@@ -254,6 +309,7 @@ export class TransactionsService {
             role: true,
           },
         },
+        rewardEvents: true,
         items: {
           include: {
             product: true,
@@ -299,6 +355,7 @@ export class TransactionsService {
             role: true,
           },
         },
+        rewardEvents: true,
         items: {
           include: {
             product: true,
@@ -394,7 +451,9 @@ export class TransactionsService {
     };
   }
 
-  private formatTransaction(transaction: TransactionWithIncludes) {
+  private formatTransaction(
+    transaction: TransactionWithIncludes & { rewardEvents?: RewardEvent[] },
+  ) {
     return {
       id: transaction.id,
       transactionId: transaction.transactionId,
@@ -435,6 +494,24 @@ export class TransactionsService {
         discountAmount: item.discountAmount ?? null,
         addons: item.addons?.map((a) => a.addon) || [],
       })),
+      rewards: (transaction.rewardEvents ?? [])
+        .slice()
+        .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
+        .map((e) => ({
+          id: e.id,
+          programId: e.programId,
+          programType: e.programType,
+          programName: e.programName,
+          type: e.type,
+          slotKey: e.slotKey ?? null,
+          slotLabel: e.slotLabel ?? null,
+          itemIndex: e.itemIndex ?? null,
+          productName: e.productName ?? null,
+          discountAmount: e.discountAmount ?? null,
+          isVoided: e.isVoided,
+          validationWarnings: e.validationWarnings ?? [],
+          occurredAt: e.occurredAt,
+        })),
     };
   }
 
@@ -473,51 +550,61 @@ export class TransactionsService {
     const isAdmin = userRole === 'STORE_ADMIN' || userRole === 'ADMIN';
     const now = new Date();
 
-    // Update transaction with void request
-    const updated = await this.prisma.transaction.update({
-      where: { id: transactionId },
-      data: {
-        voidStatus: isAdmin ? 'APPROVED' : 'PENDING',
-        voidReason: reason,
-        voidRequestedBy: userId,
-        voidRequestedAt: now,
-        ...(isAdmin && { voidReviewedBy: userId, voidReviewedAt: now }),
-      } as any,
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-        voidRequester: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
+    // Update transaction with void request. A direct (admin) approval also
+    // voids the transaction's reward events, atomically.
+    const run = async (client: Prisma.TransactionClient | PrismaService) => {
+      if (isAdmin) {
+        await this.rewardsService.markTransactionVoided(transactionId, client);
+      }
+      return client.transaction.update({
+        where: { id: transactionId },
+        data: {
+          voidStatus: isAdmin ? 'APPROVED' : 'PENDING',
+          voidReason: reason,
+          voidRequestedBy: userId,
+          voidRequestedAt: now,
+          ...(isAdmin && { voidReviewedBy: userId, voidReviewedAt: now }),
         } as any,
-        items: {
-          include: {
-            product: true,
-            size: true,
-            preference: true,
-            addons: {
-              include: {
-                addon: true,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
+          },
+          voidRequester: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
+          } as any,
+          rewardEvents: true,
+          items: {
+            include: {
+              product: true,
+              size: true,
+              preference: true,
+              addons: {
+                include: {
+                  addon: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
+    };
+    const updated = isAdmin
+      ? await this.prisma.$transaction((tx) => run(tx))
+      : await run(this.prisma);
 
     return this.formatTransaction(updated as any);
   }
@@ -583,6 +670,7 @@ export class TransactionsService {
             role: true,
           },
         } as any,
+        rewardEvents: true,
         items: {
           include: {
             product: true,
@@ -631,57 +719,62 @@ export class TransactionsService {
       );
     }
 
-    const updated = await this.prisma.transaction.update({
-      where: { id: transactionId },
-      data: {
-        voidStatus: 'APPROVED',
-        voidReviewedBy: reviewerId,
-        voidReviewedAt: new Date(),
-      } as any,
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
-        },
-        voidRequester: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
+    // Approving the void also voids the transaction's reward events, atomically.
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await this.rewardsService.markTransactionVoided(transactionId, tx);
+      return tx.transaction.update({
+        where: { id: transactionId },
+        data: {
+          voidStatus: 'APPROVED',
+          voidReviewedBy: reviewerId,
+          voidReviewedAt: new Date(),
         } as any,
-        voidReviewer: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
           },
-        } as any,
-        items: {
-          include: {
-            product: true,
-            size: true,
-            preference: true,
-            addons: {
-              include: {
-                addon: true,
+          voidRequester: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
+          } as any,
+          voidReviewer: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
+          } as any,
+          rewardEvents: true,
+          items: {
+            include: {
+              product: true,
+              size: true,
+              preference: true,
+              addons: {
+                include: {
+                  addon: true,
+                },
               },
             },
           },
         },
-      },
+      });
     });
 
     return this.formatTransaction(updated as any);
@@ -752,6 +845,7 @@ export class TransactionsService {
             role: true,
           },
         } as any,
+        rewardEvents: true,
         items: {
           include: {
             product: true,

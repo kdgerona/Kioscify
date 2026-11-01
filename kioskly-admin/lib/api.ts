@@ -36,6 +36,15 @@ import type {
   Paginated,
   PageParams,
 } from "@/types";
+import type {
+  RewardProgram,
+  RewardProgramStatus,
+  CreateRewardProgramPayload,
+  UpdateRewardProgramPayload,
+  RewardEvent,
+  RewardEventsQuery,
+  RewardSummary,
+} from "@/components/rewards/types";
 
 // API base URL - includes the /api/v1 prefix
 const API_BASE_URL =
@@ -945,6 +954,60 @@ class ApiClient {
 
   async updateStoreInventoryItem(id: string, payload: Partial<{ minStockLevel: number; requiresExpirationDate: boolean; expirationWarningDays: number }>): Promise<InventoryItem> {
     const { data } = await this.client.patch<InventoryItem>(`/inventory/items/${id}/store-config`, payload);
+    return data;
+  }
+
+  // ─── Rewards ───────────────────────────────────────────────────────────────
+  // Store users are pinned to their own store server-side: programs = this
+  // store's own (STORE scope) + enrolled company programs (editable: false).
+
+  async getRewardPrograms(params: { status?: RewardProgramStatus } = {}): Promise<RewardProgram[]> {
+    const { data } = await this.client.get<RewardProgram[]>("/rewards/programs", { params });
+    return data;
+  }
+
+  async getRewardProgram(id: string): Promise<RewardProgram> {
+    const { data } = await this.client.get<RewardProgram>(`/rewards/programs/${id}`);
+    return data;
+  }
+
+  /** No brandId: the API fixes store programs to the caller's store and brand. */
+  async createRewardProgram(payload: Omit<CreateRewardProgramPayload, "brandId">): Promise<RewardProgram> {
+    const { data } = await this.client.post<RewardProgram>("/rewards/programs", payload);
+    return data;
+  }
+
+  async updateRewardProgram(id: string, payload: UpdateRewardProgramPayload): Promise<RewardProgram> {
+    const { data } = await this.client.patch<RewardProgram>(`/rewards/programs/${id}`, payload);
+    return data;
+  }
+
+  async deleteRewardProgram(id: string): Promise<void> {
+    await this.client.delete(`/rewards/programs/${id}`);
+  }
+
+  // Boolean filters are sent only when true: the API's whitelisting
+  // ValidationPipe treats "false" the same as absent anyway.
+  private rewardEventParams(query: Omit<RewardEventsQuery, "storeId">) {
+    const { includeVoided, onlyFlagged, ...rest } = query;
+    return {
+      ...Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined && v !== "")),
+      ...(includeVoided ? { includeVoided: true } : {}),
+      ...(onlyFlagged ? { onlyFlagged: true } : {}),
+    };
+  }
+
+  async getRewardEvents(query: Omit<RewardEventsQuery, "storeId">): Promise<Paginated<RewardEvent>> {
+    const { data } = await this.client.get<Paginated<RewardEvent>>("/rewards/events", {
+      params: this.rewardEventParams({ page: 1, limit: 10, ...query }),
+    });
+    return data;
+  }
+
+  async getRewardSummary(query: Omit<RewardEventsQuery, "storeId" | "page" | "limit">): Promise<RewardSummary> {
+    const { data } = await this.client.get<RewardSummary>("/rewards/summary", {
+      params: this.rewardEventParams(query),
+    });
     return data;
   }
 }

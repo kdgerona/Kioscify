@@ -5,6 +5,7 @@ import { type Product, type Size, type Addon } from "../data/mockData";
 import { useTenant } from "@/contexts/TenantContext";
 import { type ItemDiscount } from "@/utils/discount";
 import { type PaymentSplitLine } from "./CheckoutModal";
+import { stampCircleCount, type RewardReceiptProgram } from "@/utils/rewards";
 
 type OrderItem = {
   id: string;
@@ -14,6 +15,8 @@ type OrderItem = {
   selectedAddons: Addon[];
   selectedPreference?: { id: string; name: string };
   itemDiscount?: ItemDiscount;
+  rewardDiscount?: number;
+  rewardLabel?: string;
 };
 
 type PaymentMethodType = "cash" | "gcash" | "paymaya" | "online" | "foodpanda" | "grab" | "split";
@@ -39,6 +42,7 @@ type TransactionData = {
   change?: number;
   referenceNumber?: string;
   payments?: PaymentSplitLine[];
+  rewards?: RewardReceiptProgram[];
 };
 
 type TransactionSummaryProps = {
@@ -65,6 +69,9 @@ const formatTime = (date: Date): string => {
   };
   return date.toLocaleTimeString("en-US", options);
 };
+
+const lineDiscount = (item: OrderItem): number =>
+  (item.itemDiscount?.amount ?? 0) + (item.rewardDiscount ?? 0);
 
 const calculateItemPrice = (item: OrderItem): number => {
   let price = item.product.price;
@@ -189,13 +196,13 @@ export default function TransactionSummary({
                           <Text className="text-sm text-gray-600 mb-1">
                             Qty: {item.quantity}
                           </Text>
-                          {item.itemDiscount ? (
+                          {lineDiscount(item) > 0 ? (
                             <>
                               <Text className="text-xs text-gray-400 line-through">
                                 ₱{(calculateItemPrice(item) * item.quantity).toFixed(2)}
                               </Text>
                               <Text className="font-bold text-red-600">
-                                ₱{(calculateItemPrice(item) * item.quantity - item.itemDiscount.amount).toFixed(2)}
+                                ₱{(calculateItemPrice(item) * item.quantity - lineDiscount(item)).toFixed(2)}
                               </Text>
                             </>
                           ) : (
@@ -250,6 +257,16 @@ export default function TransactionSummary({
                             </Text>
                           </View>
                         )}
+                        {!!item.rewardDiscount && item.rewardDiscount > 0 && (
+                          <View className="flex-row justify-between mb-1">
+                            <Text className="text-xs text-green-700">
+                              Reward{item.rewardLabel ? ` (${item.rewardLabel})` : ""}:
+                            </Text>
+                            <Text className="text-xs text-green-700 font-medium">
+                              -₱{item.rewardDiscount.toFixed(2)}
+                            </Text>
+                          </View>
+                        )}
                         <View className="border-t border-gray-300 pt-2 mt-1">
                           <View className="flex-row justify-between">
                             <Text className="text-xs font-semibold text-gray-700">
@@ -299,7 +316,7 @@ export default function TransactionSummary({
 
               {(() => {
                 const itemDiscountTotal = transaction.items.reduce(
-                  (s, i) => s + (i.itemDiscount?.amount ?? 0),
+                  (s, i) => s + lineDiscount(i),
                   0,
                 );
                 const combinedDiscount = (transaction.discountAmount ?? 0) + itemDiscountTotal;
@@ -417,6 +434,37 @@ export default function TransactionSummary({
                   </View>
                 )}
               </View>
+
+              {/* Loyalty Card */}
+              {(transaction.rewards ?? []).length > 0 && (
+                <View className="border-t pt-3 mt-3" style={{ borderColor: `${primaryColor}80` }}>
+                  <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    Loyalty Card
+                  </Text>
+                  {(transaction.rewards ?? []).map((r) => (
+                    <View key={r.programId} className="mb-2">
+                      <Text className="text-sm font-bold" style={{ color: textColor }}>
+                        {r.programName}
+                      </Text>
+                      {r.cardIssued && <Text className="text-sm text-gray-700">  • New card issued</Text>}
+                      {r.stampLabels.length > 0 && (
+                        <Text className="text-sm text-gray-700">  • Stamped: {r.stampLabels.join(", ")}</Text>
+                      )}
+                      {r.redemption && (
+                        <Text className="text-sm text-gray-700">
+                          {"  • "}{r.redemption.label}: −₱{r.redemption.discountAmount.toFixed(2)} on {r.redemption.productName}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                  {stampCircleCount(transaction.rewards ?? []) > 0 && (
+                    <Text className="text-sm font-semibold" style={{ color: "#1f2937" }}>
+                      Stamp the paper card: {stampCircleCount(transaction.rewards ?? [])} circle
+                      {stampCircleCount(transaction.rewards ?? []) === 1 ? "" : "s"}.
+                    </Text>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* Thank You Message */}

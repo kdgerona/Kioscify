@@ -341,7 +341,7 @@ describe('UsersService', () => {
       expect(mockPrisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            companyPrivileges: { brands: 'read', analytics: 'read', users: 'read', settings: 'read' },
+            companyPrivileges: { brands: 'read', analytics: 'read', users: 'read', settings: 'read', rewards: 'read' },
           }),
         }),
       );
@@ -356,7 +356,7 @@ describe('UsersService', () => {
       expect(mockPrisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            companyPrivileges: { brands: 'read', analytics: 'read', users: 'read', settings: 'read' },
+            companyPrivileges: { brands: 'read', analytics: 'read', users: 'read', settings: 'read', rewards: 'read' },
           }),
         }),
       );

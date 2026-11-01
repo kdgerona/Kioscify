@@ -1,3 +1,4 @@
+import type { RewardApplication } from "../utils/rewards/types";
 import { apiPost, apiGet, apiPatch } from "../utils/api";
 import { safeReactotron } from "../utils/reactotron";
 import { enqueue, generateClientId } from "./syncEngine";
@@ -103,6 +104,9 @@ interface CreateTransactionPayload {
   remarks?: string;
   discountAmount?: number;
   items: TransactionItem[];
+  // Loyalty/reward applications. Optional and omitted entirely when empty, so
+  // an API without the rewards feature (forbidNonWhitelisted) still accepts it.
+  rewards?: RewardApplication[];
 }
 
 export interface TransactionItemResponse {

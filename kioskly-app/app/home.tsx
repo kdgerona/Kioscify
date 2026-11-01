@@ -12,7 +12,7 @@ import {
 import AppSafeAreaView from "../components/AppSafeAreaView";
 import BillingBanner from "../components/BillingBanner";
 import { useRouter, Href } from "expo-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useBilling } from "../contexts/BillingContext";
@@ -23,12 +23,31 @@ import ItemDiscountModal from "../components/ItemDiscountModal";
 import HoldOrderPromptModal from "../components/HoldOrderPromptModal";
 import HeldOrdersModal from "../components/HeldOrdersModal";
 import { createTransactionOffline } from "../services/transactionService";
-import { cacheCategories, getCachedCategories, cacheProducts, getCachedProducts } from "../lib/localCache";
+import {
+  cacheCategories,
+  getCachedCategories,
+  cacheProducts,
+  getCachedProducts,
+  cacheRewardPrograms,
+  getCachedRewardPrograms,
+} from "../lib/localCache";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Ionicons } from "@expo/vector-icons";
 import { useDeviceType } from "../hooks/useDeviceType";
 import { ItemDiscount } from "../utils/discount";
 import { showSuccessToast } from "../utils/toast";
+import {
+  buildAllRewardApplications,
+  buildRewardReceipt,
+  filterRunnablePrograms,
+  rewardDiscountsByOrderId,
+  rewardLabelsByOrderId,
+  stampCircleCount,
+  type ActiveRewardProgram,
+  type RewardCartLine,
+  type RewardReceiptProgram,
+  type RewardSelections,
+} from "../utils/rewards";
 
 type Size = {
   id: string;
@@ -83,6 +102,9 @@ type OrderItem = {
   selectedAddons: Addon[];
   selectedPreference?: Preference;
   itemDiscount?: ItemDiscount;
+  // Receipt-only snapshot of a loyalty redemption on this line (set at checkout).
+  rewardDiscount?: number;
+  rewardLabel?: string;
 };
 
 type HeldOrderItemAddon = { addonId: string; name: string; price: number };
@@ -135,6 +157,7 @@ type TransactionData = {
   change?: number;
   referenceNumber?: string;
   payments?: PaymentSplitLine[];
+  rewards?: RewardReceiptProgram[];
 };
 
 const HEADER_MENU_WIDTH = 280;
@@ -182,6 +205,26 @@ export default function Home() {
   const [showHoldLabelPrompt, setShowHoldLabelPrompt] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
   const [heldOrdersError, setHeldOrdersError] = useState<string | null>(null);
+  // Loyalty / rewards. Selections live here (not in CheckoutModal) because a
+  // redemption changes a cart line's total.
+  const [rewardPrograms, setRewardPrograms] = useState<ActiveRewardProgram[]>([]);
+  const [rewardsLoading, setRewardsLoading] = useState(false);
+  const [rewardsFromCache, setRewardsFromCache] = useState(false);
+  const [rewardSelections, setRewardSelections] = useState<RewardSelections>({});
+  const [queuedStampCount, setQueuedStampCount] = useState(0);
+  const handleRewardSelectionsChange = useCallback(
+    (next: RewardSelections) => setRewardSelections(next),
+    [],
+  );
+
+  // Selections are tied to the current cart: an emptied cart (sale done, cart
+  // saved, discarded) or an order-type switch invalidates all of them.
+  useEffect(() => {
+    if (orders.length === 0) setRewardSelections({});
+  }, [orders.length]);
+  useEffect(() => {
+    setRewardSelections({});
+  }, [orderType]);
 
   // Fetch categories and products from API, fall back to local cache when offline
   // Never interrupt a sale: the subscription lock waits until checkout ends.
@@ -226,7 +269,29 @@ export default function Home() {
         setIsLoadingData(false);
       }
     };
+    // Reward programs: fetched next to the catalog, cached for offline use.
+    // An error/404 (older API) means "no programs"; a network failure falls
+    // back to the cache, and with no cache the entry stays hidden.
+    const fetchRewards = async () => {
+      if (!tenant) return;
+      const cached = await getCachedRewardPrograms();
+      setRewardsLoading(!cached);
+      try {
+        const res = await apiGet("/rewards/active");
+        const data: ActiveRewardProgram[] = res.ok ? await res.json() : [];
+        const list = Array.isArray(data) ? data : [];
+        await cacheRewardPrograms(list);
+        setRewardPrograms(list);
+        setRewardsFromCache(false);
+      } catch {
+        setRewardPrograms((cached as ActiveRewardProgram[] | null) ?? []);
+        setRewardsFromCache(!!cached && cached.length > 0);
+      } finally {
+        setRewardsLoading(false);
+      }
+    };
     fetchData();
+    fetchRewards();
   }, [tenant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchHeldOrders = async () => {
@@ -385,6 +450,9 @@ export default function Home() {
     (p) => p.categoryId === selectedCategory,
   );
 
+  const getCategoryNameById = (categoryId: string): string =>
+    categories.find((c) => c.id === categoryId)?.name ?? "";
+
   const getEffectiveProductPrice = (product: Product): number => {
     if (orderType === 'foodpanda' && product.foodpandaPrice != null) return product.foodpandaPrice;
     if (orderType === 'grab' && product.grabPrice != null) return product.grabPrice;
@@ -414,8 +482,21 @@ export default function Home() {
     return price;
   };
 
+  // Delivery orders (FoodPanda/Grab) never offer the loyalty card: the paper
+  // card is an in-store thing and the API's base-price check is not
+  // delivery-price aware. Programs past their end date drop out here too.
+  const runnableRewardPrograms =
+    orderType === 'regular' ? filterRunnablePrograms(rewardPrograms) : [];
+  const rewardDiscounts = rewardDiscountsByOrderId(rewardSelections);
+  const rewardLabels = rewardLabelsByOrderId(runnableRewardPrograms, rewardSelections);
+  const getRewardDiscount = (item: OrderItem): number => rewardDiscounts[item.id] ?? 0;
+
+  /** Manual item discount + reward redemption: the payload item's discountAmount. */
+  const getItemTotalDiscount = (item: OrderItem): number =>
+    (item.itemDiscount?.amount ?? 0) + getRewardDiscount(item);
+
   const calculateItemLineTotal = (item: OrderItem): number =>
-    calculateItemPrice(item) * item.quantity - (item.itemDiscount?.amount ?? 0);
+    calculateItemPrice(item) * item.quantity - getItemTotalDiscount(item);
 
   const grossOrderTotal = orders.reduce(
     (sum, item) => sum + calculateItemPrice(item) * item.quantity,
@@ -426,6 +507,20 @@ export default function Home() {
     (sum, item) => sum + calculateItemLineTotal(item),
     0,
   );
+
+  // Same order as `backendItems` in handleCheckoutComplete (both are a plain
+  // orders.map), so a line's index here IS the payload itemIndex.
+  const rewardLines: RewardCartLine[] = orders.map((item) => ({
+    orderId: item.id,
+    productName: item.product.name,
+    categoryName: getCategoryNameById(item.product.categoryId) || null,
+    sizeName: item.selectedSize?.name ?? null,
+    quantity: item.quantity,
+    basePrice: getEffectiveProductPrice(item.product),
+    unitPrice: calculateItemPrice(item),
+    hasManualDiscount: !!item.itemDiscount && item.itemDiscount.amount > 0,
+  }));
+  const rewardDiscountTotal = orders.reduce((sum, item) => sum + getRewardDiscount(item), 0);
 
   const getCurrentCustomizationPrice = (): number => {
     if (!selectedProduct) return 0;
@@ -628,7 +723,12 @@ export default function Home() {
                 {brand?.preferenceLabel ?? 'Preferences'}: {item.selectedPreference.name}
               </Text>
             )}
-            {item.itemDiscount ? (
+            {getRewardDiscount(item) > 0 && (
+              <Text className="text-xs font-semibold mt-1" style={{ color: "#ef4444" }}>
+                Reward: {rewardLabels[item.id] ?? "Loyalty"} −₱{getRewardDiscount(item).toFixed(2)}
+              </Text>
+            )}
+            {getItemTotalDiscount(item) > 0 ? (
               <View className="flex-row items-center mt-1 gap-2">
                 <Text
                   className="font-semibold line-through text-xs"
@@ -651,11 +751,18 @@ export default function Home() {
           <View className="flex-row items-center gap-2">
             <TouchableOpacity
               className="w-8 h-8 rounded justify-center items-center"
-              style={{ backgroundColor: item.itemDiscount ? "#ef444420" : `${primaryColor}20` }}
-              onPress={() => {
-                if (!showCheckoutModal) onOpenDiscount(item.id);
+              style={{
+                backgroundColor: item.itemDiscount ? "#ef444420" : `${primaryColor}20`,
+                // A reward is applied: manual discounts are locked so the two can't stack.
+                opacity: getRewardDiscount(item) > 0 ? 0.35 : 1,
               }}
-              disabled={showCheckoutModal}
+              onPress={() => {
+                if (!showCheckoutModal && getRewardDiscount(item) === 0) onOpenDiscount(item.id);
+              }}
+              disabled={showCheckoutModal || getRewardDiscount(item) > 0}
+              accessibilityLabel={
+                getRewardDiscount(item) > 0 ? "Discount locked: a reward is applied" : "Item discount"
+              }
             >
               <Ionicons
                 name="pricetag-outline"
@@ -784,8 +891,10 @@ export default function Home() {
         preferenceId: item.selectedPreference?.id,
         preferenceName: item.selectedPreference?.name,
         subtotal: calculateItemPrice(item) * item.quantity,
-        ...(item.itemDiscount && item.itemDiscount.amount > 0 && {
-          discountAmount: item.itemDiscount.amount,
+        // Manual item discount + any reward redemption on this line (the API
+        // expects REWARD_REDEEMED's amount to be inside the item's discountAmount).
+        ...(getItemTotalDiscount(item) > 0 && {
+          discountAmount: getItemTotalDiscount(item),
         }),
         addons: item.selectedAddons.map((addon) => ({
           addonId: addon.id,
@@ -797,6 +906,15 @@ export default function Home() {
       // offline queue, this timestamp is sent to the server on sync so the
       // record reflects when the sale happened, not when it was uploaded.
       const saleTimestamp = new Date().toISOString();
+
+      // itemIndex in each application indexes `backendItems`; rewardLines is
+      // built with the same orders.map, so indexes line up 1:1.
+      const rewardApplications = buildAllRewardApplications(
+        runnableRewardPrograms,
+        rewardSelections,
+        rewardLines,
+      );
+      const rewardReceipt = buildRewardReceipt(runnableRewardPrograms, rewardSelections, rewardLines);
 
       // Create transaction payload for backend
       const transactionPayload = {
@@ -835,6 +953,9 @@ export default function Home() {
           discountAmount: details.discountAmount,
         }),
         items: backendItems,
+        // Only when non-empty: an API without the rewards feature rejects
+        // unknown keys (forbidNonWhitelisted), so never send `rewards: []`.
+        ...(rewardApplications.length > 0 && { rewards: rewardApplications }),
       };
 
       // Save transaction — offline-first (queues if network unavailable)
@@ -845,6 +966,7 @@ export default function Home() {
 
       if (result.queued) {
         // Offline: show confirmation instead of receipt, then clear order
+        setQueuedStampCount(stampCircleCount(rewardReceipt));
         setShowQueuedConfirm(true);
         setOrders([]);
       } else {
@@ -852,7 +974,11 @@ export default function Home() {
         const transaction: TransactionData = {
           transactionId,
           timestamp: new Date(),
-          items: [...orders],
+          items: orders.map((o) =>
+            getRewardDiscount(o) > 0
+              ? { ...o, rewardDiscount: getRewardDiscount(o), rewardLabel: rewardLabels[o.id] }
+              : o,
+          ),
           subtotal: grossOrderTotal,
           total: totalAmount - (details.discountAmount ?? 0),
           discountAmount: details.discountAmount,
@@ -867,6 +993,7 @@ export default function Home() {
           ...(paymentMethod === "split" && {
             payments: details.payments as PaymentSplitLine[],
           }),
+          ...(rewardReceipt.length > 0 && { rewards: rewardReceipt }),
         };
         setCurrentTransaction(transaction);
         setShowTransactionSummary(true);
@@ -1060,12 +1187,19 @@ export default function Home() {
             <Text className="text-gray-500 text-sm mt-2 text-center">
               {"You're offline. The transaction has been saved locally and will sync automatically when you reconnect."}
             </Text>
+            {queuedStampCount > 0 && (
+              <Text className="text-sm font-semibold mt-3 text-center" style={{ color: "#1f2937" }}>
+                Stamp the paper card: {queuedStampCount} circle{queuedStampCount === 1 ? "" : "s"}.
+              </Text>
+            )}
             <TouchableOpacity
               className="mt-5 w-full py-3 rounded-xl items-center"
               style={{ backgroundColor: primaryColor }}
               onPress={() => setShowQueuedConfirm(false)}
             >
-              <Text className="text-white font-semibold">OK</Text>
+              <Text className="font-semibold" style={{ color: textColor }}>
+                OK
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1842,6 +1976,13 @@ export default function Home() {
           null
         }
         hiddenPaymentMethods={['foodpanda', 'grab']}
+        rewardPrograms={runnableRewardPrograms}
+        rewardLines={rewardLines}
+        rewardSelections={rewardSelections}
+        onRewardSelectionsChange={handleRewardSelectionsChange}
+        rewardDiscountTotal={rewardDiscountTotal}
+        rewardsLoading={orderType === 'regular' && rewardsLoading}
+        rewardsFromCache={rewardsFromCache}
       />
 
       {/* Transaction Summary Modal */}

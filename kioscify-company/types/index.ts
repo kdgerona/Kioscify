@@ -47,13 +47,16 @@ export interface AddonPriceTier {
 }
 
 export type PrivilegeLevel = 'no_access' | 'read' | 'write' | 'all';
-export type PrivilegeSection = 'brands' | 'analytics' | 'users' | 'settings';
+export type PrivilegeSection = 'brands' | 'analytics' | 'users' | 'settings' | 'rewards';
 
 export interface CompanyPrivileges {
   brands: PrivilegeLevel;
   analytics: PrivilegeLevel;
   users: PrivilegeLevel;
   settings: PrivilegeLevel;
+  // Optional: users created before the Rewards section have no key, which the
+  // API (and getPrivilege) read as no_access.
+  rewards?: PrivilegeLevel;
 }
 
 export interface User {
@@ -294,3 +297,23 @@ export interface GrowthDataPoint {
   storeCount: number;
   brandCount: number;
 }
+
+// Reward types live with the builder (copied verbatim into the store portal).
+export type {
+  RewardProgramType,
+  RewardProgramStatus,
+  RewardProgramScope,
+  RewardEventType,
+  StampCondition,
+  MilestoneReward,
+  LoyaltyCardSlot,
+  LoyaltyCardConfig,
+  RewardCatalog,
+  RewardProgram,
+  CreateRewardProgramPayload,
+  UpdateRewardProgramPayload,
+  RewardEvent,
+  RewardEventsQuery,
+  RewardSummary,
+  Paginated,
+} from '@/components/rewards/types';

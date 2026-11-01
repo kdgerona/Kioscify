@@ -43,6 +43,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { SessionsModule } from './sessions/sessions.module';
 import { MenusModule } from './menus/menus.module';
 import { InventorySetupsModule } from './inventory-setups/inventory-setups.module';
+import { RewardsModule } from './rewards/rewards.module';
 
 @Module({
   imports: [
@@ -114,6 +115,9 @@ import { InventorySetupsModule } from './inventory-setups/inventory-setups.modul
     SubmittedInventoryReportsModule,
     UserShiftReportsModule,
     UserShiftInventoryReportsModule,
+
+    // Reward programs (loyalty cards) + reward event ledger
+    RewardsModule,
 
     // Price tiers (brand-scoped)
     PriceTiersModule,

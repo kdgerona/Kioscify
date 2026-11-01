@@ -624,6 +624,8 @@ model Transaction {
   voidRequester User?             @relation("VoidRequests", fields: [voidRequestedBy], references: [id], onDelete: SetNull)
   voidReviewer  User?             @relation("VoidReviews", fields: [voidReviewedBy], references: [id], onDelete: SetNull)
   items         TransactionItem[]
+  // Back-relation only (no stored field) — events live in reward_events.
+  rewardEvents  RewardEvent[]
 
   @@unique([tenantId, transactionId])
   @@unique([tenantId, clientId]) // offline deduplication
@@ -1349,4 +1351,108 @@ model AppRelease {
 enum AppReleaseStatus {
   DRAFT
   PUBLISHED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REWARDS: type-agnostic reward programs (Loyalty Card first)
+// New collections only — no field is added to any existing model, so nothing
+// needs backfilling. `config` is type-specific JSON validated by the matching
+// RewardTypeHandler in src/rewards/types/.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum RewardProgramType {
+  LOYALTY_CARD
+}
+
+enum RewardProgramScope {
+  COMPANY
+  STORE
+}
+
+enum RewardProgramStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum RewardEventType {
+  CARD_ISSUED
+  STAMP_ADDED
+  REWARD_REDEEMED
+}
+
+// companyId + brandId are always set; tenantId only for STORE scope.
+// COMPANY-scope programs apply only to stores enrolled via RewardProgramStore.
+model RewardProgram {
+  id          String              @id @default(auto()) @map("_id") @db.ObjectId
+  companyId   String              @db.ObjectId
+  brandId     String              @db.ObjectId
+  tenantId    String?             @db.ObjectId
+  scope       RewardProgramScope
+  type        RewardProgramType
+  name        String
+  description String?
+  status      RewardProgramStatus @default(DRAFT)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  config      Json
+  createdById String              @db.ObjectId
+  tombstone   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  stores RewardProgramStore[]
+  events RewardEvent[]
+
+  @@index([companyId, brandId])
+  @@index([tenantId])
+  @@map("reward_programs")
+}
+
+model RewardProgramStore {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  programId String   @db.ObjectId
+  tenantId  String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  program RewardProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, tenantId])
+  @@index([tenantId])
+  @@map("reward_program_stores")
+}
+
+// Ledger: one row per card issued / stamp / redemption, written atomically
+// with its Transaction. Name fields are snapshots taken at sale time.
+model RewardEvent {
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  programId      String            @db.ObjectId
+  programType    RewardProgramType
+  programName    String
+  tenantId       String            @db.ObjectId
+  companyId      String            @db.ObjectId
+  brandId        String            @db.ObjectId
+  transactionId  String            @db.ObjectId // Transaction.id (not the human transactionId)
+  userId         String            @db.ObjectId
+  type           RewardEventType
+  slotKey        String?
+  slotLabel      String?
+  itemIndex      Int?
+  productName    String?
+  discountAmount Float?
+  isVoided       Boolean           @default(false)
+  // SOFT validation problems found at sync (program/catalog changed after an
+  // offline sale). Empty for clean events. New model, so no backfill needed.
+  validationWarnings String[]      @default([])
+  occurredAt     DateTime // = transaction timestamp
+  createdAt      DateTime          @default(now())
+
+  program     RewardProgram @relation(fields: [programId], references: [id], onDelete: Restrict)
+  transaction Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, occurredAt])
+  @@index([programId, occurredAt])
+  @@index([transactionId])
+  @@map("reward_events")
 }

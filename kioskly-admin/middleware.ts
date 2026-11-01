@@ -21,10 +21,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Public pay page (/pay/<token>) and billing receipts
-  // (/billing/receipts/<id>) are app routes, not /<company>/<brand> paths.
-  // They must not fall into the rewrite below.
-  if (pathname.startsWith('/pay/') || pathname.startsWith('/billing/')) {
+  // Public pay page (/pay/<token>), billing receipts (/billing/receipts/<id>)
+  // and reward programs (/rewards/<programId>, /rewards/new) are app routes,
+  // not /<company>/<brand> paths. They must not fall into the rewrite below,
+  // which would treat "rewards" as a company slug and show "store no longer active".
+  // Any future nested route under app/(main) needs adding here too.
+  if (pathname.startsWith('/pay/') || pathname.startsWith('/billing/') || pathname.startsWith('/rewards/')) {
     return NextResponse.next();
   }
 

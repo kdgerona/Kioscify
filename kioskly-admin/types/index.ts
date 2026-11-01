@@ -47,13 +47,15 @@ export interface StoreRef {
 }
 
 export type StorePrivilegeLevel = 'no_access' | 'read' | 'write' | 'all';
-export type StorePrivilegeSection = 'transactions' | 'expenses' | 'inventory' | 'users' | 'settings';
+export type StorePrivilegeSection = 'transactions' | 'expenses' | 'inventory' | 'users' | 'settings' | 'rewards';
 export interface StorePrivileges {
   transactions: StorePrivilegeLevel;
   expenses: StorePrivilegeLevel;
   inventory: StorePrivilegeLevel;
   users: StorePrivilegeLevel;
   settings: StorePrivilegeLevel;
+  /** Missing on users saved before rewards existed: treated as no access. */
+  rewards?: StorePrivilegeLevel;
 }
 
 export interface User {
@@ -244,9 +246,27 @@ export interface Transaction {
   voidRequester?: User;
   voidReviewer?: User;
   items?: TransactionItem[];
+  /** Reward events recorded with this sale (loyalty card issued / stamps / redemptions). */
+  rewards?: TransactionReward[];
   user?: User;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TransactionReward {
+  id: string;
+  programId: string;
+  programType: string;
+  programName: string;
+  type: "CARD_ISSUED" | "STAMP_ADDED" | "REWARD_REDEEMED";
+  slotKey: string | null;
+  slotLabel: string | null;
+  itemIndex: number | null;
+  productName: string | null;
+  discountAmount: number | null;
+  isVoided: boolean;
+  validationWarnings: string[];
+  occurredAt: string;
 }
 
 export interface AuthResponse {

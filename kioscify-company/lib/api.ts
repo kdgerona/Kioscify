@@ -25,6 +25,14 @@ import type {
   Store,
   Menu,
   InventorySetup,
+  RewardProgram,
+  RewardProgramStatus,
+  CreateRewardProgramPayload,
+  UpdateRewardProgramPayload,
+  RewardEvent,
+  RewardEventsQuery,
+  RewardSummary,
+  Paginated,
 } from '@/types';
 
 const API_BASE_URL =
@@ -687,6 +695,63 @@ class ApiClient {
       '/analytics/company/growth',
       { params: { startDate, endDate } },
     );
+    return data;
+  }
+
+  // ─── Rewards ──────────────────────────────────────────────────────────────
+
+  async getRewardPrograms(params: { brandId?: string; status?: RewardProgramStatus; scope?: 'COMPANY' | 'STORE' } = {}): Promise<RewardProgram[]> {
+    const { data } = await this.client.get<RewardProgram[]>('/rewards/programs', { params });
+    return data;
+  }
+
+  async getRewardProgram(id: string): Promise<RewardProgram> {
+    const { data } = await this.client.get<RewardProgram>(`/rewards/programs/${id}`);
+    return data;
+  }
+
+  async createRewardProgram(payload: CreateRewardProgramPayload): Promise<RewardProgram> {
+    const { data } = await this.client.post<RewardProgram>('/rewards/programs', payload);
+    return data;
+  }
+
+  async updateRewardProgram(id: string, payload: UpdateRewardProgramPayload): Promise<RewardProgram> {
+    const { data } = await this.client.patch<RewardProgram>(`/rewards/programs/${id}`, payload);
+    return data;
+  }
+
+  async deleteRewardProgram(id: string): Promise<void> {
+    await this.client.delete(`/rewards/programs/${id}`);
+  }
+
+  /** Replaces the enrolled set; [] unenrolls every store. */
+  async setRewardProgramStores(id: string, tenantIds: string[]): Promise<RewardProgram> {
+    const { data } = await this.client.put<RewardProgram>(`/rewards/programs/${id}/stores`, { tenantIds });
+    return data;
+  }
+
+  // Boolean filters are sent only when true: the API's whitelisting
+  // ValidationPipe treats "false" the same as absent anyway.
+  private rewardEventParams(query: RewardEventsQuery) {
+    const { includeVoided, onlyFlagged, ...rest } = query;
+    return {
+      ...Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined && v !== '')),
+      ...(includeVoided ? { includeVoided: true } : {}),
+      ...(onlyFlagged ? { onlyFlagged: true } : {}),
+    };
+  }
+
+  async getRewardEvents(query: RewardEventsQuery): Promise<Paginated<RewardEvent>> {
+    const { data } = await this.client.get<Paginated<RewardEvent>>('/rewards/events', {
+      params: this.rewardEventParams({ page: 1, limit: 20, ...query }),
+    });
+    return data;
+  }
+
+  async getRewardSummary(query: Omit<RewardEventsQuery, 'page' | 'limit'>): Promise<RewardSummary> {
+    const { data } = await this.client.get<RewardSummary>('/rewards/summary', {
+      params: this.rewardEventParams(query),
+    });
     return data;
   }
 }

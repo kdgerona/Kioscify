@@ -21,6 +21,7 @@ const KEYS = {
   latestInventory: "@kioscify:cache:latest_inventory",
   transactions: "@kioscify:cache:transactions",
   expenses: "@kioscify:cache:expenses",
+  rewardPrograms: "@kioscify:cache:reward_programs",
 };
 
 async function saveCache(key: string, data: unknown[]): Promise<void> {
@@ -47,6 +48,11 @@ export const getCachedProducts = () => readCache<any>(KEYS.products);
 
 export const cacheCategories = (data: unknown[]) => saveCache(KEYS.categories, data);
 export const getCachedCategories = () => readCache<any>(KEYS.categories);
+
+// ─── Active reward programs (GET /rewards/active) ────────────────────────────
+
+export const cacheRewardPrograms = (data: unknown[]) => saveCache(KEYS.rewardPrograms, data);
+export const getCachedRewardPrograms = () => readCache<any>(KEYS.rewardPrograms);
 
 // ─── Inventory categories (dynamic, replaces the old hardcoded enum) ──────────
 

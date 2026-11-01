@@ -27,6 +27,7 @@ import {
   Check,
   Clock,
   CreditCard,
+  Gift,
 } from "lucide-react";
 import Image from "next/image";
 import { api } from "@/lib/api";
@@ -55,6 +56,7 @@ const ALL_NAVIGATION: NavigationItem[] = [
   { name: "Expenses", href: "/expenses", icon: Wallet, section: "expenses" },
   { name: "Analytics", href: "/analytics", icon: BarChart3, section: null },
   { name: "Sales Reports", href: "/sales-reports", icon: FileText, section: "transactions" },
+  { name: "Rewards", href: "/rewards", icon: Gift, section: "rewards" },
   { name: "Inventory", href: "/inventory", icon: Boxes, section: "inventory" },
   {
     name: "Inventory Reports",

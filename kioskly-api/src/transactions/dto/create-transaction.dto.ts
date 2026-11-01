@@ -10,12 +10,14 @@ import {
   IsInt,
   IsDateString,
   Min,
+  ArrayMaxSize,
   Validate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
   ValidationArguments,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { RewardApplicationDto } from '../../rewards/dto/reward-application.dto';
 
 const PAYMENT_METHODS = ['CASH', 'GCASH', 'PAYMAYA', 'ONLINE', 'FOODPANDA', 'GRAB', 'SPLIT'] as const;
 type PaymentMethodValue = (typeof PAYMENT_METHODS)[number];
@@ -213,4 +215,19 @@ export class CreateTransactionDto {
   @IsDateString()
   @IsOptional()
   timestamp?: string;
+
+  @ApiProperty({
+    type: [RewardApplicationDto],
+    required: false,
+    description:
+      'Reward program applications (card issued / stamps / redemptions). Validated server-side and ' +
+      'recorded as RewardEvents atomically with the transaction. For REWARD_REDEEMED the same amount ' +
+      'must also be included in items[itemIndex].discountAmount.',
+  })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => RewardApplicationDto)
+  @IsOptional()
+  rewards?: RewardApplicationDto[];
 }

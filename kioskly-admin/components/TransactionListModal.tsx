@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Transaction } from "@/types";
 import { formatCurrency, getPaymentMethodLabel, formatUserName, getCombinedDiscount } from "@/lib/utils";
+import { TransactionRewards } from "@/components/TransactionRewards";
 
 interface TransactionListModalProps {
   isOpen: boolean;
@@ -241,6 +242,12 @@ export default function TransactionListModal({
                           </span>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {transaction.rewards && transaction.rewards.length > 0 && (
+                    <div className="mb-3 sm:mb-4">
+                      <TransactionRewards rewards={transaction.rewards} compact />
                     </div>
                   )}
 

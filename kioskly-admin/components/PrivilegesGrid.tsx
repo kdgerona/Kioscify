@@ -2,9 +2,9 @@
 
 import type { StorePrivilegeLevel } from '@/types';
 
-type Section = 'transactions' | 'expenses' | 'inventory' | 'users' | 'settings';
+type Section = 'transactions' | 'expenses' | 'inventory' | 'users' | 'settings' | 'rewards';
 
-type Privileges = Record<Section, StorePrivilegeLevel>;
+type Privileges = Record<Exclude<Section, 'rewards'>, StorePrivilegeLevel> & { rewards?: StorePrivilegeLevel };
 
 interface Props {
   value: Privileges;
@@ -16,6 +16,7 @@ const SECTIONS: { key: Section; label: string }[] = [
   { key: 'transactions', label: 'Transactions' },
   { key: 'expenses', label: 'Expenses' },
   { key: 'inventory', label: 'Inventory' },
+  { key: 'rewards', label: 'Rewards' },
   { key: 'users', label: 'Users' },
   { key: 'settings', label: 'Settings' },
 ];
@@ -53,7 +54,7 @@ export function PrivilegesGrid({ value, onChange, disabled }: Props) {
           <span className="text-sm text-gray-700 font-medium">{label}</span>
           <div className="grid grid-cols-4 gap-1">
             {LEVELS.map(({ value: level, label: levelLabel }) => {
-              const isActive = value[key] === level;
+              const isActive = (value[key] ?? 'no_access') === level;
               return (
                 <button
                   key={level}

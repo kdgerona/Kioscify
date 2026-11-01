@@ -11,6 +11,7 @@ const DEFAULT_FULL: CompanyPrivileges = {
   analytics: 'all',
   users: 'all',
   settings: 'all',
+  rewards: 'all',
 };
 
 interface Props {

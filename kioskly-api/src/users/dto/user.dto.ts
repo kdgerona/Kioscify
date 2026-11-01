@@ -60,7 +60,7 @@ export class UpdateStoreUserDto {
 
   @ApiPropertyOptional({
     description: 'Privilege levels per store section. Only admins with users:all can set this.',
-    example: { transactions: 'read', expenses: 'no_access', inventory: 'read', users: 'read', settings: 'read' },
+    example: { transactions: 'read', expenses: 'no_access', inventory: 'read', users: 'read', settings: 'read', rewards: 'read' },
   })
   @IsOptional()
   @IsObject()
@@ -70,6 +70,7 @@ export class UpdateStoreUserDto {
     inventory: string;
     users: string;
     settings: string;
+    rewards?: string;
   } | null;
 }
 
@@ -96,7 +97,7 @@ export class CreateCompanyUserDto {
 
   @ApiPropertyOptional({
     description: 'Privilege levels per section. Omit to default to read for all sections.',
-    example: { brands: 'read', analytics: 'no_access', users: 'read', settings: 'read' },
+    example: { brands: 'read', analytics: 'no_access', users: 'read', settings: 'read', rewards: 'read' },
   })
   @IsOptional()
   @IsObject()
@@ -105,6 +106,7 @@ export class CreateCompanyUserDto {
     analytics: string;
     users: string;
     settings: string;
+    rewards?: string;
   };
 }
 
@@ -116,7 +118,7 @@ export class UpdateCompanyUserDto {
 
   @ApiPropertyOptional({
     description: 'Update privilege levels. Only admins with users:all can set this.',
-    example: { brands: 'write', analytics: 'read', users: 'read', settings: 'no_access' },
+    example: { brands: 'write', analytics: 'read', users: 'read', settings: 'no_access', rewards: 'write' },
   })
   @IsOptional()
   @IsObject()
@@ -125,5 +127,6 @@ export class UpdateCompanyUserDto {
     analytics: string;
     users: string;
     settings: string;
+    rewards?: string;
   } | null;
 }

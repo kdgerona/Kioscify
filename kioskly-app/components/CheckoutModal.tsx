@@ -8,6 +8,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,6 +16,14 @@ import { useState, useEffect, useRef } from "react";
 import { useTenant } from "@/contexts/TenantContext";
 import { useDeviceType } from "@/hooks/useDeviceType";
 import { DISCOUNT_PERCENTAGES, computeDiscountAmount } from "@/utils/discount";
+import RewardsPanel from "./RewardsPanel";
+import {
+  getRewardType,
+  sanitizeSelections,
+  type ActiveRewardProgram,
+  type RewardCartLine,
+  type RewardSelections,
+} from "@/utils/rewards";
 
 export type PaymentMethod =
   | "cash"
@@ -50,6 +59,19 @@ type CheckoutModalProps = {
   error?: string | null;
   initialPaymentMethod?: PaymentMethod;
   hiddenPaymentMethods?: PaymentMethod[];
+  // ── Loyalty / rewards (state owned by home.tsx) ──
+  /** Runnable programs. Empty → the Loyalty Card entry is hidden entirely. */
+  rewardPrograms?: ActiveRewardProgram[];
+  /** Cart lines in payload `items` order. */
+  rewardLines?: RewardCartLine[];
+  rewardSelections?: RewardSelections;
+  onRewardSelectionsChange?: (next: RewardSelections) => void;
+  /** Sum of reward redemptions already included in totalAmount. */
+  rewardDiscountTotal?: number;
+  /** First launch with no cache yet: show a disabled loading entry. */
+  rewardsLoading?: boolean;
+  /** Programs came from the offline cache. */
+  rewardsFromCache?: boolean;
 };
 
 type PaymentDetails = {
@@ -91,6 +113,13 @@ export default function CheckoutModal({
   error = null,
   initialPaymentMethod = null,
   hiddenPaymentMethods = [],
+  rewardPrograms = [],
+  rewardLines = [],
+  rewardSelections = {},
+  onRewardSelectionsChange,
+  rewardDiscountTotal = 0,
+  rewardsLoading = false,
+  rewardsFromCache = false,
 }: CheckoutModalProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initialPaymentMethod);
   const [cashReceived, setCashReceived] = useState("");
@@ -102,6 +131,8 @@ export default function CheckoutModal({
   const [customDiscountAmount, setCustomDiscountAmount] = useState("");
   const [discountMode, setDiscountMode] = useState<"percentage" | "amount" | null>(null);
   const [splitRows, setSplitRows] = useState<SplitFormRow[]>([]);
+  const [showRewards, setShowRewards] = useState(false);
+  const [rewardNotice, setRewardNotice] = useState<string | null>(null);
   const splitIdCounter = useRef(0);
   const nextSplitId = () => {
     splitIdCounter.current += 1;
@@ -138,6 +169,8 @@ export default function CheckoutModal({
       setCustomDiscountAmount("");
       setDiscountMode(null);
       setSplitRows([]);
+      setShowRewards(false);
+      setRewardNotice(null);
     }
   }, [visible, initialPaymentMethod]);
 
@@ -180,12 +213,41 @@ export default function CheckoutModal({
     setCustomDiscountAmount("");
     setDiscountMode(null);
     setSplitRows([]);
+    setShowRewards(false);
+    setRewardNotice(null);
   };
 
   const computedDiscount = (): number =>
     computeDiscountAmount(totalAmount, discountMode, discountPercentage, customDiscountAmount);
 
   const finalTotal = totalAmount - computedDiscount();
+
+  // Keep reward selections valid against the current cart and final total
+  // (cart edited since stamping, order discount pushing the total under a
+  // TRANSACTION_MIN_TOTAL stamp, program ended mid-shift). Idempotent, so it
+  // settles after at most one update.
+  useEffect(() => {
+    if (!visible || !onRewardSelectionsChange) return;
+    const res = sanitizeSelections(rewardPrograms, rewardSelections, rewardLines, finalTotal);
+    if (!res.changed) return;
+    onRewardSelectionsChange(res.selections);
+    const parts: string[] = res.endedNames.map((n) => `${n} has ended.`);
+    if (res.lost) parts.push("Some stamps were cleared because the order changed.");
+    if (parts.length) setRewardNotice(parts.join(" "));
+  }, [visible, rewardPrograms, rewardSelections, rewardLines, finalTotal, onRewardSelectionsChange]);
+
+  const rewardCount = rewardPrograms.reduce(
+    (n, p) => n + (getRewardType(p.type)?.count(rewardSelections[p.id]) ?? 0),
+    0,
+  );
+  const rewardSummaryGroups = rewardPrograms
+    .map((p) => ({ name: p.name, chips: getRewardType(p.type)?.summarize(p, rewardSelections[p.id]) ?? [] }))
+    .filter((g) => g.chips.length > 0);
+  const rewardSummary =
+    rewardSummaryGroups.length > 1
+      ? rewardSummaryGroups.map((g) => `${g.name}: ${g.chips.join(" · ")}`).join("  |  ")
+      : (rewardSummaryGroups[0]?.chips.join(" · ") ?? "");
+  const showRewardEntry = rewardsLoading || rewardPrograms.length > 0;
 
   const handleClose = () => {
     resetForm();
@@ -382,7 +444,13 @@ export default function CheckoutModal({
               style={{ backgroundColor: backgroundColor }}
             >
               <View className="flex flex-row items-center justify-center">
-                {paymentMethod && !initialPaymentMethod && (
+                {showRewards ? (
+                  <TouchableOpacity onPress={() => setShowRewards(false)} className="mr-3" accessibilityLabel="Back to checkout">
+                    <Text className={`text-black font-bold mb-3 ${isPhone ? "text-xl" : "text-2xl"}`}>
+                      ←
+                    </Text>
+                  </TouchableOpacity>
+                ) : paymentMethod && !initialPaymentMethod && (
                   <TouchableOpacity onPress={handleBack} className="mr-3">
                     <Text className={`text-black font-bold mb-3 ${isPhone ? "text-xl" : "text-2xl"}`}>
                       ←
@@ -393,7 +461,7 @@ export default function CheckoutModal({
                   className={`${titleSize} font-bold`}
                   style={{ color: textColor }}
                 >
-                  Checkout
+                  {showRewards ? "Loyalty Card" : "Checkout"}
                 </Text>
               </View>
               <TouchableOpacity
@@ -417,6 +485,23 @@ export default function CheckoutModal({
               showsVerticalScrollIndicator={true}
               contentContainerStyle={{ paddingBottom: 20 }}
             >
+              {showRewards ? (
+                <RewardsPanel
+                  programs={rewardPrograms}
+                  lines={rewardLines}
+                  finalTotal={finalTotal}
+                  selections={rewardSelections}
+                  onChange={(next) => {
+                    setRewardNotice(null);
+                    onRewardSelectionsChange?.(next);
+                  }}
+                  primaryColor={primaryColor}
+                  textColor={textColor}
+                  isPhone={isPhone}
+                  notice={rewardNotice}
+                />
+              ) : (
+              <>
               {/* Total Amount Display */}
               <View
                 className="border-2 rounded-lg p-4 mb-4"
@@ -485,6 +570,61 @@ export default function CheckoutModal({
                   </View>
                 )}
               </View>
+
+              {rewardDiscountTotal > 0 && (
+                <Text className="text-sm text-green-700 -mt-2 mb-4">
+                  incl. reward discounts −₱{rewardDiscountTotal.toFixed(2)}
+                </Text>
+              )}
+
+              {/* Loyalty Card entry — hidden when no programs are running */}
+              {showRewardEntry && (
+                <TouchableOpacity
+                  className={`flex-row items-center rounded-lg border-2 px-4 mb-4 ${isPhone ? "py-2.5" : "py-3"} ${paymentMethod ? "opacity-60" : ""}`}
+                  style={{ borderColor: `${primaryColor}40`, backgroundColor: `${primaryColor}08`, minHeight: 64 }}
+                  disabled={rewardsLoading || !!paymentMethod}
+                  onPress={() => setShowRewards(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Loyalty Card. ${rewardSummary || "Tap to stamp or redeem"}`}
+                >
+                  <Ionicons name="ticket-outline" size={isPhone ? 20 : 24} color={textColor} />
+                  <View className="flex-1 ml-3">
+                    <Text className={`${isPhone ? "text-sm" : "text-base"} font-bold`} style={{ color: textColor }}>
+                      Loyalty Card
+                    </Text>
+                    {rewardsLoading ? (
+                      <Text className="text-sm text-gray-500">Loading rewards…</Text>
+                    ) : (
+                      <Text className="text-sm text-gray-500" numberOfLines={2}>
+                        {rewardSummary || "Tap to stamp or redeem"}
+                      </Text>
+                    )}
+                    {rewardsFromCache && !rewardsLoading && (
+                      <Text className="text-xs text-amber-600">Offline: using saved programs</Text>
+                    )}
+                    {rewardNotice && !rewardsLoading && (
+                      <Text className="text-sm text-amber-700">{rewardNotice}</Text>
+                    )}
+                  </View>
+                  {rewardsLoading ? (
+                    <ActivityIndicator color={primaryColor} />
+                  ) : (
+                    <>
+                      {rewardCount > 0 && (
+                        <View
+                          className="h-7 px-2 rounded-full items-center justify-center mr-2"
+                          style={{ minWidth: 28, backgroundColor: primaryColor }}
+                        >
+                          <Text className="text-sm font-bold" style={{ color: textColor }}>
+                            {rewardCount}
+                          </Text>
+                        </View>
+                      )}
+                      {!paymentMethod && <Ionicons name="chevron-forward" size={20} color={textColor} />}
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
 
               {/* Discount Section — editable before payment method is selected */}
               {!paymentMethod && (
@@ -1020,10 +1160,27 @@ export default function CheckoutModal({
                   </Text>
                 </View>
               )}
+              </>
+              )}
             </ScrollView>
 
+            {/* Rewards footer */}
+            {showRewards && (
+              <View className="px-6 py-4 border-t border-gray-200">
+                <TouchableOpacity
+                  className="rounded-lg items-center justify-center px-4"
+                  style={{ backgroundColor: primaryColor, minHeight: 56 }}
+                  onPress={() => setShowRewards(false)}
+                >
+                  <Text className={`font-bold ${headingSize}`} style={{ color: textColor }} numberOfLines={1}>
+                    {rewardSummary ? `Done · ${rewardSummary}` : "Done"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Modal Footer */}
-            {paymentMethod && (
+            {paymentMethod && !showRewards && (
               <View className="px-6 py-4 border-t border-gray-200">
                 <TouchableOpacity
                   className="rounded-lg py-4 items-center"

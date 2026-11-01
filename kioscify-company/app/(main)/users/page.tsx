@@ -48,7 +48,7 @@ export default function UsersPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   // Privileges state for create form
-  const DEFAULT_PRIVILEGES: CompanyPrivileges = { brands: 'read', analytics: 'read', users: 'read', settings: 'read' };
+  const DEFAULT_PRIVILEGES: CompanyPrivileges = { brands: 'read', analytics: 'read', users: 'read', settings: 'read', rewards: 'read' };
   const [newPrivileges, setNewPrivileges] = useState<CompanyPrivileges>(DEFAULT_PRIVILEGES);
 
   // Edit privileges modal state

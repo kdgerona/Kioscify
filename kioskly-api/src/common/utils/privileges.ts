@@ -1,6 +1,12 @@
 export type PrivilegeLevel = 'no_access' | 'read' | 'write' | 'all';
-export type PrivilegeSection = 'brands' | 'analytics' | 'users' | 'settings';
-export type StorePrivilegeSection = 'transactions' | 'expenses' | 'inventory' | 'users' | 'settings';
+export type PrivilegeSection = 'brands' | 'analytics' | 'users' | 'settings' | 'rewards';
+export type StorePrivilegeSection =
+  | 'transactions'
+  | 'expenses'
+  | 'inventory'
+  | 'users'
+  | 'settings'
+  | 'rewards';
 
 const LEVEL_RANK: Record<PrivilegeLevel, number> = {
   no_access: 0,
@@ -24,6 +30,7 @@ export const DEFAULT_PRIVILEGES: Record<PrivilegeSection, PrivilegeLevel> = {
   analytics: 'read',
   users: 'read',
   settings: 'read',
+  rewards: 'read',
 };
 
 export const DEFAULT_STORE_PRIVILEGES: Record<StorePrivilegeSection, PrivilegeLevel> = {
@@ -32,4 +39,5 @@ export const DEFAULT_STORE_PRIVILEGES: Record<StorePrivilegeSection, PrivilegeLe
   inventory: 'read',
   users: 'read',
   settings: 'read',
+  rewards: 'read',
 };

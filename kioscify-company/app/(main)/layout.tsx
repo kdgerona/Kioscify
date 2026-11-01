@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   Building2,
+  Gift,
 } from 'lucide-react';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -124,6 +125,7 @@ function MainLayoutInner({ children }: { children: React.ReactNode }) {
         { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, section: null },
         { href: '/brands', label: 'Brands', icon: BookOpen, section: 'brands' as const },
         { href: '/analytics', label: 'Analytics', icon: BarChart2, section: 'analytics' as const },
+        { href: '/rewards', label: 'Rewards', icon: Gift, section: 'rewards' as const },
         { href: '/users', label: 'Users', icon: Users, section: 'users' as const },
         { href: '/settings', label: 'Settings', icon: Settings, section: null },
       ].filter(item => item.section === null || hasPrivilege(item.section, 'read'));

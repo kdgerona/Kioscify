@@ -30,6 +30,7 @@ import { useTenant } from "@/contexts/TenantContext";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Pagination } from "@/components/ui/pagination";
 import { usePagination } from "@/lib/use-pagination";
+import { TransactionRewards } from "@/components/TransactionRewards";
 import {
   Select,
   SelectContent,
@@ -206,6 +207,29 @@ export default function TransactionsPage() {
       if (isLatest()) setLoadingVoidRequests(false);
     }
   }, [voidStatusFilter, voidPage, voidPageSize, applyVoidResult, beginVoidRequest]);
+
+  // Deep link: /transactions?transaction=<id> (e.g. from Rewards activity)
+  // opens that transaction's detail modal. Read from window.location instead
+  // of useSearchParams so the page needs no Suspense boundary.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("transaction");
+    if (!id) return;
+    let cancelled = false;
+    api
+      .getTransactionById(id)
+      .then((t) => {
+        if (!cancelled) setSelectedTransaction(t);
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(getErrorMessage(error, "Transaction not found"));
+      })
+      .finally(() => {
+        if (!cancelled) router.replace("/transactions", { scroll: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   // Reset void request form when selected transaction changes
   useEffect(() => {
@@ -1049,6 +1073,9 @@ export default function TransactionsPage() {
                     </div>
                   </div>
                 )}
+
+              {/* Rewards (loyalty card issued / stamps / redemptions) */}
+              <TransactionRewards rewards={selectedTransaction.rewards} />
 
               {/* Financial Summary */}
               <div>
